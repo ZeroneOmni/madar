@@ -2,7 +2,7 @@
 
 Madar is a fork of [T3 Code](https://github.com/pingdotgg/t3code), maintained by ZeroneOmni.
 
-Development uses pull requests, required CI, and Macroscope review. Stable desktop releases are built manually for Windows x64/ARM64, macOS Apple Silicon, and Linux x64/ARM64.
+Development uses pull requests and required CI. Stable desktop releases are built manually for Windows x64/ARM64, macOS Apple Silicon, and Linux x64/ARM64.
 
 See [maintainer setup and releases](docs/operations/madar.md).
 

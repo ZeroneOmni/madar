@@ -1,16 +1,14 @@
 # Maintaining Madar
 
-Create a short branch name without slashes, push it, and open a pull request against `main`. CI's `Check` is required. Macroscope reviews new pull requests once its GitHub app is installed and the repository is enabled in its dashboard. Read its findings, fix valid ones, then squash merge. No second human approval is required for the solo maintainer.
+Create a short branch name without slashes, push it, and open a pull request against `main`. CI's `Check` is required. Review the changes and squash merge after checks pass. No second human approval is required for the solo maintainer.
 
-## Runners and review
+## Runners
 
 Install Blacksmith on the `ZeroneOmni` organization and allow the `madar` repository. Set the repository Actions variable `BLACKSMITH_ENABLED` to `true` after the dashboard shows runners are ready. With the variable unset, workflows use standard GitHub runners. Windows ARM64 uses GitHub's `windows-11-arm` runner in either mode.
 
-Install Macroscope for this repository and enable its standard PR review. Review its subscription and spending limits in the dashboard. Upstream's optional custom agents were removed; they could each spend up to $25 per PR. AI review is advisory; CI remains the merge gate. An author may merge their own PR after addressing findings.
-
 ## Stable releases
 
-After merging and waiting for main CI to pass, open **Actions â†’ Release â†’ Run workflow** on `main`. Enter a new stable version such as `0.1.0`. Optionally enter the full SHA of an older merged main commit whose main CI passed. A version tag cannot be reused. The workflow builds that exact commit and creates a draft release by default. Test its installers before publishing the draft in GitHub Releases. Select **Publish immediately** only when you intend to ship it directly.
+After merging and waiting for main CI to pass, open **Actions > Release > Run workflow** on `main`. Enter a new stable version such as `0.1.0`. Optionally enter the full SHA of an older merged main commit whose main CI passed. A version tag cannot be reused. The workflow builds that exact commit and creates a draft release by default. Test its installers before publishing the draft in GitHub Releases. Select **Publish immediately** only when you intend to ship it directly.
 
 | Platform | Native build          | Files                                 |
 | -------- | --------------------- | ------------------------------------- |
@@ -32,4 +30,4 @@ This fork does not configure T3's hosted Clerk, relay, telemetry exporters, mark
 
 Madar uses its own app ID, `madar:` / `madar-dev:` URL handlers, Electron profile, default `.madar` home, and `madar` desktop launcher. Keep its `MADAR_HOME` override unset unless intentionally choosing a different folder. Internal workspace package names and other compatibility environment variable names retain their upstream names to make updates easier.
 
-Fetch upstream changes, integrate them on a new branch, and open a PR so CI and Macroscope run before merging. The `upstream` remote points to `pingdotgg/t3code`; release assets always belong to this fork.
+Fetch upstream changes, integrate them on a new branch, and open a PR so CI runs before merging. The `upstream` remote points to `pingdotgg/t3code`; release assets always belong to this fork.
