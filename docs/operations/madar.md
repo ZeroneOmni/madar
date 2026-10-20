@@ -4,7 +4,7 @@ Create a short branch name without slashes, push it, and open a pull request aga
 
 ## Runners
 
-Install Blacksmith on the `ZeroneOmni` organization and allow the `madar` repository. Set the repository Actions variable `BLACKSMITH_ENABLED` to `true` after the dashboard shows runners are ready. With the variable unset, workflows use standard GitHub runners. Windows ARM64 uses GitHub's `windows-11-arm` runner in either mode.
+Install Blacksmith on the `ZeroneOmni` organization and allow the `madar` repository. Set the repository Actions variable `BLACKSMITH_ENABLED` to `true` after the dashboard shows runners are ready. With the variable unset, workflows use standard GitHub runners.
 
 ## Stable releases
 
@@ -12,7 +12,7 @@ After merging and waiting for main CI to pass, open **Actions > Release > Run wo
 
 | Platform | Native build          | Files                                 |
 | -------- | --------------------- | ------------------------------------- |
-| Windows  | x64 and ARM64         | NSIS installers, CLI zip archives     |
+| Windows  | x64                   | NSIS installers, CLI zip archives     |
 | macOS    | ARM64 (Apple Silicon) | DMG, updater zip, CLI archive         |
 | Linux    | x64 and ARM64         | AppImage, Debian package, CLI archive |
 

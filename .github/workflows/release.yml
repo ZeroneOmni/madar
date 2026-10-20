@@ -202,40 +202,9 @@ jobs:
       resource_key: win32-x64
       cli_archive: true
 
-  desktop_win_arm64:
-    name: Desktop Windows arm64
-    needs: [preflight, build_bundle]
-    uses: ./.github/workflows/release-desktop.yml
-    secrets: inherit
-    with:
-      version: ${{ needs.preflight.outputs.version }}
-      ref: ${{ needs.preflight.outputs.ref }}
-      release_channel: stable
-      relay_client_tracing: false
-      clerk_publishable_key: ""
-      clerk_jwt_template: ""
-      clerk_cli_oauth_client_id: ""
-      relay_url: ""
-      label: Windows arm64
-      runner: windows-11-arm
-      platform: win
-      target: nsis
-      arch: arm64
-      rust_target: aarch64-pc-windows-msvc
-      resource_key: win32-arm64
-      cli_archive: true
-
   release:
     name: Create GitHub release
-    needs:
-      [
-        preflight,
-        desktop_mac_arm64,
-        desktop_linux_x64,
-        desktop_linux_arm64,
-        desktop_win_x64,
-        desktop_win_arm64,
-      ]
+    needs: [preflight, desktop_mac_arm64, desktop_linux_x64, desktop_linux_arm64, desktop_win_x64]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -266,20 +235,16 @@ jobs:
           pattern: cli-*
           merge-multiple: true
           path: release-assets
-      - name: Merge Windows updater manifests
+      - name: Prepare Windows updater manifest
         shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/merge-update-manifests.ts --platform win \
-            release-assets/latest-win-x64.yml release-assets/latest-win-arm64.yml release-assets/latest.yml
-          rm release-assets/latest-win-x64.yml release-assets/latest-win-arm64.yml
+        run: mv release-assets/latest-win-x64.yml release-assets/latest.yml
       - name: Verify assets and write checksums
         shell: bash
         run: |
           set -euo pipefail
           cd release-assets
           # Every native target must ship its CLI archive, used by the updater and WSL.
-          for target in darwin-arm64 linux-x64 linux-arm64 win32-x64 win32-arm64; do
+          for target in darwin-arm64 linux-x64 linux-arm64 win32-x64; do
             compgen -G "t3-${{ needs.preflight.outputs.version }}-$target.*" > /dev/null
           done
           test -f latest.yml
