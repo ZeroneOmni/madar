@@ -232,7 +232,7 @@ describe("AgentScope service", () => {
           name: "terminal",
           survivesRestart: true,
         });
-        expect(sliceOf(terminal)).toBe("app-t3code-agents.slice");
+        expect(sliceOf(terminal)).toBe("app-madar-agents.slice");
         expect(calls.filter(([, verb]) => verb === "stop")).toHaveLength(1);
       }),
     ),

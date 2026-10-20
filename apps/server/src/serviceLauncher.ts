@@ -90,7 +90,7 @@ async function pathExists(target: string): Promise<boolean> {
 const MANAGED_SERVICE_ENV_NAMES = new Set([
   "PATH",
   "MADAR_HOME",
-  "T3_BOOT_SERVICE_UNIT",
+  "MADAR_BOOT_SERVICE_UNIT",
   SERVICE_LAUNCHER_CONTEXT_ENV,
 ]);
 

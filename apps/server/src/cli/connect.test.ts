@@ -74,7 +74,7 @@ it.effect("reports pending onboarding until the handed-off service is ready", ()
     const plan = {
       program: ["/test/t3", "__service-launcher"],
       baseDir: "/test",
-      unitPath: "/test/t3code.service",
+      unitPath: "/test/madar.service",
       logPath: "/test/boot-service.log",
       handedOff: true,
     };

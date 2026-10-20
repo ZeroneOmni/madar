@@ -139,7 +139,7 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
         const inherited = Object.freeze({
           PATH: "inherited-path",
           MADAR_HOME: root,
-          T3_BOOT_SERVICE_UNIT: "managed-unit",
+          MADAR_BOOT_SERVICE_UNIT: "managed-unit",
           T3_SERVICE_LAUNCHER_CONTEXT: "managed-context",
           T3CODE_PORT: "ambient",
         });
@@ -159,7 +159,7 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
             "Path=/bad",
             "MADAR_HOME=/bad",
             "t3code_home=/bad",
-            "T3_BOOT_SERVICE_UNIT=bad",
+            "MADAR_BOOT_SERVICE_UNIT=bad",
             "t3_boot_service_unit=bad",
             "T3_SERVICE_LAUNCHER_CONTEXT=bad",
             "t3_service_launcher_context=bad",

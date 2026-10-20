@@ -97,7 +97,7 @@ export function renderBootServiceUnit(plan: BootServicePlan): string {
     // Let the launcher mark an explicit stop before it signals the server.
     // systemd still SIGKILLs the whole cgroup if graceful shutdown times out.
     "KillMode=mixed",
-    // Agents and terminals run in their own scopes in app-t3code-agents.slice
+    // Agents and terminals run in their own scopes in app-madar-agents.slice
     // (see process/agentScope.ts). Short helper commands still share this
     // cgroup, and with the systemd default of OOMPolicy=stop, the kernel
     // killing one of them stops the whole unit.
@@ -137,8 +137,8 @@ export function renderBootServicePlist(
   // (and, with it, the process group) mid-handoff.
   // ProcessType Interactive opts out of background-job resource throttling.
   // AbandonProcessGroup stays at its default (false): launchd reaps leftover
-  // process-group members only when the launcher itself exits â€” the analog of
-  // KillMode=mixed's final cgroup kill â€” and not when the launcher restarts its
+  // process-group members only when the launcher itself exits — the analog of
+  // KillMode=mixed's final cgroup kill — and not when the launcher restarts its
   // child, so agent children survive server updates.
   return [
     `<?xml version="1.0" encoding="UTF-8"?>`,
