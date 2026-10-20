@@ -35,7 +35,6 @@ it.effect("identifies a failed source read and preserves its cause", () => {
       }),
     ),
     Effect.provide(NodePath.layerPosix),
-    Effect.provide(NodeServices.layer),
   );
 });
 
