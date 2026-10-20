@@ -55,7 +55,7 @@ it.effect("authenticates each release page until the requested channel is found"
     const httpClient = HttpClient.make((request) => {
       const url = new URL(request.url);
       assert.equal(url.origin, "https://api.github.com");
-      assert.equal(url.pathname, "/repos/pingdotgg/t3code/releases");
+      assert.equal(url.pathname, "/repos/ZeroneOmni/madar/releases");
       assert.equal(request.headers.accept, "application/vnd.github+json");
       assert.equal(request.headers.authorization, "Bearer gh-token");
       const page = url.searchParams.get("page") ?? "";
@@ -184,7 +184,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NetService.layer))("t3 update servic
         yield* fs.chmod(runtime.entryPath, 0o755);
         yield* fs.writeFileString(runtime.sentinelPath, `${targetVersion}\n`);
         const logPath = path.join(baseDir, "userdata/logs/boot-service.log");
-        const unitPath = path.join(baseDir, "t3code.service");
+        const unitPath = path.join(baseDir, "madar.service");
         const installs: Array<Parameters<BootService.BootService["Service"]["install"]>[0]> = [];
         vi.spyOn(BootService, "layer").mockReturnValue(
           Layer.succeed(BootService.BootService, {

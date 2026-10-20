@@ -54,15 +54,20 @@ describe.skipIf(HostProcess.Platform.defaultValue() !== "linux")("installer term
         "'",
         "'\\''",
       );
+      const originalLauncher = NodePath.join(root, "bin/t3");
+      const originalHome = NodePath.join(root, "original-t3");
+      await NodeFSP.mkdir(NodePath.dirname(originalLauncher));
+      await NodeFSP.writeFile(originalLauncher, "existing T3 launcher");
       const child = NodeChildProcess.spawn("script", ["-qec", `sh '${installer}'`, "/dev/null"], {
         env: {
           ...process.env,
           TERM: "xterm",
           NO_COLOR: "1",
-          T3CODE_VERSION: version,
-          T3CODE_HOME: NodePath.join(root, "home"),
-          T3CODE_INSTALL_BIN_DIR: NodePath.join(root, "bin"),
-          T3CODE_RELEASE_BASE_URL: `http://127.0.0.1:${address.port}`,
+          MADAR_VERSION: version,
+          T3CODE_HOME: originalHome,
+          MADAR_HOME: NodePath.join(root, "home"),
+          MADAR_INSTALL_BIN_DIR: NodePath.join(root, "bin"),
+          MADAR_RELEASE_BASE_URL: `http://127.0.0.1:${address.port}`,
         },
         stdio: ["ignore", "pipe", "pipe"],
       });
@@ -85,24 +90,26 @@ describe.skipIf(HostProcess.Platform.defaultValue() !== "linux")("installer term
           expect(code).not.toBe(0);
           expect(output).toContain("500");
           expect(output).not.toContain("100%");
-          expect(output).not.toContain("Installed T3 Code");
+          expect(output).not.toContain("Installed Madar");
           expect(await NodeFSP.readdir(versions)).toEqual([]);
         } else {
           expect(code).toBe(0);
           expect(sawPartialProgress).toBe(true);
           expect(output).toContain("100%");
           expect(output).toContain("0.1 / 0.1 MB");
-          expect(output).toContain("Installed T3 Code 1.2.3");
+          expect(output).toContain("Installed Madar 1.2.3");
           expect(
             await NodeFSP.readFile(NodePath.join(versions, version, ".install-complete"), "utf8"),
           ).toBe("1.2.3\n");
           expect(
-            NodeChildProcess.execFileSync(NodePath.join(root, "bin/t3"), ["--version"], {
+            NodeChildProcess.execFileSync(NodePath.join(root, "bin/madar"), ["--version"], {
               encoding: "utf8",
             }).trim(),
           ).toBe("t3 v1.2.3");
           expect(await NodeFSP.readdir(versions)).toEqual([version]);
         }
+        expect(await NodeFSP.readFile(originalLauncher, "utf8")).toBe("existing T3 launcher");
+        expect(await NodeFSP.stat(originalHome).catch(() => undefined)).toBeUndefined();
       } finally {
         if (child.exitCode === null) child.kill();
         server.closeAllConnections();
