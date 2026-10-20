@@ -46,7 +46,7 @@ jobs:
       VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: useblacksmith/checkout@v1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           sparse-checkout: |
