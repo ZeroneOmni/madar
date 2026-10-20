@@ -34,7 +34,7 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=8192
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: useblacksmith/checkout@v1
         with:
           # The merge ref can advance after the event is queued. Pin its commit
           # and compare against its first parent, rather than the event's base.
