@@ -29,9 +29,9 @@ const makeEnvironment = (path: Path.Path, overrides: Record<string, unknown> = {
     platform: "linux",
     isPackaged: true,
     isDevelopment: false,
-    displayName: "T3 Code (Alpha)",
+    displayName: "Madar (Alpha)",
     linuxDesktopEntryName: "io.github.husseinbaraja.madar.desktop",
-    linuxWmClass: "t3code",
+    linuxWmClass: "madar",
     linuxApplicationsDir: "/home/alice/.local/share/applications",
     appImagePath: Option.some("/home/alice/Applications/T3-Code.AppImage"),
     path,
@@ -161,38 +161,38 @@ const emptyRecording = (): RecordedRegistration => ({
 describe("DesktopLinuxUrlHandler", () => {
   it("renders a scheme-handler desktop entry with freedesktop Exec quoting", () => {
     const entry = DesktopLinuxUrlHandler.renderUrlHandlerDesktopEntry({
-      displayName: "T3 Code (Nightly)",
+      displayName: "Madar (Nightly)",
       execTarget: '/home/al ice/Apps/T3 "100%" $HOME\\x.AppImage',
-      scheme: "t3code",
+      scheme: "madar",
       iconPath: "/home/al ice/icons/T3\\x.png",
     });
 
     assert.include(entry, "[Desktop Entry]");
-    assert.include(entry, "Name=T3 Code (Nightly)");
+    assert.include(entry, "Name=Madar (Nightly)");
     assert.include(
       entry,
       'Exec="/home/al ice/Apps/T3 \\\\"100%%\\\\" \\\\$HOME\\\\\\\\x.AppImage" %U',
     );
     assert.include(entry, "NoDisplay=true");
     assert.notInclude(entry, "StartupWMClass=");
-    assert.include(entry, "MimeType=x-scheme-handler/t3code;");
+    assert.include(entry, "MimeType=x-scheme-handler/madar;");
     assert.include(entry, "Icon=/home/al ice/icons/T3\\\\x.png");
   });
 
   it.each([
     {
-      execTarget: "/opt/T3(beta)/t3code.AppImage",
-      execLine: 'Exec="/opt/T3(beta)/t3code.AppImage" %U',
+      execTarget: "/opt/T3(beta)/madar.AppImage",
+      execLine: 'Exec="/opt/T3(beta)/madar.AppImage" %U',
     },
     {
-      execTarget: "/opt/t3%20code/t3code.AppImage",
-      execLine: "Exec=/opt/t3%%20code/t3code.AppImage %U",
+      execTarget: "/opt/t3%20code/madar.AppImage",
+      execLine: "Exec=/opt/t3%%20code/madar.AppImage %U",
     },
   ])("renders the handler Exec line for $execTarget", ({ execTarget, execLine }) => {
     const entry = DesktopLinuxUrlHandler.renderUrlHandlerDesktopEntry({
-      displayName: "T3 Code",
+      displayName: "Madar",
       execTarget,
-      scheme: "t3code",
+      scheme: "madar",
     });
 
     assert.include(entry.split("\n"), execLine);
@@ -201,7 +201,7 @@ describe("DesktopLinuxUrlHandler", () => {
   it("carries structured context on registration errors", () => {
     const writeError = new DesktopLinuxUrlHandler.DesktopLinuxUrlHandlerRegistrationError({
       step: "write-desktop-entry",
-      scheme: "t3code",
+      scheme: "madar",
       desktopEntryPath:
         "/home/alice/.local/share/applications/io.github.husseinbaraja.madar.desktop",
       cause: new Error("boom"),
@@ -217,7 +217,7 @@ describe("DesktopLinuxUrlHandler", () => {
 
     const exitError = new DesktopLinuxUrlHandler.DesktopLinuxUrlHandlerRegistrationError({
       step: "set-default-handler",
-      scheme: "t3code",
+      scheme: "madar",
       exitCode: 4,
     });
     assert.equal(
@@ -244,7 +244,7 @@ describe("DesktopLinuxUrlHandler", () => {
           recorded.files[0]?.content,
           "Exec=/home/alice/Applications/T3-Code.AppImage %U",
         );
-        assert.include(recorded.files[0]?.content, "MimeType=x-scheme-handler/t3code;");
+        assert.include(recorded.files[0]?.content, "MimeType=x-scheme-handler/madar;");
         assert.deepEqual(recorded.commands, [
           {
             command: "update-desktop-database",
@@ -252,7 +252,7 @@ describe("DesktopLinuxUrlHandler", () => {
           },
           {
             command: "xdg-mime",
-            args: ["default", "io.github.husseinbaraja.madar.desktop", "x-scheme-handler/t3code"],
+            args: ["default", "io.github.husseinbaraja.madar.desktop", "x-scheme-handler/madar"],
           },
         ]);
       });
@@ -268,9 +268,9 @@ describe("DesktopLinuxUrlHandler", () => {
       assert.include(
         recorded.files[0]?.content,
         DesktopLinuxUrlHandler.renderUrlHandlerDesktopEntry({
-          displayName: "T3 Code (Alpha)",
+          displayName: "Madar (Alpha)",
           execTarget: process.execPath,
-          scheme: "t3code",
+          scheme: "madar",
           iconPath: "/home/alice/.local/share/icons/io.github.husseinbaraja.madar.desktop.png",
         }),
       );
@@ -283,9 +283,9 @@ describe("DesktopLinuxUrlHandler", () => {
     return Effect.gen(function* () {
       yield* runRegister(recorded, {
         existingEntry: DesktopLinuxUrlHandler.renderUrlHandlerDesktopEntry({
-          displayName: "T3 Code (Alpha)",
+          displayName: "Madar (Alpha)",
           execTarget: "/home/alice/Applications/T3-Code.AppImage",
-          scheme: "t3code",
+          scheme: "madar",
           iconPath: "/home/alice/.local/share/icons/io.github.husseinbaraja.madar.desktop.png",
         }),
       });
@@ -299,7 +299,7 @@ describe("DesktopLinuxUrlHandler", () => {
         },
         {
           command: "xdg-mime",
-          args: ["default", "io.github.husseinbaraja.madar.desktop", "x-scheme-handler/t3code"],
+          args: ["default", "io.github.husseinbaraja.madar.desktop", "x-scheme-handler/madar"],
         },
       ]);
     });
@@ -312,9 +312,9 @@ describe("DesktopLinuxUrlHandler", () => {
       yield* runRegister(recorded, {
         iconSource: "/tmp/.mount_T3/resources/icon.png",
         existingEntry: DesktopLinuxUrlHandler.renderUrlHandlerDesktopEntry({
-          displayName: "T3 Code (Alpha)",
+          displayName: "Madar (Alpha)",
           execTarget: "/home/alice/Applications/T3-Code.AppImage",
-          scheme: "t3code",
+          scheme: "madar",
           iconPath,
         }),
       });
@@ -545,7 +545,7 @@ const iconCacheRuns = (run: ThemeIconRun) =>
   run.commands.filter(({ command }) => command === "gtk-update-icon-cache").length;
 
 it.layer(NodeServices.layer)("DesktopLinuxUrlHandler theme icons", (it) => {
-  it.effect("installs both app id spellings without creating an icon cache", () =>
+  it.effect("installs the lowercase app id once without creating an icon cache", () =>
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
@@ -556,16 +556,15 @@ it.layer(NodeServices.layer)("DesktopLinuxUrlHandler theme icons", (it) => {
       yield* registerWithRealFileSystem(run);
       assert.deepEqual([...(yield* fileSystem.readDirectory(fixture.appsDir))].sort(), [
         "io.github.husseinbaraja.madar.png",
-        "io.github.husseinbaraja.madar.png",
       ]);
-      for (const name of ["io.github.husseinbaraja.madar", "io.github.husseinbaraja.madar"]) {
+      for (const name of ["io.github.husseinbaraja.madar"]) {
         const target = path.join(fixture.appsDir, `${name}.png`);
         assert.deepEqual([...(yield* fileSystem.readFile(target))], [...icon]);
         yield* fileSystem.utimes(target, fixture.pastSeconds, fixture.pastSeconds);
       }
 
       yield* registerWithRealFileSystem(run);
-      for (const name of ["io.github.husseinbaraja.madar", "io.github.husseinbaraja.madar"]) {
+      for (const name of ["io.github.husseinbaraja.madar"]) {
         const info = yield* fileSystem.stat(path.join(fixture.appsDir, `${name}.png`));
         assert.equal(Option.getOrThrow(info.mtime).getTime(), fixture.pastSeconds * 1000);
       }
@@ -580,13 +579,9 @@ it.layer(NodeServices.layer)("DesktopLinuxUrlHandler theme icons", (it) => {
       const path = yield* Path.Path;
       const fixture = yield* themeIconFixture(new Uint8Array([1, 2, 3]));
       yield* fixture.seedCache;
-      const lower = path.join(fixture.appsDir, "io.github.husseinbaraja.madar.png");
-      const upper = path.join(fixture.appsDir, "io.github.husseinbaraja.madar.png");
-      yield* fileSystem.writeFile(lower, new Uint8Array([3, 2, 1]));
-      yield* fileSystem.writeFile(upper, new Uint8Array([1, 2, 3]));
-      for (const target of [lower, upper]) {
-        yield* fileSystem.utimes(target, fixture.pastSeconds, fixture.pastSeconds);
-      }
+      const target = path.join(fixture.appsDir, "io.github.husseinbaraja.madar.png");
+      yield* fileSystem.writeFile(target, new Uint8Array([3, 2, 1]));
+      yield* fileSystem.utimes(target, fixture.pastSeconds, fixture.pastSeconds);
       const run: ThemeIconRun = {
         root: fixture.root,
         commands: [],
@@ -596,9 +591,7 @@ it.layer(NodeServices.layer)("DesktopLinuxUrlHandler theme icons", (it) => {
       yield* registerWithRealFileSystem(run);
       yield* registerWithRealFileSystem(run);
 
-      assert.deepEqual([...(yield* fileSystem.readFile(lower))], [1, 2, 3]);
-      const upperInfo = yield* fileSystem.stat(upper);
-      assert.equal(Option.getOrThrow(upperInfo.mtime).getTime(), fixture.pastSeconds * 1000);
+      assert.deepEqual([...(yield* fileSystem.readFile(target))], [1, 2, 3]);
       assert.deepEqual(
         run.commands.filter(({ command }) => command === "gtk-update-icon-cache"),
         [{ command: "gtk-update-icon-cache", args: ["-f", "-t", fixture.hicolorDir] }],
