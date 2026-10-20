@@ -46,7 +46,7 @@ const DEV_PORT_PROBE_HOSTS = ["127.0.0.1", "::1"] as const;
 
 /**
  * Loopback and the wildcards qualify; a specific interface (e.g. a LAN IP) does
- * not — the OS binds only that address and the proxy target goes dark.
+ * not â€” the OS binds only that address and the proxy target goes dark.
  */
 export function isProxiableBindHost(host: string): boolean {
   const normalized = host.trim();
@@ -63,7 +63,7 @@ export function isProxiableBindHost(host: string): boolean {
 }
 
 export const DEFAULT_T3_HOME = Effect.map(Effect.service(Path.Path), (path) =>
-  path.join(NodeOS.homedir(), ".t3"),
+  path.join(NodeOS.homedir(), ".madar"),
 );
 
 const MODE_ARGS = {
@@ -306,9 +306,9 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
   };
 
   if (configuredBaseDir !== undefined) {
-    output.T3CODE_HOME = resolvedBaseDir;
+    output.MADAR_HOME = resolvedBaseDir;
   } else {
-    delete output.T3CODE_HOME;
+    delete output.MADAR_HOME;
   }
 
   // A dev-runner server is never launcher-managed. When the shell that runs
@@ -324,7 +324,7 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
     // HOST is Vite's own bind address, and the desktop branch below is the
     // only place we set it. An inherited one (an exported HOST, a container,
     // a `HOST=0.0.0.0 npm start` habit) would otherwise reach Vite and pin
-    // its HMR socket to that address — see the `explicitHost` gate in
+    // its HMR socket to that address â€” see the `explicitHost` gate in
     // apps/web/vite.config.ts.
     delete output.HOST;
     if (mode === "dev" || mode === "dev:web") {
@@ -619,16 +619,16 @@ export const runDevRunnerWithInput = Effect.fn("dev-runner.runDevRunnerWithInput
 
   const hostEnvironment = yield* HostProcess.Environment;
   // A dev server started inside a worktree defaults to that worktree's own
-  // (gitignored) `.t3` — see @t3tools/shared/devHome for why this must
-  // outrank an ambient T3CODE_HOME. `--home-dir` still wins.
+  // (gitignored) `.t3` â€” see @t3tools/shared/devHome for why this must
+  // outrank an ambient MADAR_HOME. `--home-dir` still wins.
   const worktreeHome = yield* resolveWorktreeT3Home(yield* HostProcess.WorkingDirectory);
   // Trim before choosing: `--home-dir ""` is not a selection, and treating it
-  // as one would skip the worktree default and land on the shared home —
+  // as one would skip the worktree default and land on the shared home â€”
   // exactly the outcome this precedence exists to prevent.
   const resolvedT3Home =
     (input.t3Home?.trim() || undefined) ??
     worktreeHome ??
-    (hostEnvironment.T3CODE_HOME?.trim() || undefined);
+    (hostEnvironment.MADAR_HOME?.trim() || undefined);
   const env = yield* createDevRunnerEnv({
     mode: input.mode,
     baseEnv: hostEnvironment,
@@ -647,14 +647,14 @@ export const runDevRunnerWithInput = Effect.fn("dev-runner.runDevRunnerWithInput
     serverOffset !== offset || webOffset !== offset
       ? ` selectedOffset(server=${serverOffset},web=${webOffset})`
       : "";
-  const baseDir = env.T3CODE_HOME ?? (yield* DEFAULT_T3_HOME);
+  const baseDir = env.MADAR_HOME ?? (yield* DEFAULT_T3_HOME);
 
   yield* Effect.logInfo(
     `[dev-runner] mode=${input.mode} source=${source}${selectionSuffix} serverPort=${String(env.T3CODE_PORT)} webPort=${String(env.PORT)} baseDir=${baseDir}`,
   );
 
   // Before the share block: --dry-run only resolves and prints. Sharing would
-  // replace, then tear down, whatever mapping the port already had — a
+  // replace, then tear down, whatever mapping the port already had â€” a
   // surprising side effect from a command documented as inert.
   if (input.dryRun) {
     return;
@@ -689,7 +689,7 @@ export const runDevRunnerWithInput = Effect.fn("dev-runner.runDevRunnerWithInput
         Effect.tapError((error: DevShareError) =>
           Effect.logWarning(
             `[dev-runner] could not share on the tailnet: ${error.message}${
-              error.hint ? ` — ${error.hint}` : ""
+              error.hint ? ` â€” ${error.hint}` : ""
             }`,
           ),
         ),
@@ -711,7 +711,7 @@ export const runDevRunnerWithInput = Effect.fn("dev-runner.runDevRunnerWithInput
           env.VITE_DEV_SERVER_URL = shared.url;
         }
         // A shared origin serves a remote browser, where unbundled dev's
-        // per-module requests each pay a tailnet round trip — a cold module
+        // per-module requests each pay a tailnet round trip â€” a cold module
         // graph takes minutes to first paint. Bundled dev collapses that to a
         // few chunk requests.
         if (env.T3CODE_BUNDLED_DEV === undefined) {
@@ -777,7 +777,7 @@ const devRunnerCli = Command.make("dev-runner", {
   ),
   t3Home: Flag.String("home-dir").pipe(
     Flag.withDescription(
-      "Explicit T3 Code data directory; runtime state is stored under userdata (equivalent to T3CODE_HOME). Inside a git worktree this defaults to that worktree's own .t3 so dev state stays off the shared home.",
+      "Explicit T3 Code data directory; runtime state is stored under userdata (equivalent to MADAR_HOME). Inside a git worktree this defaults to that worktree's own .t3 so dev state stays off the shared home.",
     ),
     Flag.optional,
     Flag.map(Option.getOrUndefined),

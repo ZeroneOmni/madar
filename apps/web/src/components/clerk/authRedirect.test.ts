@@ -14,19 +14,19 @@ describe("resolveClerkSignInProps", () => {
   it("removes a Clerk virtual pathname and callback params while preserving the desktop route", () => {
     expect(
       resolveClerkSignInProps(
-        "t3code://app/CLERK-ROUTER/VIRTUAL/sign-up?__clerk_status=complete#/settings/connections",
+        "madar://app/CLERK-ROUTER/VIRTUAL/sign-up?__clerk_status=complete#/settings/connections",
         true,
       ),
     ).toEqual({
-      forceRedirectUrl: "t3code://app/#/settings/connections",
-      signUpForceRedirectUrl: "t3code://app/#/settings/connections",
+      forceRedirectUrl: "madar://app/#/settings/connections",
+      signUpForceRedirectUrl: "madar://app/#/settings/connections",
     });
   });
 
   it("preserves a clean development desktop route", () => {
-    expect(resolveClerkSignInProps("t3code-dev://app/#/settings/general", true)).toEqual({
-      forceRedirectUrl: "t3code-dev://app/#/settings/general",
-      signUpForceRedirectUrl: "t3code-dev://app/#/settings/general",
+    expect(resolveClerkSignInProps("madar-dev://app/#/settings/general", true)).toEqual({
+      forceRedirectUrl: "madar-dev://app/#/settings/general",
+      signUpForceRedirectUrl: "madar-dev://app/#/settings/general",
     });
   });
 });
