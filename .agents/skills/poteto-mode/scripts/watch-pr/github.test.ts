@@ -16,12 +16,7 @@ import {
   resolveContext,
   resolveReviewThreads,
 } from "./github.ts";
-import {
-  fakeReader,
-  failedCheck,
-  passingCheck,
-  pendingCheck,
-} from "./fakes.test-helper.ts";
+import { fakeReader, failedCheck, passingCheck, pendingCheck } from "./fakes.test-helper.ts";
 import { parsePrNumber } from "./types.ts";
 
 const context = {
@@ -64,9 +59,7 @@ describe("checks fallback chain", () => {
       fastPath: { kind: "checks", checks: [] },
       rollupPages: [{ checks: [pendingCheck("fallback")], endCursor: null }],
     });
-    expect((await resolveChecks(reader, context)).checks[0].name).toBe(
-      "fallback"
-    );
+    expect((await resolveChecks(reader, context)).checks[0].name).toBe("fallback");
     expect(reader.calls).toEqual(["checksFastPath", "checkRollupPage:null"]);
   });
 
@@ -78,9 +71,7 @@ describe("checks fallback chain", () => {
         stderr: "credential cannot read checks",
       },
     });
-    await expect(resolveChecks(reader, context)).rejects.toBeInstanceOf(
-      ChecksUnavailable
-    );
+    await expect(resolveChecks(reader, context)).rejects.toBeInstanceOf(ChecksUnavailable);
     expect(reader.calls).toEqual(["checksFastPath", "checkRollupPage:null"]);
   });
 });
@@ -103,7 +94,7 @@ describe("rollup node mapping", () => {
           name: "ci",
           status,
           conclusion,
-        })
+        }),
       ).toMatchObject({ kind, reportedState });
     }
   });
@@ -115,14 +106,14 @@ describe("rollup node mapping", () => {
         name: "Code Review Gate",
         status: "IN_PROGRESS",
         conclusion: null,
-      })
+      }),
     ).toMatchObject({ kind: "code-review-gate" });
     expect(
       mapRollupNode({
         __typename: "StatusContext",
         context: "Code Review Gate",
         state: "PENDING",
-      })
+      }),
     ).toMatchObject({ kind: "code-review-gate" });
   });
 
@@ -134,7 +125,7 @@ describe("rollup node mapping", () => {
         status: "COMPLETED",
         conclusion: "ACTION_REQUIRED",
         description: "1 of 2 policies",
-      })
+      }),
     ).toMatchObject({
       kind: "code-review-gate",
       reportedState: "ACTION_REQUIRED",
@@ -147,14 +138,15 @@ describe("rollup node mapping", () => {
         name: "Code Review Gate",
         state: "ACTION_REQUIRED",
         bucket: "fail",
-      })
+      }),
     ).toMatchObject({
       kind: "code-review-gate",
       reportedState: "ACTION_REQUIRED",
     });
-    expect(
-      parseFastCheck({ name: "ci", state: "ACTION_REQUIRED", bucket: "fail" })
-    ).toMatchObject({ kind: "failed", reportedState: "ACTION_REQUIRED" });
+    expect(parseFastCheck({ name: "ci", state: "ACTION_REQUIRED", bucket: "fail" })).toMatchObject({
+      kind: "failed",
+      reportedState: "ACTION_REQUIRED",
+    });
   });
 
   it("maps StatusContext states and drops unknown typenames", () => {
@@ -163,14 +155,14 @@ describe("rollup node mapping", () => {
         __typename: "StatusContext",
         context: "ci",
         state: "EXPECTED",
-      })
+      }),
     ).toMatchObject({ kind: "pending", reportedState: "PENDING" });
     expect(
       mapRollupNode({
         __typename: "StatusContext",
         context: "ci",
         state: "FUTURE_VALUE",
-      })
+      }),
     ).toMatchObject({ kind: "failed", reportedState: "FUTURE_VALUE" });
     expect(mapRollupNode({ __typename: "FutureNode" })).toBeNull();
   });
@@ -191,32 +183,26 @@ describe("closed enum parsing", () => {
 
   it("accepts mergeStateStatus CONFLICTING", () => {
     expect(
-      parsePullRequest(
-        { ...rawPullRequest, mergeStateStatus: "CONFLICTING" },
-        context
-      ).mergeStateStatus
+      parsePullRequest({ ...rawPullRequest, mergeStateStatus: "CONFLICTING" }, context)
+        .mergeStateStatus,
     ).toBe("CONFLICTING");
   });
 
   it("reads gh's empty reviewDecision as no decision rather than a parse failure", () => {
     expect(
-      parsePullRequest({ ...rawPullRequest, reviewDecision: "" }, context)
-        .reviewDecision
+      parsePullRequest({ ...rawPullRequest, reviewDecision: "" }, context).reviewDecision,
     ).toBeNull();
   });
 
   it("still rejects an unknown reviewDecision", () => {
-    expect(() =>
-      parsePullRequest({ ...rawPullRequest, reviewDecision: "MAYBE" }, context)
-    ).toThrow(WatcherQueryError);
+    expect(() => parsePullRequest({ ...rawPullRequest, reviewDecision: "MAYBE" }, context)).toThrow(
+      WatcherQueryError,
+    );
   });
 
   it("rejects unknown enum values as retryable errors carrying the raw value", () => {
     try {
-      parsePullRequest(
-        { ...rawPullRequest, mergeStateStatus: "FUTURE_STATE" },
-        context
-      );
+      parsePullRequest({ ...rawPullRequest, mergeStateStatus: "FUTURE_STATE" }, context);
       throw new Error("expected parser to throw");
     } catch (error) {
       expect(error).toBeInstanceOf(WatcherQueryError);
@@ -373,9 +359,7 @@ describe("review thread pagination", () => {
         { threads: [thread("two", true)], endCursor: null },
       ],
     });
-    expect(
-      (await resolveReviewThreads(reader, context)).map((item) => item.id)
-    ).toEqual(["one"]);
+    expect((await resolveReviewThreads(reader, context)).map((item) => item.id)).toEqual(["one"]);
   });
 
   it("rejects a page that omits pageInfo instead of assuming one page", async () => {
@@ -399,7 +383,7 @@ describe("context and stack discovery", () => {
         owner: "explicit",
         repo: "repo",
         pr: context.number,
-      })
+      }),
     ).toEqual({ owner: "explicit", repo: "repo", number: context.number });
     expect(reader.calls).toEqual([]);
   });
@@ -412,7 +396,7 @@ describe("context and stack discovery", () => {
         owner: null,
         repo: null,
         pr: context.number,
-      })
+      }),
     ).toEqual({ owner: "local", repo: "checkout", number: context.number });
     expect(reader.calls).toEqual(["originRepo"]);
   });
@@ -442,16 +426,36 @@ describe("context and stack discovery", () => {
   });
   it("does not use a fork's same-named head as a stack parent", () => {
     const ordered = orderStack(context, [
-      { number: parsePrNumber(41), headRefName: "base-feature", baseRefName: "main", isCrossRepository: true },
-      { number: context.number, headRefName: "feature", baseRefName: "base-feature", isCrossRepository: false },
+      {
+        number: parsePrNumber(41),
+        headRefName: "base-feature",
+        baseRefName: "main",
+        isCrossRepository: true,
+      },
+      {
+        number: context.number,
+        headRefName: "feature",
+        baseRefName: "base-feature",
+        isCrossRepository: false,
+      },
     ]);
     expect(ordered.map((item) => Number(item.number))).toEqual([42]);
   });
 
   it("does not attach upstream branch children to a fork head", () => {
     const ordered = orderStack(context, [
-      { number: context.number, headRefName: "feature", baseRefName: "main", isCrossRepository: true },
-      { number: parsePrNumber(43), headRefName: "upstack", baseRefName: "feature", isCrossRepository: false },
+      {
+        number: context.number,
+        headRefName: "feature",
+        baseRefName: "main",
+        isCrossRepository: true,
+      },
+      {
+        number: parsePrNumber(43),
+        headRefName: "upstack",
+        baseRefName: "feature",
+        isCrossRepository: false,
+      },
     ]);
     expect(ordered.map((item) => Number(item.number))).toEqual([42]);
   });
@@ -472,17 +476,22 @@ describe("context and stack discovery", () => {
   it("requests and parses fork identity from gh before stack discovery", () => {
     const directory = mkdtempSync(join(tmpdir(), "watch-pr-fork-"));
     try {
-      writeFileSync(join(directory, "gh"), `#!/bin/sh
+      writeFileSync(
+        join(directory, "gh"),
+        `#!/bin/sh
 case "$*" in
   *number,headRefName,baseRefName,isCrossRepository*) ;;
   *) exit 2 ;;
 esac
 printf '%s\\n' '[{"number":42,"headRefName":"feature","baseRefName":"main","isCrossRepository":true}]'
-`, { mode: 0o755 });
+`,
+        { mode: 0o755 },
+      );
       const program = `import { GhGitHubReader } from ${JSON.stringify(import.meta.dir + "/github.ts")};
         console.log(JSON.stringify(await new GhGitHubReader().openPullRequests({ owner: "owner", repo: "repo" })));`;
       const child = spawnSync(process.execPath, ["-e", program], {
-        encoding: "utf8", timeout: 2000,
+        encoding: "utf8",
+        timeout: 2000,
         env: { ...process.env, PATH: directory + ":" + process.env.PATH },
       });
       expect(child.error).toBeUndefined();
@@ -494,5 +503,4 @@ printf '%s\\n' '[{"number":42,"headRefName":"feature","baseRefName":"main","isCr
       rmSync(directory, { recursive: true, force: true });
     }
   });
-
 });

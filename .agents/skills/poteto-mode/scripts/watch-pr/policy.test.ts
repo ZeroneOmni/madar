@@ -13,12 +13,7 @@ import {
   runSimple,
   selectTierMajorStackDecision,
 } from "./policy.ts";
-import {
-  fakeReader,
-  failedCheck,
-  passingCheck,
-  pendingCheck,
-} from "./fakes.test-helper.ts";
+import { fakeReader, failedCheck, passingCheck, pendingCheck } from "./fakes.test-helper.ts";
 import type {
   GitHubReader,
   NonEmpty,
@@ -63,9 +58,7 @@ describe("readiness truth table", () => {
       ["CLEAN", "SUCCESS", "allowed"],
     ];
     for (const [mergeStateStatus, headRollupState, expected] of cases) {
-      expect(
-        assessGitHubMerge({ mergeStateStatus, headRollupState }).kind
-      ).toBe(expected);
+      expect(assessGitHubMerge({ mergeStateStatus, headRollupState }).kind).toBe(expected);
     }
   });
 
@@ -105,11 +98,7 @@ describe("snapshot query planning", () => {
     expect(snapshot.kind).toBe("open");
     if (snapshot.kind !== "open") throw new Error("expected open snapshot");
     expect(snapshot.ci.kind).toBe("ci-pending");
-    expect(reader.calls).toEqual([
-      "pullRequest",
-      "reviewThreadPage:null",
-      "checksFastPath",
-    ]);
+    expect(reader.calls).toEqual(["pullRequest", "reviewThreadPage:null", "checksFastPath"]);
   });
 
   it("queries rollups for settled and failed lists", async () => {
@@ -146,7 +135,7 @@ describe("snapshot query planning", () => {
           pendingHistory: "include",
           allowDraft: false,
         })
-      ).kind
+      ).kind,
     ).toBe("merged");
     expect(reader.calls).toEqual(["pullRequest"]);
   });
@@ -233,11 +222,7 @@ describe("queued-stack cadence", () => {
   }
 
   it("drops a sweep head only after its snapshot succeeds", async () => {
-    const queue = [
-      context(20),
-      context(21),
-      context(22),
-    ] satisfies NonEmpty<PrContext>;
+    const queue = [context(20), context(21), context(22)] satisfies NonEmpty<PrContext>;
     let state = createQueueState(queue, 0);
     const first = await openSnapshot(queue[0]);
     state = applyQueueSnapshot(state, first, 0, options).state;
@@ -315,23 +300,11 @@ describe("queued-stack cadence", () => {
   it("emits a completed sweep only after its final successful snapshot", async () => {
     const queue = [context(30), context(31)] satisfies NonEmpty<PrContext>;
     let state = createQueueState(queue, 0);
-    const first = applyQueueSnapshot(
-      state,
-      await openSnapshot(queue[0]),
-      0,
-      options
-    );
+    const first = applyQueueSnapshot(state, await openSnapshot(queue[0]), 0, options);
     expect(first.completedSweepRows).toBeNull();
     state = first.state;
-    const second = applyQueueSnapshot(
-      state,
-      await openSnapshot(queue[1]),
-      5,
-      options
-    );
-    expect(
-      second.completedSweepRows?.map((row) => Number(row.context.number))
-    ).toEqual([30, 31]);
+    const second = applyQueueSnapshot(state, await openSnapshot(queue[1]), 5, options);
+    expect(second.completedSweepRows?.map((row) => Number(row.context.number))).toEqual([30, 31]);
     expect(second.state.nextSweepAt).toBe(305);
   });
 
@@ -396,12 +369,7 @@ describe("queued-stack cadence", () => {
   it("deduplicates identical waits and schedules the next due sweep", async () => {
     const queue = [context(50)] satisfies NonEmpty<PrContext>;
     let state = createQueueState(queue, 0);
-    state = applyQueueSnapshot(
-      state,
-      await openSnapshot(queue[0]),
-      0,
-      options
-    ).state;
+    state = applyQueueSnapshot(state, await openSnapshot(queue[0]), 0, options).state;
     const first = evaluateQueue(state, 0, options);
     expect(first.kind).toBe("waiting");
     if (first.kind !== "waiting") throw new Error("expected waiting");
@@ -420,31 +388,49 @@ it("uses the specified retry floor and cap", () => {
   expect(queryBackoffSeconds(60, 4)).toBe(300);
 });
 
-
 describe("polling deadline sleeps", () => {
   for (const mode of ["single", "queued-stack", "query-retry"] as const) {
     it(`caps ${mode} sleeps at the configured deadline`, async () => {
       let now = 0;
       const sleeps: number[] = [];
       const pending = fakeReader({ fastPath: { kind: "checks", checks: [pendingCheck()] } });
-      const reader = mode === "query-retry"
-        ? { ...pending, async pullRequest(): Promise<PullRequestFacts> {
-          throw new WatcherQueryError({ kind: "command-exit", retryable: true, code: 1, detail: "temporary failure" });
-        } }
-        : pending;
+      const reader =
+        mode === "query-retry"
+          ? {
+              ...pending,
+              async pullRequest(): Promise<PullRequestFacts> {
+                throw new WatcherQueryError({
+                  kind: "command-exit",
+                  retryable: true,
+                  code: 1,
+                  detail: "temporary failure",
+                });
+              },
+            }
+          : pending;
       const dependencies = {
         reader,
         clock: {
           now: () => now,
           observedAt: () => "2026-07-26T00:00:00.000Z",
-          async sleep(seconds: number) { sleeps.push(seconds); now += seconds; },
+          async sleep(seconds: number) {
+            sleeps.push(seconds);
+            now += seconds;
+          },
         },
         emit() {},
       };
       const polling = { ...options, interval: 60, timeout: 5 };
-      const result = mode === "queued-stack"
-        ? await runQueued({ dependencies, contexts: [context(1)], options: polling })
-        : await runSimple({ dependencies, contexts: [context(1)], mode: "single", statusOnly: false, options: polling });
+      const result =
+        mode === "queued-stack"
+          ? await runQueued({ dependencies, contexts: [context(1)], options: polling })
+          : await runSimple({
+              dependencies,
+              contexts: [context(1)],
+              mode: "single",
+              statusOnly: false,
+              options: polling,
+            });
       expect(result.kind).toBe("TIMEOUT");
       expect(sleeps).toEqual([5]);
       expect(now).toBe(5);
@@ -468,15 +454,19 @@ describe("polling deadline sleeps", () => {
         clock: {
           now: () => now,
           observedAt: () => "2026-07-26T00:00:00.000Z",
-          async sleep(seconds) { sleeps.push(seconds); now += seconds; },
+          async sleep(seconds) {
+            sleeps.push(seconds);
+            now += seconds;
+          },
         },
         emit() {},
       },
-      contexts: [context(1)], mode: "single", statusOnly: false,
+      contexts: [context(1)],
+      mode: "single",
+      statusOnly: false,
       options: { ...options, interval: 60, timeout: 0 },
     });
     expect(result.kind).toBe("READY");
     expect(sleeps).toEqual([60]);
   });
-
 });

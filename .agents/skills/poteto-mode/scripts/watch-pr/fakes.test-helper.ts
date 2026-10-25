@@ -64,7 +64,7 @@ export function failedCheck(name = "ci"): Check {
 }
 
 export function fakeReader(
-  options: FakeReaderOptions = {}
+  options: FakeReaderOptions = {},
 ): GitHubReader & { readonly calls: readonly string[] } {
   const calls: string[] = [];
   const context = options.current ?? {
@@ -90,9 +90,7 @@ export function fakeReader(
     calls,
     async originRepo() {
       calls.push("originRepo");
-      return options.origin === undefined
-        ? { owner: "owner", repo: "repo" }
-        : options.origin;
+      return options.origin === undefined ? { owner: "owner", repo: "repo" } : options.origin;
     },
     async currentPr(pr) {
       calls.push("currentPr");
@@ -116,10 +114,12 @@ export function fakeReader(
     },
     async reviewThreadPage(_requested, after) {
       calls.push(`reviewThreadPage:${after ?? "null"}`);
-      return options.threadPages?.[threadPage++] ?? {
-        threads: (options.threads ?? []).map(toRawThread),
-        endCursor: null,
-      };
+      return (
+        options.threadPages?.[threadPage++] ?? {
+          threads: (options.threads ?? []).map(toRawThread),
+          endCursor: null,
+        }
+      );
     },
     async commitRollups() {
       calls.push("commitRollups");
