@@ -110,6 +110,9 @@ export default defineConfig({
     ignorePatterns: [
       ".repos",
       ".repos/**",
+      // Imported skill tooling follows its upstream conventions, including through the Claude alias.
+      ".agents/skills/**",
+      ".claude/skills/**",
       "dist",
       "dist-electron",
       "node_modules",
