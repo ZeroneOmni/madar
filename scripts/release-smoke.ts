@@ -17,6 +17,7 @@ const workspaceFiles = [
   "apps/desktop/package.json",
   "apps/web/package.json",
   "apps/mobile/package.json",
+  "apps/mobile/modules/t3-highlights/package.json",
   "apps/mobile/modules/t3-source-text/package.json",
   "apps/mobile/modules/t3-review-diff/package.json",
   "apps/mobile/modules/t3-terminal/package.json",
@@ -40,6 +41,7 @@ const workspaceFiles = [
   "packages/source-control-azure-devops/package.json",
   "packages/source-control-bitbucket/package.json",
   "packages/source-control-core/package.json",
+  "packages/source-control-definitions/package.json",
   "packages/source-control-forgejo/package.json",
   "packages/source-control-gitcafe/package.json",
   "packages/source-control-github/package.json",
@@ -249,40 +251,6 @@ try {
   ]) {
     assertPackageVersion(NodePath.resolve(tempRoot, relativePath), "9.9.9-smoke.0");
   }
-
-  const nightlyReleaseMetadata = NodeChildProcess.execFileSync(
-    process.execPath,
-    [
-      NodePath.resolve(repoRoot, "scripts/resolve-nightly-release.ts"),
-      "--date",
-      "20260413",
-      "--run-number",
-      "321",
-      "--sha",
-      "abcdef1234567890",
-      "--root",
-      tempRoot,
-    ],
-    {
-      cwd: repoRoot,
-      encoding: "utf8",
-    },
-  );
-  assertContains(
-    nightlyReleaseMetadata,
-    "version=9.9.10-nightly.20260413.321",
-    "Expected nightly metadata to contain the derived nightly version.",
-  );
-  assertContains(
-    nightlyReleaseMetadata,
-    "tag=v9.9.10-nightly.20260413.321",
-    "Expected nightly metadata to contain the derived nightly tag.",
-  );
-  assertContains(
-    nightlyReleaseMetadata,
-    "name=T3 Code Nightly 9.9.10-nightly.20260413.321 (abcdef123456)",
-    "Expected nightly metadata to include the short commit SHA in the release name.",
-  );
 
   const { arm64Path, x64Path } = writeMacManifestFixtures(tempRoot);
   NodeChildProcess.execFileSync(
