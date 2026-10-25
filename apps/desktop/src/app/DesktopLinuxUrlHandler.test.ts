@@ -229,15 +229,15 @@ describe("DesktopLinuxUrlHandler", () => {
     });
   });
 
-  it.effect("launches a distribution package through its configured launcher", () => {
+  it.effect("launches a distribution package through its configured launcher with spaces", () => {
     const recorded = emptyRecording();
 
     return Effect.gen(function* () {
       yield* runRegister(recorded, {
-        environment: { desktopLauncherPath: Option.some("/opt/Madar/madar") },
+        environment: { desktopLauncherPath: Option.some("/opt/Madar Desktop/madar") },
       });
 
-      assert.include(recorded.files[0]?.content, 'Exec="/opt/Madar/madar" %U');
+      assert.include(recorded.files[0]?.content, 'Exec="/opt/Madar Desktop/madar" %U');
     });
   });
 
