@@ -46,3 +46,9 @@ node_modules/
 
 # pnpm content-addressable store; never belongs in the repo.
 .pnpm-store/
+
+# Project-local agent skills and their source metadata.
+/.agents/skills/
+/.agents/skill-sources/
+/.claude/skills
+/.codex/skills/
