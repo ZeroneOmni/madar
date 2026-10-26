@@ -23,7 +23,7 @@ vp i
 vp run dev:desktop
 ```
 
-See [maintainer setup and releases](docs/operations/madar.md) for the PR workflow, Blacksmith runners, supported build targets, signing, and draft releases.
+See [maintainer setup and releases](docs/operations/madar.md) for the PR workflow, GitHub-hosted runners, supported build targets, signing, and draft releases.
 
 The [documentation](docs/) and [architecture overview](docs/internals/overview.md) are inherited from upstream. Some pages still use upstream product names and distribution instructions; use this README and the Madar maintainer guide for installation and releases.
 

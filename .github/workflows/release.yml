@@ -56,7 +56,7 @@ jobs:
   build_bundle:
     name: Build JS bundle
     needs: preflight
-    runs-on: ${{ vars.BLACKSMITH_ENABLED == 'true' && 'blacksmith-32vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -125,7 +125,7 @@ jobs:
       clerk_cli_oauth_client_id: ""
       relay_url: ""
       label: macOS arm64
-      runner: ${{ vars.BLACKSMITH_ENABLED == 'true' && 'blacksmith-6vcpu-macos-26' || 'macos-26' }}
+      runner: macos-26
       platform: mac
       target: dmg
       arch: arm64
@@ -148,7 +148,7 @@ jobs:
       clerk_cli_oauth_client_id: ""
       relay_url: ""
       label: Linux x64
-      runner: ${{ vars.BLACKSMITH_ENABLED == 'true' && 'blacksmith-32vcpu-ubuntu-2404' || 'ubuntu-24.04' }}
+      runner: ubuntu-24.04
       platform: linux
       target: AppImage
       arch: x64
@@ -171,7 +171,7 @@ jobs:
       clerk_cli_oauth_client_id: ""
       relay_url: ""
       label: Linux arm64
-      runner: ${{ vars.BLACKSMITH_ENABLED == 'true' && 'blacksmith-16vcpu-ubuntu-2404-arm' || 'ubuntu-24.04-arm' }}
+      runner: ubuntu-24.04-arm
       platform: linux
       target: AppImage
       arch: arm64
@@ -194,7 +194,7 @@ jobs:
       clerk_cli_oauth_client_id: ""
       relay_url: ""
       label: Windows x64
-      runner: ${{ vars.BLACKSMITH_ENABLED == 'true' && 'blacksmith-32vcpu-windows-2025' || 'windows-2025' }}
+      runner: windows-2025
       platform: win
       target: nsis
       arch: x64
