@@ -6,7 +6,6 @@ import {
 import type { ServerSettings } from "@t3tools/contracts";
 
 export {
-  isMonochromeSourceControlIcon,
   UNKNOWN_SOURCE_CONTROL_CLIENT,
   type ChangeRequestLink,
   type ChangeRequestTerminology,
