@@ -1,8 +1,6 @@
 export const BUILT_IN_THEME_IDS = ["t3-chat", "grove", "ocean", "ember", "iris"] as const;
 
-export const MOBILE_DEFAULT_THEME_ID = "t3-code";
-
-export const MOBILE_THEME_IDS = [MOBILE_DEFAULT_THEME_ID, ...BUILT_IN_THEME_IDS] as const;
+const MOBILE_DEFAULT_THEME_ID = "t3-code";
 
 /** Reserve appearance keywords, built-ins, and legacy aliases so custom themes cannot capture stored preferences. */
 export const RESERVED_THEME_IDS: ReadonlySet<string> = new Set([
@@ -24,7 +22,6 @@ export const UNPUBLISHABLE_THEME_IDS: ReadonlySet<string> = new Set([
 ]);
 
 export type BuiltInThemeId = (typeof BUILT_IN_THEME_IDS)[number];
-export type MobileThemeId = (typeof MOBILE_THEME_IDS)[number];
 export type ThemeAppearance = "light" | "dark";
 
 export const THEME_COLOR_ROLES = [
@@ -915,11 +912,3 @@ export const BUILT_IN_THEMES: ReadonlyArray<ThemeDefinition> = [
   EMBER_THEME,
   IRIS_THEME,
 ];
-
-export function getThemeColorsForAppearance(
-  theme: ThemeDefinition,
-  appearance: ThemeAppearance,
-): ThemeColors | null {
-  if (theme.appearance === appearance) return theme.colors;
-  return theme.variants?.[appearance] ?? null;
-}
