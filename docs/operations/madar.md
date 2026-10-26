@@ -4,7 +4,7 @@ Create a short branch name without slashes, push it, and open a pull request aga
 
 ## Runners
 
-Install Blacksmith on the `ZeroneOmni` organization and allow the `madar` repository. Set the repository Actions variable `BLACKSMITH_ENABLED` to `true` after the dashboard shows runners are ready. With the variable unset, workflows use standard GitHub runners.
+CI, Windows tests, and releases use standard GitHub-hosted runners: `ubuntu-24.04`, `ubuntu-24.04-arm`, `macos-26`, and `windows-2025`. No third-party runner setup is required.
 
 ## Stable releases
 

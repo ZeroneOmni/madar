@@ -1,8 +1,38 @@
-# T3 Code
+# Madar
 
-T3 Code is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity) and serves web, desktop, and mobile clients.
+Madar is being built into a desktop GUI for MikroTik User Manager, using T3 Code as its starting codebase.
 
-You can think of T3 Code as an open source "bring-your-own-subscription" alternative to apps like Claude Desktop, Codex App, Cursor Glass and Conductor.
+## Product direction
+
+The goal is GUI coverage of MikroTik User Manager CLI operations. The initial priorities are:
+
+- Add, remove, and modify vouchers.
+- Manage User Manager subscriptions.
+- Manage card designs.
+- Check usage.
+
+These priorities guide the first workflows. They do not limit the eventual User Manager feature set.
+Confirm supported operations against the target RouterOS version before implementing an integration.
+The RouterOS version and connection method are still open decisions.
+
+Preserve the useful engineering that makes the app responsive and light: UI components and rendering
+patterns, reliable database infrastructure, and Electron optimizations. Reuse those foundations where
+they fit User Manager. Design data models around User Manager rather than carrying over chat, thread,
+provider, or orchestration schemas by default.
+
+AI coding harness management, chats, source-control workflows, and other unrelated T3 Code features
+are outside Madar's product scope. Remove them and their unused dependencies as relevant implementation
+work replaces them. Check shared dependencies before deleting code that useful infrastructure still needs.
+
+Desktop is the current target. The web UI remains relevant as part of the Electron app. Separate web
+and mobile products, remote hosting of the app, relays, and tunnels require a User Manager use case before extending
+them. New User Manager features do not require coding-provider adapters, agent MCP tools, or scheduled
+coding tasks.
+
+This product direction governs implementation choices and takes precedence over inherited T3 Code
+product assumptions in linked guidance. Keep applicable engineering, verification, and live-install
+safety rules. Descriptions of the inherited architecture explain the current code, not the required
+design of the finished product.
 
 ## Project workflow
 
@@ -11,50 +41,26 @@ For implementation, debugging, review, or resuming work in Madar, read
 and poteto skills around observable outcomes, focused verification, and improvements grounded in
 recurring failures. This file owns repository constraints when a bundled skill differs.
 
-## What makes T3 Code special?
+## Engineering priorities
 
-We have over 500,000 users who love T3 Code. It's important we maintain the things they love as we continue to iterate on the product. Here's a brief list of the things we can never compromise on.
+Preserve responsiveness when changing rendering, database access, inter-process communication, and
+resource usage. Watch for oversized WebSocket messages, expensive lists, and animations that repaint
+continuously. Keep useful performance optimizations as unrelated features are removed.
 
-### 1. Open at the core
+Choose the smallest model that makes the User Manager workflow clear. Existing complexity is not a
+reason to preserve it, and a new feature is not a reason to introduce unnecessary layers.
 
-T3 Code is truly open. We share our roadmap, we share how we think about things, and of course we share all our code. A large number of our users run forks. We work in the open, and should strive to stay that way.
+This checkout may be used from a running T3 Code instance. Protect its live data and processes while
+changing the app. Use isolated development state and stop only processes you started.
 
-### 2. Performance without compromise
+## Current codebase terminology
 
-Lots of apps have gotten bogged down with bad tech decisions and "slop". We have not, and we're proud of the performance of T3 Code. We regularly audit for performance regressions, often caused by sending too much data over websockets, css animations causing gpu spikes, lists being hard to render, and more. Make sure all changes are considerate of performance impact.
+Use these terms when discussing the current source. Legacy coding-agent entities are not required User Manager domain concepts:
 
-### 3. Remote ready
-
-The architecture of T3 Code's websocket layer (npx t3) enables a lot of awesome remote features. These have become core to the product. Whether users are connecting directly over their local network, using Tailscale, or leaning in fully with T3 Connect (our tunnel solution, also in this repo), we need to make sure new features are properly supported.
-
-### 4. Multi-surface
-
-T3 Code has 3 key app surfaces: **web**, **desktop**, and **mobile**.
-
-**Web** is kind of two surfaces, as we have the public facing "app.t3.codes" as well as locally hosting the web app through the `npx t3` command. Both need to be supported by all new features where reasonable.
-
-**Desktop** is the main surface most users install first. It's a full Electron app that bundles the server runner as well. The desktop app can also be used as the host server, allowing remote connections from app.t3.codes or the mobile app.
-
-**Mobile** is a React Native app for both iOS and Android, available on the App Store and Google Play. The mobile app allows for connecting to any T3 Code server to control work remotely.
-
-## A note from Theo
-
-I like ambitious ideas, simple systems, and software that feels obvious. Do not preserve complexity just because it already exists. Do not introduce machinery because it looks architecturally impressive. Understand the real constraint, then fight for the smallest model that makes the correct behavior unsurprising.
-
-Channel both "measure twice, cut once" and "yagni". Fight scope creep. Try to honor the dev's intent in both a minimal and realistic fashion.
-
-The rest of this document is meant to help you navigate the codebase and make changes effectively. Think of these instructions less as "hard rules", more as "good defaults". The developer's preferences should be able to override anything here.
-
-Of note: Most T3 Code contributions will come from T3 Code itself, often controlled remotely. This means you should be careful about accessing data, killing dev servers, and other things that may damage the T3 Code instance that the contributor is using.
-
-## A small glossary
-
-We need to be on the same page with terminology. When communicating, use this language:
-
-- **you** means the agent reading this file and changing T3 Code.
-- **we, us, and maintainers** mean Theo, Julius and the people building T3 Code. These are who you are talking to now.
-- **user** means the person using T3 Code to direct coding agents.
-- **agent** means the coding agent a user runs inside T3 Code. Depending on context, that may also include you.
+- **you** means the coding agent reading this file and changing Madar.
+- **we, us, and maintainers** mean the people building Madar.
+- **user** means the person using Madar to manage MikroTik User Manager.
+- **agent** means a coding agent working on this repository, or an agent in the inherited T3 Code functionality.
 - **provider** means the agent runtime or harness T3 Code talks to, such as Codex, Claude, Cursor, or OpenCode.
 - **client** means the web, desktop, or mobile UI.
 - **environment** means one running T3 server and the machine, filesystem, provider credentials, and state it owns.
@@ -71,15 +77,14 @@ We need to be on the same page with terminology. When communicating, use this la
 
 ## Hit every surface
 
-The most common defect in this repo is a change that works on the path you tested and is missing everywhere else. Before calling frontend work done, walk this list and say which entries applied:
+Before calling frontend work done, identify which entries apply to the change:
 
-- **Entry points.** A behavior reachable from the chat view is usually also reachable from Settings, the command palette, and a keybinding. Fixing one is not fixing the feature.
-- **Clients.** Web, desktop (wraps web, adds Electron shell/IPC), and mobile (React Native, separate navigation). Shared logic lives in `packages/client-runtime`
-- **Providers.** Codex, Claude, Cursor, Grok, OpenCode, and Antigravity each have an adapter. Provider-shaped features need a decision per adapter, even if the decision is "not supported here".
-- **Agents.** A capability a user can trigger is usually one an agent should reach through MCP tools, and scheduled tasks run the same paths. That only works when it is a service method, not handler code.
-- **Contracts.** Anything crossing the wire is typed in `packages/contracts`. Change the schema and the server, web, mobile, and desktop all follow.
-- **Reverse states.** If you added a way in, add the way out and the way to see it. Snooze needs unsnooze. Close needs reopen. A one-way door is a bug.
-- **Connection modes.** Local, remote/relay, and tunnel behave differently. Multi-device and multi-environment cases are real.
+- **Entry points.** Check each affected view, menu, Settings path, command-palette action, and keybinding that exposes the workflow.
+- **Desktop.** Verify the web UI used by Electron and any affected shell or IPC behavior. Keep existing consumers compatible when changing shared code. New User Manager features do not need separate web or mobile implementations.
+- **Integration.** Check that GUI actions map to supported User Manager operations for the chosen RouterOS version and connection method.
+- **Contracts.** Type wire messages in `packages/contracts` and update the affected server and client consumers together.
+- **Reverse states.** Cover editing, removal, and recovery where supported. Show operation results, current state, and failures clearly.
+- **Connections.** Account for connection failures and reconnection in the chosen User Manager connection path. Relay and tunnel behavior applies only when the requested workflow uses it.
 - **Docs.** Check whether the change makes existing guidance inaccurate. Apply the [documentation rules](#documentation) before adding anything.
 
 ## Dev servers
@@ -172,7 +177,9 @@ Most code changes do not need an internal documentation change. Agents can read 
 - Track active maintainer work in the GitHub issue or project item that owns it. External proposals follow `CONTRIBUTING.md` and belong in Ideas discussions.
 - A merged PR is the implementation record. Close or update its tracking item when the work lands; do not preserve a second checklist in the repository.
 
-## How it works
+## Current inherited architecture
+
+The following describes the inherited T3 Code implementation for navigation while it is replaced or reused. User Manager features may use a different model where appropriate.
 
 Clients send typed WebSocket requests. The server turns them into _commands_. The _orchestrator_ (`apps/server/src/orchestration-v2/Orchestrator.ts`) serializes commands and decides _events_ without doing any I/O. The _event sink_ commits those events, the _projections_ the UI reads, the _command receipt_, and _outbox_ effects in one transaction. The _effect worker_ then runs the effects, such as starting a provider turn or capturing a checkpoint, and feeds results back as commands. Provider CLIs run as subprocesses; per-provider _adapters_ translate their native protocols into orchestration events. Each turn ends with a _checkpoint_, a hidden git ref, so the app can diff and restore.
 
@@ -201,7 +208,7 @@ Architecture and its constraints: `docs/internals/overview.md`. Glossary: `docs/
   options, and pass combinators as additional function-builder arguments.
 - Inferred types over annotations. `any` is the enemy.
 - Default to no comment. Write one only for a constraint, an external quirk, or an invariant the code can't show, in one line where you can and four at most. Don't restate names or signatures, narrate steps, record history, or explain the fix you just made; the PR carries that. `t3code/no-low-value-comments` enforces the length cap and the mechanical cases.
-- Our users drive agents all day and notice a dropped frame, a lying spinner, and a stale label. No continuously repainting animations; they peg the GPU on high-refresh displays.
+- Users notice dropped frames, misleading spinners, and stale labels. No continuously repainting animations; they peg the GPU on high-refresh displays.
 - If a rule here fights the task in front of you, say so loudly and get a human sign-off before breaking it.
 
 ## Additional tips
