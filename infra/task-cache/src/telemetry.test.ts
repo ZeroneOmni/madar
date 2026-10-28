@@ -160,3 +160,16 @@ it("drops revoked credentials and continues delivering other queued endpoints", 
     NodeFS.rmSync(home, { recursive: true, force: true });
   }
 });
+
+it("does not recreate a removed telemetry home when a detached flusher starts late", async () => {
+  const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "cache-flush-removed-"));
+  const home = NodePath.join(root, "home");
+  try {
+    NodeFS.mkdirSync(home);
+    NodeFS.rmdirSync(home);
+    await flushTelemetry(home, {});
+    expect(NodeFS.existsSync(home)).toBe(false);
+  } finally {
+    NodeFS.rmSync(root, { recursive: true, force: true });
+  }
+});

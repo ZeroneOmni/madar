@@ -163,7 +163,7 @@ export async function flushTelemetry(home = NodeOS.homedir(), env = process.env)
   const queue = NodePath.join(home, ".cache/t3-task-cache/telemetry");
   const lock = NodePath.join(queue, "flush.lock");
   try {
-    NodeFS.mkdirSync(queue, { recursive: true, mode: 0o700 });
+    if (!NodeFS.readdirSync(queue).some((file) => file.endsWith(".json"))) return;
     try {
       if (Date.now() - NodeFS.statSync(lock).mtimeMs > 60_000) NodeFS.rmdirSync(lock);
     } catch {
