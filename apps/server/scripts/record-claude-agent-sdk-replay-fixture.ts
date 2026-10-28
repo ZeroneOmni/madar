@@ -55,7 +55,7 @@ import {
   WORKSPACE_NEVER_POLICY,
   WEB_SEARCH_PROMPT,
 } from "../src/orchestration-v2/testkit/fixtures/shared.ts";
-import { CLAUDE_BACKGROUND_SUBAGENT_AFTER_ROOT_PROMPT } from "../src/orchestration-v2/testkit/fixtures/claude_background_subagent_after_root/input.ts";
+
 import {
   CLAUDE_BACKGROUND_SUBAGENT_LIFECYCLE_FINAL_PROMPT,
   CLAUDE_BACKGROUND_SUBAGENT_LIFECYCLE_LAUNCH_PROMPT,
@@ -182,14 +182,7 @@ const CLAUDE_RECORDINGS = {
     queryMode: "streaming",
     enableTools: true,
   },
-  claude_background_subagent_after_root: {
-    prompts: [CLAUDE_BACKGROUND_SUBAGENT_AFTER_ROOT_PROMPT],
-    defaultTranscriptFile:
-      "fixtures/claude_background_subagent_after_root/claude_transcript.ndjson",
-    queryMode: "streaming",
-    enableTools: true,
-    backgroundWakeCounts: [1],
-  },
+
   claude_background_task_wake: {
     prompts: [CLAUDE_BACKGROUND_TASK_WAKE_PROMPT, CLAUDE_BACKGROUND_TASK_WAKE_FOLLOW_UP_PROMPT],
     defaultTranscriptFile: "fixtures/claude_background_task_wake/claude_transcript.ndjson",
