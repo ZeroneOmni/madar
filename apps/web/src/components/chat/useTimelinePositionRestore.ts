@@ -30,9 +30,14 @@ export function settleListScroll(
       if (!element || offset === undefined || frames > SETTLE_MAX_FRAMES) return resolve();
       if (Math.abs(element.scrollTop - offset) > 1) {
         stableFrames = 0;
-        void list.scrollToOffset({ offset, animated: false }).then(() => {
-          requestAnimationFrame(reconcile);
-        });
+        void list
+          .scrollToOffset({
+            offset,
+            animated: false,
+          })
+          .then(() => {
+            requestAnimationFrame(reconcile);
+          });
         return;
       }
       stableFrames += 1;
@@ -42,7 +47,6 @@ export function settleListScroll(
     requestAnimationFrame(reconcile);
   });
 }
-
 export const measuredEndOffset = (element: HTMLElement) =>
   element.scrollHeight - element.clientHeight;
 
@@ -82,7 +86,10 @@ export function useTimelinePositionRestore({
     const opened = listOpenedOnRef.current;
     if (!list) return;
     if (opened?.list !== list) {
-      listOpenedOnRef.current = { list, identity: listIdentityKey };
+      listOpenedOnRef.current = {
+        list,
+        identity: listIdentityKey,
+      };
     } else if (opened.identity !== listIdentityKey) {
       opened.identity = null;
     }
@@ -101,7 +108,11 @@ export function useTimelinePositionRestore({
     const cancelRestoration = () => {
       if (cancelled) return;
       cancelled = true;
-      if (viewport) void list.scrollToOffset({ offset: viewport.scrollTop, animated: false });
+      if (viewport)
+        void list.scrollToOffset({
+          offset: viewport.scrollTop,
+          animated: false,
+        });
       onPositioned(listIdentityKey);
     };
     const cancelForNavigation = () => {
@@ -118,9 +129,15 @@ export function useTimelinePositionRestore({
       )
         cancelForNavigation();
     };
-    viewport?.addEventListener("wheel", cancelForNavigation, { passive: true });
-    viewport?.addEventListener("touchmove", cancelForNavigation, { passive: true });
-    viewport?.addEventListener("pointerdown", cancelForNavigation, { passive: true });
+    viewport?.addEventListener("wheel", cancelForNavigation, {
+      passive: true,
+    });
+    viewport?.addEventListener("touchmove", cancelForNavigation, {
+      passive: true,
+    });
+    viewport?.addEventListener("pointerdown", cancelForNavigation, {
+      passive: true,
+    });
     viewport?.ownerDocument.addEventListener("keydown", onScrollKey);
     const position = rememberedPosition;
     const index = position ? rows.findIndex((row) => row.id === position.rowId) : -1;
@@ -135,10 +152,15 @@ export function useTimelinePositionRestore({
               viewPosition: 0,
               viewOffset: -position.offsetWithinRow,
             })
-          : list.scrollToOffset({ offset: position.scrollOffset, animated: false })
+          : list.scrollToOffset({
+              offset: position.scrollOffset,
+              animated: false,
+            })
         : listOpenedOnRef.current?.identity === listIdentityKey
           ? undefined
-          : list.scrollToEnd({ animated: false });
+          : list.scrollToEnd({
+              animated: false,
+            });
     const settlesAtEnd = position?.atEnd !== false && scrolling !== undefined;
     void Promise.resolve(scrolling).then(async () => {
       if (cancelled) return;

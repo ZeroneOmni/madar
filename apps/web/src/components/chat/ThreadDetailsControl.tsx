@@ -1,7 +1,6 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import type { ComponentProps } from "react";
-
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import {
@@ -16,7 +15,6 @@ import {
   THREAD_DETAILS_PANEL_SELECT_ICON_CLASS,
 } from "./threadDetailsPanelStyles";
 import { ChevronDownIcon } from "lucide-react";
-
 const parts = {
   row: THREAD_DETAILS_PANEL_ROW_CLASS,
   select: THREAD_DETAILS_PANEL_SELECT_ROW_CLASS,
@@ -25,7 +23,6 @@ const parts = {
   icon: THREAD_DETAILS_PANEL_ICON_ACTION_CLASS,
   meta: THREAD_DETAILS_PANEL_META_ACTION_CLASS,
 };
-
 export function ThreadDetailsControl({
   panel = true,
   part = "row",

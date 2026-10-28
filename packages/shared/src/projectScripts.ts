@@ -49,31 +49,8 @@ export function projectScriptCwd(input: {
   return input.worktreePath ?? input.project.cwd;
 }
 
-export function projectScriptRuntimeEnv(
-  input: ProjectScriptRuntimeEnvInput,
-): Record<string, string> {
-  const env: Record<string, string> = {
-    T3CODE_PROJECT_ROOT: input.project.cwd,
-  };
-  if (input.worktreePath) {
-    env.T3CODE_WORKTREE_PATH = input.worktreePath;
-  }
-  if (input.extraEnv) {
-    return { ...env, ...input.extraEnv };
-  }
-  return env;
-}
-
 export function setupProjectScript(scripts: readonly ProjectScript[]): ProjectScript | null {
   return scripts.find((script) => script.runOnWorktreeCreate) ?? null;
-}
-
-export function projectScriptMenuLabel(script: ProjectScript): string {
-  const roles = [
-    ...(script.runOnWorktreeCreate ? ["setup"] : []),
-    ...(script.runOnSettle ? ["on settle"] : []),
-  ];
-  return roles.length === 0 ? script.name : `${script.name} (${roles.join(", ")})`;
 }
 
 export function settleProjectScript(scripts: readonly ProjectScript[]): ProjectScript | null {
@@ -85,6 +62,3 @@ export function settleProjectScript(scripts: readonly ProjectScript[]): ProjectS
  * zsh with HIST_IGNORE_SPACE, and fish. Only the first line is prefixed, so later
  * entries from multiline input may still enter history. PowerShell/PSReadLine history is not suppressed.
  */
-export function projectScriptTerminalInput(command: string): string {
-  return ` ${command}\r`;
-}

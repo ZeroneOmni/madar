@@ -2,25 +2,14 @@ import type { KeybindingCommand, ResolvedKeybindingsConfig } from "@t3tools/cont
 import { useEffect, useEffectEvent } from "react";
 import { isCommandPaletteOpen } from "../../commandPaletteBus";
 import { resolveChatShortcutCommand, type ShortcutMatchContext } from "../../keybindings";
-import { isTerminalCloseConfirmPending } from "../../lib/terminalCloseConfirm";
-import {
-  preventRepeatedTerminalCloseShortcut,
-  preventTerminalCloseShortcut,
-} from "../../lib/terminalCloseShortcut";
-import { getTerminalFocusOwner, type TerminalFocusOwner } from "../../lib/terminalFocus";
 import type { ComposerHandleRef } from "../../composerHandleContext";
 import type { BranchToolbarHandle } from "../BranchToolbar";
 import { shouldTypeToFocusComposer } from "./composerFocusRedirect";
 import { composerShortcutCommands } from "./composerShortcuts";
 
 /** Returning false lets the key event through untouched. */
-export type ChatShortcutHandler = (context: {
-  readonly event: KeyboardEvent;
-  readonly terminalFocusOwner: TerminalFocusOwner | null;
-}) => boolean | void;
-
+export type ChatShortcutHandler = (context: { readonly event: KeyboardEvent }) => boolean | void;
 export type ChatShortcutCommands = Partial<Record<KeybindingCommand, ChatShortcutHandler>>;
-
 export interface ChatShortcutsInput {
   readonly enabled: boolean;
   readonly keybindings: ResolvedKeybindingsConfig;
@@ -31,7 +20,9 @@ export interface ChatShortcutsInput {
   readonly threadFindActive: boolean;
   /** Takes type-to-focus keys and the composer and branch toolbar chords. */
   readonly composerRef: ComposerHandleRef;
-  readonly branchToolbarRef: { readonly current: BranchToolbarHandle | null };
+  readonly branchToolbarRef: {
+    readonly current: BranchToolbarHandle | null;
+  };
   readonly closeThreadFind: () => void;
   readonly commands: ChatShortcutCommands;
   /** Handles commands not in `commands`, such as project scripts. */
@@ -46,22 +37,11 @@ export interface ChatShortcutsInput {
 export function useChatShortcuts(input: ChatShortcutsInput) {
   const handleShortcut = useEffectEvent((event: KeyboardEvent) => {
     const { keybindings } = input;
-    if (preventRepeatedTerminalCloseShortcut(event, keybindings)) {
-      event.stopPropagation();
-      return;
-    }
     if (input.threadFindActive && event.key === "Escape") return;
-    if (isTerminalCloseConfirmPending() && preventTerminalCloseShortcut(event, keybindings)) {
-      event.stopPropagation();
-      return;
-    }
     if (!input.enabled || isCommandPaletteOpen()) return;
-    const terminalFocusOwner = getTerminalFocusOwner();
-    if (event.defaultPrevented && terminalFocusOwner === null) return;
     const shortcutContext = input.getShortcutContext(event.target);
-
     if (
-      !shortcutContext.terminalFocus &&
+      true &&
       !shortcutContext.modelPickerOpen &&
       shouldTypeToFocusComposer(event) &&
       input.composerRef.current?.insertTextAtEnd(event.key) === true
@@ -70,7 +50,6 @@ export function useChatShortcuts(input: ChatShortcutsInput) {
       event.stopPropagation();
       return;
     }
-
     const command = resolveChatShortcutCommand(event, keybindings, input.scriptKeybindings, {
       context: shortcutContext,
     });
@@ -79,7 +58,13 @@ export function useChatShortcuts(input: ChatShortcutsInput) {
       input.commands[command] ??
       composerShortcutCommands(input.composerRef, input.branchToolbarRef)[command] ??
       input.fallback(command);
-    if (!run || run({ event, terminalFocusOwner }) === false) return;
+    if (
+      !run ||
+      run({
+        event,
+      }) === false
+    )
+      return;
     event.preventDefault();
     event.stopPropagation();
   });

@@ -1,11 +1,4 @@
-import type { ScopedThreadRef } from "@t3tools/contracts";
 import { type ReactNode, useState } from "react";
-
-import { useFaviconForThreadUrl } from "~/browserFaviconStore";
-import { cn } from "~/lib/utils";
-
-import { BrowserMockup } from "./BrowserMockup";
-
 export function FaviconImage(props: {
   sources: ReadonlyArray<string | null | undefined>;
   fallback: ReactNode;
@@ -21,7 +14,6 @@ export function FaviconImage(props: {
     />
   );
 }
-
 function FaviconImageAttempt(props: {
   sources: ReadonlyArray<string>;
   fallback: ReactNode;
@@ -38,22 +30,6 @@ function FaviconImageAttempt(props: {
       draggable={false}
       className={props.className}
       onError={() => setFailed((current) => new Set(current).add(source))}
-    />
-  );
-}
-
-export function PreviewFaviconIcon(props: {
-  threadRef: ScopedThreadRef;
-  url: string;
-  className?: string | undefined;
-}) {
-  const source = useFaviconForThreadUrl(props.threadRef, props.url);
-  const fallback = <BrowserMockup className={cn("size-7 shrink-0", props.className)} />;
-  return (
-    <FaviconImage
-      sources={[source]}
-      fallback={fallback}
-      className={cn("size-7 shrink-0 rounded object-contain", props.className)}
     />
   );
 }

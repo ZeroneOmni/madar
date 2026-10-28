@@ -1,7 +1,5 @@
 import { lazy, memo, Suspense } from "react";
-
 import { RenderErrorBoundary } from "../RenderErrorBoundary";
-
 const MathTypeset = lazy(() => import("./MathTypeset"));
 
 /**

@@ -3,7 +3,6 @@ export type ComposerScrollGestureState = {
   collapseSuppressed: boolean;
   lastEventAt: number;
 };
-
 export function shouldCollapseComposerForScrollKey(input: {
   key: string;
   scrollTop: number;
@@ -22,7 +21,6 @@ export function shouldCollapseComposerForScrollKey(input: {
       return false;
   }
 }
-
 export function createComposerScrollGestureState(): ComposerScrollGestureState {
   return {
     accumulatedDeltaPx: 0,
@@ -30,13 +28,11 @@ export function createComposerScrollGestureState(): ComposerScrollGestureState {
     lastEventAt: Number.NEGATIVE_INFINITY,
   };
 }
-
 export function resetComposerScrollGesture(state: ComposerScrollGestureState): void {
   state.accumulatedDeltaPx = 0;
   state.collapseSuppressed = false;
   state.lastEventAt = Number.NEGATIVE_INFINITY;
 }
-
 export function suppressActiveComposerScrollGesture(
   state: ComposerScrollGestureState,
   now: number,
@@ -46,7 +42,6 @@ export function suppressActiveComposerScrollGesture(
     state.collapseSuppressed = true;
   }
 }
-
 export function recordComposerScrollGestureEvent(
   state: ComposerScrollGestureState,
   input: {
@@ -68,12 +63,10 @@ export function recordComposerScrollGestureEvent(
     state.accumulatedDeltaPx = 0;
     return false;
   }
-
   state.accumulatedDeltaPx += input.deltaPx;
   if (state.accumulatedDeltaPx < input.collapseThresholdPx) {
     return false;
   }
-
   state.accumulatedDeltaPx = 0;
   return true;
 }

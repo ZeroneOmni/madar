@@ -11,9 +11,7 @@ import {
   ZapIcon,
 } from "lucide-react";
 import * as DateTime from "effect/DateTime";
-
 type V2EventTone = "muted" | "warning" | "danger" | "success";
-
 export function v2EventPresentation(item: OrchestrationV2TurnItem): {
   readonly label: string;
   readonly detail: string | null;
@@ -94,7 +92,6 @@ export function v2EventPresentation(item: OrchestrationV2TurnItem): {
       };
   }
 }
-
 export function subagentGroupTiming(
   agents: ReadonlyArray<{
     status: OrchestrationV2TurnItem["status"];

@@ -17,7 +17,6 @@ import { useAtomValue } from "@effect/atom-react";
 import { useNavigate } from "@tanstack/react-router";
 import { MessageSquareIcon } from "lucide-react";
 import { useState } from "react";
-
 import {
   applyProviderInstanceSettings,
   deriveProviderInstanceEntries,
@@ -38,12 +37,7 @@ import { formatRelativeTimeLabel } from "../timestampFormat";
 import { buildThreadActionItems, ITEM_ICON_CLASS } from "./CommandPalette.logic";
 import { useEnvironmentLookups, useProjectLookups } from "./CommandPaletteLookups";
 import { ThreadCommandSubtitle } from "./ThreadCommandSubtitle";
-import {
-  ThreadRowLeadingStatus,
-  ThreadRowTrailingStatus,
-  ThreadSearchPullRequestNumber,
-} from "./ThreadStatusIndicators";
-
+import { ThreadRowLeadingStatus, ThreadRowTrailingStatus } from "./ThreadStatusIndicators";
 function useProviderEntryByEnvironmentAndInstanceId() {
   const { environments } = useEnvironments();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
@@ -65,7 +59,6 @@ function useProviderEntryByEnvironmentAndInstanceId() {
     }),
   );
 }
-
 function useConnectedThreadSearch(query: string) {
   const { environments } = useEnvironments();
   const { projectEnvironmentLocationById } = useEnvironmentLookups();
@@ -85,7 +78,11 @@ function useConnectedThreadSearch(query: string) {
   return useThreadSearch(
     environmentIds,
     query,
-    environmentLabels === undefined ? {} : { environmentLabels },
+    environmentLabels === undefined
+      ? {}
+      : {
+          environmentLabels,
+        },
   );
 }
 
@@ -94,7 +91,10 @@ function useConnectedThreadSearch(query: string) {
  * `threadSearchQuery`, the threads whose messages match, best first.
  */
 export function useCommandPaletteThreadItems(input: {
-  readonly activeThread: { readonly environmentId: EnvironmentId; readonly id: ThreadId } | null;
+  readonly activeThread: {
+    readonly environmentId: EnvironmentId;
+    readonly id: ThreadId;
+  } | null;
   readonly threadSearchQuery: string;
 }) {
   const { activeThread, threadSearchQuery } = input;
@@ -104,10 +104,11 @@ export function useCommandPaletteThreadItems(input: {
   const providerEntryByEnvironmentAndInstanceId = useProviderEntryByEnvironmentAndInstanceId();
   const messageSearch = useConnectedThreadSearch(threadSearchQuery);
   const { projectByKey } = useProjectLookups();
-  const visitThread = useAtomCommand(threadEnvironment.visit, { reportFailure: false });
+  const visitThread = useAtomCommand(threadEnvironment.visit, {
+    reportFailure: false,
+  });
   // Ranking is relative to when the palette opened, so rows do not reorder as time passes.
   const [now] = useState(() => Date.now());
-
   const { environments } = useEnvironments();
   const threadItems = buildThreadActionItems({
     threads,
@@ -117,17 +118,16 @@ export function useCommandPaletteThreadItems(input: {
             projectEnvironmentLocationById.get(thread.environmentId)?.label ?? null,
         }
       : {}),
-    ...(activeThread ? { activeThread } : {}),
+    ...(activeThread
+      ? {
+          activeThread,
+        }
+      : {}),
     projectByKey,
     icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
     renderLeadingContent: (thread) => <ThreadRowLeadingStatus thread={thread} />,
     renderTrailingContent: (thread) => (
       <>
-        <ThreadSearchPullRequestNumber
-          thread={thread}
-          query={threadSearchQuery}
-          settled={thread.settledOverride === "settled"}
-        />
         <ThreadRowTrailingStatus thread={thread} />
       </>
     ),
@@ -188,7 +188,6 @@ export function useCommandPaletteThreadItems(input: {
       });
     },
   });
-
   const itemByValue = new Map(threadItems.map((item) => [item.value, item]));
   const itemForMatch = (match: EnvironmentThreadSearchMatch) =>
     itemByValue.get(`thread:${match.environmentId}:${match.threadId}`);
@@ -197,7 +196,9 @@ export function useCommandPaletteThreadItems(input: {
     (match) => itemForMatch(match)?.threadSearch,
     foldSearchQuery(threadSearchQuery),
     now,
-    { withoutTitleMatches: true },
+    {
+      withoutTitleMatches: true,
+    },
   ).flatMap((match) => {
     const item = itemForMatch(match);
     if (!item) return [];
@@ -208,7 +209,9 @@ export function useCommandPaletteThreadItems(input: {
         ...rest,
         // When the matching message was written, not when the thread last moved.
         ...(match.messageCreatedAt
-          ? { timestamp: formatRelativeTimeLabel(match.messageCreatedAt) }
+          ? {
+              timestamp: formatRelativeTimeLabel(match.messageCreatedAt),
+            }
           : {}),
         threadContentMatch: {
           source: match.source,
@@ -240,7 +243,6 @@ export function useCommandPaletteThreadItems(input: {
   const threadMessageItems = order.keys
     .slice(0, order.shown)
     .flatMap((value) => messageItemByValue.get(value) ?? []);
-
   return {
     threadItems,
     threadMessageItems,

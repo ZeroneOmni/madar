@@ -3,7 +3,6 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { MspError } from "@muse-code/sdk";
 import {
   MUSE_DEFAULT_MODEL,
-  EnvironmentId,
   MessageId,
   NodeId,
   ProjectId,
@@ -34,7 +33,7 @@ import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 
 import * as TestProviderHost from "@t3tools/provider-testing/TestProviderHost";
-import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
+
 import type { MuseItem, MuseSubscriptionUsage } from "./protocol.ts";
 import type { MuseSdkHost, MuseSdkHostOptions } from "./sdk.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
@@ -45,7 +44,7 @@ import { makeMuseAdapterV2, type MuseAdapterV2Options } from "./adapter.ts";
 const testLayer = Layer.mergeAll(
   NodeServices.layer,
   IdAllocator.layer,
-  McpProviderSessions.layer,
+
   TestProviderHost.layer().pipe(Layer.provide(NodeServices.layer)),
 );
 const MUSE_PROVIDER = ProviderDriverKind.make("muse");
@@ -380,36 +379,6 @@ const approval = (turnId: string) => ({
 });
 
 describe("MuseAdapterV2", () => {
-  it.effect("connects the thread's MCP credential on native start and resume", () =>
-    Effect.gen(function* () {
-      yield* (yield* McpProviderSessions.McpProviderSessions).set({
-        environmentId: EnvironmentId.make("test-environment"),
-        threadId: THREAD_ID,
-        providerSessionId: "test-session",
-        providerInstanceId: INSTANCE_ID,
-        endpoint: "http://127.0.0.1:43210/mcp",
-        authorizationHeader: "Bearer thread-scoped-test-token",
-        browserToolsAvailable: true,
-      });
-      for (const nativeId of [undefined, "saved-native-session"]) {
-        const fake = yield* makeFakeMuse();
-        fake.host.initializeResult.grantedCapabilities.push("sessionMcp");
-        yield* makeHarness(fake, INSTANCE_ID, nativeId);
-        const call = yield* fake.takeCall(nativeId ? "session/resume" : "session/start");
-        assert.deepStrictEqual(call.params.config, {
-          mcpServers: {
-            "t3-code": {
-              transport: "streamableHttp",
-              mode: "optional",
-              url: "http://127.0.0.1:43210/mcp",
-              headers: { Authorization: "Bearer thread-scoped-test-token" },
-            },
-          },
-        });
-      }
-    }).pipe(Effect.scoped, Effect.provide(testLayer)),
-  );
-
   it.effect("selects the runtime mode's permission profile on native start and resume", () =>
     Effect.gen(function* () {
       for (const [runtimeMode, profile, approvalMode] of [
@@ -433,24 +402,6 @@ describe("MuseAdapterV2", () => {
         const mode = yield* saved.takeCall("session/setApprovalMode");
         assert.strictEqual(mode.params.mode, approvalMode);
       }
-    }).pipe(Effect.scoped, Effect.provide(testLayer)),
-  );
-
-  it.effect("rejects a host without session MCP support before opening a native session", () =>
-    Effect.gen(function* () {
-      yield* (yield* McpProviderSessions.McpProviderSessions).set({
-        environmentId: EnvironmentId.make("test-environment"),
-        threadId: THREAD_ID,
-        providerSessionId: "test-session",
-        providerInstanceId: INSTANCE_ID,
-        endpoint: "http://127.0.0.1:43210/mcp",
-        authorizationHeader: "Bearer thread-scoped-test-token",
-        browserToolsAvailable: false,
-      });
-      const fake = yield* makeFakeMuse();
-      const outcome = yield* makeHarness(fake).pipe(Effect.result);
-      assert.strictEqual(outcome._tag, "Failure");
-      assert.isFalse(fake.calls.some((call) => call.method === "session/start"));
     }).pipe(Effect.scoped, Effect.provide(testLayer)),
   );
 

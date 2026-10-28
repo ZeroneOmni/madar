@@ -1,11 +1,8 @@
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
-
 import { languageOfInfoString, withInfoStringLanguage } from "~/composer-code-languages";
-
 import { useRenderedAppearance } from "../../hooks/useTheme";
 import { MarkdownCodeBlockFrame } from "./MarkdownCodeBlock";
 import { ComposerCodeBlockLanguagePicker } from "./ComposerCodeBlockLanguagePicker";
-
 export function ComposerCodeBlockNodeView({
   node,
   editor,
@@ -15,9 +12,10 @@ export function ComposerCodeBlockNodeView({
   const resolvedTheme = useRenderedAppearance();
   const info = typeof node.attrs.language === "string" ? node.attrs.language : "";
   const language = languageOfInfoString(info);
-
   const changeLanguage = (next: string) => {
-    updateAttributes({ language: withInfoStringLanguage(info, next) });
+    updateAttributes({
+      language: withInfoStringLanguage(info, next),
+    });
     const position = getPos();
     if (typeof position === "number") {
       editor
@@ -26,14 +24,15 @@ export function ComposerCodeBlockNodeView({
         .run();
     }
   };
-
   return (
     <MarkdownCodeBlockFrame
       as={NodeViewWrapper}
       language={language || "text"}
       fenceTitle={null}
       theme={resolvedTheme}
-      headerProps={{ contentEditable: false }}
+      headerProps={{
+        contentEditable: false,
+      }}
       title={
         <ComposerCodeBlockLanguagePicker
           language={language}

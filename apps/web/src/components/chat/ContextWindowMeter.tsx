@@ -7,7 +7,6 @@ import {
 } from "./ContextWindowMeter.logic";
 import { Minimize2Icon } from "lucide-react";
 import { composerFloatingLayerProps } from "./composerEventScope";
-
 function formatPercentage(value: number | null): string | null {
   if (value === null || !Number.isFinite(value)) {
     return null;
@@ -17,7 +16,6 @@ function formatPercentage(value: number | null): string | null {
   }
   return `${Math.round(value)}%`;
 }
-
 export function ContextWindowMeter(props: {
   usage: ContextWindowSnapshot;
   modelDisplayName?: string | null;
@@ -37,7 +35,6 @@ export function ContextWindowMeter(props: {
   const usageColor = isOverloaded
     ? "var(--color-error)"
     : "color-mix(in oklab, var(--color-muted-foreground) 72%, transparent)";
-
   return (
     <Popover>
       <PopoverTrigger
@@ -124,7 +121,10 @@ export function ContextWindowMeter(props: {
             >
               <div
                 className="h-full rounded-full transition-[width,background-color] duration-500 ease-out motion-reduce:transition-none"
-                style={{ width: `${normalizedPercentage}%`, backgroundColor: usageColor }}
+                style={{
+                  width: `${normalizedPercentage}%`,
+                  backgroundColor: usageColor,
+                }}
               />
             </div>
           ) : null}
@@ -173,7 +173,6 @@ export function ContextWindowMeter(props: {
     </Popover>
   );
 }
-
 export function ContextWindowMeterPlaceholder() {
   return <span aria-hidden="true" className="size-7 shrink-0" />;
 }

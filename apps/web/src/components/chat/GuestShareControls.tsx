@@ -12,7 +12,6 @@ import {
 } from "@t3tools/contracts";
 import { CheckIcon, CopyIcon, UserIcon } from "lucide-react";
 import { useState } from "react";
-
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
@@ -40,11 +39,9 @@ import { buildExpandedImagePreview, type ExpandedImagePreview } from "./Expanded
 import { GuestMessageAttachments } from "./GuestMessageAttachments";
 import { GuestMessageName, guestBubbleClassName } from "./guestMessageStyle";
 import { guestShareDialogThreadAtom } from "./guestShareDialogState";
-
 function useThreadGuestShare(threadRef: ScopedThreadRef | null): ThreadGuestShare | null {
   return useQuietThreadProjection(threadRef)?.projection.thread.guestShare ?? null;
 }
-
 export function GuestShareDialogHost() {
   const threadRef = useAtomValue(guestShareDialogThreadAtom);
   if (threadRef === null) return null;
@@ -56,13 +53,21 @@ export function GuestShareDialogHost() {
     />
   );
 }
-
 type CreateState =
-  | { readonly status: "idle" }
-  | { readonly status: "creating" }
-  | { readonly status: "created"; readonly url: string }
-  | { readonly status: "failed"; readonly message: string };
-
+  | {
+      readonly status: "idle";
+    }
+  | {
+      readonly status: "creating";
+    }
+  | {
+      readonly status: "created";
+      readonly url: string;
+    }
+  | {
+      readonly status: "failed";
+      readonly message: string;
+    };
 function GuestShareDialog({
   threadRef,
   onClose,
@@ -77,21 +82,33 @@ function GuestShareDialog({
   const createGuestShare = useAtomCommand(serverEnvironment.createGuestShare, {
     reportFailure: false,
   });
-  const { copyToClipboard, isCopied } = useCopyToClipboard({ target: "guest link" });
-  const [state, setState] = useState<CreateState>({ status: "idle" });
-
+  const { copyToClipboard, isCopied } = useCopyToClipboard({
+    target: "guest link",
+  });
+  const [state, setState] = useState<CreateState>({
+    status: "idle",
+  });
   const create = async () => {
-    setState({ status: "creating" });
+    setState({
+      status: "creating",
+    });
     const result = await createGuestShare({
       environmentId: threadRef.environmentId,
-      input: { threadId: threadRef.threadId },
+      input: {
+        threadId: threadRef.threadId,
+      },
     });
     if (result._tag === "Success") {
-      setState({ status: "created", url: result.value.url });
+      setState({
+        status: "created",
+        url: result.value.url,
+      });
       return;
     }
     if (isAtomCommandInterrupted(result)) {
-      setState({ status: "idle" });
+      setState({
+        status: "idle",
+      });
       return;
     }
     const error = squashAtomCommandFailure(result);
@@ -100,7 +117,6 @@ function GuestShareDialog({
       message: error instanceof Error ? error.message : "Could not create a guest link.",
     });
   };
-
   return (
     <Dialog
       open
@@ -193,7 +209,9 @@ export function GuestShareIndicator({ threadRef }: { readonly threadRef: ScopedT
           setClosing(true);
           await closeGuestShare({
             environmentId: threadRef.environmentId,
-            input: { threadId: threadRef.threadId },
+            input: {
+              threadId: threadRef.threadId,
+            },
           });
           setClosing(false);
         }}
@@ -203,7 +221,6 @@ export function GuestShareIndicator({ threadRef }: { readonly threadRef: ScopedT
     </div>
   );
 }
-
 function GuestShareStatus({ share }: { readonly share: ThreadGuestShare }) {
   const nowMinute = useNowMinute();
   // The share stays on the thread after it expires, until the owner clears it.
@@ -237,7 +254,10 @@ export function GuestPendingMessages({
   const images = pending.flatMap((message) => message.attachments ?? []).filter(isImageAttachment);
   const imageUrls = useAssetUrls(
     threadRef.environmentId,
-    images.map((image) => ({ _tag: "attachment" as const, attachmentId: image.id })),
+    images.map((image) => ({
+      _tag: "attachment" as const,
+      attachmentId: image.id,
+    })),
   );
   const imageUrlById = new Map(
     images.flatMap((image, index) => {
@@ -249,17 +269,23 @@ export function GuestPendingMessages({
   const guestName = share.guestName ?? "Guest";
   const openImage = (attachment: ChatAttachment) => {
     const preview = buildExpandedImagePreview(
-      images.map((image) => ({ ...image, previewUrl: imageUrlById.get(image.id) ?? "" })),
+      images.map((image) => ({
+        ...image,
+        previewUrl: imageUrlById.get(image.id) ?? "",
+      })),
       attachment.id,
     );
     if (preview) onImageExpand(preview);
   };
-
   const resolve = async (guestMessageId: GuestMessageId, decision: "send" | "dismiss") => {
     setBusyIds((ids) => new Set(ids).add(guestMessageId));
     await resolveGuestMessage({
       environmentId: threadRef.environmentId,
-      input: { threadId: threadRef.threadId, guestMessageId, decision },
+      input: {
+        threadId: threadRef.threadId,
+        guestMessageId,
+        decision,
+      },
     });
     setBusyIds((ids) => {
       const next = new Set(ids);
@@ -267,7 +293,6 @@ export function GuestPendingMessages({
       return next;
     });
   };
-
   return (
     <ol
       className="chat-content-lane flex flex-col gap-4 pb-4"

@@ -2,16 +2,13 @@ import type { Nodes } from "mdast";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
-
 import type { MessagesTimelineRow } from "./MessagesTimeline.logic";
-
 export interface TimelineMinimapItem {
   readonly id: string;
   readonly rowIndex: number;
   readonly userText: string | null;
   readonly assistantText: string | null;
 }
-
 export function deriveTimelineMinimapItems(
   rows: ReadonlyArray<MessagesTimelineRow>,
 ): TimelineMinimapItem[] {
@@ -21,7 +18,6 @@ export function deriveTimelineMinimapItems(
     if (row?.kind !== "message" || row.message.role !== "user") {
       continue;
     }
-
     items.push({
       id: row.id,
       rowIndex: index,
@@ -31,7 +27,6 @@ export function deriveTimelineMinimapItems(
   }
   return items;
 }
-
 function resolveFinalAssistantTextForTurn(
   rows: ReadonlyArray<MessagesTimelineRow>,
   userRowIndex: number,
@@ -51,9 +46,7 @@ function resolveFinalAssistantTextForTurn(
   }
   return finalAssistantText;
 }
-
 const markdownPreviewParser = unified().use(remarkParse).use(remarkGfm).freeze();
-
 const INLINE_PARENT_TYPES = new Set<Nodes["type"]>([
   "paragraph",
   "heading",
@@ -64,7 +57,6 @@ const INLINE_PARENT_TYPES = new Set<Nodes["type"]>([
   "link",
   "linkReference",
 ]);
-
 function markdownNodeText(node: Nodes): string {
   if (node.type === "html") {
     return node.value
@@ -84,12 +76,10 @@ function markdownNodeText(node: Nodes): string {
   const separator = INLINE_PARENT_TYPES.has(node.type) ? "" : " ";
   return node.children.map(markdownNodeText).join(separator);
 }
-
 function compactMinimapPreview(text: string | null | undefined) {
   const compact = text?.replace(/\s+/g, " ").trim() ?? "";
   return compact.length > 0 ? compact : null;
 }
-
 export function resolveTimelineMinimapPreview(
   item: TimelineMinimapItem | null,
 ): TimelineMinimapItem | null {

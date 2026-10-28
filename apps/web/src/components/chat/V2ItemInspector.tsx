@@ -15,7 +15,6 @@ import { formatDiffCount } from "@t3tools/client-runtime/diff-count";
 import { isJavaScriptReplTool } from "@t3tools/shared/toolActivity";
 import { ExternalLinkIcon, GitBranchIcon, RotateCcwIcon } from "lucide-react";
 import { memo, type ReactNode, Suspense, use } from "react";
-
 import { useRenderedAppearance } from "../../hooks/useTheme";
 import { cn } from "../../lib/utils";
 import { resolveDiffThemeName } from "../../lib/diffRendering";
@@ -32,7 +31,6 @@ import { resolveExternalWebLinkHref } from "./externalLinkContextMenu";
 import type { ExpandedImagePreview } from "./ExpandedImagePreview";
 import { ShellCommandBlock } from "./ShellCommandBlock";
 import type { TurnItemSource } from "./timelineRowContext";
-
 interface V2ItemInspectorProps {
   readonly projectedItem: OrchestrationV2ProjectedTurnItem;
   readonly environmentId: EnvironmentId;
@@ -47,7 +45,6 @@ interface V2ItemInspectorProps {
   readonly onImageExpand?: ((preview: ExpandedImagePreview) => void) | undefined;
   readonly source?: TurnItemSource | undefined;
 }
-
 function SyntaxTokens({
   text,
   language,
@@ -64,16 +61,19 @@ function SyntaxTokens({
   return tokens.flatMap((line, lineIndex) => [
     lineIndex > 0 ? "\n" : "",
     ...line.map((token) => (
-      <span key={token.offset} style={{ color: token.color }}>
+      <span
+        key={token.offset}
+        style={{
+          color: token.color,
+        }}
+      >
         {token.content}
       </span>
     )),
   ]);
 }
-
 const monoClassName =
   "font-mono text-(length:--font-size-code,var(--text-2xs)) leading-relaxed whitespace-pre-wrap break-words select-text";
-
 function isJsonText(text: string): boolean {
   if (!text) return false;
   try {
@@ -83,7 +83,6 @@ function isJsonText(text: string): boolean {
     return false;
   }
 }
-
 function StructuredValue({
   value,
   highlightJson = false,
@@ -110,7 +109,6 @@ function StructuredValue({
     </pre>
   );
 }
-
 function useFetchedTurnItem(
   projectedItem: OrchestrationV2ProjectedTurnItem,
   environmentId: EnvironmentId,
@@ -149,7 +147,6 @@ function useFetchedTurnItem(
     },
   };
 }
-
 interface ToolOutputState {
   readonly output: string | null;
   readonly images: ReturnType<typeof turnItemOutputImages>;
@@ -159,7 +156,6 @@ interface ToolOutputState {
   readonly empty: boolean;
   readonly onImageExpand?: ((preview: ExpandedImagePreview) => void) | undefined;
 }
-
 function ToolOutput(props: ToolOutputState) {
   const images = props.images.map((resource) => (
     <ChatMarkdownAssetImage
@@ -187,7 +183,6 @@ function ToolOutput(props: ToolOutputState) {
     </>
   );
 }
-
 export function FetchedToolOutput(props: {
   readonly projectedItem: OrchestrationV2ProjectedTurnItem;
   readonly environmentId: EnvironmentId;
@@ -201,7 +196,6 @@ export function FetchedToolOutput(props: {
     </div>
   );
 }
-
 function ToolCallBody(
   props: ToolOutputState & {
     readonly command?: string;
@@ -212,7 +206,10 @@ function ToolCallBody(
     readonly outputSlot?: ReactNode;
   },
 ) {
-  const call = toolCallLines({ command: props.command, args: props.args });
+  const call = toolCallLines({
+    command: props.command,
+    args: props.args,
+  });
   return (
     <div className={cn("space-y-1.5", monoClassName)}>
       {call.command ? <ShellCommandBlock command={call.command} /> : null}
@@ -238,7 +235,6 @@ function ToolCallBody(
     </div>
   );
 }
-
 export const V2ItemInspector = memo(function V2ItemInspector(props: V2ItemInspectorProps) {
   // Command rows stream their output, including the final output, from the server.
   const environmentStreamsOutput = useCommandOutputStreaming(props.environmentId);

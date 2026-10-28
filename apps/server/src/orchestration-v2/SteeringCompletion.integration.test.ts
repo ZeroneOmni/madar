@@ -292,7 +292,7 @@ it.effect.each(
           (event) =>
             event.type === "run.updated" &&
             event.payload.id === first.runId &&
-            event.payload.status === "waiting",
+            event.payload.status === "completed",
         );
         const projection = yield* orchestrator.getThreadProjection(threadId);
         const turn = projection.providerTurns[0]!;
@@ -787,7 +787,7 @@ it.effect("starts a steer that missed the turn on the saved next-turn selection"
             (event) =>
               event.type === "run.updated" &&
               event.payload.id === first.runId &&
-              event.payload.status === "waiting",
+              event.payload.status === "completed",
           ),
           Stream.take(1),
           Stream.runDrain,
@@ -895,7 +895,7 @@ it.effect("keeps a held commentary draft before the steer when turn end flushes 
           (event) =>
             event.type === "run.updated" &&
             event.payload.id === first.runId &&
-            event.payload.status === "waiting",
+            event.payload.status === "completed",
         );
         yield* Queue.offer(events, assistantItem("answer", "All fixed.", false));
         yield* Queue.offer(events, assistantItem("draft", "Let me look at the", false));

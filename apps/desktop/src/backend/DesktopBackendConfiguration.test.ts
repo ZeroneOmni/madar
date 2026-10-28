@@ -346,7 +346,7 @@ describe("DesktopBackendConfiguration", () => {
                   observedDistros.push(distro);
                   return Option.some("/repo");
                 },
-                ensureNodePty: (distro) => {
+                ensureNode: (distro) => {
                   observedDistros.push(distro);
                   return { ok: true, nodePath: "/usr/bin/node", resolvedPath: "/usr/bin:/bin" };
                 },
@@ -405,8 +405,8 @@ describe("DesktopBackendConfiguration", () => {
             observedProbeRoots.push(root);
             return { ok: true, resolvedPath };
           },
-          ensureNodePty: () => {
-            throw new Error("the staged runtime must not probe for node-pty");
+          ensureNode: () => {
+            throw new Error("the staged runtime must not probe the host Node.js runtime");
           },
         }),
       },
@@ -458,7 +458,7 @@ describe("DesktopBackendConfiguration", () => {
             observedRuntimeIds.push(archive.runtimeId);
             return { ok: true, linuxAppRoot: `/runtime/${archive.runtimeId}` };
           },
-          ensureNodePty: () => ({
+          ensureNode: () => ({
             ok: true,
             nodePath: "/usr/bin/node",
             resolvedPath: "/usr/bin:/bin",
@@ -488,15 +488,15 @@ describe("DesktopBackendConfiguration", () => {
   });
 
   it.effect("resolveWsl falls back to the mounted runtime when archive staging fails", () => {
-    const observedNodePtyRoots: string[] = [];
+    const observedNodeRoots: string[] = [];
     return withPackagedWslHarness(
       {
         archiveHash: "b".repeat(64),
         wsl: () => ({
           prepareRuntime: () => ({ ok: false, reason: "archive is corrupt" }),
           invalidateRuntime: () => Effect.die("failed staging must not invalidate a runtime"),
-          ensureNodePty: (_distro, root) => {
-            observedNodePtyRoots.push(root);
+          ensureNode: (_distro, root) => {
+            observedNodeRoots.push(root);
             return { ok: true, nodePath: "/usr/bin/node", resolvedPath: "/usr/bin:/bin" };
           },
         }),
@@ -506,7 +506,7 @@ describe("DesktopBackendConfiguration", () => {
           const configuration = yield* DesktopBackendConfiguration.DesktopBackendConfiguration;
           const config = yield* configuration.resolveWsl({ port: 5000, distro: "Ubuntu" });
 
-          assert.deepEqual(observedNodePtyRoots, [mountedAppRoot]);
+          assert.deepEqual(observedNodeRoots, [mountedAppRoot]);
           assert.equal(config.entryPath, mountedEntryPath);
           assert.include(config.args, "/usr/bin/node");
           assert.include(config.args, `${mountedAppRoot}/apps/server/dist/bin.mjs`);
@@ -520,7 +520,7 @@ describe("DesktopBackendConfiguration", () => {
     const archiveHash = "c".repeat(64);
     const stagedAppRoot = `/home/test/.t3/wsl-runtime/sha256-${archiveHash}`;
     const observedProbeRoots: string[] = [];
-    const observedNodePtyRoots: string[] = [];
+    const observedNodeRoots: string[] = [];
     const invalidatedRuntimeIds: string[] = [];
     return withPackagedWslHarness(
       {
@@ -535,8 +535,8 @@ describe("DesktopBackendConfiguration", () => {
             observedProbeRoots.push(root);
             return { ok: false, reason: `${root}/t3 --version failed (exit 127)` };
           },
-          ensureNodePty: (_distro, root) => {
-            observedNodePtyRoots.push(root);
+          ensureNode: (_distro, root) => {
+            observedNodeRoots.push(root);
             return { ok: true, nodePath: "/usr/bin/node", resolvedPath: "/usr/bin:/bin" };
           },
         }),
@@ -547,7 +547,7 @@ describe("DesktopBackendConfiguration", () => {
           const config = yield* configuration.resolveWsl({ port: 5000, distro: "Ubuntu" });
 
           assert.deepEqual(observedProbeRoots, [stagedAppRoot]);
-          assert.deepEqual(observedNodePtyRoots, [mountedAppRoot]);
+          assert.deepEqual(observedNodeRoots, [mountedAppRoot]);
           assert.include(config.args, "/usr/bin/node");
           assert.include(config.args, `${mountedAppRoot}/apps/server/dist/bin.mjs`);
           assert.notInclude(config.args, `${stagedAppRoot}/t3`);
@@ -572,7 +572,7 @@ describe("DesktopBackendConfiguration", () => {
               invalidatedRuntimeIds.push(runtimeId);
             }),
           probeRuntime: () => ({ ok: false, reason: "t3 --version failed (exit 1)" }),
-          ensureNodePty: () => ({
+          ensureNode: () => ({
             ok: false,
             reason: "WSL backend preflight timed out while probing for Node.js.",
             fatal: false,
@@ -625,7 +625,7 @@ describe("DesktopBackendConfiguration", () => {
                   isAvailable: true,
                   distros: [{ name: "Ubuntu", isDefault: true, version: 2 }],
                   windowsToWslPath: () => Option.some(linuxAppRoot),
-                  ensureNodePty: () => ({ ok: true, nodePath, resolvedPath }),
+                  ensureNode: () => ({ ok: true, nodePath, resolvedPath }),
                   getDistroIp: () => Option.some("172.27.0.99"),
                 }),
               ),

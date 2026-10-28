@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-
 import { rankModelPickerSearch, scoreModelPickerSearch } from "./modelPickerSearch";
-
 describe("scoreModelPickerSearch", () => {
   it("ranks exact token matches ahead of fuzzier matches", () => {
     const exactScore = scoreModelPickerSearch(
@@ -22,12 +20,10 @@ describe("scoreModelPickerSearch", () => {
       },
       "coplt op",
     );
-
     expect(exactScore).not.toBeNull();
     expect(fuzzyScore).not.toBeNull();
     expect(exactScore!).toBeLessThan(fuzzyScore!);
   });
-
   it("does not let the favorite boost outrank clearly better textual matches", () => {
     const favoriteScore = scoreModelPickerSearch(
       {
@@ -46,13 +42,11 @@ describe("scoreModelPickerSearch", () => {
       },
       "opus 4.7",
     );
-
     expect(favoriteScore).not.toBeNull();
     expect(nonFavoriteExactScore).not.toBeNull();
     expect(nonFavoriteExactScore!).toBeLessThan(favoriteScore!);
   });
 });
-
 type CatalogModel = {
   driverKind: string;
   providerDisplayName: string;
@@ -60,15 +54,17 @@ type CatalogModel = {
   subProvider?: string;
   isFavorite?: boolean;
 };
-
 function instanceModels(
   driverKind: string,
   providerDisplayName: string,
   names: ReadonlyArray<string>,
 ): CatalogModel[] {
-  return names.map((name) => ({ driverKind, providerDisplayName, name }));
+  return names.map((name) => ({
+    driverKind,
+    providerDisplayName,
+    name,
+  }));
 }
-
 const catalog: CatalogModel[] = [
   ...instanceModels("claudeAgent", "Claude", [
     "Claude Opus 5.5",
@@ -128,11 +124,9 @@ const catalog: CatalogModel[] = [
     subProvider: "Moonshot",
   },
 ];
-
 function search(query: string, models: ReadonlyArray<CatalogModel> = catalog): string[] {
   return rankModelPickerSearch(models, query, (model) => model).map((model) => model.name);
 }
-
 describe("rankModelPickerSearch", () => {
   it("keeps newest first when a version token narrows the family", () => {
     expect(search("opus 4")).toEqual([
@@ -144,20 +138,22 @@ describe("rankModelPickerSearch", () => {
     expect(search("opus 5")).toEqual(["Claude Opus 5.5", "Claude Opus 5", "Claude Opus 4.5"]);
     expect(search("opus 5.")).toEqual(["Claude Opus 5.5"]);
   });
-
   it("still ranks an exact name above newer models that extend it", () => {
     expect(search("gpt-6 sol").slice(0, 2)).toEqual(["GPT-6 Sol", "GPT-6.1 Sol"]);
     expect(search("claude opus 5").slice(0, 2)).toEqual(["Claude Opus 5", "Claude Opus 5.5"]);
     expect(search("Grok 4.6")[0]).toBe("Grok 4.6");
   });
-
   it("matches the provider when the name does not", () => {
     expect(search("moonshot")).toEqual(["Kimi K3", "Kimi K2.5", "Kimi K2"]);
   });
-
   it("ranks a favorite above newer models in the same family", () => {
     const models = catalog.map((model) =>
-      model.name === "Claude Opus 4.5" ? { ...model, isFavorite: true } : model,
+      model.name === "Claude Opus 4.5"
+        ? {
+            ...model,
+            isFavorite: true,
+          }
+        : model,
     );
     expect(search("opus", models).slice(0, 3)).toEqual([
       "Claude Opus 4.5",

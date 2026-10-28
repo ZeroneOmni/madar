@@ -5,11 +5,9 @@ import {
 import { isOrchestrationV2WorkActive } from "@t3tools/contracts";
 import { ArrowUpLeftIcon } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
-
 import type { ProviderInstanceEntry } from "../../providerInstances";
 import { Button } from "../ui/button";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
-
 export function ProviderSubagentBar(props: {
   readonly provider: ProviderInstanceEntry | null;
   readonly showInstanceBadge: boolean;
@@ -24,7 +22,12 @@ export function ProviderSubagentBar(props: {
   const modelDescription =
     props.effortLabel === null ? props.modelLabel : `${props.modelLabel}, ${props.effortLabel}`;
   const announcement = formatProviderSubagentStatus(
-    status === null ? null : { ...status, startedAt: null },
+    status === null
+      ? null
+      : {
+          ...status,
+          startedAt: null,
+        },
     0,
   );
 

@@ -1,14 +1,14 @@
-import type { PreviewAnnotationPayload } from "@t3tools/contracts";
+import { PreviewAnnotationPayload } from "../../lib/legacyPreviewAnnotation";
 import { describe, expect, it } from "vite-plus/test";
-
 import type { ComposerImageAttachment } from "../../composerDraftStore";
 import { buildMessageContext, previewAnnotationContextId } from "../../lib/composerContextRecords";
 import {
   reconcileAttachmentContextReferences,
   type RetainedAttachmentContextPayloads,
 } from "./composerContextUndo";
-
-const binary = new File(["binary"], "context.png", { type: "image/png" });
+const binary = new File(["binary"], "context.png", {
+  type: "image/png",
+});
 const image = {
   type: "image",
   id: "annotation-1",
@@ -31,15 +31,21 @@ const annotation = {
     dataUrl: "data:image/png;base64,YmluYXJ5",
     width: 1,
     height: 1,
-    cropRect: { x: 0, y: 0, width: 1, height: 1 },
+    cropRect: {
+      x: 0,
+      y: 0,
+      width: 1,
+      height: 1,
+    },
   },
   createdAt: "2026-01-01T00:00:00.000Z",
 } satisfies PreviewAnnotationPayload;
-
 function retention(): RetainedAttachmentContextPayloads {
-  return { files: new Map(), previewAnnotations: new Map() };
+  return {
+    files: new Map(),
+    previewAnnotations: new Map(),
+  };
 }
-
 describe("reconcileAttachmentContextReferences", () => {
   it("restores an annotation and its screenshot attachment after undo", () => {
     const retained = retention();
@@ -51,7 +57,6 @@ describe("reconcileAttachmentContextReferences", () => {
       retained,
     });
     expect(removed.annotationIdsToRemove).toEqual(["annotation-1"]);
-
     const restored = reconcileAttachmentContextReferences({
       referencedContextIds: new Set([previewAnnotationContextId(annotation.id)]),
       files: [],
@@ -59,7 +64,12 @@ describe("reconcileAttachmentContextReferences", () => {
       previewAnnotations: [],
       retained,
     });
-    expect(restored.annotationsToRestore).toEqual([{ annotation, image }]);
+    expect(restored.annotationsToRestore).toEqual([
+      {
+        annotation,
+        image,
+      },
+    ]);
     expect(restored.annotationsToRestore[0]?.annotation.screenshot?.dataUrl).toBe(
       "data:image/png;base64,YmluYXJ5",
     );

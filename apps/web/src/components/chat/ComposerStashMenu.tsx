@@ -1,18 +1,14 @@
 import { BookmarkIcon, FileIcon, FileTextIcon } from "lucide-react";
 import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
-
 import { RelativeTime } from "../RelativeTime";
 import { cn } from "~/lib/utils";
 import { type PromptStashEntry } from "../../promptStashStore";
 import { ComposerBanner } from "./ComposerBanner";
-
 const SNIPPET_MAX_CHARS = 90;
-
 function missingImageCount(entry: PromptStashEntry): number {
   return entry.droppedImageNames.length + (entry.unreadableImageNames?.length ?? 0);
 }
-
 function stashEntrySnippet(entry: PromptStashEntry): string {
   const trimmed = assistantCitationsToPlainText(entry.prompt).trim().replace(/\s+/g, " ");
   if (trimmed.length > 0) {
@@ -40,9 +36,7 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
   const { entries, stashShortcutLabel, composerFormRef, onRestore, onDelete, onClose } = props;
   const drawerRef = useRef<HTMLDivElement>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(entries[0]?.id ?? null);
-
   const highlightedEntry = entries.find((entry) => entry.id === highlightedId) ?? entries[0];
-
   useEffect(() => {
     const closeOnOutsidePointer = (event: PointerEvent) => {
       const drawer = drawerRef.current;
@@ -58,7 +52,6 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
     document.addEventListener("pointerdown", closeOnOutsidePointer, true);
     return () => document.removeEventListener("pointerdown", closeOnOutsidePointer, true);
   }, [onClose]);
-
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target;
@@ -88,9 +81,13 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
         setHighlightedId(entries[nextIndex]?.id ?? null);
         const nextButton =
           drawerRef.current?.querySelectorAll<HTMLButtonElement>("[data-stash-restore]")[nextIndex];
-        nextButton?.scrollIntoView({ block: "nearest" });
+        nextButton?.scrollIntoView({
+          block: "nearest",
+        });
         if (drawerRef.current?.contains(document.activeElement)) {
-          nextButton?.focus({ preventScroll: true });
+          nextButton?.focus({
+            preventScroll: true,
+          });
         }
         return;
       }
@@ -115,7 +112,6 @@ export const ComposerStashMenu = memo(function ComposerStashMenu(props: {
     window.addEventListener("keydown", handler, true);
     return () => window.removeEventListener("keydown", handler, true);
   }, [composerFormRef, entries, highlightedEntry, onClose, onDelete, onRestore]);
-
   return (
     <ComposerBanner.Root ref={drawerRef} data-composer-stash-drawer="true">
       <ComposerBanner.Row

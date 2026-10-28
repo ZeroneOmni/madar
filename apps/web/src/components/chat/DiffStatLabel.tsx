@@ -1,10 +1,8 @@
 import { memo } from "react";
 import { cn } from "~/lib/utils";
-
 export function hasNonZeroStat(stat: { additions: number; deletions: number }): boolean {
   return stat.additions > 0 || stat.deletions > 0;
 }
-
 function formatCompactDiffCount(value: number): string {
   if (value < 1000) return String(value);
   if (value < 1_000_000) {
@@ -18,7 +16,6 @@ function formatCompactDiffCount(value: number): string {
   const b = value / 1_000_000_000;
   return `${b < 10 ? b.toFixed(1).replace(/\.0$/, "") : Math.round(b)}b`;
 }
-
 export const DiffStatLabel = memo(function DiffStatLabel(props: {
   additions: number;
   deletions: number;

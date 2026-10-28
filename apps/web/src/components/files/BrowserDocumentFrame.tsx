@@ -23,13 +23,11 @@ import {
   normalizeEventKey,
 } from "@t3tools/shared/keybindings";
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
-
-import { useOpenLink } from "~/browser/useOpenLink";
+import { openExternalLink } from "~/browser/useOpenLink";
 import { ExpandedImageDialog } from "~/components/chat/ExpandedImageDialog";
 import type { ExpandedImagePreview } from "~/components/chat/ExpandedImagePreview";
 import { useHtmlRenderTheme } from "~/hooks/useHtmlRenderTheme";
 import { shortcutConflictKey } from "~/keybindings";
-import { useOpenChangeRequestLink } from "~/lib/openPullRequestLink";
 import { readLocalApi } from "~/localApi";
 import { cn } from "~/lib/utils";
 import { primaryServerKeybindingsAtom, serverEnvironment } from "~/state/server";
@@ -57,7 +55,6 @@ const HTML_RENDER_SHORTCUT_COMMANDS: ReadonlySet<KeybindingCommand> = new Set([
   ...THREAD_JUMP_KEYBINDING_COMMANDS,
   ...MODEL_PICKER_JUMP_KEYBINDING_COMMANDS,
 ]);
-
 export const isPdfPreviewFile = (path: string): boolean =>
   /\.pdf$/i.test(path.split(/[?#]/, 1)[0] ?? "");
 
@@ -167,7 +164,14 @@ export function HtmlRenderDocument(props: {
   const isShortcut = useEffectEvent(
     (key: NonNullable<ReturnType<typeof readHtmlRenderKeyDown>>) => {
       const matches = (shortcut: HtmlRenderShortcut) =>
-        matchesKeybindingShortcut(key, { ...shortcut, modKey: false }, navigator.platform);
+        matchesKeybindingShortcut(
+          key,
+          {
+            ...shortcut,
+            modKey: false,
+          },
+          navigator.platform,
+        );
       const allowed = shortcuts.filter(matches);
       return (
         allowed.length > 0 &&
@@ -178,28 +182,26 @@ export function HtmlRenderDocument(props: {
       );
     },
   );
-  const openChangeRequestLink = useOpenChangeRequestLink(props.threadRef);
-  const openLink = useOpenLink(props.threadRef);
-  const open = useEffectEvent((url: string, modifiers: { metaKey: boolean; ctrlKey: boolean }) => {
-    if (modifiers.metaKey || modifiers.ctrlKey) {
-      void readLocalApi()
-        ?.shell.openExternal(url)
-        .catch((cause: unknown) => console.error(cause));
-      return;
-    }
-    if (
-      props.threadRef !== undefined &&
-      openChangeRequestLink(
-        { ...modifiers, preventDefault: () => undefined, stopPropagation: () => undefined },
-        url,
-        undefined,
-        props.threadRef.environmentId,
-      )
-    ) {
-      return;
-    }
-    void openLink(url, { event: modifiers }).catch((cause: unknown) => console.error(cause));
-  });
+  const openLink = openExternalLink;
+  const open = useEffectEvent(
+    (
+      url: string,
+      modifiers: {
+        metaKey: boolean;
+        ctrlKey: boolean;
+      },
+    ) => {
+      if (modifiers.metaKey || modifiers.ctrlKey) {
+        void readLocalApi()
+          ?.shell.openExternal(url)
+          .catch((cause: unknown) => console.error(cause));
+        return;
+      }
+      void openLink(url, {
+        event: modifiers,
+      }).catch((cause: unknown) => console.error(cause));
+    },
+  );
   // Require frame focus and recent app use to block opens on load; scripts can still wait for the reader's
   // next input.
   useEffect(() => {
@@ -236,7 +238,11 @@ export function HtmlRenderDocument(props: {
       }
       if (!isShortcut(key)) return;
       frame.dispatchEvent(
-        new KeyboardEvent("keydown", { ...key, bubbles: true, cancelable: true }),
+        new KeyboardEvent("keydown", {
+          ...key,
+          bubbles: true,
+          cancelable: true,
+        }),
       );
     };
     window.addEventListener("message", replayKey);
@@ -255,7 +261,15 @@ export function HtmlRenderDocument(props: {
       ) {
         return;
       }
-      setExpandedImage({ images: [{ src: request.src, name: request.name }], index: 0 });
+      setExpandedImage({
+        images: [
+          {
+            src: request.src,
+            name: request.name,
+          },
+        ],
+        index: 0,
+      });
     };
     window.addEventListener("message", openImage);
     return () => window.removeEventListener("message", openImage);
@@ -296,7 +310,13 @@ export function HtmlRenderDocument(props: {
         }}
         // Match the blank document's scheme to avoid dark-mode white flashes, then follow the app after load.
         className={cn("border-0 scheme-light", props.className)}
-        style={loaded ? { colorScheme: theme.appearance } : undefined}
+        style={
+          loaded
+            ? {
+                colorScheme: theme.appearance,
+              }
+            : undefined
+        }
       />
       {expandedImage !== null ? (
         <ExpandedImageDialog preview={expandedImage} onClose={() => setExpandedImage(null)} />

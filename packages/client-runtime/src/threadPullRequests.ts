@@ -2,12 +2,8 @@ import { makeThreadPullRequests } from "@t3tools/source-control-core/shared/thre
 
 import { sourceControlClients } from "./sourceControlClients.ts";
 
+export { threadPullRequestSearchTerms } from "@t3tools/shared/threadPullRequests";
 export {
-  threadPullRequestSearchTerms,
-  visibleThreadPullRequests,
-} from "@t3tools/shared/threadPullRequests";
-export {
-  pullRequestListLines,
   type PullRequestListLine,
   type ThreadCurrentPullRequest,
   type ThreadPullRequestBadge,
@@ -18,7 +14,7 @@ export const {
   normalizeThreadPullRequestKey,
   legacyThreadPullRequestKey,
   threadPullRequestKeysEqual,
-  threadPullRequestKeyOf,
+
   resolveThreadCurrentPullRequest,
   resolveThreadCurrentPullRequestLink,
   resolveThreadPullRequestChains,

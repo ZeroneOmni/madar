@@ -9,7 +9,6 @@ import { Button } from "../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { composerFloatingLayerProps } from "./composerEventScope";
-
 interface ComposerPendingApprovalActionsProps {
   requestId: RuntimeRequestId;
   isResponding: boolean;
@@ -21,14 +20,24 @@ interface ComposerPendingApprovalActionsProps {
     decision: ProviderApprovalDecision,
   ) => Promise<unknown>;
 }
-
 const DEFAULT_APPROVAL_OPTIONS = [
-  { decision: "cancel", label: "Cancel" },
-  { decision: "decline", label: "Decline" },
-  { decision: "acceptForSession", label: "Always allow this session" },
-  { decision: "accept", label: "Approve" },
+  {
+    decision: "cancel",
+    label: "Cancel",
+  },
+  {
+    decision: "decline",
+    label: "Decline",
+  },
+  {
+    decision: "acceptForSession",
+    label: "Always allow this session",
+  },
+  {
+    decision: "accept",
+    label: "Approve",
+  },
 ] satisfies ReadonlyArray<ProviderApprovalOption>;
-
 export const ComposerPendingApprovalActions = memo(function ComposerPendingApprovalActions({
   requestId,
   isResponding,
@@ -43,7 +52,6 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
   const moreOptions = options.filter(
     (option) => option.decision !== "decline" && option.decision !== "accept",
   );
-
   return (
     <>
       {primaryOptions.map((option) => {

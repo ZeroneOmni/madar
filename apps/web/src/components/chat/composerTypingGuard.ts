@@ -1,5 +1,4 @@
 export const COMPOSER_TYPING_IDLE_MS = 1500;
-
 export function createComposerTypingGuardState() {
   return {
     seen: new Set<string>(),
@@ -8,12 +7,19 @@ export function createComposerTypingGuardState() {
     lastTypedAt: -Infinity,
   };
 }
-
 type TypingGuardEvent =
-  | { type: "requests"; requestIds: readonly string[]; now: number }
-  | { type: "type"; now: number }
-  | { type: "focus" | "blur" | "send" | "idle" };
-
+  | {
+      type: "requests";
+      requestIds: readonly string[];
+      now: number;
+    }
+  | {
+      type: "type";
+      now: number;
+    }
+  | {
+      type: "focus" | "blur" | "send" | "idle";
+    };
 export function updateComposerTypingGuard(
   state: ReturnType<typeof createComposerTypingGuardState>,
   event: TypingGuardEvent,
@@ -32,12 +38,22 @@ export function updateComposerTypingGuard(
         }
         seen.add(id);
       }
-      return { ...state, seen, held };
+      return {
+        ...state,
+        seen,
+        held,
+      };
     }
     case "type":
-      return { ...state, lastTypedAt: event.now };
+      return {
+        ...state,
+        lastTypedAt: event.now,
+      };
     case "focus":
-      return { ...state, focused: true };
+      return {
+        ...state,
+        focused: true,
+      };
     case "blur":
     case "send":
     case "idle":

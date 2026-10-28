@@ -5,10 +5,8 @@ import {
   percentDecodedThreadLinkId,
   resolveThreadLinkRef,
 } from "@t3tools/shared/threadLinks";
-
 import { useThreadRefs, useThreadShell } from "../../state/entities";
 import { ThreadContextChip } from "../ThreadContextChip";
-
 export function MarkdownThreadLink(props: {
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
@@ -32,7 +30,11 @@ export function MarkdownThreadLink(props: {
   const title = thread?.title.trim() || props.label;
   return (
     <ThreadContextChip
-      record={{ environmentId, threadId, title: props.label }}
+      record={{
+        environmentId,
+        threadId,
+        title: props.label,
+      }}
       copyMarkdown={formatThreadLink(threadId, title)}
     />
   );

@@ -1,3 +1,6 @@
+import { getProviderSummary } from "../settings/providerStatus";
+import { providerClients } from "../settings/providerDriverMeta";
+import { CheckIcon } from "lucide-react";
 import { useAuth } from "@clerk/react";
 import { useAtomValue } from "@effect/atom-react";
 import type {
@@ -9,33 +12,19 @@ import type {
   ServerConfig,
   ServerProvider,
 } from "@t3tools/contracts";
-import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { scopeProjectRef } from "@t3tools/client-runtime/environment";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import {
-  AuthTerminalOperateScope,
   CommandId,
   defaultInstanceIdForDriver,
   AuthOrchestrationOperateScope,
   ProviderDriverKind,
-  ThreadId,
 } from "@t3tools/contracts";
-import * as Schema from "effect/Schema";
-import {
-  ArrowRightIcon,
-  CheckIcon,
-  ChevronRightIcon,
-  CloudIcon,
-  LinkIcon,
-  MonitorIcon,
-  TerminalIcon,
-} from "lucide-react";
+import { ArrowRightIcon, ChevronRightIcon, CloudIcon, LinkIcon, MonitorIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
-import { TYPOGRAPHY_ADVANCED_STORAGE_KEY } from "../../appearanceFonts";
-import { useLocalStorage } from "../../hooks/useLocalStorage";
 import { hasCloudPublicConfig } from "../../cloud/publicConfig";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { useT3ConnectAuthPrompt } from "../clerk/useT3ConnectAuthPrompt";
@@ -51,11 +40,9 @@ import {
 } from "../../onboarding/projectImport.logic";
 import {
   getOnboardingProviderState,
-  resolveOnboardingProviderInstallCommand,
-  resolveOnboardingProviderLoginCommand,
   selectOnboardingProvidersByDriver,
 } from "../../onboarding/providerReadiness.logic";
-import { newProjectId, randomUUID } from "../../lib/utils";
+import { newProjectId } from "../../lib/utils";
 import { agentSessionImport } from "../../state/agentSessions";
 import { readProjects, useProjects } from "../../state/entities";
 import { useEnvironments, usePrimaryEnvironment } from "../../state/environments";
@@ -66,21 +53,14 @@ import {
 import { useProjectScans } from "../../onboarding/useProjectScans";
 import { projectEnvironment } from "../../state/projects";
 import { serverEnvironment } from "../../state/server";
-import {
-  readEnvironmentScope,
-  useEnvironmentScope,
-  useEnvironmentsWithScope,
-} from "../../state/session";
-import { terminalEnvironment } from "../../state/terminal";
+import { readEnvironmentScope, useEnvironmentsWithScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { connectPairing } from "../../connection/onboarding";
-import { getProviderSummary } from "../settings/providerStatus";
-import { providerClients } from "../settings/providerDriverMeta";
+
 import { ChatGptWelcomeCoordinator } from "../settings/ChatGptWelcomeCoordinator";
 import { AddManagedCodexAccountDialog, CodexSetupSection } from "../settings/CodexSetupSection";
 import { readCodexSetupMode } from "../settings/CodexSetupSection.logic";
 import { buildProviderInstanceUpdatePatch } from "../settings/SettingsPanels.logic";
-import { TerminalViewport } from "../ThreadTerminalDrawer";
 import { CloudEnvironmentConnectRows } from "../cloud/CloudEnvironmentConnectList";
 import { presentSavedCloudEnvironmentConnection } from "../cloud/cloudEnvironmentConnectionPresentation";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
@@ -99,14 +79,11 @@ import { Dialog } from "../ui/dialog";
 import { toastManager } from "../ui/toast";
 import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../timestampFormat";
-
 type WizardStep = "connection" | "agents" | "import";
 const NO_ENVIRONMENTS: readonly EnvironmentId[] = [];
 
-const AGENT_ONBOARDING_THREAD_ID = ThreadId.make("onboarding-agent-setup");
 const ONBOARDING_STAGES = ["Connect", "Agents", "Projects"] as const;
 const SCAN_LIMIT_MESSAGE = "Scan limit reached. Some projects or conversations may be missing.";
-
 export function WelcomeWizard({
   localAvailable,
   onDone,
@@ -170,7 +147,6 @@ export function WelcomeWizard({
       toastManager.close(completionErrorToastIdRef.current);
       completionErrorToastIdRef.current = null;
     }
-
     const completion = completeOnboarding()
       .then(async () => {
         if (completionErrorToastIdRef.current !== null) {
@@ -214,7 +190,6 @@ export function WelcomeWizard({
     finishingPromiseRef.current = completion;
     return completion;
   };
-
   return (
     <Dialog
       open
@@ -289,7 +264,6 @@ export function WelcomeWizard({
     </Dialog>
   );
 }
-
 function ConnectionStep({
   autoSelectedComputers,
   expandPairingInitially,
@@ -457,7 +431,6 @@ function ConnectionStep({
     </>
   );
 }
-
 function ConnectAccountOption({
   autoSelectedComputers,
   disabled,
@@ -470,12 +443,13 @@ function ConnectAccountOption({
   readonly onToggleEnvironment: (environmentId: EnvironmentId, checked: boolean) => void;
 }) {
   const { environments } = useEnvironments();
-  const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const { isLoaded, isSignedIn } = useAuth({
+    treatPendingAsSignedOut: false,
+  });
   const { openAuthPrompt } = useT3ConnectAuthPrompt();
   const [expanded, setExpanded] = useState(true);
   const [discoveryReady, setDiscoveryReady] = useState(false);
   const onDiscoveryReady = () => setDiscoveryReady(true);
-
   return (
     <div className="rounded-lg border border-border bg-background">
       <Collapsible open={expanded && !!isSignedIn && discoveryReady} onOpenChange={setExpanded}>
@@ -516,7 +490,11 @@ function ConnectAccountOption({
                   savedEnvironments={environments}
                   showSavedEnvironments
                   onDiscoveryReady={onDiscoveryReady}
-                  selection={{ selectedIds, onChange: onToggleEnvironment, autoSelectedComputers }}
+                  selection={{
+                    selectedIds,
+                    onChange: onToggleEnvironment,
+                    autoSelectedComputers,
+                  }}
                   refreshWhileEmpty
                   empty={
                     <p className="py-3 text-sm text-muted-foreground">No computers linked yet.</p>
@@ -537,7 +515,6 @@ function ConnectAccountOption({
     </div>
   );
 }
-
 function PairingForm({
   isPairing,
   setIsPairing,
@@ -547,23 +524,25 @@ function PairingForm({
   readonly setIsPairing: (value: boolean) => void;
   readonly onPaired: (environmentId: EnvironmentId) => void;
 }) {
-  const connectPairingEnvironment = useAtomCommand(connectPairing, { reportFailure: false });
+  const connectPairingEnvironment = useAtomCommand(connectPairing, {
+    reportFailure: false,
+  });
   const [pairingUrl, setPairingUrl] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const mountedRef = useRef(true);
-
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
   }, []);
-
   const submit = async () => {
     if (isPairing || pairingUrl.trim().length === 0) return;
     setIsPairing(true);
     setErrorMessage("");
-    const result = await connectPairingEnvironment({ pairingUrl: pairingUrl.trim() });
+    const result = await connectPairingEnvironment({
+      pairingUrl: pairingUrl.trim(),
+    });
     if (!mountedRef.current) return;
     setIsPairing(false);
     if (result._tag === "Success") {
@@ -574,7 +553,6 @@ function PairingForm({
     const cause = squashAtomCommandFailure(result);
     setErrorMessage(cause instanceof Error ? cause.message : "Pairing failed.");
   };
-
   return (
     <>
       <form
@@ -647,10 +625,8 @@ function PairingForm({
     </>
   );
 }
-
 const PRIMARY_AGENT_DRIVERS = ["codex", "claudeAgent"] as const;
 type OnboardingAgentDriver = (typeof PRIMARY_AGENT_DRIVERS)[number];
-
 interface AgentTerminalSession {
   readonly environmentId: EnvironmentId;
   readonly driver: OnboardingAgentDriver;
@@ -659,7 +635,6 @@ interface AgentTerminalSession {
   readonly command: string;
   readonly keybindings: ServerConfig["keybindings"];
 }
-
 function AgentsStep({
   environmentIds,
   onContinue,
@@ -696,7 +671,6 @@ function AgentsStep({
     </StepShell>
   );
 }
-
 function ConnectedAgentsStep({
   environmentId,
   machineLabel,
@@ -709,27 +683,36 @@ function ConnectedAgentsStep({
     reportFailure: false,
   });
   const serverConfig = useAtomValue(serverEnvironment.configValueAtom(environmentId));
-  const [terminalSession, setTerminalSession] = useState<AgentTerminalSession | null>(null);
+  const [terminalSession] = useState<AgentTerminalSession | null>(null);
   const [addingAccount, setAddingAccount] = useState(false);
   const [createdAccount, setCreatedAccount] = useState<{
     instanceId: ProviderInstanceId;
     displayName: string;
     autoStart: boolean;
   } | null>(null);
-  const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
-
   useEffect(() => {
-    void refreshProviders({ environmentId, input: {} });
+    void refreshProviders({
+      environmentId,
+      input: {},
+    });
   }, [environmentId, refreshProviders]);
-
   const byDriver = selectOnboardingProvidersByDriver(providers);
-
   const primaryAgents = PRIMARY_AGENT_DRIVERS.flatMap((driver) => {
     const instances =
       driver === "codex" ? providers?.filter((provider) => provider.driver === driver) : undefined;
     return instances?.length
-      ? instances.map((provider) => ({ driver, provider, instanceId: provider.instanceId }))
-      : [{ driver, provider: byDriver.get(driver), instanceId: byDriver.get(driver)?.instanceId }];
+      ? instances.map((provider) => ({
+          driver,
+          provider,
+          instanceId: provider.instanceId,
+        }))
+      : [
+          {
+            driver,
+            provider: byDriver.get(driver),
+            instanceId: byDriver.get(driver)?.instanceId,
+          },
+        ];
   });
   if (createdAccount) {
     const index = primaryAgents.findIndex(
@@ -747,11 +730,7 @@ function ConnectedAgentsStep({
   return (
     <section>
       <h2 className="mb-2 text-sm font-medium">{machineLabel}</h2>
-      {!canOperateTerminal ? (
-        <p className="mb-2 text-sm text-muted-foreground">
-          This connection cannot control terminals.
-        </p>
-      ) : null}
+
       <div className="space-y-1.5">
         {primaryAgents.map(({ driver, provider, instanceId }) =>
           driver === "codex" && serverConfig !== null ? (
@@ -762,67 +741,18 @@ function ConnectedAgentsStep({
               serverConfig={serverConfig}
               createdAccount={instanceId === createdAccount?.instanceId ? createdAccount : null}
               onAutoStartConsumed={() =>
-                setCreatedAccount((account) => (account ? { ...account, autoStart: false } : null))
-              }
-              terminalOpen={terminalSession?.driver === driver}
-              onOpenTerminal={() => {
-                if (
-                  provider === undefined ||
-                  !readEnvironmentScope(environmentId, AuthTerminalOperateScope)
+                setCreatedAccount((account) =>
+                  account
+                    ? {
+                        ...account,
+                        autoStart: false,
+                      }
+                    : null,
                 )
-                  return;
-                setTerminalSession({
-                  environmentId,
-                  driver,
-                  providerInstanceId: provider.instanceId,
-                  cwd: serverConfig.cwd,
-                  command: provider.installed
-                    ? resolveOnboardingProviderLoginCommand(
-                        provider,
-                        serverConfig.settings,
-                        serverConfig.environment.platform.os,
-                      )
-                    : resolveOnboardingProviderInstallCommand(
-                        driver,
-                        serverConfig.environment.platform.os,
-                      ),
-                  keybindings: serverConfig.keybindings,
-                });
-              }}
+              }
             />
           ) : (
-            <AgentCard
-              key={driver}
-              driver={driver}
-              provider={provider}
-              terminalOpen={terminalSession?.driver === driver}
-              terminalAvailable={serverConfig !== null && canOperateTerminal}
-              onOpenTerminal={() => {
-                if (
-                  provider === undefined ||
-                  serverConfig === null ||
-                  !readEnvironmentScope(environmentId, AuthTerminalOperateScope)
-                )
-                  return;
-                setTerminalSession({
-                  environmentId,
-                  driver,
-                  providerInstanceId: provider.instanceId,
-                  cwd: serverConfig.cwd,
-                  command: provider.installed
-                    ? resolveOnboardingProviderLoginCommand(
-                        provider,
-                        serverConfig.settings,
-                        serverConfig.environment.platform.os,
-                      )
-                    : resolveOnboardingProviderInstallCommand(
-                        driver,
-                        serverConfig.environment.platform.os,
-                      ),
-                  keybindings: serverConfig.keybindings,
-                });
-              }}
-            />
+            <AgentCard key={driver} driver={driver} provider={provider} />
           ),
         )}
       </div>
@@ -841,38 +771,28 @@ function ConnectedAgentsStep({
           environmentId={environmentId}
           onClose={() => setAddingAccount(false)}
           onAccountCreated={(instanceId, displayName) =>
-            setCreatedAccount({ instanceId, displayName, autoStart: true })
+            setCreatedAccount({
+              instanceId,
+              displayName,
+              autoStart: true,
+            })
           }
         />
       ) : null}
-      {terminalSession !== null ? (
-        <AgentInstallTerminal
-          key={`${terminalSession.environmentId}:${terminalSession.providerInstanceId}:${terminalSession.driver}`}
-          session={terminalSession}
-          onClose={() => {
-            setTerminalSession(null);
-            void refreshProviders({ environmentId, input: {} });
-          }}
-        />
-      ) : null}
+      {terminalSession !== null ? null : null}
     </section>
   );
 }
-
 function OnboardingCodexSetup({
   createdAccount,
   onAutoStartConsumed,
   environmentId,
   provider,
   serverConfig,
-  terminalOpen,
-  onOpenTerminal,
 }: {
   readonly environmentId: EnvironmentId;
   readonly provider: ServerProvider | undefined;
   readonly serverConfig: ServerConfig;
-  readonly terminalOpen: boolean;
-  readonly onOpenTerminal: () => void;
   readonly createdAccount: {
     instanceId: ProviderInstanceId;
     displayName: string;
@@ -880,7 +800,6 @@ function OnboardingCodexSetup({
   } | null;
   readonly onAutoStartConsumed: () => void;
 }) {
-  const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
   const update = useAtomCommand(serverEnvironment.updateSettings, "Codex setup settings");
   const instanceId =
     createdAccount?.instanceId ??
@@ -889,7 +808,12 @@ function OnboardingCodexSetup({
   const settings = serverConfig.settings;
   const instance = settings.providerInstances[instanceId] ?? {
     driver: ProviderDriverKind.make("codex"),
-    config: createdAccount ? { enabled: true, setupMode: "managed" } : {},
+    config: createdAccount
+      ? {
+          enabled: true,
+          setupMode: "managed",
+        }
+      : {},
   };
   const mode = readCodexSetupMode(instance.config);
   const existingChosen =
@@ -921,13 +845,7 @@ function OnboardingCodexSetup({
     });
   };
   return existingChosen ? (
-    <AgentCard
-      driver="codex"
-      provider={provider}
-      terminalOpen={terminalOpen}
-      terminalAvailable={canOperateTerminal}
-      onOpenTerminal={onOpenTerminal}
-    />
+    <AgentCard driver="codex" provider={provider} />
   ) : (
     <CodexSetupSection
       presentation="onboarding"
@@ -944,232 +862,7 @@ function OnboardingCodexSetup({
   );
 }
 
-function AgentCard({
-  driver,
-  provider,
-  terminalOpen,
-  terminalAvailable,
-  onOpenTerminal,
-}: {
-  readonly driver: OnboardingAgentDriver;
-  readonly provider: ServerProvider | undefined;
-  readonly terminalOpen: boolean;
-  readonly terminalAvailable: boolean;
-  readonly onOpenTerminal: () => void;
-}) {
-  const meta = providerClients.get(ProviderDriverKind.make(driver));
-  const displayName =
-    provider?.displayName || (driver === "claudeAgent" ? "Claude Code" : (meta?.label ?? driver));
-  const summary = getProviderSummary(provider);
-  const providerState = getOnboardingProviderState(provider);
-
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-4">
-      <ProviderInstanceIcon
-        driverKind={ProviderDriverKind.make(driver)}
-        displayName={displayName}
-        iconClassName="size-5"
-      />
-      <div className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-foreground">{displayName}</span>
-        <p className="mt-0.5 text-xs leading-relaxed break-words whitespace-pre-wrap text-muted-foreground">
-          {providerState === "ready" ? "Ready to code." : summary.headline}
-          {providerState !== "ready" && summary.detail ? ` · ${summary.detail}` : ""}
-        </p>
-      </div>
-      <div className="shrink-0">
-        {providerState === "ready" ? (
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success-foreground">
-            <CheckIcon className="size-3.5" />
-            Ready
-          </span>
-        ) : providerState === "checking" ? (
-          <span className="text-xs text-muted-foreground">Checking...</span>
-        ) : providerState === "disabled" ? (
-          <span className="text-xs text-muted-foreground">Disabled</span>
-        ) : providerState === "attention" ? (
-          <span className="text-xs text-muted-foreground">{summary.headline}</span>
-        ) : (
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={onOpenTerminal}
-            disabled={terminalOpen || !terminalAvailable}
-          >
-            <TerminalIcon className="size-3.5" />
-            {providerState === "signIn" ? "Sign in" : "Install"}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AgentInstallTerminal({
-  session,
-  onClose,
-}: {
-  readonly session: AgentTerminalSession;
-  readonly onClose: () => void;
-}) {
-  const { command, cwd, driver, environmentId, keybindings, providerInstanceId } = session;
-  const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
-  const [advancedTypography] = useLocalStorage(
-    TYPOGRAPHY_ADVANCED_STORAGE_KEY,
-    false,
-    Schema.Boolean,
-  );
-  const openTerminal = useAtomCommand(terminalEnvironment.open, { reportFailure: false });
-  const writeTerminal = useAtomCommand(terminalEnvironment.write, { reportFailure: false });
-  const closeTerminal = useAtomCommand(terminalEnvironment.close, { reportFailure: false });
-  const setupQueueRef = useRef(Promise.resolve());
-  const setupGenerationRef = useRef(0);
-  const activeSetupGenerationRef = useRef<number | null>(null);
-  const [terminalId] = useState(() => `onboarding-${driver}-${randomUUID()}`);
-  const threadRef = scopeThreadRef(environmentId, AGENT_ONBOARDING_THREAD_ID);
-  const [setupAttempt, setSetupAttempt] = useState(0);
-  const [setupState, setSetupState] = useState<
-    "preparing" | "ready" | "openFailed" | "writeFailed"
-  >("preparing");
-  const terminalReady = setupState === "ready" || setupState === "writeFailed";
-
-  // StrictMode can finish a cancelled open after replacement setup; it must not close or pre-type into that
-  // session.
-  useEffect(() => {
-    const generation = setupGenerationRef.current + 1;
-    setupGenerationRef.current = generation;
-    activeSetupGenerationRef.current = generation;
-    // oxlint-disable-next-line react/set-state-in-effect -- A retry or a new command reopens the terminal, which shows as preparing until the open settles.
-    setSetupState("preparing");
-
-    setupQueueRef.current = setupQueueRef.current.then(async () => {
-      if (activeSetupGenerationRef.current !== generation) return;
-      if (!readEnvironmentScope(environmentId, AuthTerminalOperateScope)) {
-        setSetupState("openFailed");
-        return;
-      }
-      const opened = await openTerminal({
-        environmentId,
-        input: {
-          threadId: AGENT_ONBOARDING_THREAD_ID,
-          terminalId,
-          cwd,
-          providerInstanceId,
-        },
-      });
-      if (opened._tag !== "Success") {
-        if (activeSetupGenerationRef.current === generation) setSetupState("openFailed");
-        return;
-      }
-
-      if (activeSetupGenerationRef.current !== generation) return;
-      if (!readEnvironmentScope(environmentId, AuthTerminalOperateScope)) {
-        setSetupState("writeFailed");
-        return;
-      }
-
-      const wrote = await writeTerminal({
-        environmentId,
-        input: { threadId: AGENT_ONBOARDING_THREAD_ID, terminalId, data: command },
-      });
-      if (activeSetupGenerationRef.current !== generation) return;
-      setSetupState(wrote._tag === "Success" ? "ready" : "writeFailed");
-    });
-
-    // Revocation leaves the PTY running; close only while terminal access remains.
-    return () => {
-      if (activeSetupGenerationRef.current === generation) {
-        activeSetupGenerationRef.current = null;
-      }
-      setupQueueRef.current = setupQueueRef.current.then(async () => {
-        if (!readEnvironmentScope(environmentId, AuthTerminalOperateScope)) return;
-        await closeTerminal({
-          environmentId,
-          input: { threadId: AGENT_ONBOARDING_THREAD_ID, terminalId, deleteHistory: true },
-        });
-      });
-    };
-  }, [
-    closeTerminal,
-    command,
-    cwd,
-    environmentId,
-    openTerminal,
-    providerInstanceId,
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Retry bumps setupAttempt to open the terminal again.
-    setupAttempt,
-    terminalId,
-    writeTerminal,
-  ]);
-
-  return (
-    <div
-      data-thread-terminal-drawer
-      className="mt-4 overflow-hidden rounded-lg border border-border/70 bg-background text-foreground"
-    >
-      <div className="flex items-center justify-between border-b border-border/60 bg-background/60 px-3 py-1.5">
-        <span className="text-2xs font-medium text-muted-foreground">
-          {!canOperateTerminal ? (
-            "This connection cannot control terminals."
-          ) : setupState === "writeFailed" ? (
-            <>
-              Run <code className="rounded bg-muted px-1 font-mono">{command}</code> in this
-              terminal.
-            </>
-          ) : setupState === "ready" ? (
-            "Review the command, then press Enter to run it."
-          ) : setupState === "openFailed" ? (
-            "Could not open the setup terminal."
-          ) : (
-            "Preparing command..."
-          )}
-        </span>
-        <div className="flex items-center gap-1">
-          {setupState === "openFailed" ? (
-            <Button
-              size="xs"
-              variant="ghost"
-              disabled={!canOperateTerminal}
-              onClick={() => {
-                if (readEnvironmentScope(environmentId, AuthTerminalOperateScope)) {
-                  setSetupAttempt((value) => value + 1);
-                }
-              }}
-            >
-              Retry
-            </Button>
-          ) : null}
-          <Button size="xs" variant="ghost-muted" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      </div>
-      <div className="h-64">
-        {terminalReady ? (
-          <TerminalViewport
-            threadRef={threadRef}
-            threadId={AGENT_ONBOARDING_THREAD_ID}
-            terminalId={terminalId}
-            terminalLabel={`Install ${driver}`}
-            cwd={cwd}
-            providerInstanceId={providerInstanceId}
-            advancedTypography={advancedTypography}
-            onSessionExited={onClose}
-            focusRequestId={1}
-            autoFocus
-            visible
-            resizeEpoch={0}
-            drawerHeight={256}
-            keybindings={keybindings}
-          />
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 const IMPORT_PERMISSION_MESSAGE = "This connection cannot import projects or thread history.";
-
 function ImportStep({
   scans,
   isImporting,
@@ -1187,8 +880,12 @@ function ImportStep({
 }) {
   const { environments } = useEnvironments();
   const writableEnvironments = useEnvironmentsWithScope(scans, AuthOrchestrationOperateScope);
-  const createProject = useAtomCommand(projectEnvironment.create, { reportFailure: false });
-  const importThreads = useAtomCommand(agentSessionImport, { reportFailure: false });
+  const createProject = useAtomCommand(projectEnvironment.create, {
+    reportFailure: false,
+  });
+  const importThreads = useAtomCommand(agentSessionImport, {
+    reportFailure: false,
+  });
   const projects = useProjects();
   const [selectedPaths, setSelectedPaths] = useState<ReadonlySet<string> | null>(null);
   const importWarningRef = useRef("");
@@ -1198,17 +895,21 @@ function ImportStep({
   const projectsWithImportedHistoryRef = useRef(new Map<string, ScopedProjectRef>());
   const lastImportSelectionRef = useRef<ReadonlyArray<string>>([]);
   const projectAttemptsRef = useRef(
-    new Map<string, { readonly projectId: ProjectId; readonly commandId: CommandId }>(),
+    new Map<
+      string,
+      {
+        readonly projectId: ProjectId;
+        readonly commandId: CommandId;
+      }
+    >(),
   );
   const importGenerationRef = useRef(0);
-
   useEffect(() => {
     importGenerationRef.current += 1;
     return () => {
       importGenerationRef.current += 1;
     };
   }, []);
-
   useEffect(() => {
     if (
       landingProject !== null &&
@@ -1227,7 +928,6 @@ function ImportStep({
       );
     }
   }, [landingProject, onDone, projects, setIsImporting]);
-
   const { available: candidates, recent } = partitionOnboardingProjects(
     scans.flatMap((scan) =>
       (scan.data?.candidates ?? []).map((candidate) => ({
@@ -1239,7 +939,6 @@ function ImportStep({
   );
   const selectedKeys = selectedPaths ?? new Set(recent.map((candidate) => candidate.key));
   const selected = candidates.filter((candidate) => selectedKeys.has(candidate.key));
-
   const canImport = selected.every((candidate) =>
     writableEnvironments.has(candidate.environmentId),
   );
@@ -1249,7 +948,6 @@ function ImportStep({
     : importError === IMPORT_PERMISSION_MESSAGE
       ? ""
       : importError;
-
   const finishAfterImport = () => {
     const projectRef = resolveOnboardingLandingProject(
       lastImportSelectionRef.current,
@@ -1263,7 +961,6 @@ function ImportStep({
     setIsImporting(true);
     setLandingProject(projectRef);
   };
-
   const runImport = async (selection: typeof candidates) => {
     if (isImporting) return;
     const hasAccess = () =>
@@ -1346,14 +1043,16 @@ function ImportStep({
           continue;
         }
       }
-
       if (!hasAccess()) {
         stopForDeniedAccess();
         return;
       }
       const threadImportResult = await importThreads({
         environmentId,
-        input: { projectId, expectedWorkspaceRoot: candidate.path },
+        input: {
+          projectId,
+          expectedWorkspaceRoot: candidate.path,
+        },
       });
       if (
         importGeneration !== importGenerationRef.current ||
@@ -1397,7 +1096,6 @@ function ImportStep({
     }
     finishAfterImport();
   };
-
   if (scans.every((scan) => scan.data === null) && scans.some((scan) => scan.isPending)) {
     return (
       <div className="flex h-full min-h-40 flex-col">
@@ -1416,7 +1114,6 @@ function ImportStep({
       </div>
     );
   }
-
   return (
     <StepShell
       title="Import your projects"
@@ -1520,12 +1217,10 @@ function ImportStep({
     </StepShell>
   );
 }
-
 type ImportCandidate = AgentSessionProjectCandidate & {
   readonly environmentId: EnvironmentId;
   readonly key: string;
 };
-
 function ImportCandidateList({
   candidates,
   selectedKeys,
@@ -1545,7 +1240,6 @@ function ImportCandidateList({
     onSelectionChange(next);
   };
   const otherSelected = other.filter((candidate) => selectedKeys.has(candidate.key)).length;
-
   return (
     <>
       {repositories.map((group) => (
@@ -1594,7 +1288,6 @@ function ImportCandidateList({
     </>
   );
 }
-
 function ImportRepositoryGroup({
   group,
   selectedKeys,
@@ -1652,7 +1345,6 @@ function ImportRepositoryGroup({
     </Collapsible>
   );
 }
-
 function ProjectPathText({
   path,
   className,
@@ -1668,7 +1360,6 @@ function ProjectPathText({
     </span>
   );
 }
-
 function ImportCandidateRow({
   candidate,
   label,
@@ -1716,7 +1407,6 @@ function ImportCandidateRow({
     </label>
   );
 }
-
 function ImportRowMeta({
   sources,
   threadCount,
@@ -1757,7 +1447,6 @@ function ImportRowMeta({
     </span>
   );
 }
-
 function StepShell({
   title,
   description,
@@ -1775,5 +1464,52 @@ function StepShell({
       ) : null}
       {children}
     </>
+  );
+}
+
+function AgentCard({
+  driver,
+  provider,
+}: {
+  readonly driver: OnboardingAgentDriver;
+  readonly provider: ServerProvider | undefined;
+}) {
+  const meta = providerClients.get(ProviderDriverKind.make(driver));
+  const displayName =
+    provider?.displayName || (driver === "claudeAgent" ? "Claude Code" : (meta?.label ?? driver));
+  const summary = getProviderSummary(provider);
+  const providerState = getOnboardingProviderState(provider);
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-4 py-4">
+      <ProviderInstanceIcon
+        driverKind={ProviderDriverKind.make(driver)}
+        displayName={displayName}
+        iconClassName="size-5"
+      />
+      <div className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-foreground">{displayName}</span>
+        <p className="mt-0.5 text-xs leading-relaxed break-words whitespace-pre-wrap text-muted-foreground">
+          {providerState === "ready" ? "Ready to code." : summary.headline}
+          {providerState !== "ready" && summary.detail ? ` · ${summary.detail}` : ""}
+        </p>
+      </div>
+      <div className="shrink-0">
+        {providerState === "ready" ? (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success-foreground">
+            <CheckIcon className="size-3.5" />
+            Ready
+          </span>
+        ) : providerState === "checking" ? (
+          <span className="text-xs text-muted-foreground">Checking...</span>
+        ) : providerState === "disabled" ? (
+          <span className="text-xs text-muted-foreground">Disabled</span>
+        ) : providerState === "attention" ? (
+          <span className="text-xs text-muted-foreground">{summary.headline}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground">{summary.headline}</span>
+        )}
+      </div>
+    </div>
   );
 }

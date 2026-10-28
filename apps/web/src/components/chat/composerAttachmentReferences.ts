@@ -7,7 +7,6 @@ import {
   type ComposerContextReference,
   ensureInlineContextReferences,
 } from "../../lib/composerContextReferences";
-
 export function insertAttachmentReferencesForDraft(input: {
   target: ComposerThreadTarget;
   liveAttachmentTargetKey: string;

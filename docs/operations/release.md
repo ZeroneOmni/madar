@@ -450,7 +450,7 @@ break:
   sidecar, or the sidecar digest does not match the emitted archive.
 - The emitted WSL archive is not a Linux CLI release archive: it must unpack to
   a single `t3-<version>-linux-<arch>` directory holding `t3`, `client/`, and
-  `node_modules/` with the Linux node-pty binary, and must not carry a loose
+  `node_modules/` for its external dependencies, and must not carry a loose
   server bundle (`bin.mjs`).
 - The external Windows resource monitor is absent.
 - The unpacked Windows application contains more than 80 files.

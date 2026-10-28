@@ -60,14 +60,14 @@ import {
 } from "./ThreadActivityBanners";
 import type { useLocalDispatchState } from "./useLocalDispatchState";
 const RELATED_THREAD_SHELL_WAIT_MS = 1_000;
-
 type PendingThreadRequests = ReturnType<typeof usePendingThreadRequests>;
 type LocalDispatchState = ReturnType<typeof useLocalDispatchState>;
-
 interface ThreadLifecycleInput {
   readonly environmentId: EnvironmentId;
   readonly routeThreadKey: string;
-  readonly currentRouteThreadKeyRef: { readonly current: string | null };
+  readonly currentRouteThreadKeyRef: {
+    readonly current: string | null;
+  };
   readonly canOperateThread: boolean;
   readonly clientSettingsHydrated: boolean;
   readonly activeThread: EnvironmentThreadShell | undefined;
@@ -87,11 +87,15 @@ interface ThreadLifecycleInput {
     readonly threadBranch: string;
     readonly currentBranch: string;
   } | null;
-  readonly gitStatusQuery: { readonly refresh: () => void };
+  readonly gitStatusQuery: {
+    readonly refresh: () => void;
+  };
   readonly nowMinute: string;
   readonly composerRef: ComposerHandleRef;
   readonly composerDraftTarget: ComposerThreadTarget;
-  readonly sendInFlightRef: { current: boolean };
+  readonly sendInFlightRef: {
+    current: boolean;
+  };
   readonly setOptimisticUserMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   readonly setThreadError: ReturnType<typeof makeThreadErrorSetter>;
   readonly clearUsageLimitsFor: (threadKey: string) => void;
@@ -152,7 +156,9 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const router = useRouter();
   const { settleThread, pinThread, confirmAndUnpinThread } = useThreadActions();
   const canWriteSourceControl = useEnvironmentScope(environmentId, AuthSourceControlWriteScope);
-  const switchGitRef = useAtomCommand(vcsEnvironment.switchRef, { reportFailure: false });
+  const switchGitRef = useAtomCommand(vcsEnvironment.switchRef, {
+    reportFailure: false,
+  });
   const updateThreadMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
     reportFailure: false,
   });
@@ -162,7 +168,6 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const interruptThreadTurn = useOrchestrationCommand(threadEnvironment.interruptTurn, {
     reportFailure: false,
   });
-
   const supportsSettlement = serverConfig?.environment.capabilities.threadSettlement === true;
   const supportsSnooze = serverConfig?.environment.capabilities.threadSnooze === true;
   const supportsPinning = serverConfig?.environment.capabilities.threadPinning === true;
@@ -175,19 +180,28 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     now: new Date().toISOString(),
   }));
   if (snoozeClockState.shell !== activeThreadShell) {
-    setSnoozeClockState({ shell: activeThreadShell, now: new Date().toISOString() });
+    setSnoozeClockState({
+      shell: activeThreadShell,
+      now: new Date().toISOString(),
+    });
   }
   const snoozeClock = snoozeClockState.now;
   const activeThreadSnoozed =
     activeThreadShell !== null &&
     supportsSnooze &&
-    effectiveSnoozed(activeThreadShell, { now: snoozeClock });
+    effectiveSnoozed(activeThreadShell, {
+      now: snoozeClock,
+    });
   useEffect(() => {
     if (!activeThreadSnoozed) return;
     const wakeAtMs = Date.parse(activeThreadShell?.snoozedUntil ?? "");
     if (!Number.isFinite(wakeAtMs)) return;
     const id = window.setTimeout(
-      () => setSnoozeClockState((clock) => ({ ...clock, now: new Date().toISOString() })),
+      () =>
+        setSnoozeClockState((clock) => ({
+          ...clock,
+          now: new Date().toISOString(),
+        })),
       Math.min(Math.max(0, wakeAtMs - Date.now()) + 50, 2_147_483_647),
     );
     return () => window.clearTimeout(id);
@@ -195,7 +209,9 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   }, [activeThreadShell?.snoozedUntil, activeThreadSnoozed, snoozeClock]);
   const activeThreadWokeAt =
     activeThreadShell !== null && supportsSnooze
-      ? threadWokeAt(activeThreadShell, { now: snoozeClock })
+      ? threadWokeAt(activeThreadShell, {
+          now: snoozeClock,
+        })
       : null;
   const acknowledgeThreadWoke = useAcknowledgeThreadWoke();
   const acknowledgeActiveThreadWoke = () => {
@@ -234,7 +250,10 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     // Commands settle into a result, so this always runs.
     const result = await unsettleThreadMutation({
       environmentId: activeThreadRef.environmentId,
-      input: { threadId: activeThreadRef.threadId, reason: "user" },
+      input: {
+        threadId: activeThreadRef.threadId,
+        reason: "user",
+      },
     });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
@@ -274,12 +293,19 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
           environmentId: activeThreadRef.environmentId,
           input: {
             threadId: activeThreadRef.threadId,
-            limitRecovery: { runId: recovery.runId, resetAt: recovery.resetAt, snooze: false },
+            limitRecovery: {
+              runId: recovery.runId,
+              resetAt: recovery.resetAt,
+              snooze: false,
+            },
           },
         })
       : await unsnoozeThreadMutation({
           environmentId: activeThreadRef.environmentId,
-          input: { threadId: activeThreadRef.threadId, reason: "user" },
+          input: {
+            threadId: activeThreadRef.threadId,
+            reason: "user",
+          },
         });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
@@ -350,7 +376,6 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
       }
       return;
     }
-
     if (!readEnvironmentScope(environmentId, AuthSourceControlWriteScope)) {
       setIsRestoringThreadBranch(false);
       return;
@@ -359,7 +384,11 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     if (nextBranch !== activeThread.branch) {
       const updateResult = await updateThreadMetadata({
         environmentId,
-        input: { threadId: activeThread.id, branch: nextBranch, worktreePath: null },
+        input: {
+          threadId: activeThread.id,
+          branch: nextBranch,
+          worktreePath: null,
+        },
       });
       if (updateResult._tag === "Failure") {
         setIsRestoringThreadBranch(false);
@@ -396,7 +425,9 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     setStoppingBackgroundWorkKey(requestKey);
     const result = await interruptThreadTurn({
       environmentId,
-      input: { threadId: activeThread.id },
+      input: {
+        threadId: activeThread.id,
+      },
     });
     // Acceptance does not confirm termination. Allow retry while the provider
     // finishes stopping the tasks or reports a failure.
@@ -435,7 +466,10 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     }
     const shell = readThreadShell(threadRef);
     if (shell === null ? !shellOmitsChildren && isEnvironmentLive() : shell.deletedAt != null) {
-      toastManager.add({ type: "info", title: "This thread is no longer available" });
+      toastManager.add({
+        type: "info",
+        title: "This thread is no longer available",
+      });
       return;
     }
     void navigate({
@@ -452,12 +486,10 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     ),
     onOpenThread: onOpenRelatedThreadStable,
   });
-
   const sendStandaloneCommand = async (text: string, failureMessage: string) => {
     if (!activeThread || !clientSettingsHydrated || sendInFlightRef.current) return;
     const context = composerRef.current?.getSendContext();
     if (!context?.providerAvailable) return;
-
     const threadId = activeThread.id;
     const messageId = newMessageId();
     const createdAt = new Date().toISOString();
@@ -481,7 +513,11 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     const settingsResult = await persistThreadSettingsForNextTurn({
       threadId,
       createdAt,
-      ...(localCheckoutBranchMismatch ? { branch: localCheckoutBranchMismatch.currentBranch } : {}),
+      ...(localCheckoutBranchMismatch
+        ? {
+            branch: localCheckoutBranchMismatch.currentBranch,
+          }
+        : {}),
       runtimeMode,
       interactionMode: context.interactionMode,
     });
@@ -492,7 +528,12 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
             environmentId,
             input: {
               threadId,
-              message: { messageId, role: "user", text, attachments: [] },
+              message: {
+                messageId,
+                role: "user",
+                text,
+                attachments: [],
+              },
               modelSelection: context.selectedModelSelection,
               runtimeMode,
               interactionMode: context.interactionMode,
@@ -524,7 +565,6 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
           onSendCommand: sendStandaloneCommandStable,
         })
       : null;
-
   const backgroundWorkBanner = activeThread
     ? backgroundWorkBannerItem({
         threadId: activeThread.id,

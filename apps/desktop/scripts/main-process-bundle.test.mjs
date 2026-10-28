@@ -8,19 +8,10 @@ import { assert, it } from "vite-plus/test";
 
 import desktopConfig from "../vite.config.ts";
 
-it("keeps lazy Linux imports and worker bundles from executing desktop startup twice", async () => {
+it("keeps lazy Linux imports from executing desktop startup twice", async () => {
   const directory = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "t3-desktop-bundle-"));
   try {
-    const workerEntries = [
-      "src/electron/WindowsForegroundFocusWorker.ts",
-      "src/snapShot/GlobalShiftShortcutWorker.ts",
-      "src/snapShot/RegionSnapShotWorker.ts",
-      "src/snapShot/SnapShotAccessibilityWorker.ts",
-    ];
-    await Promise.all([
-      NodeFSP.mkdir(NodePath.join(directory, "src/electron"), { recursive: true }),
-      NodeFSP.mkdir(NodePath.join(directory, "src/snapShot"), { recursive: true }),
-    ]);
+    await NodeFSP.mkdir(NodePath.join(directory, "src"), { recursive: true });
     await Promise.all([
       NodeFSP.writeFile(
         NodePath.join(directory, "src/main.ts"),
@@ -36,15 +27,9 @@ void import("./linux.ts").then(({ result }) => process.emit("ready", result));`,
         NodePath.join(directory, "src/linux.ts"),
         'import { shared } from "./shared.ts"; export const result = shared.value + 1;',
       ),
-      ...workerEntries.map((entry) =>
-        NodeFSP.writeFile(
-          NodePath.join(directory, entry),
-          'import { shared } from "../shared.ts"; process.emit("worker", shared.value);',
-        ),
-      ),
     ]);
     assert.ok(Array.isArray(desktopConfig.pack));
-    const fixtureEntries = new Set(["src/main.ts", ...workerEntries]);
+    const fixtureEntries = new Set(["src/main.ts"]);
     for (const packConfig of desktopConfig.pack) {
       if (!Array.isArray(packConfig.entry)) continue;
       if (!packConfig.entry.some((entry) => fixtureEntries.has(entry))) continue;
@@ -73,7 +58,7 @@ void import("./linux.ts").then(({ result }) => process.emit("ready", result));`,
     );
     const modules = new Map();
     const startups = [];
-    const workers = [];
+
     const ready = Promise.withResolvers();
     const load = (filename, cacheModule = true) => {
       const cached = modules.get(filename);
@@ -89,7 +74,7 @@ void import("./linux.ts").then(({ result }) => process.emit("ready", result));`,
         process: {
           emit: (event, value) => {
             if (event === "startup") startups.push(value);
-            if (event === "worker") workers.push(value);
+
             if (event === "ready") ready.resolve(value);
           },
         },
@@ -100,10 +85,7 @@ void import("./linux.ts").then(({ result }) => process.emit("ready", result));`,
     load(NodePath.join(outputDirectory, "main.cjs"), false);
     assert.equal(await ready.promise, 43);
     assert.deepEqual(startups, [42]);
-    for (const entry of workerEntries) {
-      load(NodePath.join(outputDirectory, entry.replace(/^src\//, "").replace(/\.ts$/, ".cjs")));
-    }
-    assert.deepEqual(workers, [42, 42, 42, 42]);
+
     assert.deepEqual(startups, [42]);
   } finally {
     await NodeFSP.rm(directory, { recursive: true, force: true });

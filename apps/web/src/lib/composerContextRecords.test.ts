@@ -4,17 +4,15 @@ import {
   MessageId,
   OrchestrationMessageContext,
   ThreadId,
-  type PreviewAnnotationPayload,
 } from "@t3tools/contracts";
+import { type PreviewAnnotationPayload } from "./legacyPreviewAnnotation";
 import * as Schema from "effect/Schema";
 import { upgradeLegacyContextMessage } from "@t3tools/shared/composerContextLegacy";
-
 import {
   formatInlineContextReference,
   removeInlineContextReference,
 } from "./composerContextReferences";
 import { describe, expect, it } from "vite-plus/test";
-
 import {
   asKnownContextRecord,
   buildMessageContext,
@@ -31,9 +29,7 @@ import {
   terminalContextDraftFromRecord,
   uploadedAttachmentContextRecord,
 } from "./composerContextRecords";
-
 const decodeMessageContext = Schema.decodeUnknownSync(OrchestrationMessageContext);
-
 const annotation: PreviewAnnotationPayload = {
   id: "ann_1",
   pageUrl: "http://localhost:3000/checkout",
@@ -42,7 +38,12 @@ const annotation: PreviewAnnotationPayload = {
   elements: [
     {
       id: "el_1",
-      rect: { x: 0, y: 0, width: 10, height: 10 },
+      rect: {
+        x: 0,
+        y: 0,
+        width: 10,
+        height: 10,
+      },
       element: {
         pageUrl: "http://localhost:3000/checkout",
         pageTitle: "Checkout",
@@ -60,12 +61,17 @@ const annotation: PreviewAnnotationPayload = {
   regions: [],
   strokes: [],
   styleChanges: [
-    { targetId: "el_1", selector: "#pay", property: "font-size", previousValue: "", value: "20px" },
+    {
+      targetId: "el_1",
+      selector: "#pay",
+      property: "font-size",
+      previousValue: "",
+      value: "20px",
+    },
   ],
   screenshot: null,
   createdAt: "2026-01-01T00:00:00.000Z",
 };
-
 describe("composerContextRecords", () => {
   it("copies only ready or persisted server-side attachment IDs", () => {
     const environmentId = EnvironmentId.make("env");
@@ -80,7 +86,11 @@ describe("composerContextRecords", () => {
     };
     expect(uploadedAttachmentContextRecord(image, undefined)).toBeNull();
     expect(
-      uploadedAttachmentContextRecord(image, { status: "uploading", environmentId, progress: 0.5 }),
+      uploadedAttachmentContextRecord(image, {
+        status: "uploading",
+        environmentId,
+        progress: 0.5,
+      }),
     ).toBeNull();
     expect(
       uploadedAttachmentContextRecord(image, {
@@ -96,7 +106,10 @@ describe("composerContextRecords", () => {
         environmentId,
         attachmentId: "uploaded-image",
       }),
-    ).toMatchObject({ attachmentId: "uploaded-image", contextId: "image_local-image" });
+    ).toMatchObject({
+      attachmentId: "uploaded-image",
+      contextId: "image_local-image",
+    });
     const file = {
       type: "file" as const,
       id: "local-file",
@@ -108,10 +121,17 @@ describe("composerContextRecords", () => {
     expect(uploadedAttachmentContextRecord(file, undefined)).toBeNull();
     expect(
       uploadedAttachmentContextRecord(
-        { ...file, uploadedAttachmentId: "persisted-file", uploadEnvironmentId: environmentId },
+        {
+          ...file,
+          uploadedAttachmentId: "persisted-file",
+          uploadEnvironmentId: environmentId,
+        },
         undefined,
       ),
-    ).toMatchObject({ attachmentId: "persisted-file", contextId: "file_local-file" });
+    ).toMatchObject({
+      attachmentId: "persisted-file",
+      contextId: "file_local-file",
+    });
   });
   it("does not bind an annotation screenshot to a same-ID file", () => {
     const context = buildMessageContext({
@@ -184,7 +204,12 @@ describe("composerContextRecords", () => {
           diff: "",
         },
       ],
-      previewAnnotations: [{ ...annotation, id }],
+      previewAnnotations: [
+        {
+          ...annotation,
+          id,
+        },
+      ],
       attachments: [
         {
           attachment: {
@@ -214,10 +239,13 @@ describe("composerContextRecords", () => {
     expect(decodeMessageContext(context).records).toHaveLength(5);
     const preview = context.records.find((record) => record.kind === "preview-annotation");
     const image = context.records.find((record) => record.kind === "image");
-    expect(preview).toMatchObject({ screenshotContextId: image!.contextId });
-    expect(image).toMatchObject({ attachmentId: "uploaded-image" });
+    expect(preview).toMatchObject({
+      screenshotContextId: image!.contextId,
+    });
+    expect(image).toMatchObject({
+      attachmentId: "uploaded-image",
+    });
   });
-
   it("restores multiple edits on one target without parsing display strings", () => {
     const styleChanges = [
       ...annotation.styleChanges,
@@ -230,12 +258,14 @@ describe("composerContextRecords", () => {
       },
     ];
     const restored = previewAnnotationFromRecord(
-      previewAnnotationContextRecord({ ...annotation, styleChanges }),
+      previewAnnotationContextRecord({
+        ...annotation,
+        styleChanges,
+      }),
     );
     expect(restored.styleChanges).toEqual(styleChanges);
     expect(restored.elements[0]?.id).toBe("el_1");
   });
-
   it("removes an expired terminal chip by its kind-scoped id, not the producer id", () => {
     const context = {
       id: "term-1",
@@ -249,12 +279,10 @@ describe("composerContextRecords", () => {
     };
     const reference = terminalContextReference(context);
     expect(reference.contextId).toBe("terminal_term-1");
-
     const prompt = `prose ${formatInlineContextReference(reference)} tail`;
     expect(removeInlineContextReference(prompt, context.id).prompt).toBe(prompt);
     expect(removeInlineContextReference(prompt, reference.contextId).prompt).toBe("prose tail");
   });
-
   it("clamps an oversized review selection so the record still encodes", () => {
     const build = (diffLength: number) =>
       reviewCommentContextRecord({
@@ -268,16 +296,24 @@ describe("composerContextRecords", () => {
         text: "Why?",
         diff: "d".repeat(diffLength),
       });
-
     const atLimit = build(32_000);
     expect(atLimit.diff).toHaveLength(32_000);
     const overLimit = build(32_001);
     expect(overLimit.diff.length).toBeLessThanOrEqual(32_000);
     expect(overLimit.diff.endsWith("… truncated …")).toBe(true);
-    expect(() => decodeMessageContext({ version: 1, records: [atLimit] })).not.toThrow();
-    expect(() => decodeMessageContext({ version: 1, records: [overLimit] })).not.toThrow();
+    expect(() =>
+      decodeMessageContext({
+        version: 1,
+        records: [atLimit],
+      }),
+    ).not.toThrow();
+    expect(() =>
+      decodeMessageContext({
+        version: 1,
+        records: [overLimit],
+      }),
+    ).not.toThrow();
   });
-
   it("finds the destination collision for different legacy terminal messages", () => {
     const legacy = (text: string) =>
       asKnownContextRecord(
@@ -293,12 +329,10 @@ describe("composerContextRecords", () => {
     const destinationId = terminalContextReference(
       terminalContextDraftFromRecord(first, ThreadId.make("t")),
     ).contextId;
-
     expect(destinationId).toBe("terminal_legacy_terminal_1");
     expect(composerContextImportLookupIds(second)[0]).toBe(destinationId);
     expect(isSameComposerContextPayload(first, second)).toBe(false);
   });
-
   it("treats an imported legacy id and its canonical reconstruction as the same excerpt", () => {
     const draft = {
       id: "term-1",
@@ -311,12 +345,18 @@ describe("composerContextRecords", () => {
       text: "A",
     };
     const canonical = terminalContextRecord(draft);
-    const imported = { ...canonical, contextId: "legacy_terminal_1" as ComposerContextId };
-
+    const imported = {
+      ...canonical,
+      contextId: "legacy_terminal_1" as ComposerContextId,
+    };
     expect(isSameComposerContextPayload(canonical, imported)).toBe(true);
-    expect(isSameComposerContextPayload(canonical, { ...canonical, text: "B" })).toBe(false);
+    expect(
+      isSameComposerContextPayload(canonical, {
+        ...canonical,
+        text: "B",
+      }),
+    ).toBe(false);
   });
-
   it("resolves structured context directly and upgrades legacy text otherwise", () => {
     const structured = resolveUserMessageContext({
       text: "hi [b.ts L4](t3-context://v1/review-comment/rc-1)",
@@ -345,7 +385,6 @@ describe("composerContextRecords", () => {
     expect(legacy.recordsById.get("legacy_terminal_1")?.kind).toBe("terminal");
   });
 });
-
 describe("pullRequestContextKindLabel", () => {
   const comment = (url: string, isDraft: boolean) => ({
     id: "pull-request-context:7",
@@ -367,7 +406,6 @@ describe("pullRequestContextKindLabel", () => {
       isDraft,
     },
   });
-
   it("names the change request the way its host does", () => {
     expect(pullRequestContextKindLabel(comment("https://github.com/acme/app/pull/7", false))).toBe(
       "Open pull request",
@@ -377,7 +415,6 @@ describe("pullRequestContextKindLabel", () => {
     ).toBe("Draft merge request");
   });
 });
-
 describe("producer ids that do not fit the grammar", () => {
   it("folds review comment ids and keeps the raw id in the draft shape", () => {
     const record = reviewCommentContextRecord({
@@ -395,12 +432,14 @@ describe("producer ids that do not fit the grammar", () => {
     expect(
       resolveUserMessageContext({
         text: `[b.ts L1](t3-context://v1/review-comment/${record.contextId})`,
-        context: { version: 1, records: [record] },
+        context: {
+          version: 1,
+          records: [record],
+        },
       }).recordsById.has(record.contextId),
     ).toBe(true);
   });
 });
-
 describe("selectedMessageContextFragment", () => {
   const terminal = terminalContextRecord({
     id: "term-1",
@@ -429,13 +468,11 @@ describe("selectedMessageContextFragment", () => {
     threadId: ThreadId.make("t"),
     messageId: MessageId.make("msg-1"),
   };
-
   it("carries only records for chips inside the selection", () => {
     const fragment = selectedMessageContextFragment({
       ...input,
       markdown: `see [b.ts L4](t3-context://v1/review-comment/${review.contextId})`,
     });
-
     expect(fragment).toContain(review.contextId);
     expect(fragment).not.toContain(terminal.contextId);
   });

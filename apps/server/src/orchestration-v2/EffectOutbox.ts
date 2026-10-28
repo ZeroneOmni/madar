@@ -1,6 +1,4 @@
 import {
-  CheckpointId,
-  CheckpointScopeId,
   CommandId,
   MessageId,
   NodeId,
@@ -83,27 +81,7 @@ export const OrchestrationEffectRequestV2 = Schema.Union([
     feedback: Schema.optional(Schema.String),
     answers: Schema.optional(ProviderUserInputAnswers),
   }),
-  Schema.Struct({
-    type: Schema.Literal("provider-thread.rollback"),
-    restoreFiles: Schema.optional(Schema.Boolean),
-    providerThreadId: ProviderThreadId,
-    checkpointId: CheckpointId,
-    scopeId: CheckpointScopeId,
-  }),
-  Schema.Struct({
-    type: Schema.Literal("checkpoint.capture"),
-    runId: RunId,
-    scopeId: CheckpointScopeId,
-  }),
-  Schema.Struct({
-    type: Schema.Literal("scheduled-tasks.cleanup"),
-  }),
-  Schema.Struct({
-    type: Schema.Literal("terminal.cleanup"),
-  }),
-  Schema.Struct({
-    type: Schema.Literal("preview.cleanup"),
-  }),
+
   Schema.Struct({
     type: Schema.Literal("attachment.cleanup"),
     attachmentIds: Schema.Array(Schema.String),
@@ -125,11 +103,7 @@ export type OrchestrationEffectRequestV2 = typeof OrchestrationEffectRequestV2.T
 export const REPLAY_SAFE_EFFECT_TYPES_AFTER_PROCESS_LOSS = [
   "provider-runtime.continue",
   "provider-session.detach",
-  "provider-thread.rollback",
-  "checkpoint.capture",
-  "scheduled-tasks.cleanup",
-  "terminal.cleanup",
-  "preview.cleanup",
+
   "attachment.cleanup",
   "thread-title.generate",
   "delegated-tasks.stop",
@@ -194,6 +168,14 @@ export class EffectOutboxError extends Schema.TaggedError<EffectOutboxError>()(
 }
 
 const isEffectOutboxError = Schema.is(EffectOutboxError);
+
+const RETIRED_EFFECT_TYPES = [
+  "checkpoint.capture",
+  "provider-thread.rollback",
+  "terminal.cleanup",
+  "preview.cleanup",
+  "scheduled-tasks.cleanup",
+];
 
 export interface EffectOutboxV2Shape {
   readonly awaitAvailable: Effect.Effect<void>;
@@ -295,6 +277,14 @@ export const layer: Layer.Layer<EffectOutboxV2, never, SqlClient.SqlClient> = La
   EffectOutboxV2,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    const retiredAt = DateTime.formatIso(yield* DateTime.now);
+    yield* sql`
+      UPDATE orchestration_v2_effect_outbox
+      SET status = 'cancelled', lease_owner = NULL, lease_expires_at = NULL,
+          completed_at = ${retiredAt}, updated_at = ${retiredAt}, last_error = 'Feature removed'
+      WHERE effect_type IN ${sql.in(RETIRED_EFFECT_TYPES)}
+        AND status IN ('pending', 'running')
+    `.pipe(Effect.orDie);
     const available = yield* Queue.dropping<void>(64);
     const cancellationSignals = new Map<string, Deferred.Deferred<void>>();
     const settledSignals = new Map<string, Deferred.Deferred<void>>();
@@ -365,9 +355,10 @@ export const layer: Layer.Layer<EffectOutboxV2, never, SqlClient.SqlClient> = La
     };
 
     const decodeRows = (operation: string, rows: ReadonlyArray<EffectRow>) =>
-      Effect.forEach(rows, rowToEffect).pipe(
-        Effect.mapError((cause) => new EffectOutboxError({ operation, cause })),
-      );
+      Effect.forEach(
+        rows.filter((row) => !RETIRED_EFFECT_TYPES.includes(row.effect_type)),
+        rowToEffect,
+      ).pipe(Effect.mapError((cause) => new EffectOutboxError({ operation, cause })));
 
     const service: EffectOutboxV2Shape = {
       enqueue: Effect.fn("EffectOutbox.enqueue")(
@@ -419,7 +410,7 @@ export const layer: Layer.Layer<EffectOutboxV2, never, SqlClient.SqlClient> = La
           NodeSqliteClient.readOnly,
           Effect.flatMap((rows) => {
             const row = rows[0];
-            return row === undefined
+            return row === undefined || RETIRED_EFFECT_TYPES.includes(row.effect_type)
               ? Effect.succeed(Option.none())
               : rowToEffect(row).pipe(Effect.map(Option.some));
           }),

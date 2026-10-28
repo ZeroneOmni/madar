@@ -3,12 +3,9 @@ import { Select as SelectPrimitive } from "@base-ui/react/select";
 import { useRender } from "@base-ui/react/use-render";
 import type { ComponentProps, ComponentType, SVGProps } from "react";
 import { ChevronDownIcon } from "lucide-react";
-
 import { cn } from "~/lib/utils";
 import { Separator } from "../ui/separator";
-
 export type ComposerControlSize = "sm" | "xs";
-
 function composerControlClassName(size: ComposerControlSize, className?: string) {
   return cn(
     "relative inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-(--control-radius) border border-transparent text-base outline-none hover:bg-accent data-pressed:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-64 data-disabled:pointer-events-none data-disabled:opacity-64 pointer-coarse:after:absolute pointer-coarse:after:size-full pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 [&:active:not([aria-haspopup])]:scale-[0.97] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:-mx-0.5 [&_svg[data-composer-control-icon]]:mx-0",
@@ -20,11 +17,9 @@ function composerControlClassName(size: ComposerControlSize, className?: string)
     className,
   );
 }
-
 type ComposerControlProps = useRender.ComponentProps<"button"> & {
   size?: ComposerControlSize;
 };
-
 export function ComposerControl({
   className,
   size = "sm",
@@ -41,7 +36,6 @@ export function ComposerControl({
     render,
   });
 }
-
 export function ComposerControlIcon({
   icon: Icon,
   className,
@@ -65,7 +59,6 @@ export function ComposerControlIcon({
     />
   );
 }
-
 export function ComposerControlChevron({
   className,
   size = "sm",
@@ -86,7 +79,6 @@ export function ComposerControlChevron({
     />
   );
 }
-
 export function ComposerControlSeparator({
   className,
   size = "sm",
@@ -102,7 +94,6 @@ export function ComposerControlSeparator({
     />
   );
 }
-
 export function ComposerSelectControl({
   className,
   children,

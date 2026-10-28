@@ -7,7 +7,6 @@ import {
 } from "~/lib/assistantTextSelection";
 import { toastManager } from "../ui/toast";
 import { observeResize } from "~/lib/observeResize";
-
 const CITATION_PULSE_DURATION_MS = 650;
 const CITATION_HIGHLIGHT_HOLD_MS = 1575;
 const CITATION_HIGHLIGHT_FADE_MS = 450;
@@ -16,7 +15,6 @@ const CITATION_HIGHLIGHT_TOTAL_MS =
 const CITATION_HIGHLIGHT_OPACITY = "--assistant-citation-highlight-opacity";
 const CITATION_HIGHLIGHT_PEAK = 0.45;
 const COMMENT_HIGHLIGHT_NAME = "t3-assistant-citation-comment";
-
 export function observeAssistantCitationCommentSource({
   anchor,
   citation,
@@ -71,7 +69,6 @@ export function observeAssistantCitationCommentSource({
     }
     return true;
   };
-
   if (!validate(false)) return dispose;
   if (typeof Highlight !== "undefined" && registry) {
     const existing = registry.get(COMMENT_HIGHLIGHT_NAME);
@@ -79,10 +76,13 @@ export function observeAssistantCitationCommentSource({
     highlight.add(range);
     if (!existing) registry.set(COMMENT_HIGHLIGHT_NAME, highlight);
   }
-  observer.observe(viewport, { childList: true, subtree: true, characterData: true });
+  observer.observe(viewport, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
   return dispose;
 }
-
 export interface AssistantCitationRequest {
   citation: AssistantCitation;
   key: string;
@@ -94,11 +94,13 @@ export interface AssistantCitationTarget extends AssistantCitationRequest {
     scrolled: boolean;
     dismissed: boolean;
     cancelScroll?: () => void;
-    pulse?: { startedAt: number; reducedMotion: boolean };
+    pulse?: {
+      startedAt: number;
+      reducedMotion: boolean;
+    };
   }>;
   onComplete: () => void;
 }
-
 export function observeAssistantCitationSource({
   root,
   itemKey,
@@ -117,7 +119,10 @@ export function observeAssistantCitationSource({
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let highlighted: Highlight | null = null;
   let ownedRange: Range | null = null;
-  let selected: { range: Range; snapshot: Range } | null = null;
+  let selected: {
+    range: Range;
+    snapshot: Range;
+  } | null = null;
   let frame: number | null = null;
   let scrolling = false;
   let stopped = false;
@@ -181,24 +186,29 @@ export function observeAssistantCitationSource({
       );
       if (Math.abs(offset - state.scroll) > 1) {
         scrolling = true;
-        void list.scrollToOffset({ offset, animated: !reducedMotion }).then(
-          () => {
-            scrolling = false;
-            if (!stopped && !activation.dismissed) schedule();
-          },
-          () => {
-            scrolling = false;
-            if (stopped || activation.dismissed) return;
-            activation.dismissed = true;
-            clear();
-            request.onComplete();
-            toastManager.add({
-              type: "warning",
-              title: "Could not open the cited response",
-              description: "Click the citation to try again.",
-            });
-          },
-        );
+        void list
+          .scrollToOffset({
+            offset,
+            animated: !reducedMotion,
+          })
+          .then(
+            () => {
+              scrolling = false;
+              if (!stopped && !activation.dismissed) schedule();
+            },
+            () => {
+              scrolling = false;
+              if (stopped || activation.dismissed) return;
+              activation.dismissed = true;
+              clear();
+              request.onComplete();
+              toastManager.add({
+                type: "warning",
+                title: "Could not open the cited response",
+                description: "Click the citation to try again.",
+              });
+            },
+          );
         return;
       }
       if (rect.bottom <= scrollRect.top || rect.top >= scrollRect.bottom) return;
@@ -226,7 +236,10 @@ export function observeAssistantCitationSource({
       if (selection && (canReplaceSelection || ownsSelection(selection))) {
         selection.removeAllRanges();
         selection.addRange(range);
-        selected = { range: selection.getRangeAt(0), snapshot: range.cloneRange() };
+        selected = {
+          range: selection.getRangeAt(0),
+          snapshot: range.cloneRange(),
+        };
         canReplaceSelection = false;
         ownedRange = range;
         root.dataset.citationHighlighted = "true";
@@ -245,25 +258,49 @@ export function observeAssistantCitationSource({
       pulseAnimation = root.animate(
         pulse.reducedMotion
           ? [
-              { offset: 0, [CITATION_HIGHLIGHT_OPACITY]: CITATION_HIGHLIGHT_PEAK },
-              { offset: holdEnd, [CITATION_HIGHLIGHT_OPACITY]: CITATION_HIGHLIGHT_PEAK },
-              { offset: 1, [CITATION_HIGHLIGHT_OPACITY]: 0 },
+              {
+                offset: 0,
+                [CITATION_HIGHLIGHT_OPACITY]: CITATION_HIGHLIGHT_PEAK,
+              },
+              {
+                offset: holdEnd,
+                [CITATION_HIGHLIGHT_OPACITY]: CITATION_HIGHLIGHT_PEAK,
+              },
+              {
+                offset: 1,
+                [CITATION_HIGHLIGHT_OPACITY]: 0,
+              },
             ]
           : [
-              { offset: 0, [CITATION_HIGHLIGHT_OPACITY]: 0 },
+              {
+                offset: 0,
+                [CITATION_HIGHLIGHT_OPACITY]: 0,
+              },
               {
                 offset: at(CITATION_PULSE_DURATION_MS * 0.5),
                 [CITATION_HIGHLIGHT_OPACITY]: CITATION_HIGHLIGHT_PEAK,
               },
-              { offset: at(CITATION_PULSE_DURATION_MS), [CITATION_HIGHLIGHT_OPACITY]: 0 },
+              {
+                offset: at(CITATION_PULSE_DURATION_MS),
+                [CITATION_HIGHLIGHT_OPACITY]: 0,
+              },
               {
                 offset: at(CITATION_PULSE_DURATION_MS * 1.5),
                 [CITATION_HIGHLIGHT_OPACITY]: CITATION_HIGHLIGHT_PEAK,
               },
-              { offset: holdEnd, [CITATION_HIGHLIGHT_OPACITY]: CITATION_HIGHLIGHT_PEAK },
-              { offset: 1, [CITATION_HIGHLIGHT_OPACITY]: 0 },
+              {
+                offset: holdEnd,
+                [CITATION_HIGHLIGHT_OPACITY]: CITATION_HIGHLIGHT_PEAK,
+              },
+              {
+                offset: 1,
+                [CITATION_HIGHLIGHT_OPACITY]: 0,
+              },
             ],
-        { duration: CITATION_HIGHLIGHT_TOTAL_MS, easing: "ease-in-out" },
+        {
+          duration: CITATION_HIGHLIGHT_TOTAL_MS,
+          easing: "ease-in-out",
+        },
       );
       pulseAnimation.id = "t3-assistant-citation-pulse";
       pulseAnimation.currentTime = Math.max(0, performance.now() - pulse.startedAt);
@@ -295,7 +332,11 @@ export function observeAssistantCitationSource({
       schedule();
     }
   });
-  observer.observe(scrollNode, { childList: true, characterData: true, subtree: true });
+  observer.observe(scrollNode, {
+    childList: true,
+    characterData: true,
+    subtree: true,
+  });
   const stopObservingResize = observeResize([root, scrollNode], schedule);
   const state = list.getState();
   const unsubscribe = [
@@ -331,7 +372,6 @@ export function observeAssistantCitationSource({
   };
   return dispose;
 }
-
 export function AssistantCitationSource({
   messageId,
   threadRef,
@@ -352,9 +392,13 @@ export function AssistantCitationSource({
     const root = rootRef.current;
     const list = listRef.current;
     if (!root || !list || !request || request.citation.messageId !== messageId) return;
-    return observeAssistantCitationSource({ root, itemKey, request, list });
+    return observeAssistantCitationSource({
+      root,
+      itemKey,
+      request,
+      list,
+    });
   }, [itemKey, listRef, messageId, request]);
-
   return (
     <div
       ref={rootRef}

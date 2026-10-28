@@ -14,7 +14,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { modelPickerModelKey } from "./modelPickerKeys";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
-
 export const ModelListRow = memo(function ModelListRow(props: {
   index: number;
   slug: string;
@@ -46,7 +45,6 @@ export const ModelListRow = memo(function ModelListRow(props: {
     subProvider: props.subProvider,
   };
   const providerLabel = getProviderRowLabel(props.providerDisplayName, props.subProvider);
-
   const row = (
     <ComboboxItem
       hideIndicator
@@ -66,7 +64,11 @@ export const ModelListRow = memo(function ModelListRow(props: {
               ? getTriggerDisplayModelLabel(model)
               : getDisplayModelName(
                   model,
-                  props.preferShortName ? { preferShortName: true } : undefined,
+                  props.preferShortName
+                    ? {
+                        preferShortName: true,
+                      }
+                    : undefined,
                 )}
           </div>
           {props.showNewBadge ? (
@@ -138,11 +140,9 @@ export const ModelListRow = memo(function ModelListRow(props: {
       </div>
     </ComboboxItem>
   );
-
   if (!props.disabledReason) {
     return row;
   }
-
   return (
     <Tooltip>
       <TooltipTrigger render={row} />

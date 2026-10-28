@@ -17,7 +17,6 @@ import {
   PencilIcon,
 } from "lucide-react";
 import { useId, useImperativeHandle, useRef, useState, type Ref } from "react";
-
 import { useAssetUrls } from "../../assets/assetUrls";
 import { threadEnvironment } from "../../state/threads";
 import { useThreadProjection } from "../../state/entities";
@@ -27,40 +26,38 @@ import { cn } from "~/lib/utils";
 import { ComposerBanner } from "./ComposerBanner";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-
 export interface EditQueuedRunRequest {
   readonly runId: RunId;
   readonly messageId: MessageId;
   readonly text: string;
   readonly attachments: ReadonlyArray<ContractChatAttachment>;
 }
-
 interface QueuedRowThumbnail {
   readonly key: string;
   readonly name: string;
   readonly url: string | null;
 }
-
 const QUEUED_RUN_DRAG_TYPE = "application/x-t3code-queued-run";
-
 export interface QueuedRunsControlHandle {
   steerNext: (repeat: boolean) => boolean;
   editLatest: (repeat: boolean) => boolean;
 }
-
 type ThreadQueueProjection = Parameters<typeof deriveThreadQueueWorkflowState>[0];
-
 function queuedImageResources(projection: ThreadQueueProjection | undefined) {
   if (!projection) return [];
   return deriveThreadQueueWorkflowState(projection).queuedRuns.flatMap(({ attachments }) =>
     attachments.flatMap((attachment) =>
       attachment.type === "image"
-        ? [{ _tag: "attachment" as const, attachmentId: attachment.id }]
+        ? [
+            {
+              _tag: "attachment" as const,
+              attachmentId: attachment.id,
+            },
+          ]
         : [],
     ),
   );
 }
-
 export function QueuedRunsControl({
   ref,
   ...props
@@ -154,16 +151,18 @@ export function QueuedRunsControl({
       pending: true,
     })),
   ];
-
   const move = async (runId: RunId, beforeRunId: RunId | null) => {
     setBusyRunId(runId);
     await reorder({
       environmentId: props.environmentId,
-      input: { threadId: props.threadId, runId, beforeRunId },
+      input: {
+        threadId: props.threadId,
+        runId,
+        beforeRunId,
+      },
     });
     setBusyRunId(null);
   };
-
   const completeDrag = (runId: RunId, insertIndex: number | null) => {
     setDragState(null);
     dragArmedRunIdRef.current = null;
@@ -173,7 +172,6 @@ export function QueuedRunsControl({
     if (insertIndex === draggedIndex || insertIndex === draggedIndex + 1) return;
     void move(runId, queued[insertIndex]?.run.id ?? null);
   };
-
   const sendQueuedMessage = async (queuedRunId: RunId) => {
     if (!canSend || steerInFlightRef.current) return;
     steerInFlightRef.current = true;
@@ -181,18 +179,24 @@ export function QueuedRunsControl({
     if (workflow?.canSendNow) {
       await resume({
         environmentId: props.environmentId,
-        input: { threadId: props.threadId, runId: queuedRunId },
+        input: {
+          threadId: props.threadId,
+          runId: queuedRunId,
+        },
       });
     } else if (activeRun !== null) {
       await promote({
         environmentId: props.environmentId,
-        input: { threadId: props.threadId, queuedRunId, targetRunId: activeRun.id },
+        input: {
+          threadId: props.threadId,
+          queuedRunId,
+          targetRunId: activeRun.id,
+        },
       });
     }
     steerInFlightRef.current = false;
     setBusyRunId(null);
   };
-
   useImperativeHandle(ref, () => ({
     steerNext(repeat) {
       const next = queued[0];
@@ -223,18 +227,18 @@ export function QueuedRunsControl({
       return true;
     },
   }));
-
   if (items.length === 0) return null;
-
   const remove = async (runId: RunId) => {
     setBusyRunId(runId);
     await cancel({
       environmentId: props.environmentId,
-      input: { threadId: props.threadId, runId },
+      input: {
+        threadId: props.threadId,
+        runId,
+      },
     });
     setBusyRunId(null);
   };
-
   return (
     <ComposerBanner.Attachment>
       <ComposerBanner.Root
@@ -292,7 +296,10 @@ export function QueuedRunsControl({
                     }
                     event.dataTransfer.setData(QUEUED_RUN_DRAG_TYPE, item.runId);
                     event.dataTransfer.effectAllowed = "move";
-                    setDragState({ runId: item.runId, insertIndex: null });
+                    setDragState({
+                      runId: item.runId,
+                      insertIndex: null,
+                    });
                   }}
                   onDragEnd={() => {
                     dragArmedRunIdRef.current = null;
@@ -308,7 +315,10 @@ export function QueuedRunsControl({
                         ? item.serverIndex
                         : item.serverIndex + 1;
                     if (dragState.insertIndex !== insertIndex) {
-                      setDragState({ runId: dragState.runId, insertIndex });
+                      setDragState({
+                        runId: dragState.runId,
+                        insertIndex,
+                      });
                     }
                   }}
                   onDrop={(event) => {

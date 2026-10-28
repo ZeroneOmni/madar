@@ -1,11 +1,9 @@
 import { describe, expect, it } from "@effect/vitest";
-
 import {
   COMPOSER_MENTION_DRAG_TYPE,
   type ComposerMentionDropHost,
   makeComposerMentionDragHandlers,
 } from "./composerMentionDrag.ts";
-
 const makeDragEvent = (options?: {
   mention?: string;
   types?: ReadonlyArray<string>;
@@ -26,9 +24,11 @@ const makeDragEvent = (options?: {
     preventDefault: () => void calls.push("preventDefault"),
     stopPropagation: () => void calls.push("stopPropagation"),
   };
-  return { event, calls };
+  return {
+    event,
+    calls,
+  };
 };
-
 const makeHost = (insertResult = true) => {
   const log: Array<string> = [];
   const host: ComposerMentionDropHost = {
@@ -36,28 +36,28 @@ const makeHost = (insertResult = true) => {
       log.push(`insert:${text}`);
       return insertResult;
     },
-    insertPullRequestAtEnd: (pullRequest) => {
-      log.push(`pr:${pullRequest.number}`);
-      return insertResult;
-    },
+
     setDragActive: (active) => void log.push(`active:${active}`),
     onInsertRejected: () => void log.push("rejected"),
   };
-  return { host, log };
+  return {
+    host,
+    log,
+  };
 };
-
 describe("makeComposerMentionDragHandlers", () => {
   it("leaves drags without the mention payload alone", () => {
     const { host, log } = makeHost();
     const handlers = makeComposerMentionDragHandlers(host);
-    const { event, calls } = makeDragEvent({ types: ["Files"] });
+    const { event, calls } = makeDragEvent({
+      types: ["Files"],
+    });
     handlers.onDragEnter(event);
     handlers.onDragOver(event);
     handlers.onDrop(event);
     expect(calls).toEqual([]);
     expect(log).toEqual([]);
   });
-
   it("stops the native event too, not just the synthetic one", () => {
     const { host } = makeHost();
     const handlers = makeComposerMentionDragHandlers(host);
@@ -67,7 +67,6 @@ describe("makeComposerMentionDragHandlers", () => {
     expect(calls).toContain("stopPropagation");
     expect(calls).toContain("nativeStopPropagation");
   });
-
   it('answers dragover with the "move" effect the tree allows', () => {
     const { host } = makeHost();
     const handlers = makeComposerMentionDragHandlers(host);

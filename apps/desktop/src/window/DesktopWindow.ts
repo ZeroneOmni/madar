@@ -8,7 +8,7 @@ import * as Ref from "effect/Ref";
 
 import * as Electron from "electron";
 
-import { type DesktopSnapShotEvent, DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
+import { DEFAULT_CLIENT_SETTINGS } from "@t3tools/contracts";
 
 import * as DesktopAssets from "../app/DesktopAssets.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
@@ -22,13 +22,10 @@ import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import {
   MENU_ACTION_CHANNEL,
   QUIT_SHORTCUT_CHANNEL,
-  SNAP_SHOT_EVENT_CHANNEL,
   TRACKPAD_SCROLL_END_CHANNEL,
   WINDOW_FULLSCREEN_STATE_CHANNEL,
 } from "../ipc/channels.ts";
-import { PASSKEY_BRIDGE_ARGUMENT } from "../preview/GuestProtocol.ts";
-import * as PreviewManager from "../preview/Manager.ts";
-import * as PreviewPasskeys from "../preview/Passkeys.ts";
+
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
@@ -78,12 +75,9 @@ type DesktopWindowRuntimeServices =
   | ElectronShell.ElectronShell
   | ElectronTheme.ElectronTheme
   | ElectronWindow.ElectronWindow
-  | DesktopRendererHistory.DesktopRendererHistory
-  | PreviewManager.PreviewManager;
+  | DesktopRendererHistory.DesktopRendererHistory;
 
-export type DesktopWindowError =
-  | ElectronWindow.ElectronWindowCreateError
-  | PreviewManager.PreviewManagerError;
+export type DesktopWindowError = ElectronWindow.ElectronWindowCreateError;
 
 export type MainWindowZoomDirection = "in" | "out" | "reset";
 export type MainWindowContentsCommand = "reload" | "forceReload" | "toggleDevTools";
@@ -100,14 +94,12 @@ export class DesktopWindow extends Context.Service<
     readonly handleBackendReady: (httpBaseUrl: URL) => Effect.Effect<void, DesktopWindowError>;
     readonly handleBackendNotReady: Effect.Effect<void>;
     readonly flushMainWindowBounds: Effect.Effect<void>;
-    readonly prepareCaptureReveal: Effect.Effect<void>;
+
     readonly dispatchMenuAction: (
       action: string,
       options?: { readonly reveal?: boolean },
     ) => Effect.Effect<void, DesktopWindowError>;
-    readonly dispatchSnapShotEvent: (
-      event: DesktopSnapShotEvent,
-    ) => Effect.Effect<void, DesktopWindowError>;
+
     // Electron zoom roles target focused guests; zoomMain must always target the app.
     readonly zoomMain: (direction: MainWindowZoomDirection) => Effect.Effect<void>;
     readonly runMainContentsCommand: (command: MainWindowContentsCommand) => Effect.Effect<void>;
@@ -291,8 +283,7 @@ export const make = Effect.gen(function* () {
   const electronShell = yield* ElectronShell.ElectronShell;
   const electronTheme = yield* ElectronTheme.ElectronTheme;
   const electronWindow = yield* ElectronWindow.ElectronWindow;
-  const previewManager = yield* PreviewManager.PreviewManager;
-  const previewPasskeys = yield* PreviewPasskeys.PreviewPasskeys;
+
   const desktopSettings = yield* DesktopAppSettings.DesktopAppSettings;
   const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
   const electronApp = yield* ElectronApp.ElectronApp;
@@ -324,25 +315,25 @@ export const make = Effect.gen(function* () {
   const currentMainWindow = electronWindow.currentMainOrFirst.pipe(Effect.flatMap(withoutSplash));
   const focusedMainWindow = electronWindow.focusedMainOrFirst.pipe(Effect.flatMap(withoutSplash));
 
-  const zoomWindow = Effect.fn("desktop.window.zoomWindow")(function* (
-    window: Electron.BrowserWindow,
-    direction: MainWindowZoomDirection,
-  ) {
-    const webContents = window.webContents;
-    webContents.setZoomLevel(
-      direction === "reset" ? 0 : webContents.getZoomLevel() + (direction === "in" ? 0.5 : -0.5),
-    );
-    if (environment.platform === "darwin") syncMacosWindowButtons(window);
-    // App zoom propagates to guests; restore each preview's own zoom.
-    yield* previewManager.reapplyZoom();
-  });
+  const zoomWindow = Effect.fn("desktop.window.zoomWindow")(
+    (window: Electron.BrowserWindow, direction: MainWindowZoomDirection) =>
+      Effect.sync(() => {
+        const webContents = window.webContents;
+        webContents.setZoomLevel(
+          direction === "reset"
+            ? 0
+            : webContents.getZoomLevel() + (direction === "in" ? 0.5 : -0.5),
+        );
+        if (environment.platform === "darwin") syncMacosWindowButtons(window);
+      }),
+  );
 
   const createWindow = Effect.fn("desktop.window.createWindow")(function* (): Effect.fn.Return<
     Option.Option<Electron.BrowserWindow>,
     DesktopWindowError
   > {
     if (yield* Ref.get(desktopState.quitting)) return Option.none();
-    yield* previewManager.getBrowserSession();
+
     const applicationUrl = getDesktopUrl(environment.isDevelopment);
     const iconPaths = yield* assets.iconPaths;
     const iconOption = getIconOption(iconPaths, environment.platform);
@@ -389,7 +380,7 @@ export const make = Effect.gen(function* () {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
-        webviewTag: true,
+
         // Guest fullscreen propagates to the embedder; both must opt out to keep it inside the webview.
         disableHtmlFullscreenWindowResize: true,
       },
@@ -490,31 +481,10 @@ export const make = Effect.gen(function* () {
     );
     flushMainWindowBounds = flushBoundsPersist;
 
-    yield* previewManager.setMainWindow(window);
     if (yield* Ref.get(desktopState.quitting)) {
       yield* electronWindow.destroyAll;
       return Option.none();
     }
-    window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
-      if (
-        typeof params.partition !== "string" ||
-        !previewManager.isBrowserPartition(params.partition)
-      ) {
-        event.preventDefault();
-        return;
-      }
-      webPreferences.sandbox = true;
-      webPreferences.nodeIntegration = false;
-      webPreferences.nodeIntegrationInSubFrames = false;
-      webPreferences.contextIsolation = false;
-      webPreferences.disableHtmlFullscreenWindowResize = true;
-      if (previewPasskeys.bridgeEnabled) {
-        webPreferences.additionalArguments = [
-          ...(webPreferences.additionalArguments ?? []),
-          PASSKEY_BRIDGE_ARGUMENT,
-        ];
-      }
-    });
 
     const contextMenuContents = new WeakSet<Electron.WebContents>();
     const installContextMenu = (
@@ -592,10 +562,6 @@ export const make = Effect.gen(function* () {
       });
     };
     installContextMenu(window, window.webContents);
-    window.webContents.on("did-attach-webview", (_event, contents) => {
-      installContextMenu(window, contents);
-      void runPromise(previewManager.prepareWebview(contents));
-    });
 
     window.webContents.setWindowOpenHandler(({ url }) => {
       if (Option.isSome(ElectronShell.parseSafeExternalUrl(url))) {
@@ -951,12 +917,7 @@ export const make = Effect.gen(function* () {
     createMain: createMain.pipe(Effect.flatMap(requireWindow)),
     ensureMain: ensureMain.pipe(Effect.flatMap(requireWindow)),
     revealOrCreateMain,
-    prepareCaptureReveal: Effect.gen(function* () {
-      const existingWindow = yield* currentMainWindow;
-      if (Option.isSome(existingWindow)) {
-        yield* electronWindow.prepareReveal(existingWindow.value);
-      }
-    }),
+
     activate: Effect.gen(function* () {
       if (yield* Ref.get(desktopState.quitting)) return;
       const existingWindow = yield* currentMainWindow;
@@ -991,15 +952,7 @@ export const make = Effect.gen(function* () {
       yield* Effect.annotateCurrentSpan({ action });
       yield* dispatchRendererEvent(MENU_ACTION_CHANNEL, action, options);
     }),
-    dispatchSnapShotEvent: Effect.fn("desktop.window.dispatchSnapShotEvent")(function* (event) {
-      yield* Effect.annotateCurrentSpan({
-        event: event.type,
-        captureId: "id" in event ? (event.id ?? null) : null,
-      });
-      yield* dispatchRendererEvent(SNAP_SHOT_EVENT_CHANNEL, event, {
-        reveal: event.type === "started",
-      });
-    }),
+
     zoomMain: Effect.fn("desktop.window.zoomMain")(function* (direction) {
       yield* Effect.annotateCurrentSpan({ direction });
       const window = yield* electronWindow.main;

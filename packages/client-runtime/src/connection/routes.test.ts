@@ -1,3 +1,4 @@
+import { connectionAddressKey } from "./connectionAddressKey.ts";
 import { EnvironmentId } from "@t3tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Option from "effect/Option";
@@ -7,7 +8,7 @@ import {
   type ConnectionCatalogEntry,
   type ConnectionRoute,
 } from "./catalog.ts";
-import { pullRequestRoutingConnectionKey } from "./pullRequestRoutingPermissions.ts";
+
 import { BearerConnectionTarget, RelayConnectionTarget } from "./model.ts";
 import {
   connectionRouteId,
@@ -360,9 +361,7 @@ describe("learned routes", () => {
       profile: learned[0]!.profile,
       alternateRoutes: learned.slice(1),
     };
-    expect(pullRequestRoutingConnectionKey(withLearned)).toBe(
-      pullRequestRoutingConnectionKey(relayOnly),
-    );
+    expect(connectionAddressKey(withLearned)).toBe(connectionAddressKey(relayOnly));
   });
 
   it("keeps the T3 Connect credential when learning over a learned T3 Connect route", () => {

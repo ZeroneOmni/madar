@@ -9,9 +9,7 @@ import {
   type MessagesTimelineRow,
 } from "./MessagesTimeline.logic";
 import { type HandoffTimelineRun } from "./V2LifecycleRow";
-
 const EMPTY_TIMELINE_RUNS: ReadonlyArray<HandoffTimelineRun> = [];
-
 export function useStableHandoffRuns(
   runs: ReadonlyArray<HandoffTimelineRun>,
 ): ReadonlyArray<HandoffTimelineRun> {
@@ -19,7 +17,11 @@ export function useStableHandoffRuns(
     readonly source: ReadonlyArray<HandoffTimelineRun> | null;
     readonly signature: string;
     readonly value: ReadonlyArray<HandoffTimelineRun>;
-  }>({ source: null, signature: "", value: EMPTY_TIMELINE_RUNS });
+  }>({
+    source: null,
+    signature: "",
+    value: EMPTY_TIMELINE_RUNS,
+  });
   if (state.source === runs) return state.value;
   const signature = handoffRunsSignature(runs);
   const value =
@@ -31,7 +33,11 @@ export function useStableHandoffRuns(
           providerInstanceId: run.providerInstanceId,
           modelSelection: run.modelSelection,
         }));
-  setState({ source: runs, signature, value });
+  setState({
+    source: runs,
+    signature,
+    value,
+  });
   return value;
 }
 
@@ -55,10 +61,13 @@ export function useIncrementalTimelineRows(
     input,
     state.identity === identity ? state.projection : null,
   );
-  setState({ identity, input, projection });
+  setState({
+    identity,
+    input,
+    projection,
+  });
   return projection.rows;
 }
-
 export function useStableRows(
   rows: MessagesTimelineRow[],
   identity: string,
@@ -67,12 +76,28 @@ export function useStableRows(
     readonly identity: string;
     readonly source: MessagesTimelineRow[] | null;
     readonly stable: StableMessagesTimelineRowsState;
-  }>({ identity, source: null, stable: { byId: new Map(), result: [] } });
+  }>({
+    identity,
+    source: null,
+    stable: {
+      byId: new Map(),
+      result: [],
+    },
+  });
   if (state.identity === identity && state.source === rows) return state.stable.result;
   const stable = computeStableMessagesTimelineRows(
     rows,
-    state.identity === identity ? state.stable : { byId: new Map(), result: [] },
+    state.identity === identity
+      ? state.stable
+      : {
+          byId: new Map(),
+          result: [],
+        },
   );
-  setState({ identity, source: rows, stable });
+  setState({
+    identity,
+    source: rows,
+    stable,
+  });
   return stable.result;
 }

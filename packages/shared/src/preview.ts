@@ -3,9 +3,6 @@ import * as Schema from "effect/Schema";
 
 import { isLocalLoopbackHost } from "./hostClassification.ts";
 
-const TAB_ID_PREFIX = "tab_";
-let nextPreviewTabSequence = 0;
-
 export function previewPdfAssetUrl(rawUrl: string, httpBaseUrl: string | null): string | null {
   if (httpBaseUrl === null) return null;
   try {
@@ -33,19 +30,7 @@ export function previewPdfAssetUrl(rawUrl: string, httpBaseUrl: string | null): 
   }
 }
 
-export function newPreviewTabId(): string {
-  nextPreviewTabSequence += 1;
-  return `${TAB_ID_PREFIX}${nextPreviewTabSequence.toString(36)}`;
-}
-
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
-
-export const LSOF_LOCAL_HOST_TOKENS: ReadonlySet<string> = new Set([
-  ...LOOPBACK_HOSTS,
-  "*",
-  "[::]",
-  "[::1]",
-]);
 
 const LOOPBACK_PREFIX_PATTERN = /^(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1?\])(?::|\/|$)/i;
 
@@ -69,8 +54,6 @@ export class PreviewUrlNormalizationError extends Schema.TaggedError<PreviewUrlN
     return `Invalid preview URL (${this.reason}${protocol}; input length ${this.inputLength}).`;
   }
 }
-
-export const isPreviewUrlNormalizationError = Schema.is(PreviewUrlNormalizationError);
 
 function previewUrlProtocol(rawUrl: string): string | undefined {
   return /^([A-Za-z][A-Za-z\d+.-]*):/.exec(rawUrl)?.[1]?.toLowerCase().concat(":");
@@ -115,7 +98,7 @@ function fillSearchUrlTemplate(template: string, query: string): string {
  * `%s` in the host or credentials is rejected: the query would never reach a
  * search page, and a query with spaces would make the host unreachable.
  */
-export function isValidSearchUrlTemplate(template: string): boolean {
+function isValidSearchUrlTemplate(template: string): boolean {
   if (!template.includes("%s")) return false;
   try {
     // Two queries land on different authorities only when `%s` sits before the path.

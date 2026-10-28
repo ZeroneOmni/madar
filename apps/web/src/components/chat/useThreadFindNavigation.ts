@@ -2,9 +2,7 @@ import type { LegendListRef } from "@legendapp/list/react";
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import type { ThreadFindMatch } from "./threadFind";
 import { useThreadFindHighlights } from "./threadFindHighlights";
-
 const FIND_MATCH_VIEW_MARGIN = 96;
-
 export function useThreadFindNavigation({
   container,
   query,
@@ -22,7 +20,9 @@ export function useThreadFindNavigation({
   match: ThreadFindMatch | null;
   navigationId: number;
   rowIndex: number;
-  entries: readonly { readonly id: string }[];
+  entries: readonly {
+    readonly id: string;
+  }[];
   listRef: RefObject<LegendListRef | null>;
   contentInsetEndAdjustment: number;
   listReady: boolean;
@@ -44,9 +44,11 @@ export function useThreadFindNavigation({
   const settledMatchRef = useRef<string | null>(null);
   const currentMatchKeyRef = useRef(matchKey);
   const activeRangeRef = useRef<Range | null>(null);
-  const pagingPositionRef = useRef<{ key: string; entries: typeof entries; top: number } | null>(
-    null,
-  );
+  const pagingPositionRef = useRef<{
+    key: string;
+    entries: typeof entries;
+    top: number;
+  } | null>(null);
   const currentEntriesRef = useRef(entries);
   useLayoutEffect(() => {
     currentEntriesRef.current = entries;
@@ -68,7 +70,9 @@ export function useThreadFindNavigation({
         pagingPositionRef.current = null;
       else position.top = rect.top;
     };
-    container.addEventListener("scroll", onScroll, { passive: true });
+    container.addEventListener("scroll", onScroll, {
+      passive: true,
+    });
     return () => container.removeEventListener("scroll", onScroll);
   }, [container]);
   const revealRef = useRef<(range: Range | null) => void>(() => {});
@@ -80,13 +84,19 @@ export function useThreadFindNavigation({
   }, [matchKey]);
   const revealedMatchRef = useRef<string | null>(null);
   const positionedEntriesRef = useRef<typeof entries | null>(null);
-  const requestedPagesRef = useRef<{ key: string | null; pages: Set<string> }>({
+  const requestedPagesRef = useRef<{
+    key: string | null;
+    pages: Set<string>;
+  }>({
     key: null,
     pages: new Set(),
   });
   useEffect(() => {
     if (requestedPagesRef.current.key !== matchKey)
-      requestedPagesRef.current = { key: matchKey, pages: new Set() };
+      requestedPagesRef.current = {
+        key: matchKey,
+        pages: new Set(),
+      };
     if (
       !match ||
       !listReady ||
@@ -99,7 +109,6 @@ export function useThreadFindNavigation({
     const cursor = entries[0]?.id ?? "first";
     if (requestedPagesRef.current.pages.has(cursor)) return;
     requestedPagesRef.current.pages.add(cursor);
-
     historyControls.onLoadEarlier(match.entryId);
   }, [entries, historyControls, listReady, match, matchKey, rowIndex]);
   const reveal = (range: Range | null) => {
@@ -130,7 +139,10 @@ export function useThreadFindNavigation({
         const delta = currentRange.getBoundingClientRect().top - pinned.top;
         const scroll = listRef.current?.getState?.().scroll;
         if (Math.abs(delta) >= 1 && typeof scroll === "number")
-          listRef.current?.scrollToOffset({ offset: scroll + delta, animated: false });
+          listRef.current?.scrollToOffset({
+            offset: scroll + delta,
+            animated: false,
+          });
       };
       pagingPosition.entries = entries;
       restore();
@@ -157,9 +169,12 @@ export function useThreadFindNavigation({
       )
         return;
       // Activity can insert rows during LegendList layout; retarget pending jumps.
-      const request = { key: matchKey, rowIndex, entries };
+      const request = {
+        key: matchKey,
+        rowIndex,
+        entries,
+      };
       positioningRef.current = request;
-
       void list
         .scrollToIndex({
           index: rowIndex,
@@ -168,7 +183,6 @@ export function useThreadFindNavigation({
         })
         .then(() => {
           if (positioningRef.current !== request || currentMatchKeyRef.current !== matchKey) return;
-
           positionedEntriesRef.current = entries;
           settledMatchRef.current = matchKey;
           revealRef.current(activeRangeRef.current);
@@ -178,7 +192,6 @@ export function useThreadFindNavigation({
       if (container) materialize();
       return;
     }
-
     const codeScroller = range.startContainer.parentElement?.closest("pre");
     if (codeScroller) {
       const rect = range.getBoundingClientRect();
@@ -208,12 +221,18 @@ export function useThreadFindNavigation({
     }
     const scroll = listRef.current?.getState?.().scroll;
     positionedEntriesRef.current = entries;
-
     revealedMatchRef.current = matchKey;
     if (historyControls?.loading)
-      pagingPositionRef.current = { key: matchKey, entries, top: rect.top - delta };
+      pagingPositionRef.current = {
+        key: matchKey,
+        entries,
+        top: rect.top - delta,
+      };
     if (Math.abs(delta) >= 1 && typeof scroll === "number") {
-      listRef.current?.scrollToOffset({ offset: scroll + delta, animated: false });
+      listRef.current?.scrollToOffset({
+        offset: scroll + delta,
+        animated: false,
+      });
       requestAnimationFrame(() => {
         if (currentMatchKeyRef.current !== matchKey) return;
         if (
@@ -226,11 +245,9 @@ export function useThreadFindNavigation({
       });
     }
   };
-
   useLayoutEffect(() => {
     revealRef.current = reveal;
   }, [reveal]);
-
   useThreadFindHighlights({
     container,
     query,

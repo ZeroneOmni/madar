@@ -13,7 +13,6 @@ import type {
 } from "@t3tools/contracts";
 import { ChevronRightIcon, WorkflowIcon } from "lucide-react";
 import { useState } from "react";
-
 import { cn } from "../../lib/utils";
 import { providersIgnoringCheckedAtAtom } from "../../state/server";
 import ChatMarkdown from "../ChatMarkdown";
@@ -25,15 +24,12 @@ import { findRevealRef } from "./markdownFindContext";
 import { shouldCollapseUserMessage } from "./MessagesTimeline.logic";
 import { SubagentTooltipContent } from "./SubagentTooltipContent";
 import { EnvironmentSubagentAvatar } from "./V2LifecycleRow";
-
 const FOLDED_SCRIPT_MASK = "linear-gradient(to bottom, black calc(100% - 1.75rem), transparent)";
-
 function scriptMarkdown(script: string) {
   const longestRun = Math.max(2, ...(script.match(/`+/g) ?? []).map((run) => run.length));
   const fence = "`".repeat(longestRun + 1);
   return `${fence}javascript\n${script.trimEnd()}\n${fence}`;
 }
-
 export function WorkflowOpeningBlock(props: {
   readonly opening: WorkflowOpening;
   readonly environmentId: EnvironmentId;
@@ -100,7 +96,6 @@ export function WorkflowOpeningBlock(props: {
     </section>
   );
 }
-
 function WorkflowMemberRow(props: {
   readonly member: RuntimeSubagent;
   readonly environmentId: EnvironmentId;
@@ -198,7 +193,6 @@ function WorkflowMemberRow(props: {
     </li>
   );
 }
-
 function WorkflowScript(props: { readonly script: string }) {
   const [expanded, setExpanded] = useState(false);
   const revealRef = findRevealRef(() => setExpanded(true));
@@ -213,7 +207,10 @@ function WorkflowScript(props: { readonly script: string }) {
         data-thread-find-fold={folded ? "" : undefined}
         style={
           folded
-            ? { WebkitMaskImage: FOLDED_SCRIPT_MASK, maskImage: FOLDED_SCRIPT_MASK }
+            ? {
+                WebkitMaskImage: FOLDED_SCRIPT_MASK,
+                maskImage: FOLDED_SCRIPT_MASK,
+              }
             : undefined
         }
       >

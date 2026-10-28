@@ -1,11 +1,9 @@
 import {
-  CommandId,
   type EnvironmentId,
   type ModelSelection,
   type ProviderInteractionMode,
   type ScopedThreadRef,
   type ThreadId,
-  PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
 } from "@t3tools/contracts";
 import {
   wasBootstrapThreadDeleted,
@@ -18,9 +16,7 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import { readLocalApi } from "../../localApi";
 import { getUploadedAttachments } from "../../lib/attachmentUploadQueue";
-import { findRevertCheckpoint } from "../../session-logic";
-import { type ChatMessage } from "../../types";
-import { randomUUID } from "~/lib/utils";
+import "../../session-logic";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { newThreadId } from "~/lib/utils";
 import {
@@ -40,11 +36,7 @@ import {
   cloneComposerImageForRetry,
   type ComposerSendSnapshot,
   readFileAsDataUrl,
-  prepareRevertedMessageAttachments,
-  waitForRevertedMessage,
 } from "../ChatView.logic";
-import { readPreparedConnection } from "../../state/session";
-import { recallableComposerPrompt } from "./composerPromptHistory";
 
 // Kept per route so a send in flight, and the multiple-model selections, survive
 // ChatView remounting while the user navigates.
@@ -54,14 +46,25 @@ export const draftFanoutSelectionsAtom = Atom.family((_routeKey: string) =>
 const draftSendStateByRouteKey = new Map<
   string,
   {
-    readonly sendInFlight: { current: boolean };
-    readonly uncertainSubmissions: { current: Map<string, ThreadId> };
+    readonly sendInFlight: {
+      current: boolean;
+    };
+    readonly uncertainSubmissions: {
+      current: Map<string, ThreadId>;
+    };
   }
 >();
 export function draftSendState(routeKey: string) {
   let state = draftSendStateByRouteKey.get(routeKey);
   if (!state) {
-    state = { sendInFlight: { current: false }, uncertainSubmissions: { current: new Map() } };
+    state = {
+      sendInFlight: {
+        current: false,
+      },
+      uncertainSubmissions: {
+        current: new Map(),
+      },
+    };
     draftSendStateByRouteKey.set(routeKey, state);
   }
   return state;
@@ -153,103 +156,6 @@ export async function startFanoutThread(input: {
  * attachments back in the composer draft. Returns the restored prompt, or the
  * error to show; on error the draft is untouched.
  */
-export async function rewindToMessage(input: {
-  readonly message: ChatMessage;
-  readonly environmentId: EnvironmentId;
-  readonly routeThreadRef: ScopedThreadRef;
-  readonly threadId: ThreadId;
-  readonly turnCount: number;
-  readonly restoreFiles: boolean;
-  readonly checkpoint: ReturnType<typeof findRevertCheckpoint>;
-  readonly draftTarget: ScopedThreadRef | DraftId;
-  readonly composerHasPendingAttachments: boolean;
-  readonly createAssetUrl: Parameters<
-    typeof prepareRevertedMessageAttachments
-  >[0]["createAssetUrl"];
-  readonly revertThreadCheckpoint: (value: {
-    environmentId: EnvironmentId;
-    input: {
-      commandId: CommandId;
-      threadId: ThreadId;
-      turnCount: number;
-      restoreFiles: boolean;
-      checkpointId?: string;
-      scopeId?: string;
-    };
-  }) => Promise<AtomCommandResult<unknown, unknown>>;
-}): Promise<
-  | { readonly error: string; readonly prompt?: never }
-  | { readonly error: null; readonly prompt: string }
-> {
-  const { message, environmentId, draftTarget } = input;
-  try {
-    if (input.composerHasPendingAttachments) {
-      throw new Error("Wait for attachments to finish preparing before rewinding.");
-    }
-    const connection = readPreparedConnection(environmentId);
-    if (!connection) throw new Error("The environment is not connected.");
-    const files = await prepareRevertedMessageAttachments({
-      message,
-      environmentId,
-      httpBaseUrl: connection.httpBaseUrl,
-      createAssetUrl: input.createAssetUrl,
-    });
-    const store = useComposerDraftStore.getState();
-    const draft = store.getComposerDraft(draftTarget);
-    if (
-      (draft?.images.length ?? 0) + (draft?.files.length ?? 0) + files.length >
-      PROVIDER_SEND_TURN_MAX_ATTACHMENTS
-    ) {
-      throw new Error("Make room for this message's attachments in the composer before rewinding.");
-    }
-    const commandId = CommandId.make(randomUUID());
-    await waitForRevertedMessage(input.routeThreadRef, input.turnCount, commandId, async () => {
-      const result = await input.revertThreadCheckpoint({
-        environmentId,
-        input: {
-          commandId,
-          threadId: input.threadId,
-          turnCount: input.turnCount,
-          restoreFiles: input.restoreFiles,
-          ...(input.checkpoint === undefined
-            ? {}
-            : { checkpointId: input.checkpoint.id, scopeId: input.checkpoint.scopeId }),
-        },
-      });
-      if (result._tag === "Failure") throw squashAtomCommandFailure(result);
-    });
-    const currentPrompt = store.getComposerDraft(draftTarget)?.prompt ?? "";
-    const restoredPrompt = recallableComposerPrompt(message.text);
-    const nextPrompt =
-      restoredPrompt.length === 0
-        ? currentPrompt
-        : currentPrompt.length > 0
-          ? `${currentPrompt}\n\n${restoredPrompt}`
-          : restoredPrompt;
-    store.setPrompt(draftTarget, nextPrompt);
-    const images: ComposerImageAttachment[] = [];
-    const restoredFiles: ComposerFileAttachment[] = [];
-    files.forEach((file, index) => {
-      const attachment = {
-        id: randomUUID(),
-        name: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
-        file,
-      };
-      if (message.attachments?.[index]?.type === "image") {
-        images.push({ ...attachment, type: "image", previewUrl: URL.createObjectURL(file) });
-      } else {
-        restoredFiles.push({ ...attachment, type: "file" });
-      }
-    });
-    store.addImages(draftTarget, images, { allowDuplicates: true });
-    store.addFiles(draftTarget, restoredFiles, { allowDuplicates: true });
-    return { error: null, prompt: nextPrompt };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "Failed to revert thread state." };
-  }
-}
 
 /**
  * Writes a failed send's composer contents back into its draft. Returns the
@@ -271,7 +177,6 @@ export function restoreComposerDraft(
   store.setThreadContexts(draftTarget, snapshot.threadContexts);
   return images;
 }
-
 export interface MultipleModelTarget {
   readonly selection: ModelSelection;
   readonly text: string;
@@ -288,17 +193,27 @@ export function resolveMultipleModelTargets(input: {
   readonly messageText: string;
   readonly planModeEnabled: boolean;
   readonly interactionMode: ProviderInteractionMode;
-}): Array<MultipleModelTarget | { readonly error: string }> {
+}): Array<
+  | MultipleModelTarget
+  | {
+      readonly error: string;
+    }
+> {
   const { messageText, planModeEnabled } = input;
   return input.selections.map((selection) => {
     const provider = input.providerInstanceEntries.find(
       (entry) => entry.instanceId === selection.instanceId,
     );
     if (!provider?.enabled || !provider.isAvailable || provider.status !== "ready") {
-      return { error: `Provider for ${selection.model} is unavailable.` };
+      return {
+        error: `Provider for ${selection.model} is unavailable.`,
+      };
     }
     const providerBlockReason = getAntigravitySendBlockReason(provider.snapshot, selection.model);
-    if (providerBlockReason) return { error: providerBlockReason };
+    if (providerBlockReason)
+      return {
+        error: providerBlockReason,
+      };
     const providerState = getComposerProviderState({
       provider: provider.driverKind,
       model: selection.model,
@@ -342,7 +257,10 @@ export function prepareTurnAttachments(input: {
   return Promise.all(
     input.attachments.map(async (attachment) => {
       if (usesAttachmentUploads) {
-        const uploaded = getUploadedAttachments({ environmentId, images: [attachment] })?.[0];
+        const uploaded = getUploadedAttachments({
+          environmentId,
+          images: [attachment],
+        })?.[0];
         if (!uploaded) {
           throw new Error(`Attachment '${attachment.name}' did not finish uploading.`);
         }
@@ -358,7 +276,11 @@ export function prepareTurnAttachments(input: {
         mimeType: attachment.mimeType,
         sizeBytes: attachment.sizeBytes,
         dataUrl: await readFileAsDataUrl(attachment.file),
-        ...(attachment.source ? { source: attachment.source } : {}),
+        ...(attachment.source
+          ? {
+              source: attachment.source,
+            }
+          : {}),
       };
     }),
   );

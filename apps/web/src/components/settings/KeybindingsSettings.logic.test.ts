@@ -2,6 +2,8 @@ import { assert, describe, expect, it } from "vite-plus/test";
 import type { ResolvedKeybindingsConfig } from "@t3tools/contracts";
 import {
   compileResolvedKeybindingsConfig,
+  compileResolvedKeybindingRule,
+  mergeWithDefaultKeybindings,
   parseKeybindingShortcut,
 } from "@t3tools/shared/keybindings";
 
@@ -9,6 +11,7 @@ import { resolveShortcutCommand } from "../../keybindings";
 
 import {
   buildKeybindingRows,
+  buildKeybindingCommandOptions,
   keybindingConflictLabels,
   keybindingFromKeyboardEvent,
   parseWhenExpressionDraft,
@@ -20,8 +23,8 @@ describe("KeybindingsSettings.logic", () => {
   it("keeps sibling row identities when a saved binding moves to the end", () => {
     const bindings = compileResolvedKeybindingsConfig([
       { command: "chat.new", key: "mod+n" },
-      { command: "terminal.toggle", key: "mod+j" },
-      { command: "terminal.toggle", key: "mod+k", when: "terminalFocus" },
+      { command: "rightPanel.toggle", key: "mod+j" },
+      { command: "rightPanel.toggle", key: "mod+k", when: "composerFocus" },
     ]);
     const before = buildKeybindingRows(bindings);
     const after = buildKeybindingRows([
@@ -29,8 +32,8 @@ describe("KeybindingsSettings.logic", () => {
       ...compileResolvedKeybindingsConfig([{ command: "chat.new", key: "mod+shift+n" }]),
     ]);
 
-    expect(after.filter((row) => row.command === "terminal.toggle").map((row) => row.id)).toEqual(
-      before.filter((row) => row.command === "terminal.toggle").map((row) => row.id),
+    expect(after.filter((row) => row.command === "rightPanel.toggle").map((row) => row.id)).toEqual(
+      before.filter((row) => row.command === "rightPanel.toggle").map((row) => row.id),
     );
     expect(after.find((row) => row.command === "chat.new")?.id).not.toBe(
       before.find((row) => row.command === "chat.new")?.id,
@@ -39,21 +42,23 @@ describe("KeybindingsSettings.logic", () => {
 
   it("shares a stable editor for resolved duplicates but separates commands, shortcuts, and conditions", () => {
     const bindings = compileResolvedKeybindingsConfig([
-      { command: "terminal.toggle", key: "mod+esc", when: "terminalFocus" },
-      { command: "terminal.toggle", key: "mod+escape", when: "(terminalFocus)" },
-      { command: "terminal.toggle", key: "mod+esc", when: "!terminalFocus" },
-      { command: "terminal.toggle", key: "mod+j", when: "terminalFocus" },
-      { command: "chat.new", key: "mod+esc", when: "terminalFocus" },
+      { command: "rightPanel.toggle", key: "mod+esc", when: "composerFocus" },
+      { command: "rightPanel.toggle", key: "mod+escape", when: "(composerFocus)" },
+      { command: "rightPanel.toggle", key: "mod+esc", when: "!composerFocus" },
+      { command: "rightPanel.toggle", key: "mod+j", when: "composerFocus" },
+      { command: "chat.new", key: "mod+esc", when: "composerFocus" },
     ]);
     const rows = buildKeybindingRows(bindings);
     expect(rows.map(({ command, key, when }) => ({ command, key, when }))).toEqual([
-      { command: "chat.new", key: "mod+esc", when: "terminalFocus" },
-      { command: "terminal.toggle", key: "mod+esc", when: "terminalFocus" },
-      { command: "terminal.toggle", key: "mod+esc", when: "!terminalFocus" },
-      { command: "terminal.toggle", key: "mod+j", when: "terminalFocus" },
+      { command: "chat.new", key: "mod+esc", when: "composerFocus" },
+      { command: "rightPanel.toggle", key: "mod+esc", when: "composerFocus" },
+      { command: "rightPanel.toggle", key: "mod+esc", when: "!composerFocus" },
+      { command: "rightPanel.toggle", key: "mod+j", when: "composerFocus" },
     ]);
     expect(new Set(rows.map((row) => row.id)).size).toBe(4);
-    expect(rows.find((row) => row.command === "chat.new")?.conflicts).toEqual(["Terminal: Toggle"]);
+    expect(rows.find((row) => row.command === "chat.new")?.conflicts).toEqual([
+      "Right Panel: Toggle",
+    ]);
     expect(buildKeybindingRows(bindings.slice(1)).map((row) => row.id)).toEqual(
       rows.map((row) => row.id),
     );
@@ -185,12 +190,12 @@ describe("KeybindingsSettings.logic", () => {
         left: { type: "identifier", name: "editorFocus" },
         right: {
           type: "not",
-          node: { type: "identifier", name: "terminalFocus" },
+          node: { type: "identifier", name: "composerFocus" },
         },
       }),
-    ).toBe("editorFocus && !terminalFocus");
+    ).toBe("editorFocus && !composerFocus");
 
-    expect(parseWhenExpressionDraft("editorFocus && (!terminalFocus || modelPickerOpen)")).toEqual({
+    expect(parseWhenExpressionDraft("editorFocus && (!composerFocus || modelPickerOpen)")).toEqual({
       ok: true,
       value: {
         type: "and",
@@ -199,7 +204,7 @@ describe("KeybindingsSettings.logic", () => {
           type: "or",
           left: {
             type: "not",
-            node: { type: "identifier", name: "terminalFocus" },
+            node: { type: "identifier", name: "composerFocus" },
           },
           right: { type: "identifier", name: "modelPickerOpen" },
         },
@@ -210,13 +215,13 @@ describe("KeybindingsSettings.logic", () => {
       message: "Use variables with !, &&, ||, and parentheses.",
     });
 
-    expect(parseWhenExpressionDraft("!(terminalFocus || modelPickerOpen)")).toEqual({
+    expect(parseWhenExpressionDraft("!(composerFocus || modelPickerOpen)")).toEqual({
       ok: true,
       value: {
         type: "not",
         node: {
           type: "or",
-          left: { type: "identifier", name: "terminalFocus" },
+          left: { type: "identifier", name: "composerFocus" },
           right: { type: "identifier", name: "modelPickerOpen" },
         },
       },
@@ -237,7 +242,7 @@ describe("KeybindingsSettings.logic", () => {
         },
         whenAst: {
           type: "not",
-          node: { type: "identifier", name: "terminalFocus" },
+          node: { type: "identifier", name: "composerFocus" },
         },
       },
       {
@@ -252,7 +257,7 @@ describe("KeybindingsSettings.logic", () => {
         },
         whenAst: {
           type: "not",
-          node: { type: "identifier", name: "terminalFocus" },
+          node: { type: "identifier", name: "composerFocus" },
         },
       },
     ] satisfies ResolvedKeybindingsConfig);
@@ -266,4 +271,18 @@ describe("KeybindingsSettings.logic", () => {
       }),
     ).toEqual(["Chat: New Local"]);
   });
+});
+
+it("ignores retired saved shortcuts while preserving current file-picker shortcuts", () => {
+  const legacy = compileResolvedKeybindingRule({ command: "terminal.toggle", key: "mod+j" });
+  const current = compileResolvedKeybindingRule({ command: "filePicker.toggle", key: "mod+o" });
+  if (legacy === null || current === null) throw new Error("Invalid shortcut fixture");
+  const saved = [legacy, current];
+  const upgraded = mergeWithDefaultKeybindings(saved);
+  expect(upgraded.some((binding) => binding.command === "terminal.toggle")).toBe(false);
+  expect(upgraded.find((binding) => binding.command === "filePicker.toggle")?.shortcut.key).toBe(
+    "o",
+  );
+  expect(buildKeybindingRows(saved).map((row) => row.command)).toEqual(["filePicker.toggle"]);
+  expect(buildKeybindingCommandOptions(saved)).not.toContain("terminal.toggle");
 });

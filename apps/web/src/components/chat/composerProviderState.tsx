@@ -15,7 +15,6 @@ import {
   normalizeModelSlug,
 } from "@t3tools/shared/model";
 import type { ReactNode } from "react";
-
 import type { DraftId } from "../../composerDraftStore";
 import { getProviderModelCapabilities } from "../../providerModels";
 import type { ComposerControlSize } from "./ComposerControl";
@@ -26,7 +25,6 @@ import {
   TraitsPicker,
   type PromptUltrathink,
 } from "./TraitsPicker";
-
 export type ComposerProviderStateInput = {
   provider: ProviderDriverKind;
   model: string;
@@ -35,9 +33,7 @@ export type ComposerProviderStateInput = {
   modelOptions: ReadonlyArray<ProviderOptionSelection> | null | undefined;
   planModeEnabled: boolean;
 };
-
 export type ComposerPromptInjectionState = "none" | "ultrathink";
-
 export type ComposerProviderState = {
   provider: ProviderDriverKind;
   promptEffort: string | null;
@@ -46,7 +42,6 @@ export type ComposerProviderState = {
   composerSurfaceClassName?: string;
   modelPickerIconClassName?: string;
 };
-
 type TraitsRenderInput = {
   provider: ProviderDriverKind;
   instanceId?: ProviderInstanceId;
@@ -64,7 +59,6 @@ type TraitsRenderInput = {
   triggerClassName?: string;
   isComposerOwned?: boolean;
 };
-
 export function getComposerPromptInjectionState(prompt: string): ComposerPromptInjectionState {
   return isClaudeUltrathinkPrompt(prompt) ? "ultrathink" : "none";
 }
@@ -84,9 +78,14 @@ export function withImplicitFastModeDefault(
   if (!hasFastModeDescriptor) {
     return modelOptions ?? undefined;
   }
-  return [...(modelOptions ?? []), { id: "fastMode", value: false }];
+  return [
+    ...(modelOptions ?? []),
+    {
+      id: "fastMode",
+      value: false,
+    },
+  ];
 }
-
 function resolveComposerOptionSelections(
   models: ReadonlyArray<ServerProviderModel>,
   model: string,
@@ -98,9 +97,11 @@ function resolveComposerOptionSelections(
   selections: ReadonlyArray<ProviderOptionSelection> | undefined;
 } {
   const caps = getProviderModelCapabilities(models, model, provider, planModeEnabled);
-  return { caps, selections: withImplicitFastModeDefault(caps, modelOptions) };
+  return {
+    caps,
+    selections: withImplicitFastModeDefault(caps, modelOptions),
+  };
 }
-
 export function getComposerProviderState(input: ComposerProviderStateInput): ComposerProviderState {
   const {
     provider,
@@ -132,17 +133,25 @@ export function getComposerProviderState(input: ComposerProviderStateInput): Com
     modelOptions,
     planModeEnabled,
   );
-  const descriptors = getProviderOptionDescriptors({ caps, selections });
+  const descriptors = getProviderOptionDescriptors({
+    caps,
+    selections,
+  });
   const primarySelectDescriptor = descriptors.find(
-    (descriptor): descriptor is Extract<(typeof descriptors)[number], { type: "select" }> =>
-      descriptor.type === "select",
+    (
+      descriptor,
+    ): descriptor is Extract<
+      (typeof descriptors)[number],
+      {
+        type: "select";
+      }
+    > => descriptor.type === "select",
   );
   const primaryValue = getProviderOptionCurrentValue(primarySelectDescriptor ?? null);
   const promptEffort = typeof primaryValue === "string" ? primaryValue : null;
   const ultrathinkActive =
     (primarySelectDescriptor?.promptInjectedValues?.length ?? 0) > 0 &&
     promptInjectionState === "ultrathink";
-
   return {
     provider,
     promptEffort,
@@ -197,8 +206,18 @@ export function getComposerReasoningStep(input: {
     direction: input.direction,
   });
   if (!step) return null;
-  const modelOptions = "modelOptions" in step ? { modelOptions: step.modelOptions } : {};
-  if (step.prompt === prompt) return { prompt, cursor, ...modelOptions };
+  const modelOptions =
+    "modelOptions" in step
+      ? {
+          modelOptions: step.modelOptions,
+        }
+      : {};
+  if (step.prompt === prompt)
+    return {
+      prompt,
+      cursor,
+      ...modelOptions,
+    };
   // Adding the prefix also trims the prompt.
   const keptStart = "modelOptions" in step ? 0 : step.prompt.length - prompt.trim().length;
   const offset =
@@ -211,7 +230,6 @@ export function getComposerReasoningStep(input: {
     ...modelOptions,
   };
 }
-
 function renderTraitsControl(
   Component: typeof TraitsMenuContent | typeof TraitsPicker,
   input: TraitsRenderInput,
@@ -257,28 +275,54 @@ function renderTraitsControl(
   return (
     <Component
       provider={provider}
-      {...(instanceId ? { instanceId } : {})}
+      {...(instanceId
+        ? {
+            instanceId,
+          }
+        : {})}
       models={models}
-      {...(threadRef ? { threadRef } : {})}
-      {...(draftId ? { draftId } : {})}
+      {...(threadRef
+        ? {
+            threadRef,
+          }
+        : {})}
+      {...(draftId
+        ? {
+            draftId,
+          }
+        : {})}
       model={model}
       modelOptions={resolvedModelOptions}
       reportedModelSelection={reportedModelSelection}
       promptUltrathink={promptUltrathink}
       onPromptEdit={onPromptEdit}
       planModeEnabled={planModeEnabled}
-      {...(size !== undefined ? { size } : {})}
-      {...(hidden !== undefined ? { hidden } : {})}
-      {...(triggerClassName !== undefined ? { triggerClassName } : {})}
-      {...(isComposerOwned ? { isComposerOwned } : {})}
+      {...(size !== undefined
+        ? {
+            size,
+          }
+        : {})}
+      {...(hidden !== undefined
+        ? {
+            hidden,
+          }
+        : {})}
+      {...(triggerClassName !== undefined
+        ? {
+            triggerClassName,
+          }
+        : {})}
+      {...(isComposerOwned
+        ? {
+            isComposerOwned,
+          }
+        : {})}
     />
   );
 }
-
 export function renderProviderTraitsMenuContent(input: TraitsRenderInput): ReactNode {
   return renderTraitsControl(TraitsMenuContent, input);
 }
-
 export function renderProviderTraitsPicker(input: TraitsRenderInput): ReactNode {
   return renderTraitsControl(TraitsPicker, input);
 }

@@ -6,39 +6,27 @@ import type {
   ResolvedKeybindingsConfig,
   ThreadId,
 } from "@t3tools/contracts";
-
 import type { DraftId } from "../../composerDraftStore";
-import { useT3ProjectFileScripts } from "../../hooks/useT3ProjectFileScripts";
 import { type EnvMode, type EnvironmentOption } from "../BranchToolbar.logic";
 import { BranchToolbar } from "../BranchToolbar";
-import BaseGitActionsControl from "../GitActionsControl";
-import ProjectScriptsControl, {
-  type NewProjectScriptInput,
-  type ProjectScriptActionResult,
-} from "../ProjectScriptsControl";
-import { memo, type ComponentProps } from "react";
+import { type ComponentProps } from "react";
 import { ThreadDetailsCard } from "./ThreadDetailsCard";
 import { OpenInPicker } from "./OpenInPicker";
 import { ThreadDetailsSection } from "./ThreadDetailsSection";
-import { ThreadAutomationsPanel } from "./ThreadAutomationsPanel";
 import { ThreadRelationshipsPanel } from "./ThreadRelationshipsControl";
-
-const GitActionsControl = memo(BaseGitActionsControl);
-
 export interface ThreadDetailsPanelProps extends Pick<
   ComponentProps<typeof ThreadDetailsCard>,
   "anchor" | "handle" | "onPresentationChange"
 > {
-  forceNewWorktree?: boolean;
+  forceNewWorktree?: boolean | undefined;
   environmentId: EnvironmentId;
   threadId: ThreadId;
   projectId: ProjectId;
   worktreePath: string | null;
   isServerThread: boolean;
-  draftId?: DraftId;
+  draftId?: DraftId | undefined;
   activeProjectName: string | undefined;
   activeProjectScripts: ReadonlyArray<ProjectScript> | undefined;
-  preferredScriptId: string | null;
   keybindings: ResolvedKeybindingsConfig;
   availableEditors: ReadonlyArray<EditorId>;
   showOpenInPicker: boolean;
@@ -47,33 +35,18 @@ export interface ThreadDetailsPanelProps extends Pick<
   isGitRepo: boolean;
   envLocked: boolean;
   availableEnvironments: readonly EnvironmentOption[];
-  autoEnvironmentLabel?: string | undefined;
-  onAutoEnvironment?: (() => void) | undefined;
-  onEnvironmentChange?: (environmentId: EnvironmentId) => void;
+  autoEnvironmentLabel?: string | undefined | undefined;
+  onAutoEnvironment?: (() => void) | undefined | undefined;
+  onEnvironmentChange?: ((environmentId: EnvironmentId) => void) | undefined;
   onEnvModeChange: (mode: EnvMode) => void;
   envMode: EnvMode;
-  activeThreadBranchOverride?: string | null;
-  onActiveThreadBranchOverrideChange?: (branch: string | null) => void;
+  activeThreadBranchOverride?: string | null | undefined;
+  onActiveThreadBranchOverrideChange?: ((branch: string | null) => void) | undefined;
   startFromOrigin: boolean;
   onStartFromOriginChange: (startFromOrigin: boolean) => void;
-  onCheckoutPullRequestRequest?: (reference: string) => void;
   onComposerFocusRequest: () => void;
-  onOpenChanges?: () => void;
-  onRunProjectScript: (script: ProjectScript) => void;
-  onAddProjectScript: (input: NewProjectScriptInput) => Promise<ProjectScriptActionResult>;
-  onUpdateProjectScript: (
-    scriptId: string,
-    input: NewProjectScriptInput,
-  ) => Promise<ProjectScriptActionResult>;
-  onDeleteProjectScript: (scriptId: string) => Promise<ProjectScriptActionResult>;
 }
-
 export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
-  const fileScripts = useT3ProjectFileScripts(
-    props.environmentId,
-    props.activeProjectScripts ? props.gitCwd : null,
-  );
-  const activeThreadRef = { environmentId: props.environmentId, threadId: props.threadId };
   const branchToolbarProps = {
     showGitControls: props.isGitRepo,
     environmentId: props.environmentId,
@@ -81,28 +54,35 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
     projectId: props.projectId,
     worktreePath: props.worktreePath,
     isServerThread: props.isServerThread,
-    ...(props.draftId ? { draftId: props.draftId } : {}),
+    ...(props.draftId
+      ? {
+          draftId: props.draftId,
+        }
+      : {}),
     onEnvModeChange: props.onEnvModeChange,
     startFromOrigin: props.startFromOrigin,
     onStartFromOriginChange: props.onStartFromOriginChange,
     envMode: props.envMode,
     ...(props.activeThreadBranchOverride !== undefined
-      ? { activeThreadBranchOverride: props.activeThreadBranchOverride }
+      ? {
+          activeThreadBranchOverride: props.activeThreadBranchOverride,
+        }
       : {}),
     ...(props.onActiveThreadBranchOverrideChange
-      ? { onActiveThreadBranchOverrideChange: props.onActiveThreadBranchOverrideChange }
+      ? {
+          onActiveThreadBranchOverrideChange: props.onActiveThreadBranchOverrideChange,
+        }
       : {}),
     envLocked: props.envLocked,
     forceNewWorktree: props.forceNewWorktree ?? false,
     onComposerFocusRequest: props.onComposerFocusRequest,
-    ...(props.onCheckoutPullRequestRequest
-      ? { onCheckoutPullRequestRequest: props.onCheckoutPullRequestRequest }
-      : {}),
   };
-
   return (
     <ThreadDetailsCard
-      threadRef={{ environmentId: props.environmentId, threadId: props.threadId }}
+      threadRef={{
+        environmentId: props.environmentId,
+        threadId: props.threadId,
+      }}
       anchor={props.anchor}
       handle={props.handle}
       onPresentationChange={props.onPresentationChange}
@@ -122,7 +102,9 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                   panelSection="workspace"
                   availableEnvironments={props.availableEnvironments}
                   {...(props.onEnvironmentChange
-                    ? { onEnvironmentChange: props.onEnvironmentChange }
+                    ? {
+                        onEnvironmentChange: props.onEnvironmentChange,
+                      }
                     : {})}
                   autoEnvironmentLabel={props.autoEnvironmentLabel}
                   onAutoEnvironment={props.onAutoEnvironment}
@@ -141,19 +123,7 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                 />
               ) : null}
 
-              {props.activeProjectScripts ? (
-                <ProjectScriptsControl
-                  environmentId={props.environmentId}
-                  displayMode="panel"
-                  scripts={props.activeProjectScripts}
-                  fileScripts={fileScripts}
-                  preferredScriptId={props.preferredScriptId}
-                  onRunScript={props.onRunProjectScript}
-                  onAddScript={props.onAddProjectScript}
-                  onUpdateScript={props.onUpdateProjectScript}
-                  onDeleteScript={props.onDeleteProjectScript}
-                />
-              ) : null}
+              {props.activeProjectScripts ? null : null}
             </div>
           </ThreadDetailsSection>
 
@@ -168,23 +138,12 @@ export function ThreadDetailsPanel(props: ThreadDetailsPanelProps) {
                 {props.isGitRepo ? (
                   <BranchToolbar layout="panel" panelSection="branch" {...branchToolbarProps} />
                 ) : null}
-                {props.activeProjectName ? (
-                  <GitActionsControl
-                    displayMode="panel"
-                    compact={density !== "full"}
-                    gitCwd={props.gitCwd}
-                    activeThreadRef={activeThreadRef}
-                    {...(props.draftId ? { draftId: props.draftId } : {})}
-                    {...(props.onOpenChanges ? { onOpenChanges: props.onOpenChanges } : {})}
-                  />
-                ) : null}
+                {props.activeProjectName ? null : null}
               </div>
             </ThreadDetailsSection>
           ) : null}
 
-          {density === "full" && !props.draftId ? (
-            <ThreadAutomationsPanel environmentId={props.environmentId} threadId={props.threadId} />
-          ) : null}
+          {density === "full" && !props.draftId ? null : null}
 
           {density === "full" && !props.draftId ? (
             <ThreadRelationshipsPanel

@@ -1,6 +1,5 @@
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
-
 import {
   CODE_BLOCK_LANGUAGES,
   type CodeBlockLanguage,
@@ -8,7 +7,6 @@ import {
   codeLanguageLabel,
 } from "~/composer-code-languages";
 import { syntheticFileNameForLanguageId } from "~/pierre-icons";
-
 import { Button } from "../ui/button";
 import {
   Combobox,
@@ -20,14 +18,12 @@ import {
   ComboboxTrigger,
 } from "../ui/combobox";
 import { PierreEntryIcon } from "./PierreEntryIcon";
-
 function LanguageIcon(props: { language: string; theme: "light" | "dark" }) {
   const fileName = props.language ? syntheticFileNameForLanguageId(props.language) : "file.txt";
   return (
     <PierreEntryIcon pathValue={fileName} kind="file" theme={props.theme} className="size-3.5" />
   );
 }
-
 export function ComposerCodeBlockLanguagePicker(props: {
   language: string;
   theme: "light" | "dark";
@@ -38,7 +34,13 @@ export function ComposerCodeBlockLanguagePicker(props: {
   const current = codeLanguageEntry(props.language)?.id ?? props.language;
   const items: CodeBlockLanguage[] = CODE_BLOCK_LANGUAGES.some((entry) => entry.id === current)
     ? [...CODE_BLOCK_LANGUAGES]
-    : [{ id: current, label: current }, ...CODE_BLOCK_LANGUAGES];
+    : [
+        {
+          id: current,
+          label: current,
+        },
+        ...CODE_BLOCK_LANGUAGES,
+      ];
   const needle = query.trim().toLowerCase();
   const filteredItems = needle
     ? items.filter(
@@ -46,7 +48,6 @@ export function ComposerCodeBlockLanguagePicker(props: {
       )
     : items;
   const selected = items.find((entry) => entry.id === current) ?? null;
-
   return (
     <span className="-ml-1.5 flex min-w-0">
       <Combobox

@@ -219,20 +219,18 @@ export const make = Effect.gen(function* () {
       attachmentUploads: true,
       questionAttachments: true,
       fileAttachments: { maxUploadBytes: PROVIDER_SEND_TURN_MAX_FILE_BYTES },
-      pullRequests: true,
-      pullRequestChecks: true,
+
       inlineMessageContext: true,
       requiredWorktreeBootstrap: true,
       threadSettlement: true,
-      threadAutoSettlement: true,
+
       storageCleanup: true,
       storageCleanupRun: true,
       databaseStorage: true,
       otlpEndpointCheck: true,
-      projectWorktreeCleanup: true,
-      settledWorktreeCleanup: true,
+
       worktreesDirectory: true,
-      threadAutoSettlementScope: true,
+
       threadRestartContinuation: true,
       projectSettingsOverrides: true,
       projectProviderInstanceOverrides: true,
@@ -244,14 +242,11 @@ export const make = Effect.gen(function* () {
       threadPinning: true,
       threadPinReorder: true,
       threadActiveReorder: true,
-      threadAutoSettleOptOut: true,
+
       threadTitleRegeneration: true,
       commandOutputStreaming: true,
       threadVisitedTracking: true,
-      threadPullRequests: true,
-      threadPullRequestWatch: true,
-      pullRequestStackActions: true,
-      threadPullRequestLinking: true,
+
       serverResolvedCommandContext: true,
       threadStop: true,
       environmentIcon: true,
@@ -263,7 +258,6 @@ export const make = Effect.gen(function* () {
         ? { serverSelfUpdateProgress: true }
         : {}),
       ...(desktopAppUpdate ? { desktopAppUpdate: true } : {}),
-      serverBrowser: true,
     },
   };
 

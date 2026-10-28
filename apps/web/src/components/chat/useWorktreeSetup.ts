@@ -13,20 +13,21 @@ import { useEnvironmentQuery } from "../../state/query";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { vcsEnvironment } from "../../state/vcs";
-import { useTerminalUiStateStore } from "../../terminalUiStateStore";
 import type { Thread } from "../../types";
 import { resolveVisibleWorktreeSetup, resolveWorktreeSetupProgress } from "../ChatView.logic";
 import { worktreeSetupAgentStarted } from "./MessagesTimeline.logic";
 
 // Share in-flight preparation retries across ChatView instances.
 const retryingWorkspacePreparationRunIds = new Set<RunId>();
-
 export function useWorktreeSetup(input: {
   readonly routeThreadRef: ScopedThreadRef;
   // Use the draft id until promotion: bootstrap rotates the thread id.
   readonly ownerKey: string;
   readonly activeThread:
-    | { readonly id: ThreadId; readonly worktreePath: string | null }
+    | {
+        readonly id: ThreadId;
+        readonly worktreePath: string | null;
+      }
     | undefined;
   readonly threadRef: ScopedThreadRef | null;
   readonly serverProjection: ThreadStructure | null;
@@ -50,7 +51,6 @@ export function useWorktreeSetup(input: {
     reportFailure: false,
   });
   const retryWorkspacePreparation = useAtomCommand(threadEnvironment.retryWorkspacePreparation);
-  const storeEnsureTerminal = useTerminalUiStateStore((state) => state.ensureTerminal);
   const [startedSetup, setStartedSetup] = useState<{
     readonly environmentId: EnvironmentId;
     readonly threadId: ThreadId;
@@ -67,7 +67,9 @@ export function useWorktreeSetup(input: {
         (localPreparing || runPreparing || activeThread.worktreePath !== null))
       ? vcsEnvironment.worktreeSetup({
           environmentId: target.environmentId,
-          input: { threadId: target.threadId },
+          input: {
+            threadId: target.threadId,
+          },
         })
       : null,
   );
@@ -75,10 +77,16 @@ export function useWorktreeSetup(input: {
   const [heldFor, setHeldFor] = useState<{
     readonly routeThreadRef: ScopedThreadRef;
     readonly latestSnapshot: WorktreeSetupSnapshot | null | undefined;
-  }>({ routeThreadRef, latestSnapshot: null });
+  }>({
+    routeThreadRef,
+    latestSnapshot: null,
+  });
   if (heldFor.routeThreadRef !== routeThreadRef || heldFor.latestSnapshot !== latestSnapshot) {
     const routeChanged = heldFor.routeThreadRef !== routeThreadRef;
-    setHeldFor({ routeThreadRef, latestSnapshot });
+    setHeldFor({
+      routeThreadRef,
+      latestSnapshot,
+    });
     if (routeChanged) {
       setHeldSnapshot(null);
     } else if (latestSnapshot) {
@@ -108,7 +116,6 @@ export function useWorktreeSetup(input: {
     (worktreeSetup !== null
       ? worktreeSetup.phase === "running" && !worktreeSetupAgentStarted(worktreeSetup)
       : isPreparingWorktree);
-
   const retryableRunIdsKey = [
     ...workspacePreparationRetryRunIds(
       serverProjection?.runs ?? [],
@@ -125,16 +132,29 @@ export function useWorktreeSetup(input: {
       ids: new Set(retryableRunIdsKey === "" ? [] : (retryableRunIdsKey.split("\n") as RunId[])),
     });
   }
-
   const begin = useStableCallback(
-    (thread: { readonly environmentId: EnvironmentId; readonly threadId: ThreadId } | null) =>
-      setStartedSetup(thread === null ? null : { ...thread, ownerKey }),
+    (
+      thread: {
+        readonly environmentId: EnvironmentId;
+        readonly threadId: ThreadId;
+      } | null,
+    ) =>
+      setStartedSetup(
+        thread === null
+          ? null
+          : {
+              ...thread,
+              ownerKey,
+            },
+      ),
   );
   const cancel = useStableCallback(async () => {
     if (!worktreeSetup || worktreeSetup.phase !== "running") return false;
     const result = await cancelWorktreeSetup({
       environmentId: target.environmentId,
-      input: { threadId: worktreeSetup.threadId },
+      input: {
+        threadId: worktreeSetup.threadId,
+      },
     });
     return result._tag === "Success" && result.value.cancelled;
   });
@@ -143,17 +163,13 @@ export function useWorktreeSetup(input: {
     retryingWorkspacePreparationRunIds.add(runId);
     void retryWorkspacePreparation({
       environmentId: threadRef.environmentId,
-      input: { threadId: threadRef.threadId, runId },
+      input: {
+        threadId: threadRef.threadId,
+        runId,
+      },
     }).finally(() => retryingWorkspacePreparationRunIds.delete(runId));
   });
   // Failed bootstrap deletes threads and terminals; expose terminals only for active threads.
-  const setupThreadRef =
-    worktreeSetup && threadRef && worktreeSetup.threadId === threadRef.threadId ? threadRef : null;
-  const openSetupTerminal = setupThreadRef
-    ? (terminalId: string) => {
-        storeEnsureTerminal(setupThreadRef, terminalId, { open: true, active: true });
-      }
-    : null;
 
   return {
     worktreeSetup,
@@ -163,6 +179,5 @@ export function useWorktreeSetup(input: {
     begin,
     cancel,
     retryPreparation,
-    openSetupTerminal,
   };
 }

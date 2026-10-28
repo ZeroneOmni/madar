@@ -14,7 +14,7 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
 import * as ProviderLatestVersions from "@t3tools/provider-core/server/ProviderLatestVersions";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
-import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
+
 import * as TestProviderHost from "@t3tools/provider-testing/TestProviderHost";
 import type { PiSettings } from "../settings.ts";
 import { PiDriver } from "./driver.ts";
@@ -26,7 +26,7 @@ const layerTest = Layer.mergeAll(
     runBackgroundWork: false,
   }),
   IdAllocator.layer,
-  McpProviderSessions.layer,
+
   ProviderLatestVersions.layer,
   Layer.succeed(
     HttpClient.HttpClient,

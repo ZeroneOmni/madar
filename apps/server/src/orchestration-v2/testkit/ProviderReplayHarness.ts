@@ -11,19 +11,15 @@ import type * as SqlClient from "effect/sql/SqlClient";
 import type { MigrationError } from "effect/sql/Migrator";
 import type { SqlError } from "effect/sql/SqlError";
 
-import * as CheckpointStore from "../../checkpointing/CheckpointStore.ts";
 import * as ServerConfig from "../../config.ts";
 import * as SqlitePersistence from "../../persistence/Sqlite.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import * as ThreadManagementService from "../ThreadManagementService.ts";
-import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
-import * as McpSessionRegistryTestkit from "../../mcp/McpSessionRegistry.testkit.ts";
-import * as VcsDriverRegistry from "../../vcs/VcsDriverRegistry.ts";
+
 import * as GitVcsDriver from "../../vcs/GitVcsDriver.ts";
-import * as VcsProcess from "../../vcs/VcsProcess.ts";
-import * as CheckpointCaptureService from "../CheckpointCaptureService.ts";
-import * as CheckpointService from "../CheckpointService.ts";
-import * as CheckpointRollbackService from "../CheckpointRollbackService.ts";
+
+import * as RunScopeService from "../RunScopeService.ts";
+
 import * as CommandPolicy from "../CommandPolicy.ts";
 import * as CommandReceiptStore from "../CommandReceiptStore.ts";
 import * as ContextHandoffService from "../ContextHandoffService.ts";
@@ -47,9 +43,9 @@ import * as ProviderSwitchService from "../ProviderSwitchService.ts";
 import * as ProviderTurnControlService from "../ProviderTurnControlService.ts";
 import * as ProviderTurnStartService from "../ProviderTurnStartService.ts";
 import * as ProviderTurnStartServiceTestkit from "../ProviderTurnStartService.testkit.ts";
-import * as McpAppModelContext from "../../mcpApps/McpAppModelContext.ts";
+
 import * as RunExecutionService from "../RunExecutionService.ts";
-import * as RunFinalizationService from "../RunFinalizationService.ts";
+
 import * as ThreadTitleRegenerationService from "../ThreadTitleRegenerationService.ts";
 import * as RuntimePolicy from "../RuntimePolicy.ts";
 import * as TurnItemPositionStore from "../TurnItemPositionStore.ts";
@@ -173,11 +169,7 @@ export interface OrchestratorV2ProviderReplayHarness<
   readonly makeProviderAdapterRegistryLayer: (
     transcript: Transcript,
     options?: { readonly replayGate?: ProviderReplayGate },
-  ) => Layer.Layer<
-    ProviderAdapterRegistry.ProviderAdapterRegistryV2,
-    Error,
-    McpProviderSessions.McpProviderSessions
-  >;
+  ) => Layer.Layer<ProviderAdapterRegistry.ProviderAdapterRegistryV2, Error>;
 }
 
 export function runOrchestratorV2ProviderReplayScenario<
@@ -256,11 +248,7 @@ export function layerProviderReplay<Transcript extends ProviderReplayTranscript,
 
 export function layerWithRegistry<Error>(
   scenario: Pick<OrchestratorV2ProviderReplayScenario, "name" | "runtimePolicyOverride">,
-  registryLayer: Layer.Layer<
-    ProviderAdapterRegistry.ProviderAdapterRegistryV2,
-    Error,
-    McpProviderSessions.McpProviderSessions
-  >,
+  registryLayer: Layer.Layer<ProviderAdapterRegistry.ProviderAdapterRegistryV2, Error>,
   options: {
     readonly databaseLayer?: Layer.Layer<
       SqlClient.SqlClient,
@@ -293,9 +281,7 @@ export function layerWithRegistry<Error>(
   // Share one continuation queue across adapters, orchestrator, and worker through layer memoization.
   const layerContinuationRequests =
     options.runContinuationWorker === true ? ProviderContinuationRequests.layer : Layer.empty;
-  const layerProvidedRegistry = registryLayer.pipe(
-    Layer.provide(Layer.merge(layerContinuationRequests, McpProviderSessions.layer)),
-  );
+  const layerProvidedRegistry = registryLayer.pipe(Layer.provide(layerContinuationRequests));
   const layerServerSettings = ServerSettings.layerTest({
     responseStreamingMode: "turn",
     ...(options.continueThreadsAfterServerUpdate === undefined
@@ -330,17 +316,9 @@ export function layerWithRegistry<Error>(
       ),
     ),
   );
-  const layerVcsDriverRegistry = VcsDriverRegistry.layer.pipe(
-    Layer.provide(VcsProcess.layer),
-    Layer.provide(layerServerConfig),
-    Layer.provide(NodeServices.layer),
-  );
-  const layerCheckpointStore = CheckpointStore.layer.pipe(
-    Layer.provide(layerVcsDriverRegistry),
-    Layer.provide(NodeServices.layer),
-  );
-  const layerCheckpointServiceProvided = CheckpointService.layer.pipe(
-    Layer.provide(Layer.mergeAll(layerCheckpointStore, IdAllocator.layer)),
+
+  const layerRunScopeServiceProvided = RunScopeService.layer.pipe(
+    Layer.provide(Layer.mergeAll(IdAllocator.layer)),
   );
   const layerContextHandoffServiceProvided = ContextHandoffService.layer.pipe(
     Layer.provide(IdAllocator.layer),
@@ -355,17 +333,14 @@ export function layerWithRegistry<Error>(
   const layerCommandOutputHubProvided = CommandOutputRecorder.layer.pipe(
     Layer.provide(Layer.merge(layerEventSinkProvided, layerStores)),
   );
-  const layerProviderSessionManagerProvided = ProviderSessionManager.layerWithOptions({
-    configureMcp: false,
-  }).pipe(
+  const layerProviderSessionManagerProvided = ProviderSessionManager.layer.pipe(
     Layer.provide(
       Layer.mergeAll(
         layerCommandOutputHubProvided,
         layerProvidedRegistry,
         layerEventSinkProvided,
         IdAllocator.layer,
-        McpProviderSessions.layer,
-        McpSessionRegistryTestkit.layer,
+
         layerProviderEventIngestorProvided,
         layerStores,
       ),
@@ -377,8 +352,7 @@ export function layerWithRegistry<Error>(
   const layerRunExecutionServiceProvided = RunExecutionService.layer.pipe(
     Layer.provide(
       Layer.mergeAll(
-        McpAppModelContext.layerEmpty,
-        layerCheckpointServiceProvided,
+        layerRunScopeServiceProvided,
         layerEventSinkProvided,
         IdAllocator.layer,
         layerProviderEventIngestorProvided,
@@ -411,34 +385,7 @@ export function layerWithRegistry<Error>(
   const layerRuntimeRequestServiceProvided = RuntimeRequestService.layer.pipe(
     Layer.provide(Layer.merge(layerStores, layerProviderSessionManagerProvided)),
   );
-  const layerCheckpointRollbackServiceProvided = CheckpointRollbackService.layer.pipe(
-    Layer.provide(
-      Layer.mergeAll(
-        layerCheckpointServiceProvided,
-        layerEventSinkProvided,
-        IdAllocator.layer,
-        layerStores,
-        layerProviderSessionManagerProvided,
-        ThreadCommandExecutor.layer,
-        layerRuntime,
-        layerServerConfig,
-        layerServerSettings,
-      ),
-    ),
-  );
-  const layerCheckpointCaptureServiceProvided = CheckpointCaptureService.layer.pipe(
-    Layer.provide(
-      Layer.mergeAll(
-        layerCheckpointServiceProvided,
-        layerEventSinkProvided,
-        IdAllocator.layer,
-        layerStores,
-      ),
-    ),
-  );
-  const layerRunFinalizationServiceProvided = RunFinalizationService.layer.pipe(
-    Layer.provide(Layer.merge(layerCheckpointCaptureServiceProvided, layerStores)),
-  );
+
   const layerThreadTitleRegenerationTest = Layer.succeed(
     ThreadTitleRegenerationService.ThreadTitleRegenerationService,
     ThreadTitleRegenerationService.ThreadTitleRegenerationService.of({
@@ -448,7 +395,7 @@ export function layerWithRegistry<Error>(
   const layerOrchestratorProvided = Orchestrator.layer.pipe(
     Layer.provide(
       Layer.mergeAll(
-        layerCheckpointServiceProvided,
+        layerRunScopeServiceProvided,
         CommandPolicy.layer,
         layerContextHandoffServiceProvided,
         layerPersistence,
@@ -490,8 +437,6 @@ export function layerWithRegistry<Error>(
   const layerEffectExecutorProvided = EffectWorker.layerExecutor.pipe(
     Layer.provide(
       Layer.mergeAll(
-        layerRunFinalizationServiceProvided,
-        layerCheckpointRollbackServiceProvided,
         layerProviderSessionManagerProvided,
         layerProviderTurnControlServiceProvided,
         layerProviderTurnStartServiceProvided,

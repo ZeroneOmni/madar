@@ -1,14 +1,11 @@
 import { type CSSProperties, memo } from "react";
-
 import {
   normalizeProviderAccentColor,
   providerAccentForegroundColor,
   providerInstanceInitials,
 } from "@t3tools/client-runtime/state/provider-instance-display";
-
 import { ProviderDriverKind } from "@t3tools/contracts";
 import { AntigravityIcon, ClaudeAI, Icon, OpenAI } from "../Icons";
-
 import { cn } from "~/lib/utils";
 import { providerClients } from "../settings/providerDriverMeta";
 import { ProviderPackageIcon } from "./ProviderPackageIcon";
@@ -17,19 +14,16 @@ import {
   officialAcpRegistryIconUrlForAgentId,
   resolveOfficialAcpRegistryIconUrl,
 } from "../settings/AcpRegistryIcon";
-
 const PROVIDER_ICON_BY_PROVIDER: Partial<Record<ProviderDriverKind, Icon>> = {
   [ProviderDriverKind.make("codex")]: OpenAI,
   [ProviderDriverKind.make("claudeAgent")]: ClaudeAI,
   [ProviderDriverKind.make("antigravity")]: AntigravityIcon,
 };
-
 const PROVIDER_TEXT_COLOR_BY_PROVIDER: Partial<Record<ProviderDriverKind, string>> = {
   [ProviderDriverKind.make("codex")]: "text-black dark:text-white",
   [ProviderDriverKind.make("claudeAgent")]: "text-[#d97757]",
   [ProviderDriverKind.make("antigravity")]: "text-[#5b87bf]",
 };
-
 export function providerTextColor(driverKind: ProviderDriverKind): {
   readonly className?: string;
   readonly style?: CSSProperties;
@@ -38,13 +32,19 @@ export function providerTextColor(driverKind: ProviderDriverKind): {
   if (icon) {
     return {
       className: "text-(--icon-light) dark:text-(--icon-dark)",
-      style: { "--icon-light": icon.fill.light, "--icon-dark": icon.fill.dark } as CSSProperties,
+      style: {
+        "--icon-light": icon.fill.light,
+        "--icon-dark": icon.fill.dark,
+      } as CSSProperties,
     };
   }
   const className = PROVIDER_TEXT_COLOR_BY_PROVIDER[driverKind];
-  return className ? { className } : {};
+  return className
+    ? {
+        className,
+      }
+    : {};
 }
-
 export function resolveProviderInstanceAcpRegistryIconUrl(input: {
   readonly driverKind: ProviderDriverKind;
   readonly agentId?: string | undefined;
@@ -56,7 +56,6 @@ export function resolveProviderInstanceAcpRegistryIconUrl(input: {
     officialAcpRegistryIconUrlForAgentId(input.agentId?.trim() || null)
   );
 }
-
 export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
   driverKind: ProviderDriverKind;
   displayName: string;
@@ -90,7 +89,6 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
     agentId: props.acpRegistryAgentId,
     iconUrl: props.acpRegistryIconUrl,
   });
-
   return (
     <span
       className={cn(
@@ -125,7 +123,9 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
             "pointer-events-none absolute -left-0.5 -top-0.5 z-10 size-2 rounded-full",
             props.statusDotClassName,
           )}
-          style={{ boxShadow: `0 0 0 2px ${indicatorBackground}` }}
+          style={{
+            boxShadow: `0 0 0 2px ${indicatorBackground}`,
+          }}
           aria-hidden
         />
       ) : null}
@@ -140,7 +140,9 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
               "right-[-0.1875rem] bottom-[-0.1875rem] h-3 min-w-3 px-0.5 text-5xs",
             props.badgeClassName,
           )}
-          style={{ borderColor: indicatorBackground }}
+          style={{
+            borderColor: indicatorBackground,
+          }}
           aria-hidden
         >
           {badgeContent === "initials" ? providerInstanceInitials(props.displayName) : null}

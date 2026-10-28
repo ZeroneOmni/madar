@@ -2,7 +2,6 @@ import { Check, Copy } from "lucide";
 import { PlayIcon, WrapTextIcon } from "lucide-react";
 import { toHtml } from "hast-util-to-html";
 import React, { use, useEffect, useRef, useState, type ReactNode } from "react";
-
 import { getClientSettings } from "../../hooks/useSettings";
 import type { DiffThemeName } from "../../lib/diffRendering";
 import {
@@ -27,19 +26,15 @@ import {
 } from "./MarkdownCodeBlock.logic";
 import { reportMarkdownActionFailure } from "./markdownActionFailure";
 import { PierreEntryIcon } from "./PierreEntryIcon";
-
 const MAX_HIGHLIGHT_CACHE_ENTRIES = 500;
 const MAX_HIGHLIGHT_CACHE_MEMORY_BYTES = 50 * 1024 * 1024;
-
 const highlightedCodeCache = new LRUCache<string>(
   MAX_HIGHLIGHT_CACHE_ENTRIES,
   MAX_HIGHLIGHT_CACHE_MEMORY_BYTES,
 );
-
 const THREAD_FIND_IGNORE_PROPS = {
   "data-thread-find-ignore": "",
 } as React.HTMLAttributes<HTMLDivElement>;
-
 export function MarkdownCodeBlockFrame({
   as: Wrapper = "div",
   language,
@@ -90,7 +85,6 @@ export function MarkdownCodeBlockFrame({
     </Wrapper>
   );
 }
-
 function MarkdownCodeBlockTitleContent({
   fenceTitle,
   language,
@@ -108,7 +102,6 @@ function MarkdownCodeBlockTitleContent({
       </>
     );
   }
-
   const fileName = syntheticFileNameForLanguageId(language);
   if (!hasSpecificPierreIconForFileName(fileName)) {
     return <span className="truncate">{language}</span>;
@@ -126,7 +119,6 @@ function MarkdownCodeBlockTitleContent({
     </Tooltip>
   );
 }
-
 export function MarkdownCodeBlock({
   code,
   language,
@@ -166,7 +158,6 @@ export function MarkdownCodeBlock({
     // Control and invisible format characters (bidi overrides, zero-width) can
     // make the rendered command differ from what the terminal would receive.
     !/[\p{Cc}\p{Cf}]/u.test(code.slice(0, -1));
-
   const handleCopy = () => {
     if (typeof navigator === "undefined" || navigator.clipboard == null) {
       return;
@@ -188,13 +179,16 @@ export function MarkdownCodeBlock({
           {
             operation: "copy-code-block",
             language,
-            ...(fenceTitle ? { fenceTitle } : {}),
+            ...(fenceTitle
+              ? {
+                  fenceTitle,
+                }
+              : {}),
           },
           cause,
         );
       });
   };
-
   useEffect(
     () => () => {
       if (copiedTimerRef.current != null) {
@@ -204,7 +198,6 @@ export function MarkdownCodeBlock({
     },
     [],
   );
-
   const copyButton = (
     <Tooltip>
       <TooltipTrigger
@@ -223,7 +216,6 @@ export function MarkdownCodeBlock({
       <TooltipPopup side="top">{copyLabel}</TooltipPopup>
     </Tooltip>
   );
-
   if (diagram) {
     return (
       <div className="my-[0.65rem] border border-transparent" data-language={language}>
@@ -235,7 +227,6 @@ export function MarkdownCodeBlock({
       </div>
     );
   }
-
   return (
     <MarkdownCodeBlockFrame
       language={language}
@@ -291,14 +282,12 @@ export function MarkdownCodeBlock({
     </MarkdownCodeBlockFrame>
   );
 }
-
 interface SuspenseShikiCodeBlockProps {
   className: string | undefined;
   code: string;
   themeName: DiffThemeName;
   isStreaming: boolean;
 }
-
 export function SuspenseShikiCodeBlock({
   className,
   code,
@@ -313,16 +302,16 @@ export function SuspenseShikiCodeBlock({
   // finishes so switching to cached HTML cannot clear an existing selection.
   const cachedHighlightedHtml =
     !isStreaming && !hasStreamed ? highlightedCodeCache.get(cacheKey) : null;
-
   if (cachedHighlightedHtml != null) {
     return (
       <div
         className="chat-markdown-shiki"
-        dangerouslySetInnerHTML={{ __html: cachedHighlightedHtml }}
+        dangerouslySetInnerHTML={{
+          __html: cachedHighlightedHtml,
+        }}
       />
     );
   }
-
   return (
     <UncachedShikiCodeBlock
       code={code}
@@ -334,7 +323,6 @@ export function SuspenseShikiCodeBlock({
     />
   );
 }
-
 interface UncachedShikiCodeBlockProps {
   code: string;
   language: string;
@@ -343,7 +331,6 @@ interface UncachedShikiCodeBlockProps {
   isStreaming: boolean;
   preserveLines: boolean;
 }
-
 function UncachedShikiCodeBlock({
   code,
   language,
@@ -362,7 +349,10 @@ function UncachedShikiCodeBlock({
       if (incrementalHighlight) return incrementalHighlight(code);
       return preserveLines
         ? highlightCodeToHast(highlighter, code, language, themeName)
-        : highlighter.codeToHtml(code, { lang: language, theme: themeName });
+        : highlighter.codeToHtml(code, {
+            lang: language,
+            theme: themeName,
+          });
     } catch (error) {
       console.warn(
         `Code highlighting failed for language "${language}", falling back to plain text.`,
@@ -370,10 +360,12 @@ function UncachedShikiCodeBlock({
       );
       return preserveLines
         ? highlightCodeToHast(highlighter, code, "text", themeName)
-        : highlighter.codeToHtml(code, { lang: "text", theme: themeName });
+        : highlighter.codeToHtml(code, {
+            lang: "text",
+            theme: themeName,
+          });
     }
   })();
-
   useEffect(() => {
     if (!isStreaming) {
       const highlightedHtml = typeof highlighted === "string" ? highlighted : toHtml(highlighted);
@@ -384,9 +376,13 @@ function UncachedShikiCodeBlock({
       );
     }
   }, [cacheKey, code, highlighted, isStreaming]);
-
   return typeof highlighted === "string" ? (
-    <div className="chat-markdown-shiki" dangerouslySetInnerHTML={{ __html: highlighted }} />
+    <div
+      className="chat-markdown-shiki"
+      dangerouslySetInnerHTML={{
+        __html: highlighted,
+      }}
+    />
   ) : (
     <div className="chat-markdown-shiki">
       <HighlightedCodeLines root={highlighted} />

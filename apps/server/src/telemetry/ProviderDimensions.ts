@@ -72,7 +72,7 @@ const defined = (entries: Readonly<Record<string, unknown>>) =>
  * its subagent, and so on. Forks are top-level threads of their own. Depth is
  * counted by walking parents, capped so a corrupt lineage cannot loop.
  */
-export const MAX_REPORTED_DEPTH = 5;
+const MAX_REPORTED_DEPTH = 5;
 
 /**
  * Who started the work that made this call. Scheduled runs keep the task
@@ -134,21 +134,6 @@ export function handoffSettings(tool: string, args: unknown, result: unknown): F
 }
 
 /** Outcome of a tool call, with the stable failure code when the call failed. */
-export function toolOutcome(
-  result:
-    | { readonly isError?: boolean | undefined; readonly structuredContent?: unknown }
-    | undefined,
-) {
-  if (result === undefined) return { outcome: "error", errorCode: "exception" };
-  const content = asFields(result.structuredContent);
-  // T3 tool failures are declared errors whose structured content carries a
-  // closed `code`; the MCP layer does not always set isError for them.
-  const code = stringField(content, "code") ?? stringField(asFields(content.error), "_tag");
-  if (result.isError === true || (content._tag !== undefined && code !== undefined)) {
-    return { outcome: "error", errorCode: code ?? "unknown" };
-  }
-  return { outcome: "ok" };
-}
 
 /**
  * Event properties for an agent tool call: the calling agent, and when the call

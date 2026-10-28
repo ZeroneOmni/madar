@@ -199,31 +199,7 @@ export const make = Effect.gen(function* () {
       stoppedThisPass: ReadonlyMap<string, RecoverySession> = new Map(),
     ) {
       const now = yield* DateTime.now;
-      const runs = [] as Array<OrchestrationV2ThreadProjection["runs"][number]>;
-      for (const run of nonterminalRuns(projection)) {
-        if (run.status === "waiting") {
-          const checkpointEffects = yield* outbox
-            .listByCommandId(CommandId.make(`command:effect:checkpoint.capture:${run.id}`))
-            .pipe(
-              Effect.mapError(
-                (cause) =>
-                  new ProviderRuntimeRecoveryError({
-                    operation: "reconcile",
-                    threadId: projection.thread.id,
-                    cause,
-                  }),
-              ),
-            );
-          const hasReplayableCheckpoint = checkpointEffects.some(
-            (effect) =>
-              effect.request.type === "checkpoint.capture" &&
-              effect.request.runId === run.id &&
-              (effect.status === "pending" || effect.status === "running"),
-          );
-          if (hasReplayableCheckpoint) continue;
-        }
-        runs.push(run);
-      }
+      const runs = [...nonterminalRuns(projection)];
       const messageRequestNodeIds = new Set(
         projection.runtimeRequests
           .filter(
@@ -349,6 +325,23 @@ export const make = Effect.gen(function* () {
         });
       }
       for (const run of runs) {
+        const finishedAttempt =
+          run.status === "waiting"
+            ? projection.attempts.find(
+                (attempt) =>
+                  attempt.id === run.activeAttemptId &&
+                  (attempt.status === "completed" ||
+                    attempt.status === "failed" ||
+                    attempt.status === "cancelled"),
+              )
+            : undefined;
+        const recoveredStatus =
+          finishedAttempt?.status === "completed"
+            ? "completed"
+            : finishedAttempt?.status === "failed"
+              ? "failed"
+              : "cancelled";
+        const recoveredAt = finishedAttempt?.completedAt ?? now;
         events.push({
           id: yield* allocateEventId(),
           type: "run.updated",
@@ -356,7 +349,12 @@ export const make = Effect.gen(function* () {
           runId: run.id,
           providerInstanceId: run.providerInstanceId,
           occurredAt: now,
-          payload: { ...run, status: "cancelled", queuePosition: null, completedAt: now },
+          payload: {
+            ...run,
+            status: recoveredStatus,
+            queuePosition: null,
+            completedAt: recoveredAt,
+          },
         });
         for (const attempt of projection.attempts.filter(
           (candidate) =>
@@ -391,7 +389,11 @@ export const make = Effect.gen(function* () {
             nodeId: node.id,
             providerInstanceId: run.providerInstanceId,
             occurredAt: now,
-            payload: { ...node, status: "cancelled", completedAt: now },
+            payload: {
+              ...node,
+              status: node.id === run.rootNodeId ? recoveredStatus : "cancelled",
+              completedAt: recoveredAt,
+            },
           });
         }
         for (const providerTurn of projection.providerTurns.filter(

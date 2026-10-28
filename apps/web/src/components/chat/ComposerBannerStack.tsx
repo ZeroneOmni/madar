@@ -1,6 +1,5 @@
 import { InfoIcon } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
@@ -9,7 +8,6 @@ import { observeResize } from "~/lib/observeResize";
 
 // Match the duration-220 exit transition before removing a dismissed notice.
 const DISMISS_TRANSITION_MS = 220;
-
 export interface ComposerBannerStackItem {
   readonly id: string;
   readonly variant: ComposerBannerVariant;
@@ -22,14 +20,13 @@ export interface ComposerBannerStackItem {
   readonly dismissLabel?: string;
   readonly onDismiss?: () => void;
 }
-
 export type ComposerBannerStackContent = Pick<
   ComposerBannerStackItem,
   "id" | "variant" | "priority"
-> & { readonly content: ReactNode };
-
+> & {
+  readonly content: ReactNode;
+};
 type ComposerBannerStackEntry = ComposerBannerStackItem | ComposerBannerStackContent;
-
 function bannerPriority(item: ComposerBannerStackEntry) {
   if (item.priority === "urgent" || item.variant === "error" || item.variant === "warning") {
     return 0;
@@ -39,13 +36,11 @@ function bannerPriority(item: ComposerBannerStackEntry) {
   }
   return 2;
 }
-
 interface ComposerBannerStackProps {
   readonly className?: string;
   readonly items: ReadonlyArray<ComposerBannerStackEntry>;
   readonly attachedAbove?: ReactNode;
 }
-
 export function ComposerBannerStack({ className, items, attachedAbove }: ComposerBannerStackProps) {
   const [stackExpanded, setStackExpanded] = useState(false);
   const noticesRef = useRef<HTMLDivElement>(null);
@@ -59,7 +54,6 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
     requestedExitingItemId !== null && items.some((item) => item.id === requestedExitingItemId)
       ? requestedExitingItemId
       : null;
-
   useEffect(() => {
     return () => {
       if (dismissTimeoutRef.current) {
@@ -67,24 +61,25 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
       }
     };
   }, []);
-
   if (items.length < 2 && stackExpanded) {
     setStackExpanded(false);
   }
-
   useLayoutEffect(() => {
     if (stackExpanded && pendingFocusRef.current === "notice") {
       pendingFocusRef.current = null;
       const firstControl = expandedItemsRef.current?.querySelector<HTMLElement>(
         'button:not(:disabled), a[href], input:not(:disabled), [tabindex="0"]',
       );
-      (firstControl ?? expandedItemsRef.current)?.focus({ preventScroll: true });
+      (firstControl ?? expandedItemsRef.current)?.focus({
+        preventScroll: true,
+      });
     } else if (!stackExpanded && pendingFocusRef.current === "peek") {
       pendingFocusRef.current = null;
-      peekRef.current?.focus({ preventScroll: true });
+      peekRef.current?.focus({
+        preventScroll: true,
+      });
     }
   }, [stackExpanded]);
-
   const orderedItems = items.toSorted((a, b) => bannerPriority(a) - bannerPriority(b));
   const frontItem = orderedItems[0];
   if (!frontItem) {
@@ -100,7 +95,6 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
   const hasStack = stackedItems.length > 0;
   const showCollapsedStackCap = hasStack && exitingItemId !== frontItem.id;
   const firstStackedItem = stackedItems[0];
-
   const requestDismiss = (item: ComposerBannerStackEntry) => {
     if (!("onDismiss" in item) || !item.onDismiss || exitingItemId) {
       return;
@@ -114,7 +108,6 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
       item.onDismiss?.();
     }, DISMISS_TRANSITION_MS);
   };
-
   return (
     <>
       {hasStack ? (
@@ -159,7 +152,9 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
               aria-hidden={stackExpanded || undefined}
               tabIndex={stackExpanded ? -1 : 0}
               onClick={(event) => {
-                event.currentTarget.focus({ preventScroll: true });
+                event.currentTarget.focus({
+                  preventScroll: true,
+                });
                 pendingFocusRef.current = "notice";
                 setStackExpanded(true);
               }}
@@ -247,7 +242,6 @@ export function ComposerBannerStack({ className, items, attachedAbove }: Compose
     </>
   );
 }
-
 function NoticeText({
   children,
   className,
@@ -260,7 +254,6 @@ function NoticeText({
   const textRef = useRef<HTMLSpanElement>(null);
   const detailsRef = useRef<HTMLButtonElement>(null);
   const [showDetails, setShowDetails] = useState(false);
-
   useLayoutEffect(() => {
     const text = textRef.current;
     if (!text) return;
@@ -279,13 +272,16 @@ function NoticeText({
     measure();
     const stopObserving = observeResize(text, measure);
     const mutations = new MutationObserver(measure);
-    mutations.observe(text, { childList: true, subtree: true, characterData: true });
+    mutations.observe(text, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
     return () => {
       stopObserving();
       mutations.disconnect();
     };
   }, []);
-
   return (
     <span className="contents">
       <span ref={textRef} className={className}>
@@ -322,7 +318,6 @@ function NoticeText({
     </span>
   );
 }
-
 function ComposerBannerStackAlert({
   item,
   attached,

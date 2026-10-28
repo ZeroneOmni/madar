@@ -1,28 +1,36 @@
 import { RunId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 import { deriveMessagesTimelineRows, liveWorkEntryLabel } from "./MessagesTimeline.logic";
-
 describe("long active tool groups", () => {
   it.each([false, true])(
     "preserves chronological order and the latest activity, expanded=%s",
     (expanded) => {
       const runId = RunId.make("long-active-run");
       const createdAt = "2026-10-12T00:00:00Z";
-      const timelineEntries = Array.from({ length: 1_000 }, (_, index) => ({
-        id: `work-entry-${index}`,
-        kind: "work" as const,
-        createdAt,
-        entry: {
-          id: `work-${index}`,
-          createdAt,
-          runId,
-          label: `Tool ${index}`,
-          tone: index % 2 === 0 ? ("thinking" as const) : ("tool" as const),
-          itemType: index % 2 === 0 ? ("reasoning" as const) : ("command_execution" as const),
-          ...(index % 2 === 0 ? { detail: `Thought ${index}` } : {}),
-          toolLifecycleStatus: index === 999 ? ("inProgress" as const) : ("completed" as const),
+      const timelineEntries = Array.from(
+        {
+          length: 1_000,
         },
-      }));
+        (_, index) => ({
+          id: `work-entry-${index}`,
+          kind: "work" as const,
+          createdAt,
+          entry: {
+            id: `work-${index}`,
+            createdAt,
+            runId,
+            label: `Tool ${index}`,
+            tone: index % 2 === 0 ? ("thinking" as const) : ("tool" as const),
+            itemType: index % 2 === 0 ? ("reasoning" as const) : ("command_execution" as const),
+            ...(index % 2 === 0
+              ? {
+                  detail: `Thought ${index}`,
+                }
+              : {}),
+            toolLifecycleStatus: index === 999 ? ("inProgress" as const) : ("completed" as const),
+          },
+        }),
+      );
       const rows = deriveMessagesTimelineRows({
         timelineEntries,
         isWorking: true,

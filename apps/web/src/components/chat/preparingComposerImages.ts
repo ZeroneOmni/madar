@@ -1,12 +1,10 @@
 import { create } from "zustand";
-
 export interface PreparingComposerImage {
   readonly id: string;
   readonly name: string;
   /** The uncompressed source, thumbnailed so the placeholder shows the image itself. */
   readonly file: File;
 }
-
 const NO_PREPARING_IMAGES: ReadonlyArray<PreparingComposerImage> = [];
 
 /**
@@ -16,18 +14,17 @@ const NO_PREPARING_IMAGES: ReadonlyArray<PreparingComposerImage> = [];
  */
 const usePreparingComposerImageStore = create<{
   readonly byTargetKey: Readonly<Record<string, ReadonlyArray<PreparingComposerImage>>>;
-}>(() => ({ byTargetKey: {} }));
-
+}>(() => ({
+  byTargetKey: {},
+}));
 export function usePreparingComposerImages(targetKey: string) {
   return usePreparingComposerImageStore(
     (state) => state.byTargetKey[targetKey] ?? NO_PREPARING_IMAGES,
   );
 }
-
 export function countPreparingComposerImages(targetKey: string): number {
   return usePreparingComposerImageStore.getState().byTargetKey[targetKey]?.length ?? 0;
 }
-
 export function addPreparingComposerImages(
   targetKey: string,
   images: ReadonlyArray<PreparingComposerImage>,
@@ -39,7 +36,6 @@ export function addPreparingComposerImages(
     },
   }));
 }
-
 export function isPreparingComposerImage(targetKey: string, imageId: string): boolean {
   return (
     usePreparingComposerImageStore
@@ -63,13 +59,17 @@ export function removePreparingComposerImages(
     const remaining = (state.byTargetKey[targetKey] ?? NO_PREPARING_IMAGES).filter(
       (image) => !removed.has(image.id),
     );
-    const byTargetKey = { ...state.byTargetKey };
+    const byTargetKey = {
+      ...state.byTargetKey,
+    };
     if (remaining.length > 0) {
       byTargetKey[targetKey] = remaining;
     } else {
       delete byTargetKey[targetKey];
     }
-    return { byTargetKey };
+    return {
+      byTargetKey,
+    };
   });
   return removed;
 }

@@ -8,12 +8,10 @@ import {
 } from "@t3tools/contracts";
 import { CheckIcon, ChevronRightIcon, LayersIcon } from "lucide-react";
 import * as Equal from "effect/Equal";
-
 import { cn } from "../../lib/utils";
 import type { EnvironmentPresentation } from "../../state/environments";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import { resolveEnvModeLabel, WORKTREE_SUBMODULES_LABELS } from "../BranchToolbar.logic";
-import { PULL_REQUEST_MERGE_METHOD_LABELS } from "../pullRequest/pullRequestDetail.logic";
 import { Button, InlineButton } from "../ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
@@ -22,7 +20,6 @@ import { useOptionalSettingsScope } from "./SettingsScopeContext";
 import type { ProjectOverrideEntry, ScopedSettingsTarget } from "./scopedSettings";
 import { isProjectScopedSettingKey } from "./scopedSettings";
 import { settingsScopeEnvironmentLabels } from "./settingsScopeAxis";
-
 interface InheritanceLayer {
   readonly key: "project" | "environment" | "t3.json" | "built-in";
   readonly label: string;
@@ -30,13 +27,11 @@ interface InheritanceLayer {
   readonly effective: boolean;
   readonly set: boolean;
 }
-
 const WRITING_STYLE_LABELS: Record<string, string> = {
   repo_conventions: "Repository conventions",
   conventional_commits: "Conventional Commits",
   custom: "Custom instructions",
 };
-
 function formatValue(key: keyof ServerSettings, value: unknown): string {
   if (value === null || value === undefined) {
     return key === "pullRequestMergeMethod"
@@ -65,11 +60,6 @@ function formatValue(key: keyof ServerSettings, value: unknown): string {
     }
     if (key === "worktreeSubmodules" && value in WORKTREE_SUBMODULES_LABELS) {
       return WORKTREE_SUBMODULES_LABELS[value as WorktreeSubmodules];
-    }
-    if (key === "pullRequestMergeMethod" && value in PULL_REQUEST_MERGE_METHOD_LABELS) {
-      return PULL_REQUEST_MERGE_METHOD_LABELS[
-        value as keyof typeof PULL_REQUEST_MERGE_METHOD_LABELS
-      ];
     }
     return value === "" ? "Empty" : value;
   }
@@ -132,25 +122,21 @@ export function settingInheritanceLayers(
   });
   return layers;
 }
-
 function isProjectFileBackedSettingKey(
   key: keyof ServerSettings,
 ): key is ProjectFileBackedSettingKey {
   return Object.hasOwn(PROJECT_FILE_BACKED_SETTINGS, key);
 }
-
 export type SettingInheritanceState =
   | "default"
   | "environment"
   | "inherited"
   | "overridden"
   | "mixed";
-
 export interface SettingOverridingProject extends ProjectOverrideEntry {
   readonly label: string;
   readonly open: () => void;
 }
-
 export function SettingInheritance({
   state,
   summary,

@@ -5,7 +5,6 @@ import {
   getProviderStatusMessage,
   shouldShowProviderStatusBanner,
 } from "./ProviderStatusBanner";
-
 const provider: ServerProvider = {
   instanceId: ProviderInstanceId.make("codex-work"),
   driver: ProviderDriverKind.make("codex"),
@@ -13,7 +12,9 @@ const provider: ServerProvider = {
   installed: true,
   version: "1.0.0",
   status: "ready",
-  auth: { status: "authenticated" },
+  auth: {
+    status: "authenticated",
+  },
   checkedAt: "2026-09-22T00:00:00Z",
   models: [],
   skills: [],
@@ -25,7 +26,6 @@ const provider: ServerProvider = {
     recommendedRange: null,
   },
 };
-
 describe("compatibility banners", () => {
   it("shows and dismisses a warning on a healthy provider, then clears it after policy relaxation", () => {
     expect(shouldShowProviderStatusBanner(provider, null)).toBe(true);
@@ -34,7 +34,10 @@ describe("compatibility banners", () => {
     );
     expect(
       shouldShowProviderStatusBanner(
-        { ...provider, version: "1.0.1" },
+        {
+          ...provider,
+          version: "1.0.1",
+        },
         getProviderStatusBannerKey(provider),
       ),
     ).toBe(true);
@@ -47,15 +50,22 @@ describe("compatibility banners", () => {
       },
     };
     expect(getProviderStatusBannerKey(relaxed)).toBeNull();
-    expect(getProviderStatusBannerKey({ ...provider, status: "disabled" })).toBeNull();
     expect(
       getProviderStatusBannerKey({
         ...provider,
-        compatibilityAdvisory: { ...provider.compatibilityAdvisory!, status: "graceful" },
+        status: "disabled",
+      }),
+    ).toBeNull();
+    expect(
+      getProviderStatusBannerKey({
+        ...provider,
+        compatibilityAdvisory: {
+          ...provider.compatibilityAdvisory!,
+          status: "graceful",
+        },
       }),
     ).toBeNull();
   });
-
   it("shows downgrade guidance instead of a broken OpenCode inventory timeout", () => {
     const message = "This provider version is known to be incompatible. Use 1.14.19.";
     const broken: ServerProvider = {
@@ -63,7 +73,9 @@ describe("compatibility banners", () => {
       driver: ProviderDriverKind.make("opencode"),
       version: "2.0.3",
       status: "error",
-      auth: { status: "unknown" },
+      auth: {
+        status: "unknown",
+      },
       message: "Failed to load OpenCode provider inventory: Timed out waiting for server start.",
       compatibilityAdvisory: {
         status: "broken",
@@ -89,7 +101,10 @@ describe("compatibility banners", () => {
       shouldShowProviderStatusBanner(
         {
           ...broken,
-          compatibilityAdvisory: { ...broken.compatibilityAdvisory!, message: "Use 1.14.20." },
+          compatibilityAdvisory: {
+            ...broken.compatibilityAdvisory!,
+            message: "Use 1.14.20.",
+          },
         },
         getProviderStatusBannerKey(broken),
       ),
@@ -105,8 +120,13 @@ describe("compatibility banners", () => {
         },
       }),
     ).toBe(broken.message);
-    expect(getProviderStatusMessage({ ...broken, auth: { status: "unauthenticated" } })).toBe(
-      broken.message,
-    );
+    expect(
+      getProviderStatusMessage({
+        ...broken,
+        auth: {
+          status: "unauthenticated",
+        },
+      }),
+    ).toBe(broken.message);
   });
 });

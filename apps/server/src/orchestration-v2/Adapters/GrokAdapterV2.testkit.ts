@@ -7,7 +7,6 @@ import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as HostProcess from "@t3tools/shared/HostProcess";
-import { resolveSelfInvocation } from "@t3tools/shared/nodeRuntime";
 
 import * as TestProviderHost from "@t3tools/provider-testing/TestProviderHost";
 import { GROK_ACP_CANCEL_META, GROK_ACP_INITIALIZE_META } from "@t3tools/provider-grok/testing";
@@ -60,7 +59,7 @@ function layerGrokProviderAdapterRegistryReplay(
         settings: DEFAULT_GROK_SETTINGS,
         environment: {},
         hostPlatform,
-        selfInvocation: yield* resolveSelfInvocation(),
+
         makeRuntime: (runtimeInput) =>
           makeAcpReplayRuntime({
             transcript,

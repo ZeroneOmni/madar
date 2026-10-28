@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-
 import { resolveExternalWebLinkHref } from "./externalLinkContextMenu";
-
 describe("external chat link context menu", () => {
   it.each([
     [
@@ -13,7 +11,6 @@ describe("external chat link context menu", () => {
   ])("resolves the safe external web-link href for %s as %s", (href, expected) => {
     expect(resolveExternalWebLinkHref(href)).toBe(expected);
   });
-
   it.each([
     "javascript:alert(document.domain)",
     " \nJaVaScRiPt:alert(document.domain)",

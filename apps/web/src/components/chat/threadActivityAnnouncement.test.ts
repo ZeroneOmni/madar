@@ -7,28 +7,34 @@ import {
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import { describe, expect, it } from "vite-plus/test";
-
 import {
   announcedRun,
   nextThreadAnnouncement,
   type ThreadActivitySnapshot,
   type ThreadAnnouncementMemory,
 } from "./threadActivityAnnouncement";
-
 const firstRun = RunId.make("run-1");
 const secondRun = RunId.make("run-2");
-
 const idle = (
   runId: RunId | null,
   runStatus: ThreadActivitySnapshot["runStatus"],
-): ThreadActivitySnapshot => ({ status: "idle", requestId: null, runId, runStatus });
+): ThreadActivitySnapshot => ({
+  status: "idle",
+  requestId: null,
+  runId,
+  runStatus,
+});
 const busy = (
   status: Exclude<ThreadActivitySnapshot["status"], "idle"> = "working",
   runId: RunId | null = secondRun,
   runStatus: ThreadActivitySnapshot["runStatus"] = "running",
   requestId: string | null = status === "working" ? null : "request-1",
-): ThreadActivitySnapshot => ({ status, requestId, runId, runStatus });
-
+): ThreadActivitySnapshot => ({
+  status,
+  requestId,
+  runId,
+  runStatus,
+});
 function speak(snapshots: ReadonlyArray<ThreadActivitySnapshot>) {
   let memory: ThreadAnnouncementMemory | null = null;
   const spoken: string[] = [];
@@ -39,20 +45,17 @@ function speak(snapshots: ReadonlyArray<ThreadActivitySnapshot>) {
   }
   return spoken;
 }
-
 describe("nextThreadAnnouncement", () => {
   it("follows a turn from start to finish", () => {
     expect(
       speak([idle(firstRun, "completed"), busy(), busy(), idle(secondRun, "completed")]),
     ).toEqual(["Working", "Done"]);
   });
-
   it("says Working once when a send looks idle before its run appears", () => {
     expect(
       speak([idle(null, null), busy(), idle(null, null), busy(), idle(secondRun, "completed")]),
     ).toEqual(["Working", "Done"]);
   });
-
   it("announces a queued message that starts as the last turn ends", () => {
     const thirdRun = RunId.make("run-3");
     expect(
@@ -91,7 +94,6 @@ describe("nextThreadAnnouncement", () => {
       ]),
     ).toEqual(["Working"]);
   });
-
   it("treats a run that starts while the thread looks idle as the next turn", () => {
     const thirdRun = RunId.make("run-3");
     // A resume or a turn started from another device.
@@ -115,16 +117,13 @@ describe("nextThreadAnnouncement", () => {
       ]),
     ).toEqual(["Working", "Working", "Done"]);
   });
-
   it("stays silent when a thread opens mid-turn or after one", () => {
     expect(speak([idle(firstRun, "completed"), idle(firstRun, "completed")])).toEqual([]);
     expect(speak([busy(), busy()])).toEqual([]);
   });
-
   it("announces the end of a turn that was already running when the thread opened", () => {
     expect(speak([busy(), idle(secondRun, "failed")])).toEqual(["Failed"]);
   });
-
   it("says how the turn ended when a queued message was cancelled before it started", () => {
     const now = DateTime.makeUnsafe("2026-06-20T00:00:00.000Z");
     const run = (id: RunId, ordinal: number, status: OrchestrationV2Run["status"]) =>
@@ -133,7 +132,10 @@ describe("nextThreadAnnouncement", () => {
         threadId: ThreadId.make("thread-1"),
         ordinal,
         providerInstanceId: ProviderInstanceId.make("codex"),
-        modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" },
+        modelSelection: {
+          instanceId: ProviderInstanceId.make("codex"),
+          model: "gpt-5.4",
+        },
         providerThreadId: null,
         userMessageId: MessageId.make(`message-${ordinal}`),
         rootNodeId: null,
@@ -146,13 +148,16 @@ describe("nextThreadAnnouncement", () => {
         contextHandoffId: null,
       }) satisfies OrchestrationV2Run;
     const cancelledRun = RunId.make("run-3");
-    const ended = announcedRun({ runId: cancelledRun, status: "cancelled", startedAt: null }, [
-      run(secondRun, 1, "completed"),
-      run(cancelledRun, 2, "cancelled"),
-    ]);
+    const ended = announcedRun(
+      {
+        runId: cancelledRun,
+        status: "cancelled",
+        startedAt: null,
+      },
+      [run(secondRun, 1, "completed"), run(cancelledRun, 2, "cancelled")],
+    );
     expect(speak([busy(), idle(ended?.runId ?? null, ended?.status ?? null)])).toEqual(["Done"]);
   });
-
   it("waits for the run to settle before announcing how the turn ended", () => {
     expect(
       speak([
@@ -163,7 +168,6 @@ describe("nextThreadAnnouncement", () => {
       ]),
     ).toEqual(["Working", "Stopped"]);
   });
-
   it("does not report the previous turn's ending when work stops before a new run exists", () => {
     expect(
       speak([
@@ -184,7 +188,6 @@ describe("nextThreadAnnouncement", () => {
       ]),
     ).toEqual(["Working"]);
   });
-
   it("lets the next turn start after one is rolled back", () => {
     expect(
       speak([
@@ -195,7 +198,6 @@ describe("nextThreadAnnouncement", () => {
       ]),
     ).toEqual(["Working", "Working"]);
   });
-
   it("announces each request once without repeating that work resumed", () => {
     expect(
       speak([
@@ -208,7 +210,6 @@ describe("nextThreadAnnouncement", () => {
       ]),
     ).toEqual(["Needs approval", "Needs your input", "Done"]);
   });
-
   it("announces a second request of the same kind once the first is answered", () => {
     expect(
       speak([

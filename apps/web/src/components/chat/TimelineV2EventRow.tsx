@@ -21,8 +21,16 @@ import {
 import { SecretRequestCard } from "./SecretRequestCard";
 import { TimelineRowCtx, type TimelineRow } from "./timelineRowContext";
 import { v2EventPresentation, subagentGroupTiming } from "./TimelineV2EventRow.logic";
-
-export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "event" }> }) {
+export function V2EventTimelineRow({
+  row,
+}: {
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "event";
+    }
+  >;
+}) {
   const ctx = use(TimelineRowCtx);
   const { item, visibility, sourceThreadId } = row.projectedItem;
   if (item.type === "subagent" && (row.subagents?.length ?? 1) > 1) {
@@ -124,7 +132,6 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
               workspaceRoot={ctx.workspaceRoot}
               onOpenThread={ctx.onOpenThread}
               onOpenTurnDiff={ctx.onOpenTurnDiff}
-              onRollbackCheckpoint={ctx.onRollbackCheckpoint}
               onImageExpand={ctx.onImageExpand}
               source={ctx.turnItemSource}
             />
@@ -200,7 +207,6 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
               workspaceRoot={ctx.workspaceRoot}
               onOpenThread={ctx.onOpenThread}
               onOpenTurnDiff={ctx.onOpenTurnDiff}
-              onRollbackCheckpoint={ctx.onRollbackCheckpoint}
               onImageExpand={ctx.onImageExpand}
               source={ctx.turnItemSource}
             />
@@ -210,11 +216,15 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
     </section>
   );
 }
-
 const V2SubagentGroup = memo(function V2SubagentGroup({
   row,
 }: {
-  row: Extract<TimelineRow, { kind: "event" }>;
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "event";
+    }
+  >;
 }) {
   const ctx = use(TimelineRowCtx);
   const groupId = `subagent-group:${row.id}`;

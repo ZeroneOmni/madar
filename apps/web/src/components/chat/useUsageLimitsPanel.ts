@@ -51,7 +51,6 @@ export function useUsageLimitsPanel(input: {
   // Intercept /usage-limits only when Limits has selected-provider data.
   const offered =
     providerDriver !== null && hasProviderUsageLimits(providerDriver, providers, sources);
-
   const open = useStableCallback(() => {
     const now = Date.now();
     const nextReport =
@@ -59,11 +58,18 @@ export function useUsageLimitsPanel(input: {
         ? collectProviderUsageLimits(providerInstanceId, providers, sources, now)
         : null;
     if (nextReport && panelKey !== null) {
-      setPanel({ key: panelKey, threadKey, now });
+      setPanel({
+        key: panelKey,
+        threadKey,
+        now,
+      });
       return true;
     }
     setPanel(null);
-    toastManager.add({ type: "info", title: "Usage limits are unavailable for this provider" });
+    toastManager.add({
+      type: "info",
+      title: "Usage limits are unavailable for this provider",
+    });
     return false;
   });
   // Async responses may clear only their originating thread's panel.
@@ -72,6 +78,10 @@ export function useUsageLimitsPanel(input: {
       current !== null && current.threadKey === originThreadKey ? null : current,
     ),
   );
-
-  return { banner, offered, open, clearFor };
+  return {
+    banner,
+    offered,
+    open,
+    clearFor,
+  };
 }

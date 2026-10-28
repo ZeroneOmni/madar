@@ -1,12 +1,7 @@
-import type {
-  PickedElementPayload,
-  PickedElementStackFrame,
-  PreviewAnnotationPayload,
-} from "@t3tools/contracts";
-
+import type { PickedElementPayload, PickedElementStackFrame } from "@t3tools/contracts";
+import { PreviewAnnotationPayload } from "./legacyPreviewAnnotation";
 const ELEMENT_CONTEXT_HTML_PREVIEW_LIMIT = 4000;
 const ELEMENT_CONTEXT_STYLES_LIMIT = 4000;
-
 export interface ElementContextSelection {
   pageUrl: string;
   pageTitle: string | null;
@@ -17,12 +12,10 @@ export interface ElementContextSelection {
   source: PickedElementStackFrame | null;
   styles: string;
 }
-
 function truncateString(value: string, limit: number): string {
   if (value.length <= limit) return value;
   return `${value.slice(0, Math.max(0, limit - 1))}…`;
 }
-
 function normalizeText(value: string): string {
   return value.replace(/\r\n/g, "\n").replace(/^\n+|\n+$/g, "");
 }
@@ -55,7 +48,6 @@ export function normalizeElementContextSelection(
     styles: truncateString(normalizeText(raw.styles), ELEMENT_CONTEXT_STYLES_LIMIT),
   };
 }
-
 export function elementContextToPreviewAnnotation(
   element: ElementContextSelection,
   id: string,
@@ -69,8 +61,17 @@ export function elementContextToPreviewAnnotation(
     elements: [
       {
         id,
-        element: { ...element, stack: [], pickedAt },
-        rect: { x: 0, y: 0, width: 0, height: 0 },
+        element: {
+          ...element,
+          stack: [],
+          pickedAt,
+        },
+        rect: {
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+        },
       },
     ],
     regions: [],

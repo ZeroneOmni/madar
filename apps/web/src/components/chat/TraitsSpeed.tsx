@@ -4,11 +4,13 @@ import { ZapIcon } from "lucide-react";
 import { UltrafastIcon } from "../Icons";
 import { cn } from "~/lib/utils";
 import { ComposerControlIcon, type ComposerControlSize } from "./ComposerControl";
-
 export function getTraitsSpeedDisplay(
   provider: ProviderDriverKind,
   descriptor: ProviderOptionDescriptor,
-): { label: string; speedIcon: "fast" | "ultrafast" | null } | null {
+): {
+  label: string;
+  speedIcon: "fast" | "ultrafast" | null;
+} | null {
   if (descriptor.id === "fastMode" && descriptor.type === "boolean") {
     return {
       label: descriptor.currentValue === true ? "Fast" : "Normal",
@@ -38,7 +40,6 @@ export function getTraitsSpeedDisplay(
   }
   return null;
 }
-
 export function TraitsSpeedIcon({
   provider,
   speedIcon,

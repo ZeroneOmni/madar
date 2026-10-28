@@ -463,7 +463,7 @@ export class ThreadManagementService extends Context.Service<
   ThreadManagementServiceShape
 >()("t3/orchestration-v2/ThreadManagementService") {}
 
-export function isActiveRun(run: OrchestrationV2Run): boolean {
+function isActiveRun(run: OrchestrationV2Run): boolean {
   return (
     run.status === "preparing" ||
     run.status === "starting" ||
@@ -484,7 +484,7 @@ export function isTerminalRunStatus(
   );
 }
 
-export function latestRun(
+function latestRun(
   projection: Pick<OrchestrationV2ThreadProjection, "runs">,
 ): OrchestrationV2Run | undefined {
   return projection.runs.toSorted((left, right) => right.ordinal - left.ordinal)[0];
@@ -503,7 +503,7 @@ function latestRestartContinuation(
   return current;
 }
 
-export function latestActiveRun(
+function latestActiveRun(
   projection: Pick<OrchestrationV2ThreadProjection, "runs">,
 ): OrchestrationV2Run | undefined {
   return projection.runs

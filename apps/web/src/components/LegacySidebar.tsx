@@ -1,25 +1,14 @@
-import { useSupportsMultiplePullRequests } from "~/hooks/useSupportsMultiplePullRequests";
-import { resolveThreadCurrentPullRequestLink } from "@t3tools/client-runtime/thread-pull-requests";
 import { Spinner } from "~/components/ui/spinner";
 import {
   ArchiveIcon,
   ArrowUpDownIcon,
   ChevronRightIcon,
   FolderPlusIcon,
-  Globe2Icon,
   SearchIcon,
   SquarePenIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import {
-  ChangeRequestStatusIcon,
-  prStatusIndicator,
-  PrStatusTooltipContent,
-  ThreadTerminalStatusButton,
-  ThreadStatusLabel,
-  ThreadWorktreeIndicator,
-  useLinkedThreadPullRequest,
-} from "./ThreadStatusIndicators";
+import { ThreadStatusLabel, ThreadWorktreeIndicator } from "./ThreadStatusIndicators";
 import { EnvironmentMachineIcon } from "./EnvironmentMachineIcon";
 import { ProjectFavicon } from "./ProjectFavicon";
 import { useAtomValue } from "@effect/atom-react";
@@ -44,7 +33,6 @@ import { restrictToFirstScrollableAncestor, restrictToVerticalAxis } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import {
   AuthOrchestrationOperateScope,
-  AuthPreviewOperateScope,
   type ContextMenuItem,
   type EnvironmentId,
   ProjectId,
@@ -80,10 +68,7 @@ import { isDesktopLocalConnectionTarget, isWslConnectionTarget } from "../connec
 import { useDesktopLocalBootstraps } from "../connection/useDesktopLocalBootstraps";
 import { isElectron } from "../env";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { useTerminalFocus } from "../hooks/useTerminalFocus";
-import { useOpenPrLink } from "../lib/openPullRequestLink";
 import { releaseProjectDraftUploads } from "../lib/composerDraftUploads";
-import { isTerminalFocused } from "../lib/terminalFocus";
 import { isMacPlatform } from "../lib/utils";
 import { useSidebarPendingFileDropStore } from "../sidebarPendingFileDropStore";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
@@ -94,16 +79,10 @@ import {
   useThreadShellsForProjectRefs,
   waitForProjectRemoval,
 } from "../state/entities";
-import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
-import { useThreadRunningTerminalIds } from "../state/terminalSessions";
-import { useThreadDiscoveredPorts } from "../portDiscoveryState";
-import { openDiscoveredPort } from "./preview/openDiscoveredPort";
-import { useAtomCommand } from "../state/use-atom-command";
 import {
   ORCHESTRATION_OPERATE_DENIED_MESSAGE,
   useOrchestrationCommand,
 } from "../state/use-orchestration-command";
-import { previewEnvironment } from "../state/preview";
 import { readEnvironmentScope, useEnvironmentScope } from "../state/session";
 import {
   legacyProjectCwdPreferenceKey,
@@ -124,7 +103,6 @@ import { ensureLocalApi, readLocalApi } from "../localApi";
 import { useComposerDraftStore } from "../composerDraftStore";
 import { useNewThreadHandler } from "../hooks/useHandleNewThread";
 import { useDesktopUpdateState } from "../state/desktopUpdate";
-
 import { useThreadActions } from "../hooks/useThreadActions";
 import { projectEnvironment } from "../state/projects";
 import { threadEnvironment, useEnvironmentThread } from "../state/threads";
@@ -208,7 +186,7 @@ import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useIsMobile } from "~/hooks/useMediaQuery";
 import { CommandDialogTrigger } from "./ui/command";
 import { useClientSettings, updateClientSettings } from "~/hooks/useSettings";
-import { primaryServerKeybindingsAtom, serverEnvironment } from "../state/server";
+import { primaryServerKeybindingsAtom } from "../state/server";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { canShareWithGuestAtom } from "./chat/guestShareAvailability";
 import { openGuestShareDialog } from "./chat/guestShareDialogState";
@@ -225,7 +203,6 @@ import {
   type SidebarProjectGroupMember,
   type SidebarProjectSnapshot,
 } from "../sidebarProjectGrouping";
-import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
 import {
   completeSidebarRouteReveal,
@@ -253,19 +230,16 @@ const PROJECT_GROUPING_MODE_LABELS: Record<SidebarProjectGroupingMode, string> =
 };
 const SIDEBAR_ICON_ACTION_BUTTON_CLASS =
   "inline-flex h-6 min-w-6 cursor-pointer items-center justify-center rounded-md px-0.75 text-icon-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring";
-
 function SidebarThreadDetailPrewarmer({ threadRef }: { readonly threadRef: ScopedThreadRef }) {
   useEnvironmentThread(threadRef.environmentId, threadRef.threadId);
   return null;
 }
-
 function clampSidebarThreadPreviewCount(value: number): SidebarThreadPreviewCount {
   return Math.min(
     MAX_SIDEBAR_THREAD_PREVIEW_COUNT,
     Math.max(MIN_SIDEBAR_THREAD_PREVIEW_COUNT, value),
   ) as SidebarThreadPreviewCount;
 }
-
 function formatProjectMemberActionLabel(
   member: SidebarProjectGroupMember,
   groupedProjectCount: number,
@@ -273,12 +247,10 @@ function formatProjectMemberActionLabel(
   if (groupedProjectCount <= 1) {
     return member.title;
   }
-
   return member.environmentLabel
     ? `${member.environmentLabel}: ${member.workspaceRoot}`
     : member.workspaceRoot;
 }
-
 function projectExpansionPreferenceKeys(project: SidebarProjectSnapshot): string[] {
   return [
     project.projectKey,
@@ -286,7 +258,6 @@ function projectExpansionPreferenceKeys(project: SidebarProjectSnapshot): string
     ...project.memberProjects.map((member) => legacyProjectCwdPreferenceKey(member.workspaceRoot)),
   ];
 }
-
 function projectGroupingModeDescription(mode: SidebarProjectGroupingMode): string {
   switch (mode) {
     case "repository":
@@ -297,11 +268,9 @@ function projectGroupingModeDescription(mode: SidebarProjectGroupingMode): strin
       return "Every project path gets its own sidebar row.";
   }
 }
-
 function buildThreadJumpLabelMap(input: {
   keybindings: ResolvedKeybindingsConfig;
   platform: string;
-  terminalOpen: boolean;
   threadJumpCommandByKey: ReadonlyMap<
     string,
     NonNullable<ReturnType<typeof threadJumpCommandForIndex>>
@@ -310,12 +279,10 @@ function buildThreadJumpLabelMap(input: {
   if (input.threadJumpCommandByKey.size === 0) {
     return EMPTY_THREAD_JUMP_LABELS;
   }
-
   const shortcutLabelOptions = {
     platform: input.platform,
     context: {
       terminalFocus: false,
-      terminalOpen: input.terminalOpen,
     },
   } as const;
   const mapping = new Map<string, string>();
@@ -327,12 +294,11 @@ function buildThreadJumpLabelMap(input: {
   }
   return mapping.size > 0 ? mapping : EMPTY_THREAD_JUMP_LABELS;
 }
-
 interface SidebarThreadRowProps {
   thread: SidebarThreadSummary;
   orderedProjectThreadKeys: readonly string[];
   isActive: boolean;
-  openPullRequestsInRightPanel: boolean;
+
   jumpLabel: string | null;
   appSettingsConfirmThreadArchive: boolean;
   renamingThreadKey: string | null;
@@ -353,7 +319,10 @@ interface SidebarThreadRowProps {
   handleMultiSelectContextMenu: (position: { x: number; y: number }) => Promise<void>;
   handleThreadContextMenu: (
     threadRef: ScopedThreadRef,
-    position: { x: number; y: number },
+    position: {
+      x: number;
+      y: number;
+    },
   ) => Promise<void>;
   clearSelection: () => void;
   commitRename: (
@@ -363,14 +332,9 @@ interface SidebarThreadRowProps {
   ) => Promise<void>;
   cancelRename: () => void;
   attemptArchiveThread: (threadRef: ScopedThreadRef) => Promise<void>;
-  openPrLink: (
-    event: React.MouseEvent<HTMLElement>,
-    prUrl: string,
-    threadRef?: ScopedThreadRef,
-  ) => boolean;
+
   onFileDropThreads: (threadRef: ScopedThreadRef, files: File[]) => void;
 }
-
 function checkTaskPermission(environmentId: EnvironmentId): boolean {
   if (readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return true;
   toastManager.add(
@@ -382,12 +346,11 @@ function checkTaskPermission(environmentId: EnvironmentId): boolean {
   );
   return false;
 }
-
 const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowProps) {
   const {
     orderedProjectThreadKeys,
     isActive,
-    openPullRequestsInRightPanel,
+
     jumpLabel,
     appSettingsConfirmThreadArchive,
     renamingThreadKey,
@@ -407,12 +370,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     commitRename,
     cancelRename,
     attemptArchiveThread,
-    openPrLink,
+
     onFileDropThreads,
     thread,
   } = props;
   const canOperateThread = useEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope);
-  const canOperatePreview = useEnvironmentScope(thread.environmentId, AuthPreviewOperateScope);
   const threadKey = scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
   const [isFileDragOver, setIsFileDragOver] = useState(false);
   useEffect(() => {
@@ -421,22 +383,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     window.addEventListener("dragend", clearFileDrag);
     return () => window.removeEventListener("dragend", clearFileDrag);
   }, [isFileDragOver]);
-  const { leaseLiveStatus, rowRef } = useSidebarRowSubscriptionLease(isActive);
+  const { rowRef } = useSidebarRowSubscriptionLease(isActive);
   const localLastVisitedAt = useUiStateStore((state) => state.threadLastVisitedAtById[threadKey]);
   const lastVisitedAt = resolveThreadLastVisitedAt(thread.lastVisitedAt, localLastVisitedAt);
   const isSelected = useThreadSelectionStore((state) => state.selectedThreadKeys.has(threadKey));
-  const runningTerminalIds = useThreadRunningTerminalIds({
-    environmentId: thread.environmentId,
-    threadId: thread.id,
-  });
   const isMobile = useIsMobile();
-  const discoveredPorts = useThreadDiscoveredPorts({
-    environmentId: thread.environmentId,
-    threadId: thread.id,
-  });
-  const openPreview = useAtomCommand(previewEnvironment.open, {
-    reportFailure: false,
-  });
   const environment = useEnvironment(thread.environmentId);
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const isRemoteThread = thread.environmentId !== primaryEnvironmentId;
@@ -454,15 +405,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       lastVisitedAt,
     },
   });
-  const linkedPullRequestStatus = useLinkedThreadPullRequest(
-    thread.environmentId,
-    thread.linkedPullRequest,
-    leaseLiveStatus,
-    thread.pullRequests,
-    thread.branchPullRequest,
-  );
-  const pr = linkedPullRequestStatus?.pr ?? null;
-  const supportsMultiplePullRequests = useSupportsMultiplePullRequests(thread.environmentId);
   // Hooks must precede this ref's plain uses for the compiler to cache it.
   const threadRef = scopeThreadRef(thread.environmentId, thread.id);
   const fileDropHandlers = makeWorkspaceFileDropHandlers({
@@ -473,31 +415,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     addFolders: () => {},
   });
   const isHighlighted = isActive || isSelected;
-  const handleOpenDiscoveredPort = (event: React.MouseEvent<HTMLButtonElement>) => {
-    const port = discoveredPorts[0];
-    if (!port || !canOperatePreview) return;
-    event.preventDefault();
-    event.stopPropagation();
-    navigateToThread(threadRef);
-    void (async () => {
-      const result = await openDiscoveredPort({ threadRef, port, openPreview });
-      if (result._tag === "Success" || isAtomCommandInterrupted(result)) {
-        return;
-      }
-      const error = squashAtomCommandFailure(result);
-      toastManager.add(
-        stackedThreadToast({
-          type: "error",
-          title: "Unable to open preview",
-          description: error instanceof Error ? error.message : "The preview could not be opened.",
-        }),
-      );
-    })();
-  };
-  const currentLinkedPr = supportsMultiplePullRequests
-    ? resolveThreadCurrentPullRequestLink(thread.pullRequests)
-    : null;
-  const prStatus = prStatusIndicator(pr, linkedPullRequestStatus?.sourceControlProvider);
+
   const isConfirmingArchive =
     canOperateThread && confirmingArchiveThreadKey === threadKey && !isThreadRunning;
   const threadMetaClassName = isConfirmingArchive
@@ -562,7 +480,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       })();
       return;
     }
-
     if (hasSelection) {
       clearSelection();
     }
@@ -585,18 +502,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       }
     })();
   };
-  const handlePrClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    const url = prStatus?.url ?? currentLinkedPr?.url;
-    if (!url) return;
-    const openedInRightPanel = openPrLink(
-      event,
-      url,
-      openPullRequestsInRightPanel ? threadRef : undefined,
-    );
-    if (openedInRightPanel && openPullRequestsInRightPanel && !isActive) {
-      navigateToThread(threadRef);
-    }
-  };
+
   const handleRenameInputRef = (element: HTMLInputElement | null) => {
     if (element && renamingInputRef.current !== element) {
       renamingInputRef.current = element;
@@ -658,7 +564,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     event.stopPropagation();
     void attemptArchiveThread(threadRef);
   };
-
   return (
     <SidebarMenuSubItem
       ref={rowRef}
@@ -691,45 +596,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         onContextMenu={handleRowContextMenu}
       >
         <div className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
-          {prStatus && pr && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <a
-                    href={prStatus.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={prStatus.tooltip}
-                    className={`inline-flex items-center justify-center ${prStatus.colorClass} cursor-pointer rounded-sm outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring`}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={handlePrClick}
-                  >
-                    <ChangeRequestStatusIcon
-                      state={pr.state}
-                      isDraft={pr.isDraft}
-                      className="size-3"
-                    />
-                  </a>
-                }
-              />
-              <TooltipPopup side="top">
-                <PrStatusTooltipContent status={prStatus} />
-              </TooltipPopup>
-            </Tooltip>
-          )}
-          {!pr && currentLinkedPr ? (
-            <a
-              href={currentLinkedPr.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={handlePrClick}
-              className="text-muted-foreground"
-              aria-label={`PR #${currentLinkedPr.number}, status pending`}
-            >
-              <PullRequestGlyph.pullRequest className="size-3" />
-            </a>
-          ) : null}
           {threadStatus && <ThreadStatusLabel status={threadStatus} />}
           {canOperateThread && renamingThreadKey === threadKey ? (
             <input
@@ -759,36 +625,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           )}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          {canOperatePreview && discoveredPorts.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    aria-label={`Open localhost:${discoveredPorts[0]?.port ?? ""}`}
-                    className="inline-flex cursor-pointer items-center justify-center text-success-foreground outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-                    onClick={handleOpenDiscoveredPort}
-                  />
-                }
-              >
-                <Globe2Icon className="size-3" />
-              </TooltipTrigger>
-              <TooltipPopup side="top">
-                Open localhost:{discoveredPorts[0]?.port}
-                {discoveredPorts.length > 1 ? ` (+${discoveredPorts.length - 1})` : ""}
-              </TooltipPopup>
-            </Tooltip>
-          )}
           <ThreadWorktreeIndicator thread={thread} />
-          <ThreadTerminalStatusButton
-            threadRef={threadRef}
-            terminalIds={runningTerminalIds}
-            onThreadActivate={navigateToThread}
-          />
+
           <div
-            className={`flex min-w-12 justify-end ${
-              isRemoteThread ? "max-sm:min-w-24" : "max-sm:min-w-20"
-            }`}
+            className={`flex min-w-12 justify-end ${isRemoteThread ? "max-sm:min-w-24" : "max-sm:min-w-20"}`}
           >
             {isConfirmingArchive ? (
               <button
@@ -877,9 +717,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   </Tooltip>
                 ) : (
                   <span
-                    className={`text-3xs tabular-nums ${
-                      isHighlighted ? "text-foreground" : "text-secondary-label"
-                    }`}
+                    className={`text-3xs tabular-nums ${isHighlighted ? "text-foreground" : "text-secondary-label"}`}
                   >
                     <RelativeTime
                       timestamp={thread.latestUserMessageAt ?? thread.updatedAt ?? thread.createdAt}
@@ -894,7 +732,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     </SidebarMenuSubItem>
   );
 });
-
 interface SidebarProjectThreadListProps {
   projectKey: string;
   projectExpanded: boolean;
@@ -906,7 +743,7 @@ interface SidebarProjectThreadListProps {
   shouldShowThreadPanel: boolean;
   isThreadListExpanded: boolean;
   activeRouteThreadKey: string | null;
-  openPullRequestsInRightPanel: boolean;
+
   threadJumpLabelByKey: ReadonlyMap<string, string>;
   appSettingsConfirmThreadArchive: boolean;
   renamingThreadKey: string | null;
@@ -929,7 +766,10 @@ interface SidebarProjectThreadListProps {
   handleMultiSelectContextMenu: (position: { x: number; y: number }) => Promise<void>;
   handleThreadContextMenu: (
     threadRef: ScopedThreadRef,
-    position: { x: number; y: number },
+    position: {
+      x: number;
+      y: number;
+    },
   ) => Promise<void>;
   clearSelection: () => void;
   commitRename: (
@@ -939,15 +779,10 @@ interface SidebarProjectThreadListProps {
   ) => Promise<void>;
   cancelRename: () => void;
   attemptArchiveThread: (threadRef: ScopedThreadRef) => Promise<void>;
-  openPrLink: (
-    event: React.MouseEvent<HTMLElement>,
-    prUrl: string,
-    threadRef?: ScopedThreadRef,
-  ) => boolean;
+
   expandThreadListForProject: (projectKey: string) => void;
   collapseThreadListForProject: (projectKey: string) => void;
 }
-
 const SidebarProjectThreadList = memo(function SidebarProjectThreadList(
   props: SidebarProjectThreadListProps,
 ) {
@@ -962,7 +797,7 @@ const SidebarProjectThreadList = memo(function SidebarProjectThreadList(
     shouldShowThreadPanel,
     isThreadListExpanded,
     activeRouteThreadKey,
-    openPullRequestsInRightPanel,
+
     threadJumpLabelByKey,
     appSettingsConfirmThreadArchive,
     renamingThreadKey,
@@ -984,13 +819,12 @@ const SidebarProjectThreadList = memo(function SidebarProjectThreadList(
     commitRename,
     cancelRename,
     attemptArchiveThread,
-    openPrLink,
+
     expandThreadListForProject,
     collapseThreadListForProject,
   } = props;
   const showMoreButtonRender = <button type="button" />;
   const showLessButtonRender = <button type="button" />;
-
   return (
     <SidebarMenuSub
       ref={attachThreadListAutoAnimateRef}
@@ -1015,7 +849,6 @@ const SidebarProjectThreadList = memo(function SidebarProjectThreadList(
               thread={thread}
               orderedProjectThreadKeys={orderedProjectThreadKeys}
               isActive={activeRouteThreadKey === threadKey}
-              openPullRequestsInRightPanel={openPullRequestsInRightPanel}
               jumpLabel={threadJumpLabelByKey.get(threadKey) ?? null}
               appSettingsConfirmThreadArchive={appSettingsConfirmThreadArchive}
               renamingThreadKey={renamingThreadKey}
@@ -1036,7 +869,6 @@ const SidebarProjectThreadList = memo(function SidebarProjectThreadList(
               commitRename={commitRename}
               cancelRename={cancelRename}
               attemptArchiveThread={attemptArchiveThread}
-              openPrLink={openPrLink}
             />
           );
         })}
@@ -1075,12 +907,11 @@ const SidebarProjectThreadList = memo(function SidebarProjectThreadList(
     </SidebarMenuSub>
   );
 });
-
 interface SidebarProjectItemProps {
   project: SidebarProjectSnapshot;
   isThreadListExpanded: boolean;
   activeRouteThreadKey: string | null;
-  openPullRequestsInRightPanel: boolean;
+
   newThreadShortcutLabel: string | null;
   handleNewThread: ReturnType<typeof useNewThreadHandler>;
   archiveThread: ReturnType<typeof useThreadActions>["archiveThread"];
@@ -1096,7 +927,6 @@ interface SidebarProjectItemProps {
   isManualProjectSorting: boolean;
   dragHandleProps: SortableProjectHandleProps | null;
 }
-
 function resolveProjectThreadStatus(
   thread: SidebarThreadSummary,
   lastVisitedAtByThreadKey: ReadonlyMap<string, string | undefined>,
@@ -1107,7 +937,11 @@ function resolveProjectThreadStatus(
   return resolveThreadStatusPill({
     thread: {
       ...thread,
-      ...(lastVisitedAt !== null && lastVisitedAt !== undefined ? { lastVisitedAt } : {}),
+      ...(lastVisitedAt !== null && lastVisitedAt !== undefined
+        ? {
+            lastVisitedAt,
+          }
+        : {}),
     },
   });
 }
@@ -1184,7 +1018,6 @@ function useProjectThreads(project: SidebarProjectSnapshot) {
     orderedProjectThreadKeys,
   };
 }
-
 function useProjectThreadPanel(input: {
   visibleProjectThreads: readonly SidebarThreadSummary[];
   lastVisitedAtByThreadKey: ReadonlyMap<string, string | undefined>;
@@ -1245,13 +1078,12 @@ function useProjectThreadPanel(input: {
     shouldShowThreadPanel: projectExpanded || pinnedCollapsedThread !== null,
   };
 }
-
 const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjectItemProps) {
   const {
     project,
     isThreadListExpanded,
     activeRouteThreadKey,
-    openPullRequestsInRightPanel,
+
     newThreadShortcutLabel,
     handleNewThread,
     archiveThread,
@@ -1338,7 +1170,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       );
     },
   });
-  const openPrLink = useOpenPrLink();
   const {
     sidebarThreads,
     sidebarThreadByKey,
@@ -1386,7 +1217,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     projectExpanded,
     isThreadListExpanded,
   });
-
   const handleProjectButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (suppressProjectClickForContextMenuRef.current) {
       suppressProjectClickForContextMenuRef.current = false;
@@ -1410,7 +1240,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     }
     setProjectExpanded(projectPreferenceKeys, !projectExpanded);
   };
-
   const handleProjectButtonKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
@@ -1419,7 +1248,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     }
     setProjectExpanded(projectPreferenceKeys, !projectExpanded);
   };
-
   const handleProjectButtonPointerDownCapture = (event: React.PointerEvent<HTMLButtonElement>) => {
     suppressProjectClickForContextMenuRef.current = false;
     if (
@@ -1431,16 +1259,13 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     ) {
       event.stopPropagation();
     }
-
     suppressProjectClickAfterDragRef.current = false;
   };
-
   const openProjectRenameDialog = (member: SidebarProjectGroupMember) => {
     if (!checkTaskPermission(member.environmentId)) return;
     setProjectRenameTarget(member);
     setProjectRenameTitle(member.title);
   };
-
   const openProjectGroupingDialog = (member: SidebarProjectGroupMember) => {
     const overrideKey = deriveProjectGroupingOverrideKey(member);
     setProjectGroupingTarget(member);
@@ -1448,7 +1273,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       projectGroupingSettings.sidebarProjectGroupingOverrides?.[overrideKey] ?? "inherit",
     );
   };
-
   const removeProject = async (member: SidebarProjectGroupMember) => {
     const memberProjectRef = scopeProjectRef(member.environmentId, member.id);
     const result = await deleteProject({
@@ -1479,19 +1303,22 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     draftStore.clearProjectDraftThreadId(memberProjectRef);
     return result;
   };
-
   const handleRemoveProject = async (member: SidebarProjectGroupMember) => {
     if (!checkTaskPermission(member.environmentId)) return;
     const api = readLocalApi();
     if (!api) {
       return;
     }
-
     const memberProjectRef = scopeProjectRef(member.environmentId, member.id);
     const memberThreadCount =
       (memberThreadCountByPhysicalKey.get(member.physicalProjectKey) ?? 0) +
       readUnloadedThreadCount(
-        [{ environmentId: member.environmentId, id: member.id }],
+        [
+          {
+            environmentId: member.environmentId,
+            id: member.id,
+          },
+        ],
         sidebarThreads,
       );
     if (memberThreadCount > 0) {
@@ -1510,7 +1337,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
                   window.setTimeout(resolve, 180);
                 });
                 if (!checkTaskPermission(member.environmentId)) return;
-
                 const latestProjectThreads = Array.from(readSidebarThreadByKey().values()).filter(
                   (thread) =>
                     thread.environmentId === memberProjectRef.environmentId &&
@@ -1519,15 +1345,18 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
                 const threadCount =
                   latestProjectThreads.length +
                   readUnloadedThreadCount(
-                    [{ environmentId: member.environmentId, id: member.id }],
+                    [
+                      {
+                        environmentId: member.environmentId,
+                        id: member.id,
+                      },
+                    ],
                     latestProjectThreads,
                   );
                 const confirmed = await api.dialogs.confirm(
                   threadCount > 0
                     ? [
-                        `Remove project "${member.title}" and delete its ${threadCount} thread${
-                          threadCount === 1 ? "" : "s"
-                        }?`,
+                        `Remove project "${member.title}" and delete its ${threadCount} thread${threadCount === 1 ? "" : "s"}?`,
                         `Path: ${member.workspaceRoot}`,
                         ...(member.environmentLabel
                           ? [`Environment: ${member.environmentLabel}`]
@@ -1545,12 +1374,13 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
                         "This permanently clears any archived conversation history.",
                         "This removes only this project entry.",
                       ].join("\n"),
-                  { variant: "destructive" },
+                  {
+                    variant: "destructive",
+                  },
                 );
                 if (!confirmed) {
                   return;
                 }
-
                 const result = await removeProject(member);
                 if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
                   const error = squashAtomCommandFailure(result);
@@ -1585,7 +1415,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       );
       return;
     }
-
     const message = [
       `Remove project "${member.title}"?`,
       `Path: ${member.workspaceRoot}`,
@@ -1593,11 +1422,12 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       "This permanently clears any archived conversation history.",
       "This removes only this project entry.",
     ].join("\n");
-    const confirmed = await api.dialogs.confirm(message, { variant: "destructive" });
+    const confirmed = await api.dialogs.confirm(message, {
+      variant: "destructive",
+    });
     if (!confirmed) {
       return;
     }
-
     const result = await removeProject(member);
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
@@ -1616,14 +1446,12 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       );
     }
   };
-
   const handleProjectButtonContextMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     suppressProjectClickForContextMenuRef.current = true;
     void (async () => {
       const api = readLocalApi();
       if (!api) return;
-
       const actionHandlers = new Map<string, () => Promise<void> | void>();
       const makeLeaf = (
         action: "rename" | "grouping" | "copy-path" | "delete",
@@ -1643,21 +1471,29 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
               openProjectGroupingDialog(member);
               return;
             case "copy-path":
-              copyPathToClipboard(member.workspaceRoot, { path: member.workspaceRoot });
+              copyPathToClipboard(member.workspaceRoot, {
+                path: member.workspaceRoot,
+              });
               return;
             case "delete":
               return handleRemoveProject(member);
           }
         });
-
         return {
           id,
           label: formatProjectMemberActionLabel(member, project.groupedProjectCount),
-          ...(options?.destructive ? { destructive: true } : {}),
-          ...(options?.disabled ? { disabled: true } : {}),
+          ...(options?.destructive
+            ? {
+                destructive: true,
+              }
+            : {}),
+          ...(options?.disabled
+            ? {
+                disabled: true,
+              }
+            : {}),
         };
       };
-
       const buildTargetedItem = (
         action: "rename" | "grouping" | "copy-path" | "delete",
         label: string,
@@ -1670,35 +1506,58 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
           const singleMember = project.memberProjects[0]!;
           return {
             ...makeLeaf(action, singleMember, {
-              ...(options?.destructive ? { destructive: true } : {}),
-              ...(options?.isDisabled?.(singleMember) ? { disabled: true } : {}),
+              ...(options?.destructive
+                ? {
+                    destructive: true,
+                  }
+                : {}),
+              ...(options?.isDisabled?.(singleMember)
+                ? {
+                    disabled: true,
+                  }
+                : {}),
             }),
             label,
-            ...(action === "delete" ? { icon: "trash" } : {}),
+            ...(action === "delete"
+              ? {
+                  icon: "trash",
+                }
+              : {}),
           };
         }
-
         return {
           id: `${action}:submenu`,
           label,
-          ...(action === "delete" ? { icon: "trash" } : {}),
+          ...(action === "delete"
+            ? {
+                icon: "trash",
+              }
+            : {}),
           children: project.memberProjects.map((member) =>
             makeLeaf(action, member, {
-              ...(options?.destructive ? { destructive: true } : {}),
-              ...(options?.isDisabled?.(member) ? { disabled: true } : {}),
+              ...(options?.destructive
+                ? {
+                    destructive: true,
+                  }
+                : {}),
+              ...(options?.isDisabled?.(member)
+                ? {
+                    disabled: true,
+                  }
+                : {}),
             }),
           ),
         };
       };
-
       actionHandlers.set("project-settings", () => {
         if (isMobile) setOpenMobile(false);
         void router.navigate({
           to: "/projects/$projectKey",
-          params: { projectKey: project.projectKey },
+          params: {
+            projectKey: project.projectKey,
+          },
         });
       });
-
       const clicked = await api.contextMenu.show(
         [
           buildTargetedItem("rename", "Rename", {
@@ -1707,7 +1566,11 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
           }),
           buildTargetedItem("grouping", "Group into..."),
           buildTargetedItem("copy-path", "Copy Path"),
-          { id: "project-settings", label: "Project settings", icon: "settings" },
+          {
+            id: "project-settings",
+            label: "Project settings",
+            icon: "settings",
+          },
           buildTargetedItem("delete", "Remove", {
             destructive: true,
             isDisabled: (member) =>
@@ -1719,15 +1582,12 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
           y: event.clientY,
         },
       );
-
       if (!clicked) {
         return;
       }
-
       await actionHandlers.get(clicked)?.();
     })();
   };
-
   const navigateToThread = (threadRef: ScopedThreadRef) => {
     if (useThreadSelectionStore.getState().selectedThreadKeys.size > 0) {
       clearSelection();
@@ -1742,7 +1602,10 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     });
   };
   const handleThreadFileDrop = async (threadRef: ScopedThreadRef, files: File[]) => {
-    const dropId = queuePendingFileDrop({ threadRef, files });
+    const dropId = queuePendingFileDrop({
+      threadRef,
+      files,
+    });
     const targetPathname = router.buildLocation({
       to: "/$environmentId/$threadId",
       params: buildThreadRouteParams(threadRef),
@@ -1757,7 +1620,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       clearPendingFileDrop(dropId);
     }
   };
-
   const handleThreadClick = (
     event: React.MouseEvent,
     threadRef: ScopedThreadRef,
@@ -1769,13 +1631,11 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     const isShiftClick = event.shiftKey;
     const threadKey = scopedThreadKey(threadRef);
     const currentSelectionCount = useThreadSelectionStore.getState().selectedThreadKeys.size;
-
     if (isModClick) {
       event.preventDefault();
       toggleThreadSelection(threadKey);
       return;
     }
-
     if (isShiftClick) {
       event.preventDefault();
       rangeSelectTo(threadKey, orderedProjectThreadKeys);
@@ -1786,7 +1646,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     if (isTrailingDoubleClick(event.detail)) {
       return;
     }
-
     if (currentSelectionCount > 0) {
       clearSelection();
     }
@@ -1799,7 +1658,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       params: buildThreadRouteParams(threadRef),
     });
   };
-
   const handleMultiSelectContextMenu = async (position: { x: number; y: number }) => {
     const api = readLocalApi();
     if (!api) return;
@@ -1809,7 +1667,15 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     const selectedThreadEntries = threadKeys.flatMap((threadKey) => {
       const threadRef = parseScopedThreadKey(threadKey);
       const thread = threadRef ? readThreadShell(threadRef) : null;
-      return threadRef && thread ? [{ threadKey, threadRef, thread }] : [];
+      return threadRef && thread
+        ? [
+            {
+              threadKey,
+              threadRef,
+              thread,
+            },
+          ]
+        : [];
     });
     const hasRunningThread = selectedThreadEntries.some(
       ({ thread }) => !threadRuntimeCanArchive(thread.runtime),
@@ -1817,16 +1683,20 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     const canOperateSelection = selectedThreadEntries.every(({ threadRef }) =>
       readEnvironmentScope(threadRef.environmentId, AuthOrchestrationOperateScope),
     );
-
     const clicked = await api.contextMenu.show(
-      buildMultiSelectThreadContextMenuItems({ count, hasRunningThread }).map((item) =>
+      buildMultiSelectThreadContextMenuItems({
+        count,
+        hasRunningThread,
+      }).map((item) =>
         item.id === "archive" || item.id === "delete"
-          ? { ...item, disabled: item.disabled || !canOperateSelection }
+          ? {
+              ...item,
+              disabled: item.disabled || !canOperateSelection,
+            }
           : item,
       ),
       position,
     );
-
     if (clicked === "mark-unread") {
       for (const { threadRef } of selectedThreadEntries) {
         markThreadUnread(threadRef);
@@ -1834,14 +1704,12 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       clearSelection();
       return;
     }
-
     if (
       (clicked === "archive" || clicked === "delete") &&
       !selectedThreadEntries.every(({ threadRef }) => checkTaskPermission(threadRef.environmentId))
     ) {
       return;
     }
-
     if (clicked === "archive") {
       if (appSettingsConfirmThreadArchive) {
         const confirmed = await api.dialogs.confirm(
@@ -1856,10 +1724,12 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       ) {
         return;
       }
-
       const archiveOutcome = await archiveSelectedThreadEntries({
         entries: selectedThreadEntries,
-        archive: ({ threadRef }, onArchived) => archiveThread(threadRef, { onArchived }),
+        archive: ({ threadRef }, onArchived) =>
+          archiveThread(threadRef, {
+            onArchived,
+          }),
       });
       for (const failure of archiveOutcome.followupFailures) {
         if (isAtomCommandInterrupted(failure)) continue;
@@ -1889,16 +1759,16 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       removeFromSelection(threadKeys);
       return;
     }
-
     if (clicked !== "delete") return;
-
     if (appSettingsConfirmThreadDelete) {
       const confirmed = await api.dialogs.confirm(
         [
           `Delete ${count} thread${count === 1 ? "" : "s"}?`,
           "This permanently clears conversation history for these threads.",
         ].join("\n"),
-        { variant: "destructive" },
+        {
+          variant: "destructive",
+        },
       );
       if (!confirmed) return;
     }
@@ -1907,10 +1777,12 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     ) {
       return;
     }
-
     const { deletedThreadKeys, firstFailure } = await deleteSelectedThreadEntries({
       entries: selectedThreadEntries,
-      delete: ({ threadRef }, deletedThreadKeys) => deleteThread(threadRef, { deletedThreadKeys }),
+      delete: ({ threadRef }, deletedThreadKeys) =>
+        deleteThread(threadRef, {
+          deletedThreadKeys,
+        }),
     });
     if (firstFailure !== null) {
       const firstError = squashAtomCommandFailure(firstFailure);
@@ -1929,7 +1801,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       }),
     );
   };
-
   const createThreadForProjectMember = (member: SidebarProjectGroupMember) => {
     if (isMobile) {
       setOpenMobile(false);
@@ -1950,16 +1821,13 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       }
     })();
   };
-
   const handleCreateThreadClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-
     if (project.memberProjects.length === 1) {
       createThreadForProjectMember(project.memberProjects[0]!);
       return;
     }
-
     void (async () => {
       const api = readLocalApi();
       if (!api) {
@@ -2001,7 +1869,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       createThreadForProjectMember(targetMember);
     })();
   };
-
   const attemptArchiveThread = async (threadRef: ScopedThreadRef) => {
     if (!checkTaskPermission(threadRef.environmentId)) return;
     const result = await archiveThread(threadRef);
@@ -2016,12 +1883,10 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       );
     }
   };
-
   const cancelRename = () => {
     setRenamingThreadKey(null);
     renamingInputRef.current = null;
   };
-
   const startThreadRename = (threadKey: string, title: string) => {
     const threadRef = parseScopedThreadKey(threadKey);
     if (!threadRef || !checkTaskPermission(threadRef.environmentId)) return;
@@ -2029,7 +1894,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     setRenamingTitle(title);
     renamingCommittedRef.current = false;
   };
-
   const commitRename = async (
     threadRef: ScopedThreadRef,
     newTitle: string,
@@ -2043,7 +1907,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         return null;
       });
     };
-
     const trimmed = newTitle.trim();
     if (trimmed.length === 0) {
       toastManager.add({
@@ -2076,17 +1939,14 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     }
     finishRename();
   };
-
   const closeProjectRenameDialog = () => {
     setProjectRenameTarget(null);
     setProjectRenameTitle("");
   };
-
   const submitProjectRename = async () => {
     if (!projectRenameTarget) {
       return;
     }
-
     const trimmed = projectRenameTitle.trim();
     if (trimmed.length === 0) {
       toastManager.add({
@@ -2095,12 +1955,10 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       });
       return;
     }
-
     if (trimmed === projectRenameTarget.title) {
       closeProjectRenameDialog();
       return;
     }
-
     const result = await updateProject({
       environmentId: projectRenameTarget.environmentId,
       input: {
@@ -2121,17 +1979,14 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       );
     }
   };
-
   const closeProjectGroupingDialog = () => {
     setProjectGroupingTarget(null);
     setProjectGroupingSelection("inherit");
   };
-
   const saveProjectGroupingPreference = () => {
     if (!projectGroupingTarget) {
       return;
     }
-
     const overrideKey = deriveProjectGroupingOverrideKey(projectGroupingTarget);
     const nextOverrides = {
       ...projectGroupingSettings.sidebarProjectGroupingOverrides,
@@ -2146,9 +2001,14 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     });
     closeProjectGroupingDialog();
   };
-
   const handleThreadContextMenu = useStableCallback(
-    async (threadRef: ScopedThreadRef, position: { x: number; y: number }) => {
+    async (
+      threadRef: ScopedThreadRef,
+      position: {
+        x: number;
+        y: number;
+      },
+    ) => {
       const api = readLocalApi();
       if (!api) return;
       const threadKey = scopedThreadKey(threadRef);
@@ -2166,16 +2026,42 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       const clicked = await api.contextMenu.show(
         [
           ...(thread.branch
-            ? [{ id: "new-thread-on-branch", label: `New thread on ${thread.branch}` }]
+            ? [
+                {
+                  id: "new-thread-on-branch",
+                  label: `New thread on ${thread.branch}`,
+                },
+              ]
             : []),
-          { id: "rename", label: "Rename thread", disabled: !canOperateThread },
+          {
+            id: "rename",
+            label: "Rename thread",
+            disabled: !canOperateThread,
+          },
           ...(appAtomRegistry.get(canShareWithGuestAtom(thread.environmentId))
-            ? [{ id: "share-guest", label: "Share with guest" }]
+            ? [
+                {
+                  id: "share-guest",
+                  label: "Share with guest",
+                },
+              ]
             : []),
-          { id: "mark-unread", label: "Mark unread" },
-          { id: "copy-path", label: "Copy Path" },
-          { id: "copy-thread-id", label: "Copy Thread ID" },
-          { id: "project-settings", label: "Project settings" },
+          {
+            id: "mark-unread",
+            label: "Mark unread",
+          },
+          {
+            id: "copy-path",
+            label: "Copy Path",
+          },
+          {
+            id: "copy-thread-id",
+            label: "Copy Thread ID",
+          },
+          {
+            id: "project-settings",
+            label: "Project settings",
+          },
           {
             id: "delete",
             label: "Delete",
@@ -2186,16 +2072,16 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         ],
         position,
       );
-
       if (clicked === "project-settings") {
         if (isMobile) setOpenMobile(false);
         void router.navigate({
           to: "/projects/$projectKey",
-          params: { projectKey: project.projectKey },
+          params: {
+            projectKey: project.projectKey,
+          },
         });
         return;
       }
-
       if (clicked === "new-thread-on-branch") {
         const result = await settlePromise(() =>
           handleNewThread(scopeProjectRef(thread.environmentId, thread.projectId), {
@@ -2217,12 +2103,10 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         }
         return;
       }
-
       if (clicked === "rename") {
         startThreadRename(threadKey, thread.title);
         return;
       }
-
       if (clicked === "share-guest") {
         openGuestShareDialog(threadRef);
         return;
@@ -2242,11 +2126,15 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
           );
           return;
         }
-        copyPathToClipboard(threadWorkspacePath, { path: threadWorkspacePath });
+        copyPathToClipboard(threadWorkspacePath, {
+          path: threadWorkspacePath,
+        });
         return;
       }
       if (clicked === "copy-thread-id") {
-        copyThreadIdToClipboard(thread.id, { threadId: thread.id });
+        copyThreadIdToClipboard(thread.id, {
+          threadId: thread.id,
+        });
         return;
       }
       if (clicked !== "delete") return;
@@ -2257,7 +2145,9 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
             `Delete thread "${thread.title}"?`,
             "This permanently clears conversation history for this thread.",
           ].join("\n"),
-          { variant: "destructive" },
+          {
+            variant: "destructive",
+          },
         );
         if (!confirmed) {
           return;
@@ -2277,7 +2167,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       }
     },
   );
-
   return (
     <>
       <div className="group/project-header relative">
@@ -2303,9 +2192,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
               >
                 <span className="absolute inset-0 flex items-center justify-center transition-opacity duration-150 group-hover/project-header:opacity-0">
                   <span
-                    className={`size-[9px] rounded-full ${projectStatus.dotClass} ${
-                      projectStatus.pulse ? "motion-safe:animate-status-pulse" : ""
-                    }`}
+                    className={`size-[9px] rounded-full ${projectStatus.dotClass} ${projectStatus.pulse ? "motion-safe:animate-status-pulse" : ""}`}
                   />
                 </span>
                 <ChevronRightIcon className="absolute inset-0 m-auto size-3.5 text-icon-muted opacity-0 transition-opacity duration-150 group-hover/project-header:opacity-100" />
@@ -2314,9 +2201,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
             </Tooltip>
           ) : (
             <ChevronRightIcon
-              className={`-ml-0.5 size-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-150 ${
-                projectExpanded ? "rotate-90" : ""
-              }`}
+              className={`-ml-0.5 size-3.5 shrink-0 text-muted-foreground/70 transition-transform duration-150 ${projectExpanded ? "rotate-90" : ""}`}
             />
           )}
           <span className="flex shrink-0">
@@ -2391,7 +2276,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         shouldShowThreadPanel={shouldShowThreadPanel}
         isThreadListExpanded={isThreadListExpanded}
         activeRouteThreadKey={activeRouteThreadKey}
-        openPullRequestsInRightPanel={openPullRequestsInRightPanel}
         threadJumpLabelByKey={threadJumpLabelByKey}
         appSettingsConfirmThreadArchive={appSettingsConfirmThreadArchive}
         renamingThreadKey={renamingThreadKey}
@@ -2413,7 +2297,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         commitRename={commitRename}
         cancelRename={cancelRename}
         attemptArchiveThread={attemptArchiveThread}
-        openPrLink={openPrLink}
         expandThreadListForProject={expandThreadListForProject}
         collapseThreadListForProject={collapseThreadListForProject}
       />
@@ -2546,7 +2429,6 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     </>
   );
 });
-
 const SidebarProjectListRow = memo(function SidebarProjectListRow(props: SidebarProjectItemProps) {
   return (
     <SidebarMenuItem>
@@ -2554,14 +2436,18 @@ const SidebarProjectListRow = memo(function SidebarProjectListRow(props: Sidebar
     </SidebarMenuItem>
   );
 });
-
 function LocalSecondaryStatus() {
   const { environments } = useEnvironments();
   // Poll desktop-local backends because the bridge has no change event.
   const secondaries = useDesktopLocalBootstraps();
-
   const localEnvByUrl = (() => {
-    const map = new Map<string, { phase: string; error: string | null }>();
+    const map = new Map<
+      string,
+      {
+        phase: string;
+        error: string | null;
+      }
+    >();
     for (const environment of environments) {
       if (
         isDesktopLocalConnectionTarget(environment.entry.target) &&
@@ -2575,9 +2461,11 @@ function LocalSecondaryStatus() {
     }
     return map;
   })();
-
   const connecting: string[] = [];
-  const failed: Array<{ label: string; error: string | null }> = [];
+  const failed: Array<{
+    label: string;
+    error: string | null;
+  }> = [];
   for (const bootstrap of secondaries) {
     const env =
       bootstrap.httpBaseUrl !== null ? localEnvByUrl.get(bootstrap.httpBaseUrl) : undefined;
@@ -2585,16 +2473,17 @@ function LocalSecondaryStatus() {
       continue;
     }
     if (env?.phase === "error") {
-      failed.push({ label: bootstrap.label, error: env.error });
+      failed.push({
+        label: bootstrap.label,
+        error: env.error,
+      });
       continue;
     }
     connecting.push(bootstrap.label);
   }
-
   if (connecting.length === 0 && failed.length === 0) {
     return null;
   }
-
   return (
     <SidebarGroup>
       {connecting.length > 0 ? (
@@ -2618,12 +2507,10 @@ function LocalSecondaryStatus() {
     </SidebarGroup>
   );
 }
-
 type SortableProjectHandleProps = Pick<
   ReturnType<typeof useSortable>,
   "attributes" | "listeners" | "setActivatorNodeRef"
 >;
-
 function ProjectSortMenu({
   projectSortOrder,
   threadSortOrder,
@@ -2643,13 +2530,11 @@ function ProjectSortMenu({
     if (nextValue === null) {
       return;
     }
-
     const clampedValue = clampSidebarThreadPreviewCount(nextValue);
     if (clampedValue !== threadPreviewCount) {
       onThreadPreviewCountChange(clampedValue);
     }
   };
-
   return (
     <Menu>
       <Tooltip>
@@ -2742,7 +2627,6 @@ function ProjectSortMenu({
     </Menu>
   );
 }
-
 function SortableProjectItem({
   projectId,
   disabled = false,
@@ -2761,7 +2645,10 @@ function SortableProjectItem({
     transition,
     isDragging,
     isOver,
-  } = useSortable({ id: projectId, disabled });
+  } = useSortable({
+    id: projectId,
+    disabled,
+  });
   return (
     <li
       ref={setNodeRef}
@@ -2769,17 +2656,18 @@ function SortableProjectItem({
         transform: CSS.Translate.toString(transform),
         transition,
       }}
-      className={`group/menu-item relative rounded-md ${
-        isDragging ? "z-20 opacity-80" : ""
-      } ${isOver && !isDragging ? "ring-1 ring-inset ring-primary/40" : ""}`}
+      className={`group/menu-item relative rounded-md ${isDragging ? "z-20 opacity-80" : ""} ${isOver && !isDragging ? "ring-1 ring-inset ring-primary/40" : ""}`}
       data-sidebar="menu-item"
       data-slot="sidebar-menu-item"
     >
-      {children({ attributes, listeners, setActivatorNodeRef })}
+      {children({
+        attributes,
+        listeners,
+        setActivatorNodeRef,
+      })}
     </li>
   );
 }
-
 interface SidebarProjectsContentProps {
   showArm64IntelBuildWarning: boolean;
   arm64IntelBuildWarningDescription: string | null;
@@ -2806,7 +2694,7 @@ interface SidebarProjectsContentProps {
   expandedThreadListsByProject: ReadonlySet<string>;
   activeRouteProjectKey: string | null;
   routeThreadKey: string | null;
-  openPullRequestsInRightPanel: boolean;
+
   newThreadShortcutLabel: string | null;
   commandPaletteShortcutLabel: string | null;
   threadJumpLabelByKey: ReadonlyMap<string, string>;
@@ -2819,7 +2707,6 @@ interface SidebarProjectsContentProps {
   attachProjectListAutoAnimateRef: (node: HTMLElement | null) => void;
   projectsLength: number;
 }
-
 const SidebarProjectsContent = memo(function SidebarProjectsContent(
   props: SidebarProjectsContentProps,
 ) {
@@ -2849,7 +2736,7 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     expandedThreadListsByProject,
     activeRouteProjectKey,
     routeThreadKey,
-    openPullRequestsInRightPanel,
+
     newThreadShortcutLabel,
     commandPaletteShortcutLabel,
     threadJumpLabelByKey,
@@ -2862,17 +2749,21 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     attachProjectListAutoAnimateRef,
     projectsLength,
   } = props;
-
   const handleProjectSortOrderChange = (sortOrder: SidebarProjectSortOrder) => {
-    updateClientSettings({ sidebarProjectSortOrder: sortOrder });
+    updateClientSettings({
+      sidebarProjectSortOrder: sortOrder,
+    });
   };
   const handleThreadSortOrderChange = (sortOrder: SidebarThreadSortOrder) => {
-    updateClientSettings({ sidebarThreadSortOrder: sortOrder });
+    updateClientSettings({
+      sidebarThreadSortOrder: sortOrder,
+    });
   };
   const handleThreadPreviewCountChange = (count: SidebarThreadPreviewCount) => {
-    updateClientSettings({ sidebarThreadPreviewCount: count });
+    updateClientSettings({
+      sidebarThreadPreviewCount: count,
+    });
   };
-
   return (
     <SidebarContent
       fixedHeader={
@@ -2966,7 +2857,6 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
                         activeRouteThreadKey={
                           activeRouteProjectKey === project.projectKey ? routeThreadKey : null
                         }
-                        openPullRequestsInRightPanel={openPullRequestsInRightPanel}
                         newThreadShortcutLabel={newThreadShortcutLabel}
                         handleNewThread={handleNewThread}
                         archiveThread={archiveThread}
@@ -3000,7 +2890,6 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
                 activeRouteThreadKey={
                   activeRouteProjectKey === project.projectKey ? routeThreadKey : null
                 }
-                openPullRequestsInRightPanel={openPullRequestsInRightPanel}
                 newThreadShortcutLabel={newThreadShortcutLabel}
                 handleNewThread={handleNewThread}
                 archiveThread={archiveThread}
@@ -3027,21 +2916,23 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
     </SidebarContent>
   );
 });
-
-const PROJECT_POINTER_SENSOR_OPTIONS = { activationConstraint: { distance: 6 } };
+const PROJECT_POINTER_SENSOR_OPTIONS = {
+  activationConstraint: {
+    distance: 6,
+  },
+};
 const PROJECT_DND_MODIFIERS = [restrictToVerticalAxis, restrictToFirstScrollableAncestor];
-
 const projectCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
   if (pointerCollisions.length > 0) {
     return pointerCollisions;
   }
-
   return closestCorners(args);
 };
-
 function openAddProjectCommandPalette() {
-  openCommandPalette({ open: "add-project" });
+  openCommandPalette({
+    open: "add-project",
+  });
 }
 
 // Separate hooks cache real inputs; later sidebar hooks would invalidate every row's props.
@@ -3145,7 +3036,6 @@ function useSortedLegacySidebarProjects(input: {
     sortedProjectKeys: sortedProjects.map((project) => project.projectKey),
   };
 }
-
 function useLegacySidebarThreads(input: {
   sortedProjects: readonly SidebarProjectSnapshot[];
   physicalToLogicalKey: ReadonlyMap<string, string>;
@@ -3258,7 +3148,6 @@ function useLegacySidebarThreads(input: {
     prewarmedSidebarThreadRefs,
   };
 }
-
 export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRouteReveal }) {
   const reorderProjects = useUiStateStore((store) => store.reorderProjects);
   const navigate = useNavigate();
@@ -3274,11 +3163,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
   );
   const routeThreadRef = resolveActiveThreadRouteRef(routeTarget, routeDraftThread);
   const routeThreadKey = routeThreadRef ? scopedThreadKey(routeThreadRef) : null;
-  const routeTerminalOpen = useTerminalUiStateStore((state) =>
-    routeThreadRef
-      ? selectThreadTerminalUiState(state.terminalUiStateByThreadKey, routeThreadRef).terminalOpen
-      : false,
-  );
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const [expandedThreadListsByProject, setExpandedThreadListsByProject] = useState<
     ReadonlySet<string>
@@ -3293,7 +3177,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
   const setSelectionAnchor = useThreadSelectionStore((s) => s.setAnchor);
   const platform = navigator.platform;
   const shortcutModifiers = useShortcutModifierState();
-  const terminalFocused = useTerminalFocus();
   const {
     projectsLength,
     orderedProjects,
@@ -3339,20 +3222,20 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
     if (!activeRow) return;
     completeSidebarRouteReveal(routeReveal);
     mountRevealOwed.current = false;
-    activeRow.scrollIntoView({ block: "nearest" });
+    activeRow.scrollIntoView({
+      block: "nearest",
+    });
   });
   useEffect(revealRouteRow, [revealRouteRow, routeThreadKey, routeRowRendered]);
   const newThreadShortcutLabelOptions = {
     platform,
     context: {
       terminalFocus: false,
-      terminalOpen: false,
     },
   };
   const newThreadShortcutLabel =
     shortcutLabelForCommand(keybindings, "chat.newLocal", newThreadShortcutLabelOptions) ??
     shortcutLabelForCommand(keybindings, "chat.new", newThreadShortcutLabelOptions);
-
   const navigateToThread = (threadRef: ScopedThreadRef) => {
     if (useThreadSelectionStore.getState().selectedThreadKeys.size > 0) {
       clearSelection();
@@ -3366,9 +3249,7 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
       params: buildThreadRouteParams(threadRef),
     });
   };
-
   const projectDnDSensors = useSensors(useSensor(PointerSensor, PROJECT_POINTER_SENSOR_OPTIONS));
-
   const handleProjectDragEnd = useStableCallback((event: DragEndEvent) => {
     if (sidebarProjectSortOrder !== "manual") {
       dragInProgressRef.current = false;
@@ -3386,7 +3267,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
     const overMemberKeys = overProject.memberProjects.map((member) => member.physicalProjectKey);
     reorderProjects(orderedProjects.map(getProjectOrderKey), activeMemberKeys, overMemberKeys);
   });
-
   const handleProjectDragStart = useStableCallback((_event: DragStartEvent) => {
     if (sidebarProjectSortOrder !== "manual") {
       return;
@@ -3394,11 +3274,9 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
     dragInProgressRef.current = true;
     suppressProjectClickAfterDragRef.current = true;
   });
-
   const handleProjectDragCancel = (_event: DragCancelEvent) => {
     dragInProgressRef.current = false;
   };
-
   const animatedProjectListsRef = useRef(new WeakSet<HTMLElement>());
   const attachProjectListAutoAnimateRef = (node: HTMLElement | null) => {
     if (!node || animatedProjectListsRef.current.has(node)) {
@@ -3407,7 +3285,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
     autoAnimate(node, SIDEBAR_LIST_ANIMATION_OPTIONS);
     animatedProjectListsRef.current.add(node);
   };
-
   const animatedThreadListsRef = useRef(new WeakSet<HTMLElement>());
   const attachThreadListAutoAnimateRef = (node: HTMLElement | null) => {
     if (!node || animatedThreadListsRef.current.has(node)) {
@@ -3416,18 +3293,14 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
     autoAnimate(node, SIDEBAR_LIST_ANIMATION_OPTIONS);
     animatedThreadListsRef.current.add(node);
   };
-
   const isManualProjectSorting = sidebarProjectSortOrder === "manual";
   // Build before modifier-dependent context to give the compiler a separate cache used by every row.
   const threadJumpLabelByKey = buildThreadJumpLabelMap({
     keybindings,
     platform,
-    terminalOpen: routeTerminalOpen,
     threadJumpCommandByKey,
   });
   const sidebarShortcutContext = {
-    terminalFocus: terminalFocused,
-    terminalOpen: routeTerminalOpen,
     modelPickerOpen: isModelPickerOpen(),
   };
   const shouldShowThreadJumpHintsNow = shouldShowThreadJumpHintsForModifiers(
@@ -3442,22 +3315,16 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
     ? threadJumpLabelByKey
     : EMPTY_THREAD_JUMP_LABELS;
   const orderedSidebarThreadKeys = visibleSidebarThreadKeys;
-
   useEffect(() => {
     updateThreadJumpHintsVisibility(shouldShowThreadJumpHintsNow);
   }, [shouldShowThreadJumpHintsNow, updateThreadJumpHintsVisibility]);
-
   const onWindowKeyDown = useEffectEvent((event: globalThis.KeyboardEvent) => {
     const shortcutContext = {
-      terminalFocus: isTerminalFocused(),
-      terminalOpen: routeTerminalOpen,
       modelPickerOpen: isModelPickerOpen(),
     };
-
     if (event.defaultPrevented || event.repeat || isCommandPaletteOpen() || isModelPickerOpen()) {
       return;
     }
-
     const command = resolveShortcutCommand(event, keybindings, {
       platform,
       context: shortcutContext,
@@ -3476,18 +3343,15 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
       if (!targetThread) {
         return;
       }
-
       event.preventDefault();
       event.stopPropagation();
       navigateToThread(scopeThreadRef(targetThread.environmentId, targetThread.id));
       return;
     }
-
     const jumpIndex = threadJumpIndexFromCommand(command ?? "");
     if (jumpIndex === null) {
       return;
     }
-
     const targetThreadKey = threadJumpThreadKeys[jumpIndex];
     if (!targetThreadKey) {
       return;
@@ -3496,7 +3360,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
     if (!targetThread) {
       return;
     }
-
     event.preventDefault();
     event.stopPropagation();
     navigateToThread(scopeThreadRef(targetThread.environmentId, targetThread.id));
@@ -3508,7 +3371,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
       window.removeEventListener("keydown", handleWindowKeyDown);
     };
   }, []);
-
   useEffect(() => {
     const onMouseDown = (event: globalThis.MouseEvent) => {
       if (!useThreadSelectionStore.getState().hasSelection()) return;
@@ -3516,13 +3378,11 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
       if (!shouldClearThreadSelectionOnMouseDown(target)) return;
       clearSelection();
     };
-
     window.addEventListener("mousedown", onMouseDown);
     return () => {
       window.removeEventListener("mousedown", onMouseDown);
     };
   }, [clearSelection]);
-
   const desktopUpdateButtonDisabled = isDesktopUpdateButtonDisabled(desktopUpdateState);
   const desktopUpdateButtonAction = desktopUpdateState
     ? resolveDesktopUpdateButtonAction(desktopUpdateState)
@@ -3546,9 +3406,7 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
     ) {
       return;
     }
-
     setDesktopUpdateActionPending(true);
-
     if (desktopUpdateButtonAction === "download") {
       void bridge
         .downloadUpdate()
@@ -3579,7 +3437,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
         .finally(() => setDesktopUpdateActionPending(false));
       return;
     }
-
     if (desktopUpdateButtonAction === "install") {
       let confirmed = false;
       try {
@@ -3627,7 +3484,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
         .finally(() => setDesktopUpdateActionPending(false));
     }
   };
-
   const expandThreadListForProject = (projectKey: string) => {
     setExpandedThreadListsByProject((current) => {
       if (current.has(projectKey)) return current;
@@ -3636,7 +3492,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
       return next;
     });
   };
-
   const collapseThreadListForProject = (projectKey: string) => {
     setExpandedThreadListsByProject((current) => {
       if (!current.has(projectKey)) return current;
@@ -3645,7 +3500,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
       return next;
     });
   };
-
   return (
     <>
       {prewarmedSidebarThreadRefs.map((threadRef) => (
@@ -3679,7 +3533,6 @@ export default function LegacySidebar({ routeReveal }: { routeReveal: SidebarRou
         expandedThreadListsByProject={expandedThreadListsByProject}
         activeRouteProjectKey={activeRouteProjectKey}
         routeThreadKey={routeThreadKey}
-        openPullRequestsInRightPanel={routeThreadRef !== null}
         newThreadShortcutLabel={newThreadShortcutLabel}
         commandPaletteShortcutLabel={commandPaletteShortcutLabel}
         threadJumpLabelByKey={visibleThreadJumpLabelByKey}

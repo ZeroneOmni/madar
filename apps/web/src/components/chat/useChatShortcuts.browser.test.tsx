@@ -1,11 +1,9 @@
 import { useEffect } from "react";
 import { expect, it } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
-
 import { render } from "../../../test/render";
 import type { ChatComposerHandle } from "./ChatComposer";
 import { useChatShortcuts } from "./useChatShortcuts";
-
 const shortcutContext = {
   terminalFocus: false,
   terminalOpen: false,
@@ -15,7 +13,6 @@ const shortcutContext = {
   isDesktop: false,
   modelPickerOpen: false,
 };
-
 const focusOnMount = (element: HTMLElement | null) => element?.focus();
 
 // Stands in for the right panel's launcher, which needs the whole app around it. Like the
@@ -44,7 +41,13 @@ function Launcher(props: { keys: string; received: string[] }) {
 
 // The chat's shortcut listener registers when the chat mounts, so a launcher that opens
 // later registers after it. Tests mount the chat first and add the launcher by rerendering.
-function Chat(props: { composerKeys: string[]; launcher?: { keys: string; received: string[] } }) {
+function Chat(props: {
+  composerKeys: string[];
+  launcher?: {
+    keys: string;
+    received: string[];
+  };
+}) {
   useChatShortcuts({
     enabled: true,
     keybindings: [],
@@ -60,7 +63,9 @@ function Chat(props: { composerKeys: string[]; launcher?: { keys: string; receiv
         },
       } as Partial<ChatComposerHandle> as ChatComposerHandle,
     },
-    branchToolbarRef: { current: null },
+    branchToolbarRef: {
+      current: null,
+    },
     closeThreadFind: () => {},
     commands: {},
     fallback: () => undefined,
@@ -69,28 +74,40 @@ function Chat(props: { composerKeys: string[]; launcher?: { keys: string; receiv
 }
 
 // router: false because the chat shortcuts and the launcher stand-in never navigate.
-const options = { router: false } as const;
-
+const options = {
+  router: false,
+} as const;
 it("leaves the launcher's letters to the launcher, in either case", async () => {
   const composerKeys: string[] = [];
   const received: string[] = [];
   await using screen = await render(<Chat composerKeys={composerKeys} />, options);
-  await screen.rerender(<Chat composerKeys={composerKeys} launcher={{ keys: "BT", received }} />);
-
+  await screen.rerender(
+    <Chat
+      composerKeys={composerKeys}
+      launcher={{
+        keys: "BT",
+        received,
+      }}
+    />,
+  );
   await userEvent.keyboard("tT");
-
   expect(received).toEqual(["t", "T"]);
   expect(composerKeys).toEqual([]);
 });
-
 it("still types other letters into the composer while the launcher is open", async () => {
   const composerKeys: string[] = [];
   const received: string[] = [];
   await using screen = await render(<Chat composerKeys={composerKeys} />, options);
-  await screen.rerender(<Chat composerKeys={composerKeys} launcher={{ keys: "BT", received }} />);
-
+  await screen.rerender(
+    <Chat
+      composerKeys={composerKeys}
+      launcher={{
+        keys: "BT",
+        received,
+      }}
+    />,
+  );
   await userEvent.keyboard("a");
-
   expect(composerKeys).toEqual(["a"]);
   expect(received).toEqual([]);
 });

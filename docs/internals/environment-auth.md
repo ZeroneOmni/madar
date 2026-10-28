@@ -39,40 +39,12 @@ tokens never enter `SessionStore`, so no RPC, WebSocket, or MCP path can accept
 one. Guest routes also require T3 Connect to still serve the link's hostname;
 the request's Host header is not checked, because a LAN client can forge it.
 
-### MCP clients are a separate audience
-
-Agents T3 Code did not launch sign in to `/mcp` through a narrow OAuth
-authorization-code server ([McpOAuth](../../apps/server/src/auth/McpOAuth.ts)).
-It accepts loopback redirect URIs for agents on the user's machine and any
-HTTPS redirect for hosted agents (ChatGPT, bots). An HTTPS redirect means a
-link someone else sends the owner can deliver access to that someone, so the
-approval page names the host access goes to and approving stays the owner's
-call. Every client is public and proves itself with PKCE; a client that asks
-for a secret is registered without one. Client registration is stateless, so an unauthenticated caller cannot grow server
-state. Approval spends a one-time pairing code, or uses a browser session with
-`access:write`; proof-bound T3 Connect codes are refused without being spent.
-
-The user grants either read-only access or a runtime-mode ceiling, not a
-scope list: MCP tools are all orchestration, and `orchestration:operate`
-alone would let an agent start a thread in full access and act through it.
-The result is an ordinary session with subject `mcp-client`. A read-only
-grant holds `orchestration:read` alone. On `/mcp` it passes only tools
-declared as reads in [McpToolAccess](../../apps/server/src/mcp/McpToolAccess.ts),
-where every tool must declare who may call it to compile. Any other grant adds
-`orchestration:operate` and a signed ceiling. Only `/mcp` accepts these sessions. Every other HTTP and WebSocket
-path rejects that subject, because the RPC surface would let the agent act
-above its ceiling. Inside MCP the credential sets the limits and tool
-parameters only pick targets; see
-[threadAccess](../../apps/server/src/mcp/threadAccess.ts).
-
-Issuer and resource URLs come from the request's Host and
-`X-Forwarded-Proto`, so one server answers over loopback, Tailscale Serve and a
-T3 Connect tunnel. A proxy that rewrites Host or drops the protocol header
-breaks sign-in.
+Legacy sessions with subject `mcp-client` remain invalid for HTTP and WebSocket authentication.
+The retired MCP audience must not gain access to those broader APIs.
 
 Bearer and DPoP clients obtain short-lived WebSocket tickets through authenticated
 HTTP so long-lived tokens stay out of socket URLs. A ticket names the route it
-opens: the RPC socket, or the media routes (device hub, preview stream), which
+opens: the RPC socket, or the media routes (device hub), which
 share one ticket across `<img>`, `EventSource` and several sockets. A DPoP
 client's RPC ticket is bound to its proof key and the upgrade carries a fresh
 proof in the `dpop` query parameter, since a WebSocket cannot set headers; a

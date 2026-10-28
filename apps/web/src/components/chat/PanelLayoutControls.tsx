@@ -1,42 +1,29 @@
-import { PanelBottomIcon, PanelRightIcon, SquareMenuIcon } from "lucide-react";
+import { PanelRightIcon, SquareMenuIcon } from "lucide-react";
 import { Maximize2, Minimize2 } from "lucide";
 import { MorphIcon } from "~/components/MorphIcon";
 import { memo, type ReactElement, type ReactNode } from "react";
-
 import { cn } from "~/lib/utils";
-
 import type { ThreadPanelPresentation } from "../../rightPanelLayout";
 import { PopoverCreateHandle, PopoverTrigger } from "../ui/popover";
 import { Toggle } from "../ui/toggle";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-
 export interface PanelLayoutControlsProps {
-  showThreadPanelControl?: boolean;
-  showTerminalControl?: boolean;
-  showRightPanelControl?: boolean;
-  terminalAvailable: boolean;
-  terminalOpen: boolean;
-  terminalShortcutLabel: string | null;
+  showThreadPanelControl?: boolean | undefined;
+  showRightPanelControl?: boolean | undefined;
   threadPanelOpen: boolean;
   threadPanelPresentation: ThreadPanelPresentation;
-  threadPanelPopoverHandle?: ReturnType<typeof PopoverCreateHandle>;
+  threadPanelPopoverHandle?: ReturnType<typeof PopoverCreateHandle> | undefined;
   threadPanelShortcutLabel: string | null;
   rightPanelAvailable: boolean;
   rightPanelOpen: boolean;
   rightPanelShortcutLabel: string | null;
-  rightPanelUnavailableLabel?: string;
-  onToggleTerminal: () => void;
+  rightPanelUnavailableLabel?: string | undefined;
   onToggleThreadPanel: () => void;
   onToggleRightPanel: () => void;
 }
-
 export const PanelLayoutControls = memo(function PanelLayoutControls({
   showThreadPanelControl = true,
-  showTerminalControl = true,
   showRightPanelControl = true,
-  terminalAvailable,
-  terminalOpen,
-  terminalShortcutLabel,
   threadPanelOpen,
   threadPanelPresentation,
   threadPanelPopoverHandle,
@@ -45,7 +32,6 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   rightPanelOpen,
   rightPanelShortcutLabel,
   rightPanelUnavailableLabel = "Right panel is unavailable",
-  onToggleTerminal,
   onToggleThreadPanel,
   onToggleRightPanel,
 }: PanelLayoutControlsProps) {
@@ -64,7 +50,11 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
     <Tooltip>
       <TooltipTrigger
         render={trigger}
-        {...(threadPanelPresentation === "popover" ? {} : { onClick: onToggleThreadPanel })}
+        {...(threadPanelPresentation === "popover"
+          ? {}
+          : {
+              onClick: onToggleThreadPanel,
+            })}
       />
       <TooltipPopup side="bottom">
         Toggle thread details
@@ -72,7 +62,6 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
       </TooltipPopup>
     </Tooltip>
   );
-
   return (
     <div
       className="flex h-full shrink-0 items-center gap-1 [-webkit-app-region:no-drag]"
@@ -85,28 +74,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
             )
           : threadPanelTooltip(threadPanelToggle)
         : null}
-      {showTerminalControl ? (
-        <Tooltip>
-          <TooltipTrigger render={<span className="flex shrink-0" />}>
-            <Toggle
-              className="shrink-0 [-webkit-app-region:no-drag]"
-              pressed={terminalOpen}
-              onPressedChange={onToggleTerminal}
-              aria-label="Toggle terminal drawer"
-              variant="ghost"
-              size="sm"
-              disabled={!terminalAvailable}
-            >
-              <PanelBottomIcon className="size-4" />
-            </Toggle>
-          </TooltipTrigger>
-          <TooltipPopup side="bottom">
-            {terminalAvailable
-              ? `Toggle terminal drawer${terminalShortcutLabel ? ` (${terminalShortcutLabel})` : ""}`
-              : "Terminal drawer is unavailable"}
-          </TooltipPopup>
-        </Tooltip>
-      ) : null}
+
       {showRightPanelControl ? (
         <Tooltip>
           <TooltipTrigger render={<span className="flex shrink-0" />}>
@@ -133,7 +101,6 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
     </div>
   );
 });
-
 export const RightPanelMaximizeControl = memo(function RightPanelMaximizeControl({
   maximized,
   onToggle,
@@ -170,7 +137,7 @@ export function ThreadPanelHeaderControl(props: PanelLayoutControlsProps) {
       className="absolute top-[var(--workspace-controls-top)] right-[calc(env(safe-area-inset-right)+0.75rem)] z-50 flex h-[var(--workspace-topbar-height)] items-center [-webkit-app-region:no-drag]"
       data-workspace-titlebar-controls
     >
-      <PanelLayoutControls {...props} showTerminalControl={false} showRightPanelControl={false} />
+      <PanelLayoutControls {...props} showRightPanelControl={false} />
     </div>
   );
 }

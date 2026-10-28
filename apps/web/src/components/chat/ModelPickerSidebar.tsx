@@ -10,7 +10,6 @@ import {
   shouldShowInstanceBadge,
   type ProviderInstanceEntry,
 } from "../../providerInstances";
-
 function describeUnavailableInstance(entry: ProviderInstanceEntry): string {
   const label = entry.displayName;
   if (!entry.enabled || entry.status === "disabled") {
@@ -24,16 +23,13 @@ function describeUnavailableInstance(entry: ProviderInstanceEntry): string {
   const msg = entry.snapshot.message?.trim();
   return msg ? `${label}: ${kind}. ${msg}` : `${label}: ${kind}.`;
 }
-
 const SELECTED_INDICATOR_CLASS =
   "pointer-events-none absolute -right-1 top-1/2 z-10 h-5 w-0.75 -translate-y-1/2 rounded-l-full bg-primary";
 const BADGE_BASE_CLASS =
   "pointer-events-none absolute -right-0.5 top-0.5 z-10 flex size-3.5 items-center justify-center rounded-full bg-transparent shadow-sm ";
 const NEW_BADGE_CLASS = `${BADGE_BASE_CLASS} text-update-foreground `;
-
 const PICKER_TOOLTIP_SIDE = "left" as const;
 const PICKER_TOOLTIP_SIDE_OFFSET = 8;
-
 export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
   selectedInstanceId: ProviderInstanceId | "favorites";
   onSelectInstance: (instanceId: ProviderInstanceId | "favorites") => void;
@@ -71,7 +67,6 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
     props.selectedInstanceId,
     showFavorites,
   ]);
-
   return (
     <Toolbar.Root
       className="w-11 shrink-0 overflow-hidden bg-muted/30"
@@ -96,7 +91,9 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                 SELECTED_INDICATOR_CLASS,
                 "right-0 translate-y-0 transition-[top] duration-200 ease-out",
               )}
-              style={{ top: selectedIndicatorTop }}
+              style={{
+                top: selectedIndicatorTop,
+              }}
             />
           ) : null}
           {showFavorites ? (
@@ -142,7 +139,6 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
             const isHovered = hoveredInstanceId === entry.instanceId;
             const showNewBadge = props.newBadgeInstanceIds?.has(entry.instanceId) ?? false;
             const showInstanceBadge = shouldShowInstanceBadge(entry, props.instanceEntries);
-
             const tooltip = isUnavailable
               ? describeUnavailableInstance(entry)
               : isContextDisabled
@@ -150,7 +146,6 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                 : showNewBadge
                   ? `${entry.displayName} (New)`
                   : entry.displayName;
-
             const button = (
               <Toolbar.Button
                 className={cn(
@@ -195,7 +190,11 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                         ? "var(--background)"
                         : "color-mix(in oklab, var(--muted) 30%, transparent)"
                   }
-                  {...(entry.accentColor ? { badgeClassName: "h-3 min-w-3 px-0.5 text-5xs" } : {})}
+                  {...(entry.accentColor
+                    ? {
+                        badgeClassName: "h-3 min-w-3 px-0.5 text-5xs",
+                      }
+                    : {})}
                 />
                 {showNewBadge ? (
                   <span className={NEW_BADGE_CLASS} aria-hidden>
@@ -204,13 +203,11 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                 ) : null}
               </Toolbar.Button>
             );
-
             const trigger = isDisabled ? (
               <span className="relative block w-full">{button}</span>
             ) : (
               button
             );
-
             return (
               <div
                 key={entry.instanceId}

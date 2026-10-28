@@ -20,7 +20,6 @@ import { useComposerDraftStore, DraftId } from "../../composerDraftStore";
 import { type EnvironmentPresentation, useEnvironmentProviders } from "../../state/environments";
 import { useProjects } from "../../state/entities";
 import type { DraftSessionState } from "../../composerDraftStore";
-
 interface DraftEnvironmentRoutingInput {
   readonly draftId: DraftId | null;
   readonly draftThread: DraftSessionState | null;
@@ -39,7 +38,9 @@ interface DraftEnvironmentRoutingInput {
   readonly activeProjectKey: string | null;
   readonly activeProjectIsScratch: boolean;
   readonly projectGroupingSettings: ReturnType<typeof selectProjectGroupingSettings>;
-  readonly sendInFlightRef: { readonly current: boolean };
+  readonly sendInFlightRef: {
+    readonly current: boolean;
+  };
 }
 
 /**
@@ -194,7 +195,6 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
     readonly scope: string;
   } | null>(null);
   const isEnvironmentChanging = busyEnvironmentChange?.scope === environmentChangeScope;
-
   const onEnvironmentChange = (nextEnvironmentId: EnvironmentId) => {
     if (envLocked || !draftId || sendInFlightRef.current) return;
     const originalDraft = getDraftSession(draftId);
@@ -203,7 +203,10 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
       (env) => env.environmentId === nextEnvironmentId,
     );
     if (!target) return;
-    const request = { environmentId: target.environmentId, scope: environmentChangeScope };
+    const request = {
+      environmentId: target.environmentId,
+      scope: environmentChangeScope,
+    };
     environmentChangeRef.current = request;
     setBusyEnvironmentChange(null);
     const retarget = (project: (typeof allProjects)[number]) => {
@@ -224,7 +227,10 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
           deriveLogicalProjectKeyFromSettings(project, projectGroupingSettings),
           projectRef,
           draftId,
-          { environmentSelection: "manual", loadBalancedEnvironmentId: null },
+          {
+            environmentSelection: "manual",
+            loadBalancedEnvironmentId: null,
+          },
         );
       } else {
         setDraftThreadContext(draftId, {
@@ -255,7 +261,6 @@ export function useDraftEnvironmentRouting(input: DraftEnvironmentRoutingInput) 
       .finally(finish);
   };
   const onEnvironmentChangeStable = useStableCallback(onEnvironmentChange);
-
   return {
     needsLoadBalancing,
     loadBalancing,

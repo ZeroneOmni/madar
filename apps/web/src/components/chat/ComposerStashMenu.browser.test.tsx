@@ -1,11 +1,9 @@
 import { useRef, useState } from "react";
 import { expect, it } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
-
 import { act, render } from "../../../test/render";
 import { Dialog, DialogPopup } from "../ui/dialog";
 import { ComposerStashMenu } from "./ComposerStashMenu";
-
 function Composer({ dialog = false }: { dialog?: boolean }) {
   const composerFormRef = useRef<HTMLFormElement>(null);
   const [entries, setEntries] = useState(
@@ -61,44 +59,77 @@ function Composer({ dialog = false }: { dialog?: boolean }) {
     </>
   );
 }
-
-const editor = () => page.getByRole("textbox", { name: "Message" });
-const stash = () => page.getByRole("list", { name: "Stashed prompts" });
+const editor = () =>
+  page.getByRole("textbox", {
+    name: "Message",
+  });
+const stash = () =>
+  page.getByRole("list", {
+    name: "Stashed prompts",
+  });
 const press = (keys: string) => userEvent.keyboard(keys);
 const focus = (element: Element) => act(async () => (element as HTMLElement).focus());
-
 it("leaves dialog, unrelated input and question button shortcuts alone while the stash is open", async () => {
   await using _screen = await render(<Composer dialog />);
-  const input = page.getByRole("textbox", { name: "Search commands" }).element();
+  const input = page
+    .getByRole("textbox", {
+      name: "Search commands",
+    })
+    .element();
   await focus(input);
-
   for (const key of [
-    { key: "ArrowDown" },
-    { key: "ArrowUp" },
-    { key: "Enter" },
-    { key: "Backspace", ctrlKey: true },
-    { key: "Backspace", metaKey: true },
+    {
+      key: "ArrowDown",
+    },
+    {
+      key: "ArrowUp",
+    },
+    {
+      key: "Enter",
+    },
+    {
+      key: "Backspace",
+      ctrlKey: true,
+    },
+    {
+      key: "Backspace",
+      metaKey: true,
+    },
   ]) {
-    const event = new KeyboardEvent("keydown", { ...key, bubbles: true, cancelable: true });
+    const event = new KeyboardEvent("keydown", {
+      ...key,
+      bubbles: true,
+      cancelable: true,
+    });
     await act(async () => {
       input.dispatchEvent(event);
     });
     expect(event.defaultPrevented, key.key).toBe(false);
   }
-
   await press("{Escape}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   expect(stash().element().textContent).toContain("first prompt");
   expect(stash().element().textContent).toContain("second prompt");
   await expect.element(editor()).toHaveValue("Unsent draft");
-
-  await focus(page.getByRole("textbox", { name: "Search threads" }).element());
+  await focus(
+    page
+      .getByRole("textbox", {
+        name: "Search threads",
+      })
+      .element(),
+  );
   await press("{ArrowDown}{Enter}{Control>}{Backspace}{/Control}{Meta>}{Backspace}{/Meta}{Escape}");
   expect(stash().element().textContent).toContain("first prompt");
   expect(stash().element().textContent).toContain("second prompt");
   await expect.element(editor()).toHaveValue("Unsent draft");
-
-  await focus(page.getByRole("button", { name: "Continue", exact: true }).element());
+  await focus(
+    page
+      .getByRole("button", {
+        name: "Continue",
+        exact: true,
+      })
+      .element(),
+  );
   await press("{Enter}");
   expect(page.getByRole("status").element().textContent).toBe("Selected: Continue");
   expect(stash().element().textContent).toContain("first prompt");

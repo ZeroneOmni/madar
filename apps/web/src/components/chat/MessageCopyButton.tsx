@@ -10,7 +10,6 @@ import {
   showAnchoredCopySuccessToast,
 } from "../ui/anchoredCopyToast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-
 export const MessageCopyButton = memo(function MessageCopyButton({
   text,
   label = "Copy message",
@@ -33,9 +32,12 @@ export const MessageCopyButton = memo(function MessageCopyButton({
     onCopy: () => showAnchoredCopySuccessToast(ref),
     onError: (error: Error) => showAnchoredCopyErrorToast(ref, error),
     timeout: ANCHORED_COPY_TOAST_TIMEOUT_MS,
-    ...(extraFlavors ? { extraFlavors } : {}),
+    ...(extraFlavors
+      ? {
+          extraFlavors,
+        }
+      : {}),
   });
-
   return (
     <Tooltip>
       <TooltipTrigger

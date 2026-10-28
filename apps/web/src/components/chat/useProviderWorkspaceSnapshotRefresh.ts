@@ -12,7 +12,6 @@ import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useStableCallback } from "../../hooks/useStableCallback";
-
 const WORKSPACE_SNAPSHOT_RETRY_COOLDOWN_MS = 10_000;
 
 /**
@@ -31,7 +30,10 @@ export function useProviderWorkspaceSnapshotRefresh(input: {
   });
   // The last scan this composer asked for. A request inside the TTL is not
   // repeated, so a client clock ahead of the server's cannot loop rescans.
-  const workspaceRefreshKeyRef = useRef<{ key: string; requestedAt: number } | null>(null);
+  const workspaceRefreshKeyRef = useRef<{
+    key: string;
+    requestedAt: number;
+  } | null>(null);
   const [workspaceRefreshRetry, setWorkspaceRefreshRetry] = useState<{
     key: string;
     notBefore: number;
@@ -75,7 +77,10 @@ export function useProviderWorkspaceSnapshotRefresh(input: {
   const refreshWorkspaceSnapshotIfStale = (
     now: number,
     key: string | null,
-    retry: { key: string; notBefore: number } | null,
+    retry: {
+      key: string;
+      notBefore: number;
+    } | null,
     snapshotLossCount: number,
   ) => {
     if (lastWorkspaceSnapshotLossRef.current !== snapshotLossCount) {
@@ -92,7 +97,10 @@ export function useProviderWorkspaceSnapshotRefresh(input: {
     // A pending retry needs no clearing here: its cooldown lapses long before the TTL.
     if (hasCurrentProviderWorkspaceSnapshot(selectedProviderStatus, gitCwd, now)) return;
     if (retry?.key === key && now < retry.notBefore) return;
-    const request = { key, requestedAt: now };
+    const request = {
+      key,
+      requestedAt: now,
+    };
     workspaceRefreshKeyRef.current = request;
     const retryLater = () => {
       if (workspaceRefreshKeyRef.current !== request) return;
@@ -104,7 +112,10 @@ export function useProviderWorkspaceSnapshotRefresh(input: {
     };
     void refreshProviders({
       environmentId,
-      input: { instanceId: selectedProviderEntry.instanceId, cwd: gitCwd },
+      input: {
+        instanceId: selectedProviderEntry.instanceId,
+        cwd: gitCwd,
+      },
     }).then((result) => {
       const refreshedSnapshot =
         result._tag === "Success" &&

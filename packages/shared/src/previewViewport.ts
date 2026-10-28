@@ -1,9 +1,4 @@
-import type {
-  PreviewAutomationResizeInput,
-  PreviewViewportPresetId,
-  PreviewViewportSetting,
-} from "@t3tools/contracts";
-import { PREVIEW_VIEWPORT_PRESET_IDS } from "@t3tools/contracts";
+import type { PreviewViewportPresetId } from "@t3tools/contracts";
 
 export interface PreviewViewportPreset {
   readonly id: PreviewViewportPresetId;
@@ -138,37 +133,3 @@ const PREVIEW_VIEWPORT_PRESET_DEFINITIONS = {
     height: 800,
   },
 } as const satisfies Record<PreviewViewportPresetId, PreviewViewportPresetDefinition>;
-
-export const PREVIEW_VIEWPORT_PRESETS: ReadonlyArray<PreviewViewportPreset> =
-  PREVIEW_VIEWPORT_PRESET_IDS.map((id) => ({
-    id,
-    ...PREVIEW_VIEWPORT_PRESET_DEFINITIONS[id],
-  }));
-
-export function resolvePreviewViewport(
-  input: PreviewAutomationResizeInput,
-): PreviewViewportSetting {
-  if (input.mode === "fill") return { _tag: "fill" };
-  if (input.mode === "preset" && input.preset !== undefined) {
-    const preset = PREVIEW_VIEWPORT_PRESETS.find((candidate) => candidate.id === input.preset);
-    if (!preset) throw new Error(`Unknown preview viewport preset: ${input.preset}`);
-    const landscape = input.orientation === "landscape";
-    const portrait = input.orientation === "portrait";
-    const nativePortrait = preset.height >= preset.width;
-    const shouldSwap = (landscape && nativePortrait) || (portrait && !nativePortrait);
-    return {
-      _tag: "preset",
-      width: shouldSwap ? preset.height : preset.width,
-      height: shouldSwap ? preset.width : preset.height,
-      presetId: preset.id,
-    };
-  }
-  if (input.width === undefined || input.height === undefined) {
-    throw new Error("Custom preview viewport requires width and height");
-  }
-  return {
-    _tag: "freeform",
-    width: input.width,
-    height: input.height,
-  };
-}

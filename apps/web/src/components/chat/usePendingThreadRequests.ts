@@ -57,16 +57,17 @@ import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import type { ChatComposerHandle } from "./ChatComposer";
-
 const EMPTY_PENDING_USER_INPUT_ANSWERS: Record<string, PendingUserInputDraftAnswer> = {};
 const usePendingUserInputAnswers = create<
   Record<string, Record<string, PendingUserInputDraftAnswer>>
 >(() => ({}));
 const usePendingUserInputQuestionIndex = create<Record<string, number>>(() => ({}));
-const NO_PENDING_REQUESTS = { approvals: [], userInputs: [] } as const;
+const NO_PENDING_REQUESTS = {
+  approvals: [],
+  userInputs: [],
+} as const;
 const NO_PENDING_APPROVALS: ReturnType<typeof derivePendingApprovals> = [];
 const NO_PENDING_USER_INPUTS: ReturnType<typeof derivePendingUserInputs> = [];
-
 function makePendingCustomAnswerSetter(input: {
   readonly activePendingUserInput: PendingUserInput | null;
   readonly activePendingRequestKey: string;
@@ -99,16 +100,21 @@ function makePendingCustomAnswerSetter(input: {
     // Resetting selection before rendering can re-enter Lexical with stale skill-token offsets.
   };
 }
-
 export function usePendingThreadRequests(input: {
   readonly environmentId: EnvironmentId;
   readonly activeThreadId: ThreadId | null;
-  readonly activeThread: { readonly id: ThreadId } | undefined;
+  readonly activeThread:
+    | {
+        readonly id: ThreadId;
+      }
+    | undefined;
   readonly serverProjection: ThreadStructure | null;
   readonly supportsQuestionAttachments: boolean;
   readonly composerDraftTarget: ScopedThreadRef | DraftId;
   readonly setComposerDraftPrompt: (target: ScopedThreadRef | DraftId, prompt: string) => void;
-  readonly promptRef: { current: string };
+  readonly promptRef: {
+    current: string;
+  };
   readonly composerRef: RefObject<ChatComposerHandle | null>;
   readonly setThreadError: (threadId: ThreadId, error: string | null) => void;
 }) {
@@ -172,7 +178,12 @@ export function usePendingThreadRequests(input: {
     usePendingUserInputAnswers.setState((existing) => {
       const drafts = existing[activePendingRequestKey] ?? EMPTY_PENDING_USER_INPUT_ANSWERS;
       const seeded = seedUserInputDraftAnswers(activePendingUserInput.questions, drafts);
-      return seeded === drafts ? existing : { ...existing, [activePendingRequestKey]: seeded };
+      return seeded === drafts
+        ? existing
+        : {
+            ...existing,
+            [activePendingRequestKey]: seeded,
+          };
     });
   }, [activePendingRequestKey, activePendingUserInput]);
   const pendingQuestionDraftKeys = activeThreadId
@@ -290,7 +301,6 @@ export function usePendingThreadRequests(input: {
       respondingUserInputRequestIds.includes(activePendingUserInput.requestId)
     : false;
   const activePendingApproval = pendingApprovals[0] ?? null;
-
   const onRespondToApproval = async (
     requestId: RuntimeRequestId,
     decision: ProviderApprovalDecision,
@@ -303,7 +313,6 @@ export function usePendingThreadRequests(input: {
       "live"
     )
       return;
-
     setRespondingRequestIds((existing) =>
       existing.includes(requestId) ? existing : [...existing, requestId],
     );
@@ -313,7 +322,11 @@ export function usePendingThreadRequests(input: {
         threadId: activeThreadId,
         requestId,
         decision,
-        ...(feedback === undefined ? {} : { feedback }),
+        ...(feedback === undefined
+          ? {}
+          : {
+              feedback,
+            }),
       },
     });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
@@ -327,7 +340,6 @@ export function usePendingThreadRequests(input: {
     return result;
   };
   const onRespondToApprovalStable = useStableCallback(onRespondToApproval);
-
   const onRespondToUserInput = async (
     requestId: RuntimeRequestId,
     answers: Record<string, unknown>,
@@ -339,7 +351,9 @@ export function usePendingThreadRequests(input: {
     const responseKey = JSON.stringify([environmentId, activeThreadId, requestId]);
     if (userInputResponsesInFlight.current.has(responseKey)) return;
     const attachmentsByQuestionId = new Map<string, UserInputAttachments[string]>();
-    const providerAnswers = { ...answers };
+    const providerAnswers = {
+      ...answers,
+    };
     for (const question of pendingInput.questions) {
       const target = questionAttachmentDraftId(
         environmentId,
@@ -355,7 +369,10 @@ export function usePendingThreadRequests(input: {
       );
       const attachments = draft ? [...draft.images, ...draft.files] : [];
       if (attachments.length === 0) continue;
-      const uploaded = getUploadedAttachments({ environmentId, images: attachments });
+      const uploaded = getUploadedAttachments({
+        environmentId,
+        images: attachments,
+      });
       if (!uploaded) {
         setThreadError(
           activeThreadId,
@@ -366,7 +383,6 @@ export function usePendingThreadRequests(input: {
       attachmentsByQuestionId.set(question.id, uploaded as UserInputAttachments[string]);
     }
     userInputResponsesInFlight.current.add(responseKey);
-
     setRespondingUserInputRequestIds((existing) =>
       existing.includes(requestId) ? existing : [...existing, requestId],
     );
@@ -377,7 +393,9 @@ export function usePendingThreadRequests(input: {
         requestId,
         answers: providerAnswers,
         ...(attachmentsByQuestionId.size > 0
-          ? { attachmentsByQuestionId: Object.fromEntries(attachmentsByQuestionId) }
+          ? {
+              attachmentsByQuestionId: Object.fromEntries(attachmentsByQuestionId),
+            }
           : {}),
       },
     });
@@ -392,16 +410,17 @@ export function usePendingThreadRequests(input: {
     setRespondingUserInputRequestIds((existing) => existing.filter((id) => id !== requestId));
     return result;
   };
-
   const onDismissUserInput = async (requestId: RuntimeRequestId) => {
     if (!activeThreadId) return;
-
     setRespondingUserInputRequestIds((existing) =>
       existing.includes(requestId) ? existing : [...existing, requestId],
     );
     const result = await dismissThreadUserInput({
       environmentId,
-      input: { threadId: activeThreadId, requestId },
+      input: {
+        threadId: activeThreadId,
+        requestId,
+      },
     });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
@@ -414,7 +433,6 @@ export function usePendingThreadRequests(input: {
     return result;
   };
   const onDismissUserInputStable = useStableCallback(onDismissUserInput);
-
   const setActivePendingUserInputQuestionIndex = (nextQuestionIndex: number) => {
     if (!activePendingUserInput) {
       return;
@@ -424,7 +442,6 @@ export function usePendingThreadRequests(input: {
       [activePendingRequestKey]: nextQuestionIndex,
     }));
   };
-
   const onSelectActivePendingUserInputOption = (questionId: string, optionValue: string) => {
     if (!activePendingUserInput) {
       return;
@@ -451,7 +468,9 @@ export function usePendingThreadRequests(input: {
             displacedAnswer ?? "",
             store.getComposerDraft(questionTarget)?.threadContexts ?? [],
           ),
-          { appendReference: false },
+          {
+            appendReference: false,
+          },
         );
       }
     }
@@ -463,7 +482,6 @@ export function usePendingThreadRequests(input: {
       if (!question) {
         return existing;
       }
-
       return {
         ...existing,
         [activePendingRequestKey]: {
@@ -477,12 +495,13 @@ export function usePendingThreadRequests(input: {
       };
     });
     promptRef.current = "";
-    composerRef.current?.resetCursorState({ cursor: 0 });
+    composerRef.current?.resetCursorState({
+      cursor: 0,
+    });
   };
   const onSelectActivePendingUserInputOptionStable = useStableCallback(
     onSelectActivePendingUserInputOption,
   );
-
   const writePrompt = useStableCallback((prompt: string) => {
     promptRef.current = prompt;
   });
@@ -492,7 +511,6 @@ export function usePendingThreadRequests(input: {
     writePrompt,
     setPendingUserInputAnswersByRequestId,
   });
-
   const onAdvanceActivePendingUserInput = () => {
     if (
       !activePendingUserInput ||
@@ -510,7 +528,6 @@ export function usePendingThreadRequests(input: {
     setActivePendingUserInputQuestionIndex(activePendingProgress.questionIndex + 1);
   };
   const onAdvanceActivePendingUserInputStable = useStableCallback(onAdvanceActivePendingUserInput);
-
   const onPreviousActivePendingUserInputQuestion = () => {
     if (!activePendingProgress) {
       return;
@@ -520,7 +537,6 @@ export function usePendingThreadRequests(input: {
   const onPreviousActivePendingUserInputQuestionStable = useStableCallback(
     onPreviousActivePendingUserInputQuestion,
   );
-
   return {
     pendingApprovals,
     pendingUserInputs,

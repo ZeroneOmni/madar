@@ -2,7 +2,6 @@ import type { RuntimeSubagent } from "@t3tools/client-runtime/state/subagentRunt
 import { isOrchestrationV2WorkActive } from "@t3tools/contracts";
 import { deriveSubagentElapsedMs } from "@t3tools/shared/orchestrationTiming";
 import { useEffect, useRef } from "react";
-
 function formatElapsedSeconds(totalSeconds: number): string {
   const seconds = Math.max(0, Math.floor(totalSeconds));
   const minutes = Math.floor(seconds / 60);
@@ -15,7 +14,6 @@ function formatElapsedSeconds(totalSeconds: number): string {
   }
   return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`;
 }
-
 function formatCompactElapsedSeconds(totalSeconds: number): string {
   const seconds = Math.max(0, Math.floor(totalSeconds));
   if (seconds < 60) return `${seconds}s`;
@@ -24,7 +22,6 @@ function formatCompactElapsedSeconds(totalSeconds: number): string {
   if (minutes >= 600) return `${Math.floor(minutes / 60)}h`;
   return `${Math.floor(minutes / 6) / 10}h`;
 }
-
 export function AgentElapsed({
   agent,
   compact = false,
@@ -37,7 +34,6 @@ export function AgentElapsed({
   const live = isOrchestrationV2WorkActive(agent.status);
   const startedAt = agent.startedAt;
   const completedAt = agent.completedAt;
-
   useEffect(() => {
     if (!startedAt) {
       return;
@@ -45,7 +41,11 @@ export function AgentElapsed({
     const update = () => {
       if (textRef.current) {
         const elapsedMs = deriveSubagentElapsedMs(
-          { status: agent.status, startedAt, completedAt },
+          {
+            status: agent.status,
+            startedAt,
+            completedAt,
+          },
           Date.now(),
         );
         const text = elapsedMs === null ? "" : format(elapsedMs / 1000);
@@ -57,7 +57,6 @@ export function AgentElapsed({
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, [live, startedAt, completedAt, agent.status, format]);
-
   const elapsedMs = deriveSubagentElapsedMs(agent, 0);
   if (elapsedMs === null) {
     return null;

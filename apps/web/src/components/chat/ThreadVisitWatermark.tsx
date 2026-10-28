@@ -23,7 +23,9 @@ export function ThreadVisitWatermark(props: { readonly threadRef: ScopedThreadRe
   const activeThreadLocalLastVisitedAt = useUiStateStore(
     (store) => store.threadLastVisitedAtById[threadKey],
   );
-  const visitThreadMutation = useAtomCommand(threadEnvironment.visit, { reportFailure: false });
+  const visitThreadMutation = useAtomCommand(threadEnvironment.visit, {
+    reportFailure: false,
+  });
   const lastDispatchedVisitRef = useRef<string | null>(null);
   const lastVisitDispatchAtRef = useRef(0);
   const recordedOpenRef = useRef<string | null>(null);
@@ -56,7 +58,6 @@ export function ThreadVisitWatermark(props: { readonly threadRef: ScopedThreadRe
     serverThread?.updatedAt,
     visitThreadMutation,
   ]);
-
   useEffect(() => {
     if (!serverThread?.id) return;
     const threadUpdatedAt = Date.parse(serverThread.updatedAt);
@@ -67,7 +68,6 @@ export function ThreadVisitWatermark(props: { readonly threadRef: ScopedThreadRe
     );
     const lastVisitedAt = effectiveLastVisitedAt ? Date.parse(effectiveLastVisitedAt) : NaN;
     if (!Number.isNaN(lastVisitedAt) && lastVisitedAt >= threadUpdatedAt) return;
-
     if (serverThread.lastVisitedAt !== undefined) {
       // Dedupe per watermark — the effect re-runs before the command's echo
       // lands. The dedupe also keeps a mark-unread on the open thread sticky:
@@ -80,7 +80,10 @@ export function ThreadVisitWatermark(props: { readonly threadRef: ScopedThreadRe
         lastVisitDispatchAtRef.current = Date.now();
         void visitThreadMutation({
           environmentId: serverThread.environmentId,
-          input: { threadId: serverThread.id, visitedAt: serverThread.updatedAt },
+          input: {
+            threadId: serverThread.id,
+            visitedAt: serverThread.updatedAt,
+          },
         });
       };
       const latestRunCompletedAtMs = serverThread.latestRun?.completedAt
@@ -97,7 +100,6 @@ export function ThreadVisitWatermark(props: { readonly threadRef: ScopedThreadRe
       const timer = setTimeout(dispatch, VISIT_DISPATCH_THROTTLE_MS - elapsed);
       return () => clearTimeout(timer);
     }
-
     markThreadVisited(
       scopedThreadKey(scopeThreadRef(serverThread.environmentId, serverThread.id)),
       serverThread.updatedAt,

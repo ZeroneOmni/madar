@@ -15,23 +15,19 @@ import {
   type ResolvedSettingsScope,
   type SettingsScopeSearch,
 } from "./settingsScope";
-
 export type SettingsPath =
   | "/settings/projects"
   | "/settings/general"
   | "/settings/diagnostics"
   | "/settings/appearance"
   | "/settings/keybindings"
-  | "/settings/snap-shot"
   | "/settings/providers"
   | "/settings/integrations"
-  | "/settings/scheduled-tasks"
   | "/settings/source-control"
   | "/settings/storage"
   | "/settings/connections"
   | "/settings/beta"
   | "/settings/archived";
-
 export type SettingsSearchScope =
   | "environment"
   | "environment-defaults"
@@ -39,7 +35,6 @@ export type SettingsSearchScope =
   | "project"
   | "checkout"
   | "connections";
-
 export interface SettingsSearchItem {
   readonly id: string;
   readonly title: string;
@@ -62,7 +57,6 @@ export interface SettingsSearchItem {
   readonly secondary?: boolean;
   readonly requiresThreadAutoSettlement?: boolean;
 }
-
 export interface SettingsSearchAvailability {
   readonly localEnvironmentDisabled?: boolean;
   readonly hasCloudPublicConfig: boolean;
@@ -74,28 +68,23 @@ export interface SettingsSearchAvailability {
   readonly hasThreadAutoSettlement: boolean;
   readonly managedTunnelActive?: boolean;
 }
-
 export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/diagnostics": "Diagnostics",
   "/settings/projects": "Project",
   "/settings/general": "General",
   "/settings/appearance": "Appearance",
   "/settings/keybindings": "Keybindings",
-  "/settings/snap-shot": "SnapShots",
   "/settings/providers": "Providers",
   "/settings/integrations": "Integrations",
-  "/settings/scheduled-tasks": "Scheduled Tasks",
   "/settings/source-control": "Source Control",
   "/settings/storage": "Storage",
   "/settings/connections": "Connections",
   "/settings/beta": "Beta",
   "/settings/archived": "Archive",
 };
-
 export function keybindingSearchAnchorId<Command extends KeybindingCommand>(command: Command) {
   return `keybinding-${command}` as const;
 }
-
 const KEYBINDING_SEARCH_ITEMS = STATIC_KEYBINDING_COMMANDS.toSorted((left, right) =>
   commandLabel(left).localeCompare(commandLabel(right)),
 ).map((command) => {
@@ -108,10 +97,13 @@ const KEYBINDING_SEARCH_ITEMS = STATIC_KEYBINDING_COMMANDS.toSorted((left, right
     to: "/settings/keybindings" as const,
     searchTerms: [command, ...defaultKeys],
     secondary: true,
-    ...(defaultKeys.length === 0 ? { targetId: "keybindings" } : {}),
+    ...(defaultKeys.length === 0
+      ? {
+          targetId: "keybindings",
+        }
+      : {}),
   };
 });
-
 export function sourceControlHostSettingsSearchId(kind: string) {
   return `source-control-host-${kind}` as const;
 }
@@ -120,7 +112,9 @@ export function sourceControlHostSettingsSearchId(kind: string) {
 export function sourceControlHostSearchItems(
   definitions: ReadonlyArray<SourceControlDefinition>,
 ): ReadonlyArray<
-  SettingsSearchItem & { readonly id: ReturnType<typeof sourceControlHostSettingsSearchId> }
+  SettingsSearchItem & {
+    readonly id: ReturnType<typeof sourceControlHostSettingsSearchId>;
+  }
 > {
   return definitions.flatMap((definition) => {
     if (!definition.settings) return [];
@@ -152,7 +146,6 @@ const SOURCE_CONTROL_HOST_LABELS = sourceControlClients.definitions
 const SOURCE_CONTROL_HOST_TERMS = sourceControlClients.definitions
   .flatMap((definition) => [definition.label, ...(definition.searchKeywords ?? [])])
   .join(" ");
-
 export const SETTINGS_SEARCH_ITEMS = [
   {
     id: "storage-worktree-keep-when",
@@ -640,45 +633,6 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   ...KEYBINDING_SEARCH_ITEMS,
   {
-    id: "snap-shot-enabled",
-    title: "SnapShots",
-    searchTerms: ["window capture screenshot"],
-    to: "/settings/snap-shot",
-  },
-  {
-    id: "snap-shot-accessibility",
-    title: "Include app text",
-    to: "/settings/snap-shot",
-    targetId: "snap-shot-enabled",
-    searchTerms: [
-      "capture accessibility data text UI structure elements privacy omit agent context",
-    ],
-  },
-  {
-    id: "snap-shot-shortcut",
-    title: "Capture shortcut",
-    to: "/settings/snap-shot",
-    targetId: "snap-shot-enabled",
-  },
-  {
-    id: "snap-shot-sound",
-    title: "Capture sound",
-    to: "/settings/snap-shot",
-    targetId: "snap-shot-enabled",
-  },
-  {
-    id: "snap-shot-flash",
-    title: "Capture flash",
-    to: "/settings/snap-shot",
-    targetId: "snap-shot-enabled",
-  },
-  {
-    id: "snap-shot-animations",
-    title: "Capture animations",
-    to: "/settings/snap-shot",
-    targetId: "snap-shot-enabled",
-  },
-  {
     id: "providers",
     title: "Providers",
     to: "/settings/providers",
@@ -1036,28 +990,22 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["restore reopen deleted history projects"],
   },
 ] as const satisfies ReadonlyArray<SettingsSearchItem>;
-
 export type SettingsSearchItemId = (typeof SETTINGS_SEARCH_ITEMS)[number]["id"];
-
 const SEARCH_ITEMS_BY_ID = new Map(SETTINGS_SEARCH_ITEMS.map((item) => [item.id, item] as const));
-
 const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScope | null>> = {
   "/settings/diagnostics": "environment",
   "/settings/projects": "project",
   "/settings/general": null,
   "/settings/appearance": null,
-  "/settings/snap-shot": null,
   "/settings/keybindings": null,
   "/settings/providers": null,
   "/settings/integrations": null,
   "/settings/source-control": "environment-defaults",
   "/settings/storage": "project-defaults",
   "/settings/connections": "connections",
-  "/settings/scheduled-tasks": null,
   "/settings/beta": null,
   "/settings/archived": "project-defaults",
 };
-
 export function getSettingsSearchTargetScope(targetId: string) {
   const items: readonly SettingsSearchItem[] = SETTINGS_SEARCH_ITEMS;
   const item =
@@ -1067,21 +1015,27 @@ export function getSettingsSearchTargetScope(targetId: string) {
     ? {
         title: item.title,
         scope: item.scope ?? SETTINGS_CATEGORY_SCOPES[item.to],
-        ...(item.requiresThreadAutoSettlement ? { requiresThreadAutoSettlement: true } : {}),
+        ...(item.requiresThreadAutoSettlement
+          ? {
+              requiresThreadAutoSettlement: true,
+            }
+          : {}),
       }
     : null;
 }
-
 interface AutoSettlementSearchEnvironment {
   readonly environmentId: EnvironmentId;
-  readonly connection: { readonly phase: EnvironmentConnectionPhase };
+  readonly connection: {
+    readonly phase: EnvironmentConnectionPhase;
+  };
   readonly serverConfig: {
     readonly environment: {
-      readonly capabilities: { readonly threadAutoSettlement?: boolean };
+      readonly capabilities: {
+        readonly threadAutoSettlement?: boolean;
+      };
     };
   } | null;
 }
-
 export function getThreadAutoSettlementSearchAvailability(
   environments: readonly AutoSettlementSearchEnvironment[],
   scope?: Pick<ResolvedSettingsScope, "kind" | "environmentIds">,
@@ -1108,7 +1062,6 @@ export function getThreadAutoSettlementSearchAvailability(
       selected.every((environment) => eligibleEnvironmentIds.includes(environment.environmentId)),
   };
 }
-
 export function isSettingsSearchScopeAvailable(
   requiredScope: SettingsSearchScope | null,
   scopeKind: ResolvedSettingsScope["kind"],
@@ -1133,27 +1086,28 @@ export function isSettingsSearchScopeAvailable(
       );
   }
 }
-
 function settingsScopeKindFromSearch(search: SettingsScopeSearch): ResolvedSettingsScope["kind"] {
-  const target = validateSettingsScopeSearch({ ...search });
+  const target = validateSettingsScopeSearch({
+    ...search,
+  });
   if (target.checkout && !target.project) return "unavailable";
   if (target.project) return target.checkout ? "checkout" : "project";
   return target.machine ? "environment" : "all";
 }
-
 export function isSettingsOverviewVisible(search: SettingsScopeSearch): boolean {
   const kind = settingsScopeKindFromSearch(search);
   return kind === "project" || kind === "checkout";
 }
-
 export function searchableSetting(id: SettingsSearchItemId): {
   readonly id: string;
   readonly title: string;
 } {
   const { id: anchorId, title } = SEARCH_ITEMS_BY_ID.get(id)!;
-  return { id: anchorId, title };
+  return {
+    id: anchorId,
+    title,
+  };
 }
-
 export function filterAvailableSettingsSearchItems(
   availability: SettingsSearchAvailability,
 ): ReadonlyArray<SettingsSearchItem> {
@@ -1185,7 +1139,6 @@ export function settingsForThisPlatform(
       (!item.windowsOnly || isWindowsPlatform(platform)),
   );
 }
-
 export function searchSettings(
   query: string,
   items: ReadonlyArray<SettingsSearchItem> = SETTINGS_SEARCH_ITEMS,
@@ -1193,7 +1146,6 @@ export function searchSettings(
   const normalizedQuery = normalizeSearchText(query);
   if (normalizedQuery.length === 0) return [];
   const queryTokens = normalizedQuery.split(" ");
-
   return settingsForThisPlatform(items)
     .flatMap((item, index) => {
       const title = normalizeSearchText(item.title);
@@ -1203,7 +1155,6 @@ export function searchSettings(
         ...(item.searchTerms ?? []).map(normalizeSearchText),
       ];
       if (!queryTokens.every((token) => fields.some((field) => field.includes(token)))) return [];
-
       const exactPhraseField = fields.findIndex((field) => field.includes(normalizedQuery));
       const rank =
         title === normalizedQuery
@@ -1217,7 +1168,13 @@ export function searchSettings(
                 : exactPhraseField >= 0
                   ? 1
                   : 0;
-      return [{ item, index, rank }];
+      return [
+        {
+          item,
+          index,
+          rank,
+        },
+      ];
     })
     .toSorted(
       (left, right) =>

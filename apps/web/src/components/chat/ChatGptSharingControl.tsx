@@ -2,7 +2,6 @@ import { usesChatGptSharing } from "@t3tools/shared/usageLimits";
 import type { ServerProvider } from "@t3tools/contracts";
 import { OpenAI } from "../Icons";
 import { ChatGptUsageButton } from "../settings/ChatGptUsageButton";
-
 export function ChatGptSharingControl({ provider }: { provider: ServerProvider | null }) {
   if (!usesChatGptSharing(provider)) return null;
   return (

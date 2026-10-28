@@ -87,7 +87,12 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
             variant="ghost"
             onClick={() =>
               void runProjectCloneActionStable("Failed to cancel clone", () =>
-                cancelProjectClone({ environmentId, input: { projectId } }),
+                cancelProjectClone({
+                  environmentId,
+                  input: {
+                    projectId,
+                  },
+                }),
               )
             }
           >
@@ -108,7 +113,12 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
           <Button
             size="xs"
             variant="ghost"
-            onClick={() => void removeClonedProject({ environmentId, projectId })}
+            onClick={() =>
+              void removeClonedProject({
+                environmentId,
+                projectId,
+              })
+            }
           >
             Remove project
           </Button>
@@ -117,7 +127,12 @@ export function useProjectCloneBanner(activeProjectRef: ScopedProjectRef | null)
             variant="ghost"
             onClick={() =>
               void runProjectCloneActionStable("Failed to retry clone", () =>
-                retryProjectClone({ environmentId, input: { projectId } }),
+                retryProjectClone({
+                  environmentId,
+                  input: {
+                    projectId,
+                  },
+                }),
               )
             }
           >

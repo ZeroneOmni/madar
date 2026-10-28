@@ -12,7 +12,6 @@ import {
 } from "./MessagesTimeline.logic";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
-
 function timelineMinimapEventTargetsPreview(target: EventTarget): boolean {
   return target instanceof Element && target.closest("[data-minimap-preview]") !== null;
 }
@@ -33,7 +32,6 @@ function onMouseButtonsReleased(onRelease: () => void): () => void {
   window.addEventListener("mousemove", check);
   return stop;
 }
-
 export function TimelineMinimap({
   hasPersistentGutter,
   hitStripWidth,
@@ -54,18 +52,17 @@ export function TimelineMinimap({
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const wheelTargetRef = (node: HTMLDivElement | null) => {
     if (!node) return;
-    node.addEventListener("wheel", onWheel, { passive: false });
+    node.addEventListener("wheel", onWheel, {
+      passive: false,
+    });
     return () => node.removeEventListener("wheel", onWheel);
   };
-
   const pressedOnStripRef = useRef(false);
   const [passThrough, setPassThrough] = useState(false);
-
   useEffect(() => {
     if (!passThrough) return;
     return onMouseButtonsReleased(() => setPassThrough(false));
   }, [passThrough]);
-
   const resolvedActiveIndex =
     activeIndex !== null && activeIndex < items.length ? activeIndex : null;
   const activeItem = resolveTimelineMinimapPreview(
@@ -90,7 +87,6 @@ export function TimelineMinimap({
   const previousItem =
     resolvedCurrentIndex === null ? null : (items[resolvedCurrentIndex - 1] ?? null);
   const nextItem = resolvedCurrentIndex === null ? null : (items[resolvedCurrentIndex + 1] ?? null);
-
   const resolveActiveIndexFromPointer = (event: MouseEvent<HTMLElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     return resolveTimelineMinimapIndexFromPointer({
@@ -100,23 +96,19 @@ export function TimelineMinimap({
       pointerY: event.clientY,
     });
   };
-
   const updateActiveIndexFromPointer = (event: MouseEvent<HTMLElement>) => {
     const nextIndex = resolveActiveIndexFromPointer(event);
     setActiveIndex(nextIndex);
   };
-
   const moveActiveIndex = (delta: number) => {
     setActiveIndex((current) => {
       const base = current ?? 0;
       return Math.max(0, Math.min(items.length - 1, base + delta));
     });
   };
-
   if (items.length < TIMELINE_MINIMAP_MIN_ITEMS) {
     return null;
   }
-
   return (
     <div
       className={cn(
@@ -240,7 +232,9 @@ export function TimelineMinimap({
                       stripMap.delete(item.id);
                     }
                   }}
-                  style={{ top }}
+                  style={{
+                    top,
+                  }}
                 >
                   <span className="absolute inset-0 rounded-full bg-foreground/90 opacity-0 transition-opacity duration-150 group-data-[in-view=true]/strip:opacity-100" />
                 </span>
@@ -289,7 +283,6 @@ export function TimelineMinimap({
     </div>
   );
 }
-
 function TimelineMinimapNavigationButton({
   direction,
   disabled,
@@ -304,7 +297,6 @@ function TimelineMinimapNavigationButton({
   const previous = direction === "previous";
   const label = previous ? "Previous turn" : "Next turn";
   const Icon = previous ? ChevronUpIcon : ChevronDownIcon;
-
   return (
     <Tooltip>
       <TooltipTrigger

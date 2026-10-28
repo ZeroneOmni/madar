@@ -1,8 +1,6 @@
 import { ASSISTANT_CITATION_MAX_COMMENT_LENGTH, type AssistantCitation } from "@t3tools/contracts";
 import { useState, type Ref } from "react";
-
 import { Button } from "../ui/button";
-
 export function AssistantCitationCommentEditor({
   citation,
   inputRef,
@@ -31,7 +29,6 @@ export function AssistantCitationCommentEditor({
       onSubmit(comment);
     }
   };
-
   return (
     <div
       data-citation-comment-editor="true"

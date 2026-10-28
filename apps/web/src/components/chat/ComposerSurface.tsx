@@ -1,12 +1,12 @@
 import type { ComponentProps } from "react";
-
 import { cn } from "~/lib/utils";
-
 function Shell({
   contextStrip = false,
   className,
   ...props
-}: ComponentProps<"div"> & { contextStrip?: boolean }) {
+}: ComponentProps<"div"> & {
+  contextStrip?: boolean;
+}) {
   return (
     <div
       data-slot="composer-shell"
@@ -33,13 +33,10 @@ function Shell({
     />
   );
 }
-
 const outlineClasses =
   "after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:border after:border-(--chat-composer-outline) dark:after:inset-shadow-2xs dark:after:inset-shadow-(color:--chat-composer-highlight)";
-
 const contextSeamClasses =
   "group-data-with-context/composer-surface:after:[clip-path:polygon(0_0,100%_0,100%_100%,calc(100%-22px)_100%,calc(100%-22px)_calc(100%-2px),22px_calc(100%-2px),22px_100%,0_100%)]";
-
 function Host({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
@@ -55,7 +52,6 @@ function Host({ className, ...props }: ComponentProps<"div">) {
     />
   );
 }
-
 function Main({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
@@ -94,5 +90,9 @@ function ContextStrip({ className, ...props }: ComponentProps<"div">) {
     />
   );
 }
-
-export const ComposerSurface = { Shell, Host, Main, ContextStrip };
+export const ComposerSurface = {
+  Shell,
+  Host,
+  Main,
+  ContextStrip,
+};

@@ -1,40 +1,36 @@
 import { CheckIcon, CircleDotIcon, CircleIcon, ListTodoIcon } from "lucide-react";
 import { memo, type ComponentProps } from "react";
-
 import { formatDuration } from "../../session-logic";
 import { cn } from "~/lib/utils";
 import { ComposerBanner } from "./ComposerBanner";
-
 export interface ComposerTasksProgress {
   readonly step: string;
   readonly completedSteps: number;
   readonly totalSteps: number;
   readonly live: boolean;
 }
-
 export interface ComposerTaskStep {
   readonly durationMs?: number;
   readonly step: string;
   readonly status: "pending" | "inProgress" | "completed";
 }
-
 const MAX_TASK_SEGMENTS = 10;
-
 const taskStatusLabels = {
   pending: "Pending",
   inProgress: "Running",
   completed: "Completed",
 } satisfies Record<ComposerTaskStep["status"], string>;
-
 function keyedTaskSteps(steps: readonly ComposerTaskStep[]) {
   const occurrences = new Map<string, number>();
   return steps.map((step) => {
     const occurrence = occurrences.get(step.step) ?? 0;
     occurrences.set(step.step, occurrence + 1);
-    return { key: `${step.step}:${occurrence}`, step };
+    return {
+      key: `${step.step}:${occurrence}`,
+      step,
+    };
   });
 }
-
 function TaskSegments({
   className,
   steps,
@@ -43,7 +39,6 @@ function TaskSegments({
   readonly steps: readonly ComposerTaskStep[];
 }) {
   if (steps.length <= 1 || steps.length > MAX_TASK_SEGMENTS) return null;
-
   return (
     <span aria-hidden className={cn("flex w-10 shrink-0 items-center gap-0.5", className)}>
       {keyedTaskSteps(steps).map(({ key, step }) => (
@@ -62,7 +57,6 @@ function TaskSegments({
     </span>
   );
 }
-
 function TaskSummary({
   expanded,
   progress,
@@ -99,7 +93,6 @@ function TaskSummary({
     </>
   );
 }
-
 export const ComposerTasksBadge = memo(function ComposerTasksBadge({
   expanded,
   onToggle,
@@ -114,7 +107,6 @@ export const ComposerTasksBadge = memo(function ComposerTasksBadge({
   readonly steps: readonly ComposerTaskStep[];
 }) {
   if (progress.totalSteps <= 0) return null;
-
   const row = (
     <ComposerBanner.Row
       render={<button type="button" />}
@@ -135,7 +127,6 @@ export const ComposerTasksBadge = memo(function ComposerTasksBadge({
     </ComposerBanner.Root>
   );
 });
-
 export const ComposerTasksContent = memo(function ComposerTasksContent({
   expanded,
   onToggle,
@@ -219,7 +210,6 @@ export const ComposerTasksContent = memo(function ComposerTasksContent({
     </div>
   );
 });
-
 export const ComposerTasksDrawer = memo(function ComposerTasksDrawer({
   onCollapse,
   ...props

@@ -19,10 +19,6 @@
       "types": "./src/server/clientTerminals.ts",
       "import": "./src/server/clientTerminals.ts"
     },
-    "./server/mcpOverAcpBridge": {
-      "types": "./src/server/mcpOverAcpBridge.ts",
-      "import": "./src/server/mcpOverAcpBridge.ts"
-    },
     "./server/nativeLogging": {
       "types": "./src/server/nativeLogging.ts",
       "import": "./src/server/nativeLogging.ts"

@@ -72,7 +72,6 @@ export function useComposerAttachmentIntake(input: {
   readonly composerImagesRef: ChatComposerProps["composerImagesRef"];
   readonly composerFilesRef: ChatComposerProps["composerFilesRef"];
   readonly composerEditorRef: RefObject<ComposerPromptEditorHandle | null>;
-  readonly isRevertingCheckpointRef: RefObject<boolean>;
   readonly setThreadError: ChatComposerProps["setThreadError"];
   readonly countReservedAttachments: () => number;
   readonly addComposerImage: (image: ComposerImageAttachment) => string[];
@@ -81,7 +80,10 @@ export function useComposerAttachmentIntake(input: {
   readonly removeComposerImageFromDraft: (imageId: string) => void;
   readonly insertAttachmentReferences: (
     references: ReadonlyArray<ComposerContextReference>,
-    selection?: { start: number; end: number },
+    selection?: {
+      start: number;
+      end: number;
+    },
   ) => boolean;
 }) {
   const {
@@ -100,7 +102,6 @@ export function useComposerAttachmentIntake(input: {
     composerImagesRef,
     composerFilesRef,
     composerEditorRef,
-    isRevertingCheckpointRef,
     setThreadError,
     countReservedAttachments,
     addComposerImage,
@@ -109,20 +110,25 @@ export function useComposerAttachmentIntake(input: {
     removeComposerImageFromDraft,
     insertAttachmentReferences,
   } = input;
-  const pastedTextFileNamesRef = useRef<{ targetKey: string; names: Set<string> }>({
+  const pastedTextFileNamesRef = useRef<{
+    targetKey: string;
+    names: Set<string>;
+  }>({
     targetKey: "",
     names: new Set(),
   });
-
   const addComposerAttachments = async (
     files: File[],
     options?: {
       readonly source?: ChatFileAttachment["source"];
-      readonly selection?: { start: number; end: number };
+      readonly selection?: {
+        start: number;
+        end: number;
+      };
       readonly skipImageInlineChip?: boolean;
     },
   ): Promise<boolean> => {
-    if (!activeThreadId || files.length === 0 || isRevertingCheckpointRef.current) return false;
+    if (!activeThreadId || files.length === 0) return false;
     if (
       pendingUserInputs.length > 0 &&
       (!supportsQuestionAttachments ||
@@ -204,7 +210,10 @@ export function useComposerAttachmentIntake(input: {
         const attachmentFile =
           file.type === fileMimeType
             ? file
-            : new File([file], file.name, { type: fileMimeType, lastModified: file.lastModified });
+            : new File([file], file.name, {
+                type: fileMimeType,
+                lastModified: file.lastModified,
+              });
         acceptedFiles.push({
           type: "file",
           id: randomUUID(),
@@ -212,7 +221,11 @@ export function useComposerAttachmentIntake(input: {
           mimeType: fileMimeType,
           sizeBytes: attachmentFile.size,
           file: attachmentFile,
-          ...(options?.source ? { source: options.source } : {}),
+          ...(options?.source
+            ? {
+                source: options.source,
+              }
+            : {}),
         });
       }
       if (!matchingReattachMarker) {
@@ -235,10 +248,10 @@ export function useComposerAttachmentIntake(input: {
         toastManager.add({
           type: "info",
           title: `Large paste attached as ${attached.name}`,
-          description: `${formatAttachmentSize(attached.sizeBytes)} · Use ${
-            isMacPlatform(navigator.platform) ? "⌘⇧V" : "Ctrl+Shift+V"
-          } to keep a large paste inline.`,
-          data: { hideCopyButton: true },
+          description: `${formatAttachmentSize(attached.sizeBytes)} · Use ${isMacPlatform(navigator.platform) ? "⌘⇧V" : "Ctrl+Shift+V"} to keep a large paste inline.`,
+          data: {
+            hideCopyButton: true,
+          },
         });
       }
     }
@@ -254,7 +267,10 @@ export function useComposerAttachmentIntake(input: {
     addPreparingComposerImages(attachmentTargetKey, preparingImages);
     if (questionAttachmentTarget)
       changeQuestionAttachmentPreparation(questionAttachmentTarget, acceptedImages.length);
-    const compressed: { id: string; file: File }[] = [];
+    const compressed: {
+      id: string;
+      file: File;
+    }[] = [];
     // Keyed by image so a failure whose tile was removed (even mid-compression) is not reported.
     const compressionErrors = new Map<string, string>();
     for (const { id, file } of preparingImages) {
@@ -265,7 +281,13 @@ export function useComposerAttachmentIntake(input: {
       const result = await prepareImageForAttachment(
         file,
         PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
-      ).catch(() => ({ ok: false, reason: "unreadable" }) as const);
+      ).catch(
+        () =>
+          ({
+            ok: false,
+            reason: "unreadable",
+          }) as const,
+      );
       if (!result.ok) {
         compressionErrors.set(
           id,
@@ -276,7 +298,10 @@ export function useComposerAttachmentIntake(input: {
         continue;
       }
       inheritComposerImageThumbnail(file, result.file);
-      compressed.push({ id, file: result.file });
+      compressed.push({
+        id,
+        file: result.file,
+      });
     }
     const questionDiscarded =
       questionAttachmentTarget !== null &&
@@ -330,7 +355,6 @@ export function useComposerAttachmentIntake(input: {
     }
     return insertedAny;
   };
-
   const removeComposerImage = (imageId: string) => {
     if (removePreparingComposerImages(attachmentTargetKey, new Set([imageId])).size > 0) {
       // Its compression finishes in the background and is dropped.
@@ -348,7 +372,9 @@ export function useComposerAttachmentIntake(input: {
     }
     const confirmation = requestConfirmDialog(
       `Remove ${image?.name ?? "this image"} from the message?\nIt is referenced in your text; removing it also removes every reference.`,
-      { variant: "destructive" },
+      {
+        variant: "destructive",
+      },
     );
     if (!confirmation) {
       removeComposerImageFromDraft(imageId);
@@ -358,11 +384,13 @@ export function useComposerAttachmentIntake(input: {
       if (confirmed) removeComposerImageFromDraft(imageId);
     });
   };
-
   const foldPastedText = (
     plainText: string,
     bypassAutoAttachment: boolean,
-    selectionOverride?: { start: number; end: number },
+    selectionOverride?: {
+      start: number;
+      end: number;
+    },
   ): boolean => {
     if (isLiteralPendingAnswer) return false;
     const questionCanAttach =
@@ -374,7 +402,10 @@ export function useComposerAttachmentIntake(input: {
     const selection = selectionOverride ?? composerEditorRef.current?.readSelectionRange();
     const wouldExceedInputLimit = wouldTextPasteExceedLimit({
       valueLength: promptRef.current.length,
-      selection: selection ?? { start: 0, end: 0 },
+      selection: selection ?? {
+        start: 0,
+        end: 0,
+      },
       textLength: plainText.length,
       maxLength: PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
     });
@@ -388,12 +419,8 @@ export function useComposerAttachmentIntake(input: {
     if (!shouldFold) {
       return false;
     }
-
     const canStageAttachment =
-      Boolean(activeThreadId) &&
-      !isRevertingCheckpointRef.current &&
-      questionCanAttach &&
-      hasAttachmentSlot;
+      Boolean(activeThreadId) && true && questionCanAttach && hasAttachmentSlot;
     if (!canStageAttachment || fileStagingLimit === null) {
       if (!wouldExceedInputLimit) {
         return false;
@@ -402,13 +429,17 @@ export function useComposerAttachmentIntake(input: {
         type: "error",
         title: "Pasted text is too large for this message",
         description: "Remove some text or an attachment, then paste again.",
-        data: { hideCopyButton: true },
+        data: {
+          hideCopyButton: true,
+        },
       });
       return true;
     }
-
     if (pastedTextFileNamesRef.current.targetKey !== attachmentTargetKey) {
-      pastedTextFileNamesRef.current = { targetKey: attachmentTargetKey, names: new Set() };
+      pastedTextFileNamesRef.current = {
+        targetKey: attachmentTargetKey,
+        names: new Set(),
+      };
     }
     const reservedNames = pastedTextFileNamesRef.current.names;
     for (const file of composerFilesRef.current) reservedNames.add(file.name);
@@ -424,18 +455,24 @@ export function useComposerAttachmentIntake(input: {
         type: "error",
         title: "Pasted text is too large to attach",
         description: "Reduce the clipboard contents or save a smaller excerpt as a file.",
-        data: { hideCopyButton: true },
+        data: {
+          hideCopyButton: true,
+        },
       });
       return true;
     }
-
     void addComposerAttachments([foldedFile], {
-      source: { _tag: "pasted-text" },
-      ...(selection ? { selection } : {}),
+      source: {
+        _tag: "pasted-text",
+      },
+      ...(selection
+        ? {
+            selection,
+          }
+        : {}),
     });
     return true;
   };
-
   return {
     addComposerAttachments,
     removeComposerImage,

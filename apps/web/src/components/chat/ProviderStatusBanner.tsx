@@ -5,7 +5,6 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button, InlineButton } from "../ui/button";
 import { formatProviderDriverKindLabel } from "../../providerModels";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-
 function getIncompatibleVersion(status: ServerProvider) {
   const compatibility = status.compatibilityAdvisory;
   if (status.status === "error" && status.auth.status === "unauthenticated") return null;
@@ -14,7 +13,6 @@ function getIncompatibleVersion(status: ServerProvider) {
     ? compatibility
     : null;
 }
-
 export function getProviderStatusBannerKey(status: ServerProvider | null): string | null {
   if (!status || status.status === "disabled") return null;
   const incompatible = getIncompatibleVersion(status);
@@ -40,7 +38,6 @@ export function getProviderStatusBannerKey(status: ServerProvider | null): strin
     "\u0000",
   );
 }
-
 export function shouldShowProviderStatusBanner(
   status: ServerProvider | null,
   dismissedBannerKey: string | null,
@@ -48,7 +45,6 @@ export function shouldShowProviderStatusBanner(
   const bannerKey = getProviderStatusBannerKey(status);
   return bannerKey !== null && bannerKey !== dismissedBannerKey;
 }
-
 export function hasProviderSetup(status: ServerProvider): boolean {
   return (
     status.driver === "antigravity" ||
@@ -56,7 +52,6 @@ export function hasProviderSetup(status: ServerProvider): boolean {
     status.setup?.canInstall === true
   );
 }
-
 export function getProviderStatusMessage(status: ServerProvider): string {
   if (
     status.auth.status !== "unauthenticated" &&
@@ -84,7 +79,6 @@ export function getProviderStatusMessage(status: ServerProvider): string {
       ? `${providerName} provider is unavailable.`
       : `${providerName} provider has limited availability.`;
 }
-
 export const ProviderStatusBanner = memo(function ProviderStatusBanner({
   onDismiss,
   onOpenProviderSetup,
@@ -97,7 +91,6 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
   if (!status || getProviderStatusBannerKey(status) === null) {
     return null;
   }
-
   const providerName = status.displayName?.trim() || formatProviderDriverKindLabel(status.driver);
   const isUnauthenticated = status.status === "error" && status.auth.status === "unauthenticated";
   const incompatible = getIncompatibleVersion(status);
@@ -109,7 +102,6 @@ export const ProviderStatusBanner = memo(function ProviderStatusBanner({
   const message = incompatible?.message ?? getProviderStatusMessage(status);
   const isWarning =
     incompatible?.status !== "broken" && (status.status === "warning" || incompatible !== null);
-
   return (
     <div className="pointer-events-auto mx-auto w-fit max-w-[calc(100%-2rem)] pt-3">
       <Alert

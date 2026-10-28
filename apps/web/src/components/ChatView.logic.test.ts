@@ -49,7 +49,6 @@ import {
   timelineHasEphemeralPreviewUrls,
   createLocalDispatchSnapshot,
   deriveCommittedServerUserMessageIds,
-  deriveComposerSendState,
   deriveLockedProvider,
   hasServerAcknowledgedLocalDispatch,
   resolveDraftPromotionNavigationTarget,
@@ -147,31 +146,6 @@ describe("resolveDraftPromotionNavigationTarget", () => {
         backgroundSubmissionPending: true,
       }),
     ).toBeNull();
-  });
-});
-
-describe("deriveComposerSendState", () => {
-  it("keeps text sendable while excluding expired terminal pills", () => {
-    const state = deriveComposerSendState({
-      prompt: `yoo [Terminal 1](t3-context://v1/terminal/ctx-expired) waddup`,
-      imageCount: 0,
-      terminalContexts: [
-        {
-          id: "ctx-expired",
-          threadId,
-          terminalId: "default",
-          terminalLabel: "Terminal 1",
-          lineStart: 4,
-          lineEnd: 4,
-          text: "",
-          createdAt: now,
-        },
-      ],
-    });
-
-    expect(state.trimmedPrompt).toBe("yoo  waddup");
-    expect(state.expiredTerminalContextCount).toBe(1);
-    expect(state.hasSendableContent).toBe(true);
   });
 });
 

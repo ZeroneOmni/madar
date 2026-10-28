@@ -1,7 +1,5 @@
 import { assert, it } from "@effect/vitest";
 import {
-  CheckpointId,
-  CheckpointScopeId,
   CommandId,
   NodeId,
   ProviderSessionId,
@@ -11,22 +9,19 @@ import {
   RunId,
   RuntimeRequestId,
   ThreadId,
-  VcsProcessExitError,
 } from "@t3tools/contracts";
-import * as Cause from "effect/Cause";
+
 import * as DateTime from "effect/DateTime";
-import * as Deferred from "effect/Deferred";
+
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 
-import * as CheckpointRollbackService from "./CheckpointRollbackService.ts";
-import * as CheckpointService from "./CheckpointService.ts";
 import * as EffectOutbox from "./EffectOutbox.ts";
 import * as EffectWorker from "./EffectWorker.ts";
-import * as RunFinalizationService from "./RunFinalizationService.ts";
+
 import * as ProviderSessionManager from "./ProviderSessionManager.ts";
 import * as ProviderTurnControlService from "./ProviderTurnControlService.ts";
 import * as ProviderTurnStartService from "./ProviderTurnStartService.ts";
@@ -83,7 +78,7 @@ function layerExecutorFor(input: {
   readonly threads?: Partial<ThreadManagementService.ThreadManagementService["Service"]>;
   readonly continueAfterRestart?: boolean;
   readonly interrupt?: ProviderTurnControlService.ProviderTurnControlServiceV2Shape["interrupt"];
-  readonly rollback?: CheckpointRollbackService.CheckpointRollbackServiceV2Shape["execute"];
+
   readonly respond?: RuntimeRequestService.RuntimeRequestServiceV2["Service"]["respond"];
 }) {
   const record = (event: string) => Ref.update(input.events, (events) => [...events, event]);
@@ -132,16 +127,7 @@ function layerExecutorFor(input: {
           }),
       }),
     ),
-    Layer.succeed(
-      RunFinalizationService.RunFinalizationService,
-      RunFinalizationService.RunFinalizationService.of({ finalize: () => Effect.void }),
-    ),
-    Layer.succeed(
-      CheckpointRollbackService.CheckpointRollbackServiceV2,
-      CheckpointRollbackService.CheckpointRollbackServiceV2.of({
-        execute: input.rollback ?? (() => Effect.void),
-      }),
-    ),
+
     Layer.succeed(
       RuntimeRequestService.RuntimeRequestServiceV2,
       RuntimeRequestService.RuntimeRequestServiceV2.of({
@@ -204,75 +190,6 @@ it.effect("settles a stopped run when its adapter has already lost the native tu
   }),
 );
 
-const lockedIndexMessage =
-  "Git's index is locked. Wait for other Git operations to finish, then try again.";
-const rollbackCheckpointId = CheckpointId.make("checkpoint:effect-worker-rollback");
-const rollbackScopeId = CheckpointScopeId.make("checkpoint-scope:effect-worker-rollback");
-const restoreFailure = (detail: string) =>
-  new CheckpointRollbackService.CheckpointRollbackExecutionError({
-    reason: "unexpected-failure",
-    threadId,
-    providerThreadId,
-    checkpointId: rollbackCheckpointId,
-    cause: new CheckpointService.CheckpointRestoreError({
-      scopeId: rollbackScopeId,
-      checkpointId: rollbackCheckpointId,
-      cause: new VcsProcessExitError({
-        operation: "GitVcsDriverCore.restoreCheckpoint",
-        command: "git",
-        cwd: "/private/repo",
-        exitCode: 128,
-        detail,
-        failureKind: "command-failed",
-      }),
-    }),
-  });
-
-it.effect.each([
-  {
-    name: "a held Git index lock",
-    failure: restoreFailure(lockedIndexMessage),
-    message: lockedIndexMessage,
-  },
-  {
-    name: "raw Git output",
-    failure: restoreFailure("error: could not clean /private/repo/secret.txt"),
-    message: CheckpointRollbackService.ROLLBACK_FAILED_MESSAGE,
-  },
-])("reports a rollback blocked by $name only after the last attempt", ({ failure, message }) =>
-  Effect.gen(function* () {
-    const now = yield* DateTime.now;
-    const failures = yield* Ref.make<ReadonlyArray<string>>([]);
-    const layer = layerExecutorFor({
-      events: yield* Ref.make<ReadonlyArray<string>>([]),
-      rollback: () => Effect.fail(failure),
-      threads: {
-        dispatch: (command) =>
-          Ref.update(failures, (current) =>
-            command.type === "checkpoint.rollback.fail" ? [...current, command.message] : current,
-          ).pipe(Effect.as({ sequence: 1, storedEvents: [] })),
-      },
-    });
-    yield* Effect.gen(function* () {
-      const executor = yield* EffectWorker.OrchestrationEffectExecutorV2;
-      const rollback: EffectOutbox.OrchestrationEffectV2 = {
-        ...restartEffect(now, { type: "detach" }),
-        request: {
-          type: "provider-thread.rollback",
-          providerThreadId,
-          checkpointId: rollbackCheckpointId,
-          scopeId: rollbackScopeId,
-          restoreFiles: true,
-        },
-      };
-      yield* Effect.flip(executor.execute(rollback, { willRetry: true }));
-      assert.deepEqual(yield* Ref.get(failures), []);
-      yield* Effect.flip(executor.execute(rollback, { willRetry: false }));
-    }).pipe(Effect.provide(layer));
-    assert.deepEqual(yield* Ref.get(failures), [message]);
-  }),
-);
-
 it.effect("does not report an answer whose last delivery attempt is interrupted", () =>
   Effect.gen(function* () {
     const now = yield* DateTime.now;
@@ -306,143 +223,6 @@ it.effect("does not report an answer whose last delivery attempt is interrupted"
     }).pipe(Effect.provide(layer));
     assert.isTrue(Exit.hasInterrupts(exit));
     assert.equal(yield* Ref.get(reported), 0);
-  }),
-);
-
-it.effect("requeues a claim when a pre-execution worker check fails", () =>
-  Effect.gen(function* () {
-    const now = DateTime.formatIso(yield* DateTime.now);
-    const effectId = "effect:worker-pre-execution-failure";
-    const workerId = "worker-pre-execution-failure";
-    const claimedEffect: EffectOutbox.OrchestrationEffectV2 = {
-      id: effectId,
-      commandId: CommandId.make("command:worker-pre-execution-failure"),
-      threadId: ThreadId.make("thread:worker-pre-execution-failure"),
-      request: { type: "terminal.cleanup" },
-      status: "running",
-      attemptCount: 1,
-      availableAt: now,
-      leaseOwner: workerId,
-      leaseExpiresAt: now,
-      createdAt: now,
-      updatedAt: now,
-      completedAt: null,
-      lastError: null,
-    };
-    const retries = yield* Ref.make<
-      ReadonlyArray<{
-        readonly effectId: string;
-        readonly workerId: string;
-        readonly error: string;
-        readonly delayMs: number;
-      }>
-    >([]);
-    const executionCount = yield* Ref.make(0);
-    const layerOutbox = Layer.mock(EffectOutbox.EffectOutboxV2)({
-      claimNext: () => Effect.succeed(Option.some(claimedEffect)),
-      get: () =>
-        Effect.fail(
-          new EffectOutbox.EffectOutboxError({
-            operation: "get",
-            effectId,
-            cause: "simulated cancellation-state read failure",
-          }),
-        ),
-      retry: (input) =>
-        Ref.update(retries, (existing) => [...existing, input]).pipe(Effect.as(true)),
-    });
-    const layerExecutor = Layer.succeed(
-      EffectWorker.OrchestrationEffectExecutorV2,
-      EffectWorker.OrchestrationEffectExecutorV2.of({
-        execute: () => Ref.update(executionCount, (count) => count + 1),
-      }),
-    );
-    const layerWorker = EffectWorker.layerWithOptions({ workerId }).pipe(
-      Layer.provide(Layer.merge(layerOutbox, layerExecutor)),
-    );
-
-    const exit = yield* EffectWorker.OrchestrationEffectWorkerV2.pipe(
-      Effect.flatMap((worker) => worker.runOnce),
-      Effect.provide(layerWorker),
-      Effect.exit,
-    );
-
-    assert.isTrue(Exit.isFailure(exit));
-    if (Exit.isFailure(exit)) {
-      assert.include(Cause.pretty(exit.cause), "simulated cancellation-state read failure");
-    }
-    assert.equal(yield* Ref.get(executionCount), 0);
-    const retry = (yield* Ref.get(retries))[0];
-    assert.isDefined(retry);
-    assert.equal(retry.effectId, effectId);
-    assert.equal(retry.workerId, workerId);
-    assert.equal(retry.delayMs, 0);
-    assert.include(retry.error, "simulated cancellation-state read failure");
-  }),
-);
-
-it.effect("arms cancellation before the durable pre-execution check", () =>
-  Effect.gen(function* () {
-    const now = DateTime.formatIso(yield* DateTime.now);
-    const effectId = "effect:worker-cancellation-registration-race";
-    const workerId = "worker-cancellation-registration-race";
-    const claimedEffect: EffectOutbox.OrchestrationEffectV2 = {
-      id: effectId,
-      commandId: CommandId.make("command:worker-cancellation-registration-race"),
-      threadId: ThreadId.make("thread:worker-cancellation-registration-race"),
-      request: { type: "terminal.cleanup" },
-      status: "running",
-      attemptCount: 1,
-      availableAt: now,
-      leaseOwner: workerId,
-      leaseExpiresAt: now,
-      createdAt: now,
-      updatedAt: now,
-      completedAt: null,
-      lastError: null,
-    };
-    const signal = yield* Deferred.make<void>();
-    let cancellationArmed = false;
-    const executionCount = yield* Ref.make(0);
-    const settlementCount = yield* Ref.make(0);
-    const layerOutbox = Layer.mock(EffectOutbox.EffectOutboxV2)({
-      claimNext: () => Effect.succeed(Option.some(claimedEffect)),
-      awaitCancellation: () => {
-        cancellationArmed = true;
-        return Deferred.await(signal);
-      },
-      get: () =>
-        Effect.gen(function* () {
-          if (cancellationArmed) {
-            yield* Deferred.succeed(signal, undefined);
-          }
-          return Option.some(claimedEffect);
-        }),
-      clearCancellation: () => Effect.void,
-      succeed: () => Ref.update(settlementCount, (count) => count + 1).pipe(Effect.as(true)),
-    });
-    const layerExecutor = Layer.succeed(
-      EffectWorker.OrchestrationEffectExecutorV2,
-      EffectWorker.OrchestrationEffectExecutorV2.of({
-        execute: () =>
-          Effect.yieldNow.pipe(Effect.andThen(Ref.update(executionCount, (count) => count + 1))),
-      }),
-    );
-    const layerWorker = EffectWorker.layerWithOptions({ workerId }).pipe(
-      Layer.provide(Layer.merge(layerOutbox, layerExecutor)),
-    );
-
-    const exit = yield* EffectWorker.OrchestrationEffectWorkerV2.pipe(
-      Effect.flatMap((worker) => worker.runOnce),
-      Effect.provide(layerWorker),
-      Effect.exit,
-    );
-
-    if (Exit.isFailure(exit)) {
-      assert.fail(Cause.pretty(exit.cause));
-    }
-    assert.equal(yield* Ref.get(executionCount), 0);
-    assert.equal(yield* Ref.get(settlementCount), 0);
   }),
 );
 

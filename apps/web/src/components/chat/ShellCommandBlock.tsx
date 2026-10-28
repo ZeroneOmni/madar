@@ -3,13 +3,10 @@ import {
   withVisibleControlCharacters,
 } from "@t3tools/client-runtime/work-log/command-label";
 import { Suspense, use } from "react";
-
 import { useRenderedAppearance } from "../../hooks/useTheme";
 import { RenderErrorBoundary } from "../RenderErrorBoundary";
 import { HighlightedTokens } from "./HighlightedTokens";
-
 const WORD_CLASS_NAME = "inline-block max-w-full [overflow-wrap:anywhere]";
-
 let embeddedScriptsModule: Promise<typeof import("../../lib/embeddedScripts")> | undefined;
 function loadEmbeddedScripts() {
   embeddedScriptsModule ??= import("../../lib/embeddedScripts");
@@ -29,7 +26,6 @@ function PlainWords({ code }: { code: string }) {
     ),
   );
 }
-
 function HighlightedCommand({ code, theme }: { code: string; theme: "light" | "dark" }) {
   const { embeddedScripts } = use(loadEmbeddedScripts());
   const language = commandHighlightLanguage(code);
@@ -44,7 +40,6 @@ function HighlightedCommand({ code, theme }: { code: string; theme: "light" | "d
     />
   );
 }
-
 export function ShellCommandBlock({ command }: { command: string }) {
   const resolvedTheme = useRenderedAppearance();
   const code = withVisibleControlCharacters(command.trim());

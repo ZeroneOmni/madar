@@ -7,18 +7,14 @@ import {
 } from "@t3tools/shared/htmlRender";
 import { Maximize2Icon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-
 import { useAssetUrlRefresh, useAssetUrlState } from "~/assets/assetUrls";
-
 import { HtmlRenderDocument } from "../files/BrowserDocumentFrame";
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { HtmlRenderDialog } from "./HtmlRenderDialog";
 import { observeResize } from "~/lib/observeResize";
-
 const MIN_URL_LIFE_MS = 5 * 60_000;
-
 export function HtmlRenderFrame(props: {
   readonly environmentId: EnvironmentId;
   readonly htmlRender: HtmlRenderReference;
@@ -84,9 +80,14 @@ export function HtmlRenderFrame(props: {
       () => setFailed(true),
     );
   }, [cacheFailed, cachedExpiresAt, cachedUrl, refresh, src]);
-
   return (
-    <div ref={boxRef} className="group/html-render relative" style={{ height }}>
+    <div
+      ref={boxRef}
+      className="group/html-render relative"
+      style={{
+        height,
+      }}
+    >
       {src !== null ? (
         <>
           <HtmlRenderDocument

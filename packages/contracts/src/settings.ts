@@ -169,7 +169,7 @@ export const SnapShotKeyChord = KeybindingShortcut.check(
   ),
 );
 export type SnapShotKeyChord = typeof SnapShotKeyChord.Type;
-export const SNAP_SHOT_MODIFIERS = ["shift", "meta", "control", "alt"] as const;
+const SNAP_SHOT_MODIFIERS = ["shift", "meta", "control", "alt"] as const;
 export const SnapShotModifier = Schema.Literals(SNAP_SHOT_MODIFIERS);
 export type SnapShotModifier = typeof SnapShotModifier.Type;
 export const SnapShotShortcut = Schema.Union([
@@ -184,35 +184,6 @@ const DEFAULT_SNAP_SHOT_SOUND: SnapShotSound = "soft-pop";
 
 export type SnapShotModifierPairShortcut = Extract<SnapShotShortcut, { readonly kind: string }>;
 
-export function isModifierPairShortcut(
-  shortcut: SnapShotShortcut,
-): shortcut is SnapShotModifierPairShortcut {
-  return "kind" in shortcut;
-}
-
-export function snapShotShortcutModifierPair(
-  shortcut: SnapShotModifierPairShortcut,
-): SnapShotModifier {
-  return shortcut.kind === "both-shift-keys" ? "shift" : shortcut.modifier;
-}
-
-const APPLE_MODIFIER_LABELS: Record<SnapShotModifier, string> = {
-  shift: "Shift",
-  meta: "Command",
-  control: "Control",
-  alt: "Option",
-};
-const OTHER_MODIFIER_LABELS: Record<SnapShotModifier, string> = {
-  shift: "Shift",
-  meta: "Super",
-  control: "Ctrl",
-  alt: "Alt",
-};
-
-export function snapShotModifierPairLabel(modifier: SnapShotModifier, apple: boolean): string {
-  const label = (apple ? APPLE_MODIFIER_LABELS : OTHER_MODIFIER_LABELS)[modifier];
-  return `${label} + ${label}`;
-}
 const DEFAULT_SNAP_SHOT_SHORTCUT: SnapShotShortcut = {
   kind: "both-shift-keys",
 };
@@ -249,16 +220,12 @@ export const DefaultThemePreference = Schema.String.check(Schema.isMaxLength(64)
 // Excluded from RPC patches so t3 theme set can validate syntax and resolvability.
 export type DefaultThemePreference = typeof DefaultThemePreference.Type;
 
-export const DEFAULT_BROWSER_VIEWPORT: PreviewViewportSetting = FILL_PREVIEW_VIEWPORT;
-export const DEFAULT_BROWSER_AUTO_SHOW_FLOATING_PREVIEW = true;
-export {
-  BROWSER_RECORDING_FRAME_RATES,
-  BrowserRecordingFrameRate,
-  DEFAULT_BROWSER_RECORDING_FRAME_RATE,
-} from "./preview.ts";
+const DEFAULT_BROWSER_VIEWPORT: PreviewViewportSetting = FILL_PREVIEW_VIEWPORT;
+const DEFAULT_BROWSER_AUTO_SHOW_FLOATING_PREVIEW = true;
+export { BrowserRecordingFrameRate } from "./preview.ts";
 export const BrowserLinkTarget = Schema.Literals(["system", "app"]);
 export type BrowserLinkTarget = typeof BrowserLinkTarget.Type;
-export const DEFAULT_BROWSER_LINK_TARGET: BrowserLinkTarget = "system";
+const DEFAULT_BROWSER_LINK_TARGET: BrowserLinkTarget = "system";
 /**
  * What the address bar searches with when the input is not an address.
  * "custom" uses `browserCustomSearchUrl`, a template with `%s` for the query.
@@ -273,8 +240,8 @@ export const BrowserSearchEngine = Schema.Literals([
   "custom",
 ]);
 export type BrowserSearchEngine = typeof BrowserSearchEngine.Type;
-export const DEFAULT_BROWSER_SEARCH_ENGINE: BrowserSearchEngine = "duckduckgo";
-export const BROWSER_CUSTOM_SEARCH_URL_MAX_LENGTH = 2048;
+const DEFAULT_BROWSER_SEARCH_ENGINE: BrowserSearchEngine = "duckduckgo";
+const BROWSER_CUSTOM_SEARCH_URL_MAX_LENGTH = 2048;
 export const BrowserCustomSearchUrl = Schema.String.check(
   Schema.isMaxLength(BROWSER_CUSTOM_SEARCH_URL_MAX_LENGTH),
 );

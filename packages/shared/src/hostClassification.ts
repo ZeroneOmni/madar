@@ -1,4 +1,4 @@
-export const normalizeHostname = (host: string): string =>
+const normalizeHostname = (host: string): string =>
   host
     .toLowerCase()
     .replace(/^\[|\]$/g, "")

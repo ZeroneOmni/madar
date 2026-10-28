@@ -8,7 +8,6 @@ import { GitForkIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { ProposedPlanCard } from "./ProposedPlanCard";
 import { HtmlRenderFrame } from "./HtmlRenderFrame";
-import { McpAppFrame } from "./McpAppFrame";
 import { ChangedFilesCard } from "./ChangedFilesTree";
 import { useFileContextMenuHandler } from "../../fileContextMenu";
 import { useProject, useThreadShell } from "../../state/entities";
@@ -20,13 +19,20 @@ import { cn } from "~/lib/utils";
 import { useUiStateStore } from "~/uiStateStore";
 import { formatChatTimestampTooltip, formatDayAwareTimestamp } from "../../timestampFormat";
 import { useV2ItemSupport } from "../../state/v2ItemSupport";
-import { TimelineRowCtx, TimelineRowActivityCtx, type TimelineRow } from "./timelineRowContext";
+import { TimelineRowCtx, type TimelineRow } from "./timelineRowContext";
 import { MESSAGE_HEADING_LEVEL, MessageAuthorHeading } from "./TimelineRowParts";
-
-export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" }> }) {
+export function AssistantTimelineRow({
+  row,
+}: {
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "message";
+    }
+  >;
+}) {
   const ctx = use(TimelineRowCtx);
   const messageText = row.message.text || (row.message.streaming ? "" : "(empty response)");
-
   return (
     <>
       <div className="relative min-w-0 px-1 py-0.5">
@@ -34,7 +40,11 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
         <div data-thread-find-text="true">
           <AssistantCitationSource
             messageId={row.message.id}
-            {...(ctx.threadRef ? { threadRef: ctx.threadRef } : {})}
+            {...(ctx.threadRef
+              ? {
+                  threadRef: ctx.threadRef,
+                }
+              : {})}
             itemKey={row.id}
             request={ctx.citationRequest}
             listRef={ctx.listRef}
@@ -74,11 +84,17 @@ export function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind
     </>
   );
 }
-
 function AssistantForkButton({
   projectedItem,
 }: {
-  readonly projectedItem: NonNullable<Extract<TimelineRow, { kind: "message" }>["projectedItem"]>;
+  readonly projectedItem: NonNullable<
+    Extract<
+      TimelineRow,
+      {
+        kind: "message";
+      }
+    >["projectedItem"]
+  >;
 }) {
   const ctx = use(TimelineRowCtx);
   const [busy, setBusy] = useState(false);
@@ -91,11 +107,9 @@ function AssistantForkButton({
     projectedItem,
     capabilities: support.providerSession?.capabilities,
   });
-
   const onForkFromRun = ctx.onForkFromRun;
   if (!canFork || onForkFromRun === undefined || projectedItem.item.runId === null) return null;
   const runId = projectedItem.item.runId;
-
   return (
     <Tooltip>
       <TooltipTrigger
@@ -107,9 +121,10 @@ function AssistantForkButton({
             disabled={busy}
             onClick={() => {
               setBusy(true);
-              void onForkFromRun({ sourceThreadId: projectedItem.sourceThreadId, runId }).finally(
-                () => setBusy(false),
-              );
+              void onForkFromRun({
+                sourceThreadId: projectedItem.sourceThreadId,
+                runId,
+              }).finally(() => setBusy(false));
             }}
             aria-label="Fork from this response"
           />
@@ -121,11 +136,15 @@ function AssistantForkButton({
     </Tooltip>
   );
 }
-
 export function AssistantMetaTimelineRow({
   row,
 }: {
-  row: Extract<TimelineRow, { kind: "assistant-meta" }>;
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "assistant-meta";
+    }
+  >;
 }) {
   return (
     <div className="px-1">
@@ -140,7 +159,6 @@ export function AssistantMetaTimelineRow({
     </div>
   );
 }
-
 function AssistantMessageMeta({
   className,
   projectedItem,
@@ -150,14 +168,18 @@ function AssistantMessageMeta({
   alwaysVisible = false,
 }: {
   className?: string;
-  projectedItem?: Extract<TimelineRow, { kind: "message" }>["projectedItem"];
+  projectedItem?: Extract<
+    TimelineRow,
+    {
+      kind: "message";
+    }
+  >["projectedItem"];
   message: ChatMessage;
   showCopyButton: boolean;
   copyStreaming: boolean;
   alwaysVisible?: boolean;
 }) {
   const ctx = use(TimelineRowCtx);
-
   return (
     <div
       className={cn(
@@ -194,7 +216,6 @@ function AssistantMessageMeta({
     </div>
   );
 }
-
 function AssistantCopyButton({
   message,
   showCopyButton,
@@ -209,21 +230,22 @@ function AssistantCopyButton({
     showCopyButton,
     streaming,
   });
-
   if (!assistantCopyState.visible) {
     return null;
   }
-
   return <MessageCopyButton text={assistantCopyState.text ?? ""} variant="ghost" />;
 }
-
 export function ProposedPlanTimelineRow({
   row,
 }: {
-  row: Extract<TimelineRow, { kind: "proposed-plan" }>;
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "proposed-plan";
+    }
+  >;
 }) {
   const ctx = use(TimelineRowCtx);
-
   return (
     <div className="min-w-0 px-1 py-0.5">
       <ProposedPlanCard
@@ -237,16 +259,19 @@ export function ProposedPlanTimelineRow({
     </div>
   );
 }
-
 export function HtmlRenderTimelineRow({
   row,
 }: {
-  row: Extract<TimelineRow, { kind: "html-render" }>;
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "html-render";
+    }
+  >;
 }) {
   const ctx = use(TimelineRowCtx);
   const { onAppFullscreenChange } = ctx;
   const onFullscreenChange = (fullscreen: boolean) => onAppFullscreenChange(row.id, fullscreen);
-
   if (ctx.renderHtmlRender) {
     return <div className="min-w-0 px-1">{ctx.renderHtmlRender(row)}</div>;
   }
@@ -258,28 +283,6 @@ export function HtmlRenderTimelineRow({
         htmlRender={row.htmlRender}
         threadRef={ctx.threadRef ?? undefined}
         onFullscreenChange={onFullscreenChange}
-      />
-    </div>
-  );
-}
-
-export function McpAppTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "mcp-app" }> }) {
-  const ctx = use(TimelineRowCtx);
-  const { awaitingUser } = use(TimelineRowActivityCtx);
-
-  return (
-    <div className="min-w-0 px-1">
-      <McpAppFrame
-        key={row.mcpApp.attachmentId}
-        environmentId={ctx.activeThreadEnvironmentId}
-        threadId={row.sourceThreadId}
-        conversationThreadId={ctx.threadRef?.threadId ?? row.sourceThreadId}
-        itemId={row.itemId}
-        revision={row.revision}
-        app={row.mcpApp}
-        onSendMessage={ctx.onSendAppMessage}
-        awaitingUser={awaitingUser}
-        onFullscreenChange={(fullscreen) => ctx.onAppFullscreenChange(row.id, fullscreen)}
       />
     </div>
   );
@@ -302,7 +305,6 @@ const AssistantChangedFilesSection = memo(function AssistantChangedFilesSection(
   if (!turnSummary) return null;
   const checkpointFiles = turnSummary.files;
   if (checkpointFiles.length === 0) return null;
-
   return (
     <AssistantChangedFilesSectionInner
       turnSummary={turnSummary}
@@ -313,7 +315,6 @@ const AssistantChangedFilesSection = memo(function AssistantChangedFilesSection(
     />
   );
 });
-
 function AssistantChangedFilesSectionInner({
   turnSummary,
   checkpointFiles,
@@ -334,15 +335,16 @@ function AssistantChangedFilesSectionInner({
   );
   const setExpanded = useUiStateStore((store) => store.setThreadChangedFilesExpanded);
   const allDirectoriesExpanded = persistedExpanded ?? false;
-
   const thread = useThreadShell(ctx.threadRef);
   const activeProject = useProject(
     thread && thread.projectId
-      ? { environmentId: thread.environmentId, projectId: thread.projectId }
+      ? {
+          environmentId: thread.environmentId,
+          projectId: thread.projectId,
+        }
       : null,
   );
   const onFileContextMenu = useFileContextMenuHandler(ctx.activeThreadEnvironmentId);
-
   return (
     <ChangedFilesCard
       runId={turnSummary.runId}

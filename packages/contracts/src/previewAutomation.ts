@@ -22,7 +22,7 @@ const OptionalTimeoutMs = Schema.optional(
   Schema.Int.check(Schema.isGreaterThan(0)).check(Schema.isLessThanOrEqualTo(60_000)),
 ).annotate({ description: "Default 15000." });
 
-export const PREVIEW_AUTOMATION_V1_OPERATIONS = [
+const PREVIEW_AUTOMATION_V1_OPERATIONS = [
   "status",
   "open",
   "navigate",
@@ -43,7 +43,7 @@ const PREVIEW_AUTOMATION_OPERATIONS = [
   "setColorScheme",
 ] as const;
 
-export const PREVIEW_AUTOMATION_SERVER_OPERATIONS = [
+const PREVIEW_AUTOMATION_SERVER_OPERATIONS = [
   ...PREVIEW_AUTOMATION_OPERATIONS,
   "dialog",
   "close",
@@ -516,8 +516,6 @@ export const PreviewAutomationRecordingStatus = Schema.Struct({
 });
 export type PreviewAutomationRecordingStatus = typeof PreviewAutomationRecordingStatus.Type;
 
-export const PREVIEW_RECORDING_STOP_TIMEOUT_MS = 120_000;
-
 export const PreviewAutomationRecordingArtifact = Schema.Struct({
   id: Schema.String,
   tabId: PreviewTabId,
@@ -642,8 +640,6 @@ const PreviewAutomationScopeErrorFields = {
   providerSessionId: TrimmedNonEmptyString,
   providerInstanceId: ProviderInstanceId,
 };
-
-export const SERVER_BROWSER_AUTOMATION_CLIENT_ID = "server-browser";
 
 const PreviewAutomationRequestErrorFields = {
   ...PreviewAutomationScopeErrorFields,

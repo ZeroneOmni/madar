@@ -49,7 +49,6 @@ export function childInputBannerItem(input: {
     ),
   };
 }
-
 export function goalBannerItem(input: {
   readonly threadId: ThreadId;
   readonly goal: OrchestrationV2ProviderGoal;
@@ -90,7 +89,6 @@ export function goalBannerItem(input: {
     ),
   };
 }
-
 export function backgroundWorkBannerItem(input: {
   readonly threadId: ThreadId;
   readonly tasks: ReadonlyArray<OrchestrationV2PendingBackgroundTask>;
@@ -161,7 +159,10 @@ export function backgroundWorkBannerItem(input: {
 /** The local checkout moved off the branch this thread last ran on. */
 export function branchMismatchBannerItem(input: {
   readonly mismatchKey: string;
-  readonly mismatch: { readonly threadBranch: string; readonly currentBranch: string };
+  readonly mismatch: {
+    readonly threadBranch: string;
+    readonly currentBranch: string;
+  };
   readonly restoreDisabled: boolean;
   readonly restoring: boolean;
   readonly onRestore: () => void;

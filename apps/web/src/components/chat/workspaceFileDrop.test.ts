@@ -1,12 +1,12 @@
 import { describe, expect, it } from "@effect/vitest";
 import { splitTransferredFiles } from "./workspaceFileDrop";
-
 describe("splitTransferredFiles", () => {
   it("separates copied folders from files before attachment validation", () => {
     const folder = new File([], "photos.png");
     const emptyFile = new File([], "empty.txt");
-    const image = new File(["image"], "photo.png", { type: "image/png" });
-
+    const image = new File(["image"], "photo.png", {
+      type: "image/png",
+    });
     expect(
       splitTransferredFiles({
         files: [folder, emptyFile, image],
@@ -19,12 +19,16 @@ describe("splitTransferredFiles", () => {
           {
             kind: "file",
             getAsFile: () => folder,
-            webkitGetAsEntry: () => ({ isDirectory: true }),
+            webkitGetAsEntry: () => ({
+              isDirectory: true,
+            }),
           },
           {
             kind: "file",
             getAsFile: () => emptyFile,
-            webkitGetAsEntry: () => ({ isDirectory: false }),
+            webkitGetAsEntry: () => ({
+              isDirectory: false,
+            }),
           },
           {
             kind: "file",
@@ -33,9 +37,11 @@ describe("splitTransferredFiles", () => {
           },
         ],
       }),
-    ).toEqual({ files: [emptyFile, image], folders: [folder] });
+    ).toEqual({
+      files: [emptyFile, image],
+      folders: [folder],
+    });
   });
-
   it("ignores clipboard file items that cannot provide a file", () => {
     expect(
       splitTransferredFiles({
@@ -44,10 +50,15 @@ describe("splitTransferredFiles", () => {
           {
             kind: "file",
             getAsFile: () => null,
-            webkitGetAsEntry: () => ({ isDirectory: true }),
+            webkitGetAsEntry: () => ({
+              isDirectory: true,
+            }),
           },
         ],
       }),
-    ).toEqual({ files: [], folders: [] });
+    ).toEqual({
+      files: [],
+      folders: [],
+    });
   });
 });

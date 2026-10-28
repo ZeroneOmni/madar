@@ -1,12 +1,8 @@
 import { RouterProvider } from "@tanstack/react-router";
 import { useEffect } from "react";
-
 import { subscribeComposerDraftModelReconciliation } from "./composerDraftStore";
 import { environmentThreadShells } from "./state/threads";
 import { environmentShell } from "./state/shell";
-
-import { BrowserProfileReporter } from "./browser/BrowserProfileReporter";
-import { ElectronBrowserHost } from "./browser/ElectronBrowserHost";
 import { QuitHoldOverlay } from "./components/QuitHoldOverlay";
 import { appAtomRegistry, AppAtomRegistryProvider } from "./rpc/atomRegistry";
 import type { AppRouter } from "./router";
@@ -26,8 +22,7 @@ export function AppRoot({ router }: { readonly router: AppRouter }) {
   return (
     <AppAtomRegistryProvider>
       <RouterProvider router={router} />
-      <ElectronBrowserHost />
-      <BrowserProfileReporter />
+
       <QuitHoldOverlay />
     </AppAtomRegistryProvider>
   );

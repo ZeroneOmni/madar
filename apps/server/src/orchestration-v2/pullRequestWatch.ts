@@ -1,5 +1,4 @@
 import type {
-  OrchestrationV2Notification,
   PullRequestCheck,
   PullRequestComment,
   PullRequestDetail,
@@ -167,88 +166,4 @@ function listed<T>(items: ReadonlyArray<T>, line: (item: T) => string): Array<st
   const lines = items.slice(0, LISTED_ITEMS).map(line);
   if (items.length > LISTED_ITEMS) lines.push(`  - and ${items.length - LISTED_ITEMS} more`);
   return lines;
-}
-
-function changeLines(
-  change: PullRequestWatchChange,
-  context: { readonly baseBranch: string; readonly commit: string },
-): Array<string> {
-  switch (change.kind) {
-    case "checks-failed":
-      return [
-        `- Checks failed${context.commit}:`,
-        ...listed(
-          change.failed,
-          (check) =>
-            `  - ${check.name}${check.status === "failure" ? "" : ` (${check.status})`}${check.url ? ` ${check.url}` : ""}`,
-        ),
-      ];
-    case "checks-passed":
-      return [
-        `- All ${change.count} ${change.required ? "required " : ""}${change.count === 1 ? "check" : "checks"} passed${context.commit}.`,
-      ];
-    case "remarks":
-      return [
-        `- ${change.remarks.length} new ${change.remarks.length === 1 ? "comment" : "comments"}:`,
-        ...listed(change.remarks, (remark) => {
-          const where = remark.path === null ? "" : ` on ${remark.path}`;
-          const body = snippet(remark.body);
-          const said = body.length === 0 ? (remark.reviewState ?? "reviewed") : `"${body}"`;
-          return `  - ${remark.author?.login ?? "someone"}${where}: ${said}${remark.url ? ` ${remark.url}` : ""}`;
-        }),
-      ];
-    case "no-checks":
-      return [
-        `- No checks have reported${context.commit} after ${change.minutes} minutes. None may be configured to run on this change.`,
-      ];
-    case "conflicting":
-      return [`- The branch now conflicts with ${context.baseBranch}.`];
-  }
-}
-
-const SUMMARY: Record<PullRequestWatchChange["kind"], string> = {
-  "checks-failed": "checks failed",
-  "checks-passed": "checks passed",
-  remarks: "new comments",
-  "no-checks": "no checks reported",
-  conflicting: "merge conflict",
-};
-
-export function pullRequestWatchMessage(input: {
-  readonly number: number;
-  readonly url: string;
-  readonly baseBranch: string;
-  readonly headSha: string | null;
-  readonly report: PullRequestWatchReport;
-}): { readonly text: string; readonly notification: OrchestrationV2Notification } {
-  const { changes, exhausted } = input.report;
-  const context = {
-    baseBranch: input.baseBranch,
-    commit: input.headSha === null ? "" : ` on ${input.headSha.slice(0, 7)}`,
-  };
-  const text = [
-    `Update on pull request #${input.number} (${input.url}), which T3 Code is watching for you:`,
-    ...changes.flatMap((change) => changeLines(change, context)),
-    "",
-    exhausted
-      ? `T3 Code stopped watching after ${PULL_REQUEST_WATCH_WAKE_LIMIT} comment-only updates in a row. Call watch_pull_request to watch it again.`
-      : "Look into each item and act on it as your task requires. This PR stays linked and watched, so do not link, watch, or list it again. End your turn when you are done, and T3 Code wakes you on the next change. When you hand the work back to the user, call unwatch_pull_request first so the thread returns to their inbox.",
-  ].join("\n");
-  const failed = changes.some(
-    (change) => change.kind === "checks-failed" || change.kind === "conflicting",
-  );
-  const summary = changes.map((change) => SUMMARY[change.kind]);
-  if (exhausted) summary.push("stopped watching");
-  return {
-    text,
-    notification: {
-      source: { kind: "monitor" },
-      outcome: failed
-        ? "failed"
-        : changes.every((change) => change.kind === "checks-passed")
-          ? "completed"
-          : "updated",
-      summary: `#${input.number}: ${summary.join(", ")}`,
-    },
-  };
 }

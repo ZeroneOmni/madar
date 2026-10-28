@@ -15,7 +15,7 @@ import {
   ProviderInstanceId,
 } from "@t3tools/contracts";
 import * as ProviderLatestVersions from "@t3tools/provider-core/server/ProviderLatestVersions";
-import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
+
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -185,7 +185,7 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
       ),
     ),
     Layer.provideMerge(ProviderLatestVersions.layer),
-    Layer.provideMerge(McpProviderSessions.layer),
+
     Layer.provideMerge(ModelManifest.layerTest),
     Layer.provideMerge(ResetCreditCoordinator.layerTest),
   );

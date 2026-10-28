@@ -4,7 +4,6 @@ import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/envir
 import {
   Outlet,
   Link,
-  redirect,
   createRootRoute,
   type ErrorComponentProps,
   useLocation,
@@ -13,7 +12,6 @@ import {
 } from "@tanstack/react-router";
 import { Check, Copy } from "lucide";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-
 import { APP_BASE_NAME, APP_DISPLAY_NAME, APP_STAGE_LABEL, APP_VERSION } from "../branding";
 import { resolveServerBackedAppDisplayName } from "../branding.logic";
 import { AppSidebarLayout } from "../components/AppSidebarLayout";
@@ -27,7 +25,6 @@ import { FirstRunGate } from "../components/onboarding/FirstRunGate";
 import { ConnectOnboardingDialog } from "../components/cloud/ConnectOnboardingDialog";
 import { RelayClientInstallDialog } from "../components/cloud/RelayClientInstallDialog";
 import { SshPasswordPromptDialog } from "../components/desktop/SshPasswordPromptDialog";
-import { SnapShotCoordinator } from "../components/desktop/SnapShotCoordinator";
 import { DesktopAppActivationCoordinator } from "../components/desktop/DesktopAppActivationCoordinator";
 import { DesktopWebLinkCoordinator } from "../components/desktop/DesktopWebLinkCoordinator";
 import { RunningThreadKeepAlive } from "../components/desktop/RunningThreadKeepAlive";
@@ -36,7 +33,6 @@ import { LegacyThreadMigrationToast } from "../components/LegacyThreadMigrationT
 import { ThreadNotificationCoordinator } from "../components/ThreadNotificationCoordinator";
 import { ReopenClosedViewShortcut } from "../components/ReopenClosedViewShortcut";
 import { ProjectCloneToastCoordinator } from "../components/ProjectCloneToastCoordinator";
-import { PullRequestGuideRunCoordinator } from "../components/pullRequest/guide/PullRequestGuideRunCoordinator";
 import { HostFreezeToastCoordinator } from "../components/HostFreezeToastCoordinator";
 import { SlowRpcRequestToastCoordinator } from "../components/SlowRpcRequestToastCoordinator";
 import { ChatGptWelcomeCoordinator } from "../components/settings/ChatGptWelcomeCoordinator";
@@ -84,11 +80,7 @@ import {
   createKeybindingsUpdateToastController,
   type KeybindingsUpdateToastController,
 } from "../components/KeybindingsUpdateToast.logic";
-
-import { getDesktopSnapShotBridge } from "../lib/desktopSnapShot";
 import { installDesktopPasteAsText } from "../lib/desktopPasteAsText";
-import { shouldResumeSnapShotSetupOnStartup } from "../lib/snapShotSetupResume";
-
 export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
     // Guest links open on the owner's tunnel host in a browser with no T3 session, and must
@@ -100,7 +92,6 @@ export const Route = createRootRoute({
         } as const,
       };
     }
-
     if (location.pathname === "/pair" && hasHostedPairingRequest(new URL(window.location.href))) {
       return {
         authGateState: {
@@ -108,7 +99,6 @@ export const Route = createRootRoute({
         } as const,
       };
     }
-
     if (isLocalEnvironmentDisabled() || isHostedStaticApp(new URL(window.location.href))) {
       return {
         authGateState: {
@@ -116,16 +106,7 @@ export const Route = createRootRoute({
         } as const,
       };
     }
-
     const authGateState = await resolveInitialServerAuthGateState();
-    if (
-      authGateState.status === "authenticated" &&
-      getDesktopSnapShotBridge() &&
-      shouldResumeSnapShotSetupOnStartup() &&
-      location.pathname !== "/settings/snap-shot"
-    ) {
-      throw redirect({ to: "/settings/snap-shot", replace: true });
-    }
     return {
       authGateState,
     };
@@ -134,10 +115,14 @@ export const Route = createRootRoute({
   errorComponent: RootRouteErrorView,
   notFoundComponent: RootRouteNotFoundView,
   head: () => ({
-    meta: [{ name: "title", content: APP_DISPLAY_NAME }],
+    meta: [
+      {
+        name: "title",
+        content: APP_DISPLAY_NAME,
+      },
+    ],
   }),
 });
-
 function RootRouteNotFoundView() {
   return (
     <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center p-6">
@@ -152,10 +137,11 @@ function RootRouteNotFoundView() {
     </main>
   );
 }
-
 function RootRouteView() {
   useEffect(() => installDesktopPasteAsText(window.desktopBridge, window), []);
-  const pathname = useLocation({ select: (location) => location.pathname });
+  const pathname = useLocation({
+    select: (location) => location.pathname,
+  });
   const { authGateState } = Route.useRouteContext();
   const primaryEnvironmentAuthenticated = authGateState.status === "authenticated";
   // Once true, stays true: a visit to /welcome means the bootstrap already chose a route.
@@ -164,9 +150,7 @@ function RootRouteView() {
   const hostedPromptLinkLanding = useHostedPromptLinkLanding(
     authGateState.status === "hosted-static",
   );
-
   if (pathname === GUEST_PAGE_PATH) return <Outlet />;
-
   if (pathname === "/pair" || pathname === "/connect" || pathname === "/connect-agent") {
     return (
       <>
@@ -187,7 +171,6 @@ function RootRouteView() {
       </>
     );
   }
-
   if (pathname === "/welcome") {
     return (
       <ToastProvider>
@@ -210,7 +193,6 @@ function RootRouteView() {
       </ToastProvider>
     );
   }
-
   if (authGateState.status !== "authenticated" && authGateState.status !== "hosted-static") {
     return (
       <>
@@ -220,7 +202,6 @@ function RootRouteView() {
       </>
     );
   }
-
   const appShell = (
     <CommandPalette>
       <AppSidebarLayout>
@@ -228,7 +209,6 @@ function RootRouteView() {
       </AppSidebarLayout>
     </CommandPalette>
   );
-
   return (
     <ToastProvider>
       <AnchoredToastProvider>
@@ -251,7 +231,7 @@ function RootRouteView() {
           <RelayClientInstallDialog />
           <ConnectOnboardingDialog />
           <SshPasswordPromptDialog />
-          <SnapShotCoordinator />
+
           <ThreadNotificationCoordinator />
           <ReopenClosedViewShortcut />
           <ConfirmDialogHost />
@@ -263,7 +243,7 @@ function RootRouteView() {
           {primaryEnvironmentAuthenticated ? <LegacyThreadMigrationToast /> : null}
           <ProjectCloneToastCoordinator />
           <AddProjectToMachineDialogHost />
-          <PullRequestGuideRunCoordinator />
+
           <HostedStaticEnvironmentBootstrap />
           {primaryEnvironmentAuthenticated ? (
             <EventRouter skipInitialBootstrapNavigation={returningFromWelcome} />
@@ -277,37 +257,29 @@ function RootRouteView() {
     </ToastProvider>
   );
 }
-
 function EnvironmentThemeSync() {
   useEnvironmentThemeSync();
   // Sync palettes before adopting the environment theme so it is already in the library.
   useDefaultThemeAdoption();
   return null;
 }
-
 function ContrastAppearanceSync() {
   const appearanceContrast = useClientSettings((settings) => settings.appearanceContrast);
   const diffColorScheme = useClientSettings((settings) => settings.diffColorScheme);
-
   useEffect(() => {
     document.documentElement.dataset.diffColorScheme = diffColorScheme;
   }, [diffColorScheme]);
-
   const chatWidth = useClientSettings((settings) => settings.chatWidth);
   useEffect(() => {
     document.documentElement.dataset.chatWidth = chatWidth;
   }, [chatWidth]);
-
   useEffect(() => {
     applyAppearanceContrast(document.documentElement, appearanceContrast);
   }, [appearanceContrast]);
-
   return null;
 }
-
 function GlassAppearanceSync() {
   const glassOpacity = useClientSettings((settings) => settings.glassOpacity);
-
   useEffect(() => {
     const style = document.documentElement.style;
     style.setProperty("--glass-opacity", `${glassOpacity}%`);
@@ -317,10 +289,8 @@ function GlassAppearanceSync() {
       style.removeProperty("--glass-blur");
     }
   }, [glassOpacity]);
-
   return null;
 }
-
 function FontAppearanceSync() {
   const fontFamilySans = useClientSettings((settings) => settings.fontFamilySans);
   const fontFamilyCode = useClientSettings((settings) => settings.fontFamilyCode);
@@ -329,7 +299,6 @@ function FontAppearanceSync() {
   const fontSizePrompt = useClientSettings((settings) => settings.fontSizePrompt);
   const fontSizeCode = useClientSettings((settings) => settings.fontSizeCode);
   const fontSmoothing = useClientSettings((settings) => settings.fontSmoothing);
-
   useEffect(() => {
     applyAppearanceFontVariables(document.documentElement, {
       sans: fontFamilySans,
@@ -349,7 +318,6 @@ function FontAppearanceSync() {
     fontSizePrompt,
     fontSmoothing,
   ]);
-
   return null;
 }
 
@@ -365,7 +333,6 @@ function BrowserChromeThemeSync() {
   }, []);
   return null;
 }
-
 function DocumentTitleSync() {
   const primaryServerVersion =
     useAtomValue(primaryServerConfigAtom)?.environment.serverVersion ?? null;
@@ -375,18 +342,14 @@ function DocumentTitleSync() {
     fallbackStageLabel: APP_STAGE_LABEL,
     primaryServerVersion,
   });
-
   useEffect(() => {
     document.title = title;
   }, [title]);
-
   return null;
 }
-
 function HostedStaticEnvironmentBootstrap() {
   const { environments } = useEnvironments();
   const activeEnvironmentId = useActiveEnvironmentId();
-
   useEffect(() => {
     if (
       environments.some(
@@ -395,29 +358,25 @@ function HostedStaticEnvironmentBootstrap() {
     ) {
       return;
     }
-
     if (activeEnvironmentId) {
       return;
     }
-
     const firstSavedEnvironment = environments[0];
     if (!firstSavedEnvironment) {
       return;
     }
-
     setActiveEnvironmentId(firstSavedEnvironment.environmentId);
   }, [activeEnvironmentId, environments]);
-
   return null;
 }
-
 function RootRouteErrorView({ error }: ErrorComponentProps) {
   const router = useRouter();
   const message = errorMessage(error);
   // Router pathname rather than window.location: desktop uses hash history, where the window path is always "/".
-  const pathname = useLocation({ select: (location) => location.pathname });
+  const pathname = useLocation({
+    select: (location) => location.pathname,
+  });
   const report = errorReport(error, pathname);
-
   return (
     <StandalonePage tone="error">
       <StandalonePageHeader
@@ -445,10 +404,10 @@ function RootRouteErrorView({ error }: ErrorComponentProps) {
     </StandalonePage>
   );
 }
-
 function CopyErrorButton({ report }: { report: string }) {
-  const { copyToClipboard, isCopied } = useCopyToClipboard({ target: "error-report" });
-
+  const { copyToClipboard, isCopied } = useCopyToClipboard({
+    target: "error-report",
+  });
   return (
     <Button size="sm" variant="outline" onClick={() => copyToClipboard(report)}>
       <MorphIcon className={cn(isCopied && "text-success")} icon={isCopied ? Check : Copy} />
@@ -456,35 +415,28 @@ function CopyErrorButton({ report }: { report: string }) {
     </Button>
   );
 }
-
 function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
   }
-
   if (typeof error === "string" && error.trim().length > 0) {
     return error;
   }
-
   return "An unexpected router error occurred.";
 }
-
 function errorDetails(error: unknown): string {
   if (error instanceof Error) {
     return error.stack ?? error.message;
   }
-
   if (typeof error === "string") {
     return error;
   }
-
   try {
     return JSON.stringify(error, null, 2);
   } catch {
     return "No additional error details are available.";
   }
 }
-
 const MAX_ERROR_CAUSE_DEPTH = 5;
 
 // Use only pathname to keep query tokens off the clipboard.
@@ -503,22 +455,21 @@ function errorReport(error: unknown, pathname: string): string {
   }
   return lines.join("\n");
 }
-
 function AuthenticatedTracingBootstrap() {
   useEffect(() => {
     void configureClientTracing();
   }, []);
-
   return null;
 }
-
 function EventRouter({
   skipInitialBootstrapNavigation,
 }: {
   readonly skipInitialBootstrapNavigation: boolean;
 }) {
   const navigate = useNavigate();
-  const pathname = useLocation({ select: (loc) => loc.pathname });
+  const pathname = useLocation({
+    select: (loc) => loc.pathname,
+  });
   const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
   const primaryEnvironment = usePrimaryEnvironment();
   const serverConfig = useAtomValue(primaryServerConfigAtom);
@@ -531,10 +482,8 @@ function EventRouter({
   const [keybindingsToastController] = useState<KeybindingsUpdateToastController>(() =>
     createKeybindingsUpdateToastController({}),
   );
-
   const handleWelcome = useEffectEvent((payload: ServerLifecycleWelcomePayload | null) => {
     if (!payload) return;
-
     setActiveEnvironmentId(payload.environment.environmentId);
     void (async () => {
       if (!payload.bootstrapProjectId || !payload.bootstrapThreadId) {
@@ -554,7 +503,6 @@ function EventRouter({
           scopeProjectRef(payload.environment.environmentId, payload.bootstrapProjectId),
         );
       useUiStateStore.getState().setProjectExpanded(bootstrapProjectKey, true);
-
       if (readPathname() !== "/") {
         return;
       }
@@ -577,13 +525,11 @@ function EventRouter({
       handledBootstrapThreadIdRef.current = payload.bootstrapThreadId;
     })().catch(() => undefined);
   });
-
   const handleServerConfigUpdated = useEffectEvent(() => {
     const decision = keybindingsToastController.handle(serverConfigEvent);
     if (!decision) {
       return;
     }
-
     if (decision._tag === "Success") {
       toastManager.add({
         type: "success",
@@ -592,7 +538,6 @@ function EventRouter({
       });
       return;
     }
-
     toastManager.add(
       stackedThreadToast({
         type: "warning",
@@ -608,19 +553,15 @@ function EventRouter({
       }),
     );
   });
-
   useEffect(() => {
     if (!serverConfig) {
       return;
     }
-
     setActiveEnvironmentId(serverConfig.environment.environmentId);
   }, [serverConfig]);
-
   useEffect(() => {
     handleWelcome(serverWelcome);
   }, [serverWelcome]);
-
   useEffect(() => {
     if (serverConfigEvent === null || handledConfigEventRef.current === serverConfigEvent) {
       return;
@@ -628,6 +569,5 @@ function EventRouter({
     handledConfigEventRef.current = serverConfigEvent;
     handleServerConfigUpdated();
   }, [serverConfigEvent]);
-
   return null;
 }

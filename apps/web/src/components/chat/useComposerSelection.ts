@@ -32,7 +32,9 @@ interface ComposerSelectionInput {
   readonly activeThread: EnvironmentThreadShell | undefined;
   readonly activeRuntime: ReturnType<typeof deriveThreadStructureRuntime>;
   readonly activeProjectSettings: {
-    readonly settings: { readonly newWorktreesStartFromOrigin: boolean };
+    readonly settings: {
+      readonly newWorktreesStartFromOrigin: boolean;
+    };
   };
   readonly settings: UnifiedSettings;
   readonly providerStatuses: ReadonlyArray<ServerProvider>;
@@ -45,7 +47,10 @@ interface ComposerSelectionInput {
   readonly isLocalDraftThread: boolean;
   readonly canOverrideServerThreadEnvMode: boolean;
   readonly setPendingServerThreadEnvModeEntry: Dispatch<
-    SetStateAction<{ readonly threadId: ThreadId; readonly mode: DraftThreadEnvMode } | null>
+    SetStateAction<{
+      readonly threadId: ThreadId;
+      readonly mode: DraftThreadEnvMode;
+    } | null>
   >;
   readonly setPendingServerThreadStartFromOriginByThreadId: Dispatch<
     SetStateAction<Record<string, boolean>>
@@ -89,23 +94,25 @@ export function useComposerSelection(input: ComposerSelectionInput) {
     (store) => store.setInteractionMode,
   );
   const setDraftThreadContext = useComposerDraftStore((store) => store.setDraftThreadContext);
-
   const handleRuntimeModeChange = (mode: RuntimeMode) => {
     if (mode === runtimeMode) return;
     setComposerDraftRuntimeMode(composerDraftTarget, mode);
     if (isLocalDraftThread) {
-      setDraftThreadContext(composerDraftTarget, { runtimeMode: mode });
+      setDraftThreadContext(composerDraftTarget, {
+        runtimeMode: mode,
+      });
     }
     scheduleComposerFocus();
   };
   const handleRuntimeModeChangeStable = useStableCallback(handleRuntimeModeChange);
-
   const handleInteractionModeChange = (mode: ProviderInteractionMode) => {
     if (mode === "plan" && !interactionModeEnabled) return;
     if (mode === interactionMode) return;
     setComposerDraftInteractionMode(composerDraftTarget, mode);
     if (isLocalDraftThread) {
-      setDraftThreadContext(composerDraftTarget, { interactionMode: mode });
+      setDraftThreadContext(composerDraftTarget, {
+        interactionMode: mode,
+      });
     }
     scheduleComposerFocus();
   };
@@ -118,7 +125,10 @@ export function useComposerSelection(input: ComposerSelectionInput) {
   const openProviderSetup = (instanceId: ProviderInstanceId) => {
     void navigate({
       to: "/settings/providers",
-      search: { environmentId, instanceId },
+      search: {
+        environmentId,
+        instanceId,
+      },
     });
   };
   const openProviderSetupStable = useStableCallback(openProviderSetup);
@@ -139,11 +149,12 @@ export function useComposerSelection(input: ComposerSelectionInput) {
         }
       : null,
   );
-
   const onProviderModelSelect = (
     instanceId: ProviderInstanceId,
     model: string,
-    options?: { focusComposer?: boolean },
+    options?: {
+      focusComposer?: boolean;
+    },
   ) => {
     if (!activeThread) return;
     const entry = providerStatuses.find((snapshot) => snapshot.instanceId === instanceId);
@@ -188,8 +199,15 @@ export function useComposerSelection(input: ComposerSelectionInput) {
       useComposerDraftStore.getState().stickyOptionsByModelByProvider[instanceId]?.[resolvedModel];
     const nextModelSelection: ModelSelection =
       rememberedOptions !== undefined && rememberedOptions.length > 0
-        ? { instanceId, model: resolvedModel, options: [...rememberedOptions] }
-        : { instanceId, model: resolvedModel };
+        ? {
+            instanceId,
+            model: resolvedModel,
+            options: [...rememberedOptions],
+          }
+        : {
+            instanceId,
+            model: resolvedModel,
+          };
     const modelChangeBlockReason = getStartedThreadModelChangeBlockReason({
       providers: providerStatuses,
       hasStartedSession: activeRuntime !== null,
@@ -210,7 +228,10 @@ export function useComposerSelection(input: ComposerSelectionInput) {
     setComposerDraftModelSelection(
       scopeThreadRef(activeThread.environmentId, activeThread.id),
       nextModelSelection,
-      { explicit: true, replaceOptions: true },
+      {
+        explicit: true,
+        replaceOptions: true,
+      },
     );
     setStickyComposerModelSelection(nextModelSelection);
     if (options?.focusComposer !== false) scheduleComposerFocus();
@@ -219,7 +240,11 @@ export function useComposerSelection(input: ComposerSelectionInput) {
   const onEnvModeChange = (mode: DraftThreadEnvMode) => {
     if (multipleModelSelections !== null) return;
     if (canOverrideServerThreadEnvMode) {
-      if (activeThread) setPendingServerThreadEnvModeEntry({ threadId: activeThread.id, mode });
+      if (activeThread)
+        setPendingServerThreadEnvModeEntry({
+          threadId: activeThread.id,
+          mode,
+        });
       scheduleComposerFocus();
       return;
     }
@@ -230,7 +255,11 @@ export function useComposerSelection(input: ComposerSelectionInput) {
           envMode: mode,
           newWorktreesStartFromOrigin: activeProjectSettings.settings.newWorktreesStartFromOrigin,
         }),
-        ...(mode === "worktree" && draftThread?.worktreePath ? { worktreePath: null } : {}),
+        ...(mode === "worktree" && draftThread?.worktreePath
+          ? {
+              worktreePath: null,
+            }
+          : {}),
       });
     }
     scheduleComposerFocus();
@@ -245,7 +274,10 @@ export function useComposerSelection(input: ComposerSelectionInput) {
       setPendingServerThreadStartFromOriginByThreadId((current) =>
         current[activeThreadId] === nextStartFromOrigin
           ? current
-          : { ...current, [activeThreadId]: nextStartFromOrigin },
+          : {
+              ...current,
+              [activeThreadId]: nextStartFromOrigin,
+            },
       );
       return;
     }

@@ -1,12 +1,10 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import { splitFilePathPosition } from "@t3tools/shared/fileLinks";
-
 import {
   shouldOpenMarkdownFileLinkInBrowserByDefault,
   type MarkdownFileLinkMeta,
 } from "../../markdown-links";
 import type { RemoteOpenMode } from "../../remoteOpen";
-
 export function canUseMarkdownFileShellActions(
   environmentId: EnvironmentId | null,
   remoteOpenMode: RemoteOpenMode,
@@ -14,7 +12,6 @@ export function canUseMarkdownFileShellActions(
 ): boolean {
   return environmentId !== null && isRemoteOpenResolved && remoteOpenMode === "local-exec";
 }
-
 export function hasMarkdownFilePrimaryAction(input: {
   canOpenInEditor: boolean;
   canOpenInBrowser: boolean;
@@ -28,13 +25,17 @@ export function hasMarkdownFilePrimaryAction(input: {
     input.canOpenMedia === true
   );
 }
-
 export function markdownFileCopyMenuItems({
   targetPath,
   workspaceRelativePath,
 }: Pick<MarkdownFileLinkMeta, "targetPath" | "workspaceRelativePath">) {
   const items = [
-    { id: "copy-full", label: "Copy full path", value: targetPath, title: "Full path" },
+    {
+      id: "copy-full",
+      label: "Copy full path",
+      value: targetPath,
+      title: "Full path",
+    },
   ];
   if (workspaceRelativePath !== null) {
     const position = targetPath.slice(splitFilePathPosition(targetPath).path.length);
@@ -47,7 +48,6 @@ export function markdownFileCopyMenuItems({
   }
   return items;
 }
-
 export function shouldUseMarkdownFileBrowserPrimaryAction(input: {
   iconPath: string;
   canOpenInEditor: boolean;

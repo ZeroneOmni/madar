@@ -2,7 +2,6 @@ import type { ComposerHandleRef } from "../../composerHandleContext";
 import type { BranchToolbarHandle } from "../BranchToolbar";
 import type { ChatComposerHandle } from "./ChatComposer";
 import type { ChatShortcutCommands } from "./useChatShortcuts";
-
 const openControl =
   (composerRef: ComposerHandleRef, control: Parameters<ChatComposerHandle["openControl"]>[0]) =>
   ({ event }: { readonly event: KeyboardEvent }) => {
@@ -12,7 +11,9 @@ const openControl =
 /** Chords that open or step the composer's controls and its branch toolbar. Held keys do not repeat them. */
 export function composerShortcutCommands(
   composerRef: ComposerHandleRef,
-  branchToolbarRef: { readonly current: BranchToolbarHandle | null },
+  branchToolbarRef: {
+    readonly current: BranchToolbarHandle | null;
+  },
 ): ChatShortcutCommands {
   return {
     "modelPicker.toggle": ({ event }) => {

@@ -56,11 +56,7 @@ import {
 import * as Persistence from "../platform/persistence.ts";
 import * as ConnectionProfileStore from "./profileStore.ts";
 import * as EnvironmentRegistry from "./registry.ts";
-import {
-  PullRequestRoutingPermissions,
-  type StoredPullRequestRoutingPermission,
-  makePullRequestRoutingPermissions,
-} from "./pullRequestRoutingPermissions.ts";
+
 import * as RpcSession from "../rpc/session.ts";
 import * as EnvironmentSupervisor from "./supervisor.ts";
 import * as ConnectionWakeups from "./wakeups.ts";
@@ -1546,44 +1542,6 @@ describe("EnvironmentRegistry", () => {
     }),
   );
 
-  it.effect("gives a primary platform registration precedence over persisted registrations", () =>
-    Effect.gen(function* () {
-      const shadowedTarget = new RelayConnectionTarget({
-        environmentId: TARGET.environmentId,
-        label: "Shadowed relay environment",
-      });
-      const harness = yield* makeHarness([shadowedTarget]);
-      const permissions = yield* makePullRequestRoutingPermissions({
-        read: Effect.succeed([]),
-        write: () => Effect.void,
-      });
-      const shadowedEntry = { target: shadowedTarget, profile: Option.none(), enabled: true };
-      yield* permissions.set(shadowedEntry, "read-write");
-
-      yield* Effect.gen(function* () {
-        const registry = yield* EnvironmentRegistry.EnvironmentRegistry;
-        yield* registry.registerPlatform(new PrimaryConnectionRegistration({ target: TARGET }));
-        expect(yield* permissions.get(shadowedEntry)).toBe("off");
-
-        expect(
-          (yield* SubscriptionRef.get(registry.entries)).get(TARGET.environmentId)?.target,
-        ).toEqual(TARGET);
-        expect(hasRoutes(yield* Ref.get(harness.storedTargets), TARGET.environmentId)).toBe(false);
-
-        yield* registry.register(new RelayConnectionRegistration({ target: shadowedTarget }));
-
-        expect(
-          (yield* SubscriptionRef.get(registry.entries)).get(TARGET.environmentId)?.target,
-        ).toEqual(TARGET);
-        expect(hasRoutes(yield* Ref.get(harness.storedTargets), TARGET.environmentId)).toBe(false);
-      }).pipe(
-        Effect.provide(harness.layer),
-        Effect.provideService(PullRequestRoutingPermissions, permissions),
-        Effect.scoped,
-      );
-    }),
-  );
-
   it.effect("rechecks platform ownership after waiting for the environment lease", () =>
     Effect.gen(function* () {
       const registrationStarted = yield* Deferred.make<void>();
@@ -1758,73 +1716,6 @@ describe("EnvironmentRegistry", () => {
           generation: 1,
         });
       }).pipe(Effect.provide(harness.layer), Effect.scoped);
-    }),
-  );
-
-  it.effect("retains a healthy runtime when the platform repeats an identical registration", () =>
-    Effect.gen(function* () {
-      const harness = yield* makeHarness([]);
-      let failWrites = false;
-      const permissions = yield* makePullRequestRoutingPermissions({
-        read: Effect.succeed([]),
-        write: () =>
-          failWrites
-            ? Effect.fail(
-                new ConnectionTransientError({
-                  reason: "remote-unavailable",
-                  detail: "Storage unavailable",
-                }),
-              )
-            : Effect.void,
-      });
-      const entry = { target: TARGET, profile: Option.none(), enabled: true };
-
-      yield* Effect.gen(function* () {
-        const registry = yield* EnvironmentRegistry.EnvironmentRegistry;
-        const registration = new PrimaryConnectionRegistration({ target: TARGET });
-        yield* registry.registerPlatform(registration);
-        yield* awaitConnectionState(
-          registry,
-          TARGET.environmentId,
-          (state) => state.phase === "connected",
-        );
-        yield* permissions.set(entry, "read-write");
-
-        yield* registry.registerPlatform(registration);
-
-        expect(yield* Ref.get(harness.sessions)).toHaveLength(1);
-        expect(yield* permissions.get(entry)).toBe("read-write");
-
-        const changedTarget = new PrimaryConnectionTarget({
-          ...TARGET,
-          httpBaseUrl: "https://changed.example.test",
-        });
-        failWrites = true;
-        yield* registry.registerPlatform(
-          new PrimaryConnectionRegistration({ target: changedTarget }),
-        );
-        expect(
-          (yield* SubscriptionRef.get(registry.entries)).get(TARGET.environmentId)?.target,
-        ).toEqual(TARGET);
-        yield* registry.reconcilePlatform([]);
-        expect((yield* SubscriptionRef.get(registry.entries)).has(TARGET.environmentId)).toBe(true);
-
-        failWrites = false;
-        yield* registry.registerPlatform(
-          new PrimaryConnectionRegistration({ target: changedTarget }),
-        );
-        expect(yield* permissions.get(entry)).toBe("off");
-        yield* registry.registerPlatform(registration);
-        expect(yield* permissions.get(entry)).toBe("off");
-        yield* permissions.set(entry, "read-write");
-        yield* registry.reconcilePlatform([]);
-        yield* registry.registerPlatform(registration);
-        expect(yield* permissions.get(entry)).toBe("off");
-      }).pipe(
-        Effect.provide(harness.layer),
-        Effect.provideService(PullRequestRoutingPermissions, permissions),
-        Effect.scoped,
-      );
     }),
   );
 
@@ -2019,40 +1910,6 @@ describe("EnvironmentRegistry routes", () => {
         expect(yield* Ref.get(harness.cacheClears)).toEqual([LAN_TARGET.environmentId]);
       }).pipe(Effect.provide(harness.layer), Effect.scoped);
     }),
-  );
-
-  it.effect(
-    "revokes pull request routing trust when a route is added but keeps it on reorder",
-    () =>
-      Effect.gen(function* () {
-        const harness = yield* makeHarness([RELAY_TARGET]);
-        let stored: ReadonlyArray<StoredPullRequestRoutingPermission> = [];
-        const permissions = yield* makePullRequestRoutingPermissions({
-          read: Effect.sync(() => stored),
-          write: (next) => Effect.sync(() => void (stored = next)),
-        });
-        yield* Effect.gen(function* () {
-          const registry = yield* EnvironmentRegistry.EnvironmentRegistry;
-          const current = () =>
-            SubscriptionRef.get(registry.entries).pipe(
-              Effect.map((entries) => entries.get(RELAY_TARGET.environmentId)!),
-            );
-          yield* permissions.set(yield* current(), "read");
-          yield* registry.register(lanRegistration());
-          expect(yield* permissions.get(yield* current())).toBe("off");
-
-          yield* permissions.set(yield* current(), "read");
-          yield* registry.reorderRoutes(LAN_TARGET.environmentId, [
-            "relay",
-            LAN_TARGET.connectionId,
-          ]);
-          expect(yield* permissions.get(yield* current())).toBe("read");
-        }).pipe(
-          Effect.provide(harness.layer),
-          Effect.provideService(PullRequestRoutingPermissions, permissions),
-          Effect.scoped,
-        );
-      }),
   );
 
   it.effect("loads saved routes grouped by environment, in saved order", () =>

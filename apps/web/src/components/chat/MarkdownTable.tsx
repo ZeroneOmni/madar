@@ -1,6 +1,5 @@
 import { Check, Copy, Maximize2, Minimize2 } from "lucide";
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentProps } from "react";
-
 import { getClientSettings } from "../../hooks/useSettings";
 import { observeResize } from "../../lib/observeResize";
 import {
@@ -38,7 +37,6 @@ function tableHasClippedCells(container: HTMLElement, table: HTMLTableElement): 
     if (viewport && scrollLeft > 0) viewport.scrollLeft = scrollLeft;
   }
 }
-
 export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const tableRef = useRef<HTMLTableElement | null>(null);
@@ -48,7 +46,6 @@ export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expandLabel = expanded ? "Collapse table cells" : "Expand table cells";
   const copyLabel = copied ? "Copied" : "Copy table";
-
   const measureClippedCells = () => {
     const container = containerRef.current;
     const table = tableRef.current;
@@ -66,7 +63,6 @@ export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
     if (!table) return;
     return observeResize(table, measureClippedCells);
   }, [measureClippedCells]);
-
   const handleCopy = (format: "markdown" | "csv") => {
     const table = containerRef.current?.querySelector("table");
     if (!table || typeof navigator === "undefined" || navigator.clipboard == null) {
@@ -89,10 +85,15 @@ export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
         }, 1200);
       })
       .catch((cause) => {
-        reportMarkdownActionFailure({ operation: "copy-table", format }, cause);
+        reportMarkdownActionFailure(
+          {
+            operation: "copy-table",
+            format,
+          },
+          cause,
+        );
       });
   };
-
   useEffect(
     () => () => {
       if (copiedTimerRef.current != null) {
@@ -102,7 +103,6 @@ export function MarkdownTable({ children, ...props }: ComponentProps<"table">) {
     },
     [],
   );
-
   return (
     <div
       ref={containerRef}

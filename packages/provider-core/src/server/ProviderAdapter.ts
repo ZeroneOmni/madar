@@ -516,24 +516,6 @@ export interface ProviderAdapterV2McpCallToolResult {
   readonly _meta?: unknown;
 }
 
-export interface ProviderAdapterV2McpApps {
-  readonly listTools: (input: {
-    readonly providerThread: OrchestrationV2ProviderThread;
-    readonly server: string;
-  }) => Effect.Effect<ReadonlyArray<ProviderAdapterV2McpTool>, ProviderAdapterV2Error>;
-  readonly callTool: (input: {
-    readonly providerThread: OrchestrationV2ProviderThread;
-    readonly server: string;
-    readonly tool: string;
-    readonly arguments: Record<string, unknown>;
-  }) => Effect.Effect<ProviderAdapterV2McpCallToolResult, ProviderAdapterV2Error>;
-  readonly readResource: (input: {
-    readonly providerThread: OrchestrationV2ProviderThread;
-    readonly server: string;
-    readonly uri: string;
-  }) => Effect.Effect<{ readonly contents: ReadonlyArray<unknown> }, ProviderAdapterV2Error>;
-}
-
 export type ProviderAdapterV2SubagentOutcome = {
   readonly status: "completed" | "failed" | "cancelled";
   readonly completedAt: NonNullable<OrchestrationV2Subagent["completedAt"]>;
@@ -620,7 +602,7 @@ export interface ProviderAdapterV2SessionRuntime {
     readonly reason?: string;
   }) => Effect.Effect<{ readonly feedbackId: string }, ProviderAdapterV2Error>;
   /** Absent means non-interactive apps with plain tool rows. */
-  readonly mcpApps?: ProviderAdapterV2McpApps;
+
   readonly rollbackThread: (
     input: ProviderAdapterV2RollbackThreadInput,
   ) => Effect.Effect<ProviderAdapterV2ThreadSnapshot, ProviderAdapterV2Error>;

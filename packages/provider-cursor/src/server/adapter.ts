@@ -2,7 +2,6 @@ import type {
   AgentMessage,
   AgentOptions,
   InteractionUpdate,
-  McpServerConfig,
   RunResult,
   SDKUserMessage,
   SettingSource,
@@ -44,8 +43,7 @@ import * as Stream from "effect/Stream";
 
 import * as ProviderHost from "@t3tools/provider-core/server/ProviderHost";
 import { mcpToolPresentation } from "@t3tools/provider-core/server/mcpToolPresentation";
-import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
-import * as McpProviderSession from "@t3tools/provider-core/server/mcpSession";
+
 import { CursorTransportFailure } from "./transportFailure.ts";
 import { cursorContextWindowTokens, cursorSdkModelSelection } from "./sdkModel.ts";
 import {
@@ -54,7 +52,7 @@ import {
   rewriteCursorSkillMentions,
 } from "./skills.ts";
 import { mergeProviderInstanceEnvironment } from "@t3tools/provider-core/server/instanceEnvironment";
-import { t3OrchestrationPromptForFirstRun } from "@t3tools/provider-core/server/orchestrationInstructions";
+
 import { buildRuntimeInstructions } from "@t3tools/provider-core/server/runtimeInstructions";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import { makeProviderFailure } from "@t3tools/provider-core/server/failure";
@@ -207,23 +205,6 @@ export function cursorRuntimeAgentPolicy(
   };
 }
 
-export function cursorMcpServers(
-  session: McpProviderSession.McpProviderSessionConfig | undefined,
-): Record<string, McpServerConfig> | undefined {
-  if (session === undefined) {
-    return undefined;
-  }
-  return {
-    "t3-code": {
-      type: "http",
-      url: session.endpoint,
-      headers: {
-        Authorization: session.authorizationHeader,
-      },
-    },
-  };
-}
-
 function providerSession(input: {
   readonly providerSessionId: OrchestrationV2ProviderSession["id"];
   readonly providerInstanceId: ProviderInstanceId;
@@ -306,11 +287,11 @@ export function makeCursorAgentOptions(input: {
   readonly modelSelection: ModelSelection;
   readonly runtimePolicy: ProviderAdapter.ProviderAdapterV2RuntimePolicy;
   readonly threadId: ThreadId;
-  readonly mcpSession: McpProviderSession.McpProviderSessionConfig | undefined;
+
   readonly platform: NodeJS.Platform;
 }): AgentOptions {
   const policy = cursorRuntimeAgentPolicy(input.runtimePolicy, input.platform);
-  const mcpServers = cursorMcpServers(input.mcpSession);
+
   return {
     model: cursorSdkModelSelection(input.modelSelection),
     name: `T3 Code ${input.threadId}`,
@@ -325,7 +306,6 @@ export function makeCursorAgentOptions(input: {
       },
       enableAgentRetries: true,
     },
-    ...(mcpServers === undefined ? {} : { mcpServers }),
   };
 }
 
@@ -887,7 +867,7 @@ export const makeCursorAdapterV2 = Effect.fn("makeCursorAdapterV2")(function* (
   const runner = yield* CursorAgentSdk.CursorAgentSdkRunner;
   const platform = yield* HostProcess.Platform;
   const host = yield* ProviderHost.ProviderHost;
-  const mcpSessions = yield* McpProviderSessions.McpProviderSessions;
+
   const adapterOptions = options;
   const apiKey = adapterOptions.environment.CURSOR_API_KEY?.trim() || undefined;
 
@@ -2152,7 +2132,6 @@ export const makeCursorAdapterV2 = Effect.fn("makeCursorAdapterV2")(function* (
             runtimePolicy: openInput.runtimePolicy,
             platform,
             threadId: openInput.threadId,
-            mcpSession: yield* mcpSessions.read(openInput.threadId),
           });
           if (
             platform === "win32" &&
@@ -2185,7 +2164,6 @@ export const makeCursorAdapterV2 = Effect.fn("makeCursorAdapterV2")(function* (
         let cursorSkillNames: ReadonlySet<string> | undefined;
         const resolveUserMessage = Effect.fnUntraced(function* (
           turnInput: ProviderAdapter.ProviderAdapterV2TurnInput,
-          mcpServers: Record<string, McpServerConfig> | undefined,
         ) {
           const rawText = turnInput.message.text;
           if (rawText.trim() === "/compress" && turnInput.message.attachments.length === 0) {
@@ -2205,17 +2183,13 @@ export const makeCursorAdapterV2 = Effect.fn("makeCursorAdapterV2")(function* (
                 .map((skill) => skill.name),
             );
           }
-          const userText = t3OrchestrationPromptForFirstRun({
-            prompt: providerMessageTextWithAttachmentPaths({
-              text:
-                cursorSkillNames === undefined
-                  ? rawText
-                  : rewriteCursorSkillMentions(rawText, cursorSkillNames),
-              attachments: turnInput.message.attachments,
-              resolveAttachmentPath: host.resolveAttachmentPath,
-            }),
-            runOrdinal: turnInput.runOrdinal,
-            hasT3Mcp: mcpServers !== undefined,
+          const userText = providerMessageTextWithAttachmentPaths({
+            text:
+              cursorSkillNames === undefined
+                ? rawText
+                : rewriteCursorSkillMentions(rawText, cursorSkillNames),
+            attachments: turnInput.message.attachments,
+            resolveAttachmentPath: host.resolveAttachmentPath,
           });
           const images = yield* Effect.forEach(
             turnInput.message.attachments.filter(isProviderNativeImageAttachment),
@@ -2279,8 +2253,8 @@ export const makeCursorAdapterV2 = Effect.fn("makeCursorAdapterV2")(function* (
               modelSelection: turnInput.modelSelection,
               runtimePolicy: turnInput.runtimePolicy,
             });
-            const mcpServers = cursorMcpServers(yield* mcpSessions.read(turnInput.threadId));
-            const message = yield* resolveUserMessage(turnInput, mcpServers);
+
+            const message = yield* resolveUserMessage(turnInput);
             const pendingUpdates: Array<InteractionUpdate> = [];
             let context: ActiveCursorTurn | null = null;
             // MCP send overrides replace the ambient servers loaded when the agent opens.
@@ -2712,7 +2686,6 @@ export type CursorAdapterV2DriverEnv =
   | FileSystem.FileSystem
   | Path.Path
   | IdAllocator.IdAllocatorV2
-  | McpProviderSessions.McpProviderSessions
   | ProviderHost.ProviderHost;
 
 export const CursorAdapterV2Driver: ProviderAdapterDriver<

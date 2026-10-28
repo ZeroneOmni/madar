@@ -1,14 +1,11 @@
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
 import { Children, cloneElement, isValidElement, type ReactNode } from "react";
 import { matchInlineSkills, type InlineSkill } from "@t3tools/shared/inlineSkills";
-
 import { SKILL_CHIP_ICON_SVG } from "../composerInlineChip";
 import { ContextChip, ContextChipLabel } from "../ContextChip";
-
 function SkillInlineText(props: { text: string; skills: ReadonlyArray<InlineSkill> }) {
   const nodes: ReactNode[] = [];
   let cursor = 0;
-
   for (const { start, end, skill, rawText } of matchInlineSkills(props.text, props.skills)) {
     if (start > cursor) {
       nodes.push(props.text.slice(cursor, start));
@@ -16,7 +13,6 @@ function SkillInlineText(props: { text: string; skills: ReadonlyArray<InlineSkil
     nodes.push(<SkillChip key={`${start}:${skill.name}`} skill={skill} rawText={rawText} />);
     cursor = end;
   }
-
   if (cursor === 0) {
     return <>{props.text}</>;
   }
@@ -25,7 +21,6 @@ function SkillInlineText(props: { text: string; skills: ReadonlyArray<InlineSkil
   }
   return <>{nodes}</>;
 }
-
 export function renderSkillInlineMarkdownChildren(
   children: ReactNode,
   skills: ReadonlyArray<InlineSkill>,
@@ -34,7 +29,14 @@ export function renderSkillInlineMarkdownChildren(
     if (typeof child === "string") {
       return <SkillInlineText text={child} skills={skills} />;
     }
-    if (!isValidElement<{ children?: ReactNode; node?: { tagName?: string } }>(child)) {
+    if (
+      !isValidElement<{
+        children?: ReactNode;
+        node?: {
+          tagName?: string;
+        };
+      }>(child)
+    ) {
       return child;
     }
     // Custom markdown components replace intrinsic types; check their hast tags.
@@ -52,7 +54,6 @@ export function renderSkillInlineMarkdownChildren(
     );
   });
 }
-
 function SkillChip(props: { skill: InlineSkill; rawText: string }) {
   return (
     <ContextChip kind="skill" data-markdown-copy={props.rawText}>
@@ -61,13 +62,14 @@ function SkillChip(props: { skill: InlineSkill; rawText: string }) {
     </ContextChip>
   );
 }
-
 export function SkillChipIcon() {
   return (
     <span
       aria-hidden="true"
       className="contents"
-      dangerouslySetInnerHTML={{ __html: SKILL_CHIP_ICON_SVG }}
+      dangerouslySetInnerHTML={{
+        __html: SKILL_CHIP_ICON_SVG,
+      }}
     />
   );
 }

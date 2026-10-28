@@ -1,12 +1,13 @@
+import { MessageSquareIcon } from "lucide-react";
 import ChatMarkdown from "./ChatMarkdown";
 import { ReadOnlySourcePreview } from "./files/AttachmentFilePreview";
-import type { PreviewAnnotationPayload, ThreadContextRecord } from "@t3tools/contracts";
+import type { ThreadContextRecord } from "@t3tools/contracts";
+import { PreviewAnnotationPayload } from "../lib/legacyPreviewAnnotation";
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
 import { videoMimeType } from "@t3tools/shared/video";
-import { MessageCircleIcon, MousePointerClickIcon } from "lucide-react";
-import { createContext, type MouseEvent, type ReactElement, type ReactNode, use } from "react";
+import { MousePointerClickIcon } from "lucide-react";
+import { createContext, type ReactElement, type ReactNode, use } from "react";
 import type { EnvironmentId } from "@t3tools/contracts";
-
 import type { ComposerFileAttachment, ComposerImageAttachment } from "~/composerDraftStore";
 import { composerFileNeedsReattach } from "~/composerDraftStore";
 import { useTheme } from "~/hooks/useTheme";
@@ -14,13 +15,9 @@ import {
   formatAttachmentUploadProgress,
   type AttachmentUploadState,
 } from "~/lib/attachmentUploadState";
-import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import {
   fileContextReference,
   imageContextReference,
-  isPullRequestSummaryContext,
-  pullRequestContextDisplayState,
-  pullRequestContextKindLabel,
   previewAnnotationContextId,
   previewAnnotationContextLabel,
   reviewCommentContextId,
@@ -30,7 +27,6 @@ import {
 } from "~/lib/composerContextRecords";
 import type { TerminalContextDraft } from "~/lib/terminalContext";
 import type { ReviewCommentContext } from "~/reviewCommentContext";
-import { ComposerPendingTerminalContextChip } from "./chat/ComposerPendingTerminalContexts";
 import { ThreadContextChip } from "./ThreadContextChip";
 import {
   createContextPresentationRegistry,
@@ -43,23 +39,36 @@ import {
   ContextChipShell,
   FileChip,
   ImageChipButton,
-  PULL_REQUEST_CHIP_KINDS,
-  PullRequestChip,
   UnresolvedChip,
 } from "./contextChipParts";
-
 export type ComposerDraftContextRecord =
-  | { kind: "terminal"; record: TerminalContextDraft }
-  | { kind: "review-comment"; record: ReviewCommentContext }
+  | {
+      kind: "terminal";
+      record: TerminalContextDraft;
+    }
+  | {
+      kind: "review-comment";
+      record: ReviewCommentContext;
+    }
   | {
       kind: "preview-annotation";
       record: PreviewAnnotationPayload;
       screenshot?: ComposerImageAttachment | undefined;
     }
-  | { kind: "image"; record: ComposerImageAttachment; upload?: AttachmentUploadState | undefined }
-  | { kind: "file"; record: ComposerFileAttachment; upload?: AttachmentUploadState | undefined }
-  | { kind: "thread"; record: ThreadContextRecord };
-
+  | {
+      kind: "image";
+      record: ComposerImageAttachment;
+      upload?: AttachmentUploadState | undefined;
+    }
+  | {
+      kind: "file";
+      record: ComposerFileAttachment;
+      upload?: AttachmentUploadState | undefined;
+    }
+  | {
+      kind: "thread";
+      record: ThreadContextRecord;
+    };
 export interface ComposerContextActions {
   environmentId: EnvironmentId | null;
   cwd?: string | undefined;
@@ -67,31 +76,23 @@ export interface ComposerContextActions {
   expandVideo: (fileId: string) => void;
   openFile: (fileId: string) => void;
   openMention: (path: string) => void;
-  openPullRequest: (event: MouseEvent<HTMLElement>, url: string) => void;
 }
-
 export const ComposerContextActionsContext = createContext<ComposerContextActions>({
   environmentId: null,
   expandImage: () => {},
   expandVideo: () => {},
   openFile: () => {},
   openMention: () => {},
-  openPullRequest: () => {},
 });
-
 export type ComposerDraftContextRecords = ReadonlyMap<string, ComposerDraftContextRecord>;
-
 export const EMPTY_COMPOSER_CONTEXT_RECORDS: ComposerDraftContextRecords = new Map();
-
 export function uploadedContextRecordFromDraft(entry: ComposerDraftContextRecord) {
   if (entry.kind !== "image" && entry.kind !== "file") return null;
   return uploadedAttachmentContextRecord(entry.record, entry.upload);
 }
-
 export const ComposerContextRecordsContext = createContext<ComposerDraftContextRecords>(
   EMPTY_COMPOSER_CONTEXT_RECORDS,
 );
-
 export function composerContextRecordsFromDraft(input: {
   terminalContexts: ReadonlyArray<TerminalContextDraft>;
   reviewComments?: ReadonlyArray<ReviewCommentContext>;
@@ -117,10 +118,16 @@ export function composerContextRecordsFromDraft(input: {
     });
   }
   for (const record of input.terminalContexts) {
-    records.set(terminalContextReference(record).contextId, { kind: "terminal", record });
+    records.set(terminalContextReference(record).contextId, {
+      kind: "terminal",
+      record,
+    });
   }
   for (const record of input.reviewComments ?? []) {
-    records.set(reviewCommentContextId(record.id), { kind: "review-comment", record });
+    records.set(reviewCommentContextId(record.id), {
+      kind: "review-comment",
+      record,
+    });
   }
   const imagesById = new Map((input.images ?? []).map((image) => [image.id, image]));
   for (const record of input.previewAnnotations ?? []) {
@@ -131,11 +138,13 @@ export function composerContextRecordsFromDraft(input: {
     });
   }
   for (const record of input.threadContexts ?? []) {
-    records.set(record.contextId, { kind: "thread", record });
+    records.set(record.contextId, {
+      kind: "thread",
+      record,
+    });
   }
   return records;
 }
-
 function ContextChip(props: {
   icon: ReactElement;
   label: string;
@@ -168,13 +177,11 @@ function ContextChip(props: {
     />
   );
 }
-
 function uploadStatusSuffix(upload: AttachmentUploadState | undefined): string | null {
   if (upload?.status === "uploading") return formatAttachmentUploadProgress(upload.progress);
   if (upload?.status === "failed") return "upload failed";
   return null;
 }
-
 function attachmentTooltip(
   attachment: ComposerImageAttachment | ComposerFileAttachment,
   upload: AttachmentUploadState | undefined,
@@ -183,7 +190,6 @@ function attachmentTooltip(
   if (upload?.status === "failed") lines.push("", upload.reason);
   return lines.join("\n");
 }
-
 function ImageContextChip(props: {
   record: ComposerImageAttachment;
   upload: AttachmentUploadState | undefined;
@@ -208,7 +214,6 @@ function ImageContextChip(props: {
     </Tooltip>
   );
 }
-
 function FileContextChip(props: {
   record: ComposerFileAttachment;
   upload: AttachmentUploadState | undefined;
@@ -243,23 +248,6 @@ function FileContextChip(props: {
     />
   );
 }
-
-function PullRequestContextChip(props: { record: ReviewCommentContext; kind: ContextChipKind }) {
-  const actions = use(ComposerContextActionsContext);
-  const metadata = props.record.pullRequest;
-  if (metadata === undefined) return null;
-  return (
-    <PullRequestChip
-      metadata={metadata}
-      environmentId={actions.environmentId}
-      label={reviewCommentContextLabel(props.record)}
-      kindLabel={pullRequestContextKindLabel(props.record)}
-      kind={props.kind}
-      onOpen={actions.openPullRequest}
-    />
-  );
-}
-
 function previewAnnotationTooltip(annotation: PreviewAnnotationPayload): string {
   const lines = [annotation.pageTitle?.trim() || annotation.pageUrl];
   if (annotation.comment.trim()) lines.push("", annotation.comment.trim());
@@ -274,7 +262,6 @@ function previewAnnotationTooltip(annotation: PreviewAnnotationPayload): string 
   if (targets.length > 0) lines.push("", targets.join(", "));
   return lines.join("\n");
 }
-
 function ComposerReviewCommentDetails({ comment }: { comment: ReviewCommentContext }) {
   return (
     <div className="space-y-2 overflow-hidden rounded-lg border border-border/70 bg-background/70 p-3">
@@ -293,7 +280,6 @@ function ComposerReviewCommentDetails({ comment }: { comment: ReviewCommentConte
     </div>
   );
 }
-
 function ComposerPreviewAnnotationDetails({
   annotation,
   screenshot,
@@ -322,7 +308,6 @@ function ComposerPreviewAnnotationDetails({
     </div>
   );
 }
-
 function ComposerThreadContextChip(props: { record: ThreadContextRecord }) {
   const { environmentId } = use(ComposerContextActionsContext);
   return (
@@ -332,7 +317,6 @@ function ComposerThreadContextChip(props: { record: ThreadContextRecord }) {
     />
   );
 }
-
 function UnresolvedContextChip(props: { label: string }) {
   return (
     <UnresolvedChip
@@ -341,11 +325,9 @@ function UnresolvedContextChip(props: { label: string }) {
     />
   );
 }
-
 interface ComposerContextRenderContext {
   label: string;
 }
-
 const composerContextPresentationRegistry = createContextPresentationRegistry<
   ComposerDraftContextRecord,
   ComposerContextRenderContext,
@@ -356,12 +338,9 @@ const composerContextPresentationRegistry = createContextPresentationRegistry<
     {
       kind: "terminal",
       canRender: (entry) => entry.kind === "terminal",
-      render: (entry, context, definition) =>
+      render: (entry, context, _definition) =>
         entry.kind === "terminal" ? (
-          <ComposerPendingTerminalContextChip
-            context={entry.record}
-            detailsMode={definition.capabilities.details}
-          />
+          <UnresolvedContextChip label={context.label} />
         ) : (
           <UnresolvedContextChip label={context.label} />
         ),
@@ -393,24 +372,15 @@ const composerContextPresentationRegistry = createContextPresentationRegistry<
         if (entry.kind !== "review-comment") {
           return <UnresolvedContextChip label={context.label} />;
         }
-        const isPullRequest = isPullRequestSummaryContext(entry.record);
-        const pullRequestState = pullRequestContextDisplayState(entry.record) ?? "unknown";
-        if (isPullRequest && entry.record.pullRequest !== undefined) {
-          return (
-            <PullRequestContextChip
-              record={entry.record}
-              kind={PULL_REQUEST_CHIP_KINDS[pullRequestState]}
-            />
-          );
-        }
+
         return (
           <ContextChip
-            icon={isPullRequest ? <PullRequestGlyph.pullRequest /> : <MessageCircleIcon />}
+            icon={<MessageSquareIcon />}
+            kind="review-comment"
+            kindLabel="Review comment"
             label={reviewCommentContextLabel(entry.record)}
-            kindLabel={isPullRequest ? pullRequestContextKindLabel(entry.record) : "Review comment"}
             details={<ComposerReviewCommentDetails comment={entry.record} />}
             detailsMode={definition.capabilities.details}
-            kind={isPullRequest ? PULL_REQUEST_CHIP_KINDS[pullRequestState] : "review-comment"}
           />
         );
       },
@@ -450,7 +420,6 @@ const composerContextPresentationRegistry = createContextPresentationRegistry<
   ],
   fallback: (_kind, _entry, context) => <UnresolvedContextChip label={context.label} />,
 });
-
 export function ComposerContextReferenceChip(props: {
   kind: string;
   contextId: string;

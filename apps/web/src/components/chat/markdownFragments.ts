@@ -1,9 +1,6 @@
 import type { MouseEvent as ReactMouseEvent } from "react";
-
 import { hastPlainTextDeep } from "./markdownHast.logic";
-
 const SANITIZED_FRAGMENT_PREFIX = "user-content-";
-
 function decodeMarkdownFragmentId(href: string): string {
   const encodedId = href.slice(1);
   try {
@@ -12,7 +9,6 @@ function decodeMarkdownFragmentId(href: string): string {
     return encodedId;
   }
 }
-
 function normalizeSanitizedFragmentId(id: string): string {
   let normalizedId = id;
   while (normalizedId.startsWith(SANITIZED_FRAGMENT_PREFIX)) {
@@ -20,7 +16,6 @@ function normalizeSanitizedFragmentId(id: string): string {
   }
   return normalizedId;
 }
-
 function findMarkdownFragmentTarget(anchor: HTMLAnchorElement, href: string): HTMLElement | null {
   const decodedId = decodeMarkdownFragmentId(href);
   const normalizedId = normalizeSanitizedFragmentId(decodedId);
@@ -32,14 +27,12 @@ function findMarkdownFragmentTarget(anchor: HTMLAnchorElement, href: string): HT
     const localTarget = localTargets.find(matchesFragment);
     if (localTarget) return localTarget;
   }
-
   return (
     document.getElementById(decodedId) ??
     Array.from(document.querySelectorAll<HTMLElement>("[id]")).find(matchesFragment) ??
     null
   );
 }
-
 export function handleMarkdownFragmentClick(
   event: ReactMouseEvent<HTMLAnchorElement>,
   href: string,
@@ -58,16 +51,16 @@ export function handleMarkdownFragmentClick(
   // Never let the browser follow the fragment or write it to the URL: desktop keeps
   // its route in the hash, so replacing the hash navigates away from the thread.
   event.preventDefault();
-  findMarkdownFragmentTarget(event.currentTarget, href)?.scrollIntoView({ block: "start" });
+  findMarkdownFragmentTarget(event.currentTarget, href)?.scrollIntoView({
+    block: "start",
+  });
 }
-
 type HeadingHastNode = {
   type?: string;
   tagName?: string;
   properties?: Record<string, unknown>;
   children?: HeadingHastNode[];
 };
-
 function githubHeadingSlug(text: string): string {
   return text
     .trim()
@@ -102,7 +95,10 @@ export function rehypeHeadingIds() {
           }
           nextSuffix.set(slug, count);
           taken.add(id);
-          node.properties = { ...node.properties, id };
+          node.properties = {
+            ...node.properties,
+            id,
+          };
         }
         return;
       }

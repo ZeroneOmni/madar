@@ -10,7 +10,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 import * as EventStore from "../../orchestration-v2/EventStore.ts";
 import * as ProjectionStore from "../../orchestration-v2/ProjectionStore.ts";
 import * as ProjectionMaintenance from "../../orchestration-v2/ProjectionMaintenance.ts";
-import { listLinkedPullRequestThreads } from "../../pullRequest/linkedThreads.ts";
+import { listLinkedPullRequestThreads } from "../legacyLinkedThreads.ts";
 import { runMigrations } from "../Migrations.ts";
 
 const decodeThread = Schema.decodeSync(Schema.fromJsonString(OrchestrationV2AppThreadJson));

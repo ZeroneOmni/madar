@@ -1,10 +1,10 @@
+import { GitMergeIcon } from "lucide-react";
 import { useAtomValue } from "@effect/atom-react";
 import { ThreadDetailsControl } from "./ThreadDetailsControl";
 import { ThreadHoverCardPopup } from "../ThreadHoverCard";
 import { ThreadDetailsSection } from "./ThreadDetailsSection";
 import { CollapsibleSectionHeader, SectionHeaderStatus } from "../ui/collapsible-section-header";
 import { SubagentTooltipContent } from "./SubagentTooltipContent";
-import { PullRequestGlyph } from "../pullRequest/pullRequestIcons";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import {
   deriveWorkflowGroups,
@@ -52,7 +52,6 @@ import {
   UnplugIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
-
 import { useArchivedThreadSnapshots } from "../../lib/archivedThreadsState";
 import { buildThreadRouteParams } from "../../threadRoutes";
 import {
@@ -67,7 +66,6 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { AgentElapsed } from "./AgentElapsed";
 import { ThreadRelationshipIcon, threadRelationshipStatusLabel } from "./ThreadRelationshipIcon";
 import { ThreadLineageWorkflowRow } from "./ThreadLineageWorkflowRow";
-
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { toastManager } from "../ui/toast";
@@ -76,18 +74,21 @@ import {
   THREAD_DETAILS_PANEL_ROW_CONTENT_CLASS,
   THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS,
 } from "./threadDetailsPanelStyles";
-
 const THREAD_LINEAGE_INITIAL_COUNT = 6;
 const THREAD_LINEAGE_PAGE_COUNT = 12;
-
 function resolveThreadLineageWindow<Row>(
   rows: ReadonlyArray<Row>,
   visibleCount: number,
-): { readonly visibleRows: ReadonlyArray<Row>; readonly hiddenCount: number } {
+): {
+  readonly visibleRows: ReadonlyArray<Row>;
+  readonly hiddenCount: number;
+} {
   const visibleRows = rows.slice(0, visibleCount);
-  return { visibleRows, hiddenCount: rows.length - visibleRows.length };
+  return {
+    visibleRows,
+    hiddenCount: rows.length - visibleRows.length,
+  };
 }
-
 function ThreadLineageRowList(props: {
   readonly hiddenCount: number;
   readonly onShowMore: () => void;
@@ -115,7 +116,6 @@ function ThreadLineageRowList(props: {
     </>
   );
 }
-
 function ThreadLineageGroup(props: {
   readonly label: string | null;
   readonly rows: ReadonlyArray<ThreadRelationshipWalkRow>;
@@ -155,7 +155,6 @@ function ThreadLineageGroup(props: {
     </div>
   );
 }
-
 function relationshipLabel(edge: ThreadRelationshipEdge, currentThreadId: ThreadId) {
   if (edge.kind === "transfer") return "Context transfer";
   if (edge.kind === "subagent") {
@@ -163,7 +162,6 @@ function relationshipLabel(edge: ThreadRelationshipEdge, currentThreadId: Thread
   }
   return edge.sourceThreadId === currentThreadId ? "Fork" : "Parent thread";
 }
-
 function relationshipThreadTitle(input: {
   readonly title: string;
   readonly isSubagent: boolean;
@@ -171,7 +169,6 @@ function relationshipThreadTitle(input: {
   if (!input.isSubagent) return input.title;
   return formatSubagentDisplayTitle(input.title);
 }
-
 function currentSubagent<Agent extends RuntimeSubagent>(
   agent: Agent | undefined,
   childThread: OrchestrationV2ThreadShell | null | undefined,
@@ -202,7 +199,6 @@ function currentSubagent<Agent extends RuntimeSubagent>(
     error: null,
   };
 }
-
 export function ThreadRelationshipsPanel(props: {
   readonly environmentId: EnvironmentId;
   readonly threadId: ThreadId;
@@ -278,7 +274,10 @@ export function ThreadRelationshipsPanel(props: {
     ...relationshipShells,
     ...(archivedShells ?? []),
   ];
-  const graph = deriveThreadRelationshipGraph({ threads: shells, projection });
+  const graph = deriveThreadRelationshipGraph({
+    threads: shells,
+    projection,
+  });
   const currentProject = projects.find((project) => project.id === currentThread?.projectId);
   const latestMergeBackRun = projection === null ? null : resolveLatestMergeBackRun(projection);
   const mergeTargetThreadId = resolveMergeBackTargetThreadId(projection);
@@ -295,11 +294,16 @@ export function ThreadRelationshipsPanel(props: {
     const workflowGroup = agent === undefined ? undefined : workflowGroupsById.get(agent.id);
     return workflowGroup === undefined
       ? row
-      : { ...row, edge: { ...row.edge, status: workflowGroup.workflow.status } };
+      : {
+          ...row,
+          edge: {
+            ...row.edge,
+            status: workflowGroup.workflow.status,
+          },
+        };
   });
   const canMerge = mergeTargetThreadId !== null && latestMergeBackRun !== null;
   const canDetach = projection ? canDetachThreadProviderSession(projection) : false;
-
   const {
     related = [],
     active = [],
@@ -314,26 +318,38 @@ export function ThreadRelationshipsPanel(props: {
       : "active";
   });
   const groups = [
-    { id: "related", label: null, rows: related, expanded: true },
-    { id: "active", label: null, rows: active, expanded: true },
-    { id: "previous", label: "Previous agents", rows: previous, expanded: false },
+    {
+      id: "related",
+      label: null,
+      rows: related,
+      expanded: true,
+    },
+    {
+      id: "active",
+      label: null,
+      rows: active,
+      expanded: true,
+    },
+    {
+      id: "previous",
+      label: "Previous agents",
+      rows: previous,
+      expanded: false,
+    },
   ];
   const runningCount =
     (projection?.subagents.filter(
       (agent) => agent.childThreadId === null && agent.status === "running",
     ).length ?? 0) + active.filter(({ edge }) => edge.status === "running").length;
-
   if (relationshipRows.length === 0 && runningCount === 0) {
     return null;
   }
-
   const openThread = (threadId: ThreadId) => {
     void navigate({
       to: "/$environmentId/$threadId",
       params: buildThreadRouteParams(scopeThreadRef(props.environmentId, threadId)),
     });
   };
-
   const merge = async () => {
     if (!latestMergeBackRun || mergeTargetThreadId === null || busyAction !== null) return;
     setBusyAction("merge");
@@ -348,17 +364,17 @@ export function ThreadRelationshipsPanel(props: {
     setBusyAction(null);
     if (result._tag === "Success") openThread(mergeTargetThreadId);
   };
-
   const detach = async () => {
     if (!canDetach || busyAction !== null) return;
     setBusyAction("detach");
     await stopSession({
       environmentId: props.environmentId,
-      input: { threadId: props.threadId },
+      input: {
+        threadId: props.threadId,
+      },
     });
     setBusyAction(null);
   };
-
   const stopSubagent = async (
     childThreadId: ThreadId,
     agent: Pick<OrchestrationV2Subagent, "id" | "threadId">,
@@ -367,32 +383,41 @@ export function ThreadRelationshipsPanel(props: {
     setStoppingId(childThreadId);
     const result = await interruptTurn({
       environmentId: props.environmentId,
-      input: { threadId: agent.threadId, subagentId: agent.id },
+      input: {
+        threadId: agent.threadId,
+        subagentId: agent.id,
+      },
     });
     setStoppingId(null);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: "Could not stop subagent" });
+      toastManager.add({
+        type: "error",
+        title: "Could not stop subagent",
+      });
     }
   };
-
   const stopWorkflow = async (subagentId: string) => {
     if (stoppingId !== null) return;
     setStoppingId(subagentId);
     const result = await stopWorkflowCommand({
       environmentId: props.environmentId,
-      input: { threadId: props.threadId, subagentId: NodeId.make(subagentId) },
+      input: {
+        threadId: props.threadId,
+        subagentId: NodeId.make(subagentId),
+      },
     });
     setStoppingId(null);
     if (result._tag === "Failure") {
-      toastManager.add({ type: "error", title: "Could not stop workflow" });
+      toastManager.add({
+        type: "error",
+        title: "Could not stop workflow",
+      });
     }
   };
-
   const parentTitle =
     mergeTargetThreadId === null
       ? null
       : (graph.nodes.get(mergeTargetThreadId)?.thread?.title ?? null);
-
   return (
     <ThreadDetailsSection
       headingId="thread-details-lineage-heading"
@@ -435,7 +460,11 @@ export function ThreadRelationshipsPanel(props: {
               const rowStatus =
                 (isParent && threadId === parentRef?.threadId
                   ? (node?.thread?.activityRunStatus ?? parentNativeStatus)
-                  : undefined) ?? threadRelationshipRowStatus(graph, { threadId, edge });
+                  : undefined) ??
+                threadRelationshipRowStatus(graph, {
+                  threadId,
+                  edge,
+                });
               const RelationshipIcon = isParent
                 ? CornerLeftUpIcon
                 : isSubagent
@@ -632,7 +661,7 @@ export function ThreadRelationshipsPanel(props: {
                               {busyAction === "merge" ? (
                                 <LoaderCircleIcon className="size-3 animate-spin" />
                               ) : (
-                                <PullRequestGlyph.merged className="size-3" />
+                                <GitMergeIcon className="size-3" />
                               )}
                             </ThreadDetailsControl>
                           }

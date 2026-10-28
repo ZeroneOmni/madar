@@ -10,12 +10,10 @@ import {
 import { useThreadFind } from "./useThreadFind";
 import { ThreadFindBar } from "./ThreadFindBar";
 import { ChatCanvas } from "./ChatCanvas";
-
 type Find = ReturnType<typeof useThreadFind>;
 export type ThreadFindControls = Pick<Find, "open" | "close">;
 export const ThreadFindTimelineContext = createContext<Find["timelineProps"] | null>(null);
 const ThreadFindBarContext = createContext<Find["barProps"] | null>(null);
-
 export function ThreadFindCanvas({
   findOptions,
   controlsRef,
@@ -45,10 +43,14 @@ function ThreadFindProvider({
   children: ReactNode;
 }) {
   const find = useThreadFind(options);
-  useImperativeHandle(controlsRef, () => ({ open: find.open, close: find.close }), [
-    find.open,
-    find.close,
-  ]);
+  useImperativeHandle(
+    controlsRef,
+    () => ({
+      open: find.open,
+      close: find.close,
+    }),
+    [find.open, find.close],
+  );
   useLayoutEffect(() => onOpenChange(find.isOpen), [find.isOpen, onOpenChange]);
   return (
     <ThreadFindBarContext value={find.barProps}>
@@ -56,7 +58,6 @@ function ThreadFindProvider({
     </ThreadFindBarContext>
   );
 }
-
 export function ThreadFind({ onClose }: { onClose: () => void }) {
   const bar = use(ThreadFindBarContext);
   if (!bar) return null;

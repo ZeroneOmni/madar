@@ -1,31 +1,11 @@
-import type { EnvironmentId, PullRequestContextMetadata } from "@t3tools/contracts";
 import { CircleDashedIcon, FilmIcon, ImageIcon } from "lucide-react";
-import {
-  useState,
-  type ComponentProps,
-  type CSSProperties,
-  type MouseEvent,
-  type ReactNode,
-} from "react";
+import { useState, type ComponentProps, type CSSProperties, type ReactNode } from "react";
 
-import { PULL_REQUEST_STATE_PRESENTATION } from "~/components/pullRequest/pullRequestIcons";
-import type { PullRequestContextDisplayState } from "~/lib/composerContextRecords";
 import { PierreEntryIcon } from "./chat/PierreEntryIcon";
 import { middleTruncateAttachmentName } from "./composerInlineChip";
-import { PullRequestContextDetails } from "./PullRequestContextDetails";
 import { ContextChip, ContextChipLabel, type ContextChipKind } from "./ContextChip";
 import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "./ui/popover";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
-import { PullRequestLinkPreview } from "./pullRequest/PullRequestLinkPreview";
-import { usePullRequestPreviewTarget } from "~/lib/openPullRequestLink";
-
-export const PULL_REQUEST_CHIP_KINDS = {
-  open: "pr-open",
-  draft: "pr-draft",
-  merged: "pr-merged",
-  closed: "pr-closed",
-  unknown: "pull-request",
-} as const satisfies Record<PullRequestContextDisplayState | "unknown", ContextChipKind>;
 
 export function ContextChipShell({
   icon,
@@ -57,7 +37,6 @@ export function ContextChipShell({
     </Tooltip>
   );
 }
-
 export function ContextChipPopover(props: {
   kind: ContextChipKind;
   icon: ReactNode;
@@ -88,54 +67,6 @@ export function ContextChipPopover(props: {
     </Popover>
   );
 }
-
-export function PullRequestChip(props: {
-  metadata: PullRequestContextMetadata;
-  environmentId: EnvironmentId | null;
-  label: string;
-  kindLabel: string;
-  kind: ContextChipKind;
-  copyMarkdown?: string;
-  onOpen: (event: MouseEvent<HTMLElement>, url: string) => void;
-}) {
-  const previewTarget = usePullRequestPreviewTarget(props.environmentId, props.metadata.url);
-  const displayState =
-    props.metadata.state === "open" && props.metadata.isDraft ? "draft" : props.metadata.state;
-  const StateIcon = PULL_REQUEST_STATE_PRESENTATION[displayState].Icon;
-  const button = (
-    <ContextChip
-      kind={props.kind}
-      render={<button type="button" />}
-      aria-label={`Open ${props.kindLabel} ${props.label}: ${props.metadata.title}`}
-      data-markdown-copy={props.copyMarkdown}
-      onClick={(event) => props.onOpen(event, props.metadata.url)}
-      onAuxClick={(event) => props.onOpen(event, props.metadata.url)}
-    >
-      <StateIcon />
-      <ContextChipLabel>{props.label}</ContextChipLabel>
-    </ContextChip>
-  );
-  if (previewTarget !== null) {
-    return (
-      <PullRequestLinkPreview
-        link={button}
-        originalUrl={props.metadata.url}
-        target={previewTarget}
-        confirmBeforeOpen={false}
-        fallback={<PullRequestContextDetails metadata={props.metadata} />}
-      />
-    );
-  }
-  return (
-    <Tooltip>
-      <TooltipTrigger render={button} />
-      <TooltipPopup side="top">
-        <PullRequestContextDetails metadata={props.metadata} />
-      </TooltipPopup>
-    </Tooltip>
-  );
-}
-
 function averageImageColor(image: HTMLImageElement): string | undefined {
   try {
     const canvas = document.createElement("canvas");
@@ -161,7 +92,6 @@ function averageImageColor(image: HTMLImageElement): string | undefined {
     return;
   }
 }
-
 export function ImageChipButton({
   name,
   previewUrl,
@@ -175,7 +105,10 @@ export function ImageChipButton({
   size: string;
   suffix?: string | null;
 }) {
-  const [sample, setSample] = useState<{ url: string; color: string | undefined }>();
+  const [sample, setSample] = useState<{
+    url: string;
+    color: string | undefined;
+  }>();
   const [corsFailedUrl, setCorsFailedUrl] = useState<string>();
   const accent = sample?.url === previewUrl ? sample?.color : undefined;
   return (
@@ -183,7 +116,16 @@ export function ImageChipButton({
       kind="image"
       render={<button type="button" />}
       aria-label={`Image attachment, ${name}, ${size}`}
-      style={{ ...style, ...(accent ? { "--context-chip-accent": accent } : {}) } as CSSProperties}
+      style={
+        {
+          ...style,
+          ...(accent
+            ? {
+                "--context-chip-accent": accent,
+              }
+            : {}),
+        } as CSSProperties
+      }
       {...props}
     >
       {previewUrl ? (
@@ -195,7 +137,10 @@ export function ImageChipButton({
           className="size-[1.17em] shrink-0 rounded-sm object-cover"
           onError={() => setCorsFailedUrl(previewUrl)}
           onLoad={(event) =>
-            setSample({ url: previewUrl, color: averageImageColor(event.currentTarget) })
+            setSample({
+              url: previewUrl,
+              color: averageImageColor(event.currentTarget),
+            })
           }
         />
       ) : (
@@ -209,7 +154,6 @@ export function ImageChipButton({
     </ContextChip>
   );
 }
-
 export function FileChip(props: {
   name: string;
   size: string;
@@ -232,7 +176,11 @@ export function FileChip(props: {
       : null;
   const attributes = {
     kind: props.isVideo ? "video" : "file",
-    ...(state ? { state } : {}),
+    ...(state
+      ? {
+          state,
+        }
+      : {}),
     "aria-label": [props.accessibleLabel, props.suffix].filter(Boolean).join(", "),
     "data-markdown-copy": props.copyMarkdown,
     "data-context-unresolved": props.unresolved ? "true" : undefined,
@@ -262,7 +210,6 @@ export function FileChip(props: {
     </Tooltip>
   );
 }
-
 function FileChipContent(props: {
   name: string;
   size: string;
@@ -285,7 +232,6 @@ function FileChipContent(props: {
     </>
   );
 }
-
 export function UnresolvedChip(props: { label: string; tooltip: string; copyMarkdown?: string }) {
   return (
     <ContextChipShell
