@@ -6,7 +6,6 @@ import {
   assertAssistantTextIncludes,
   assertBaseProjection,
   assertSemanticProjectionIntegrity,
-  assertTurnItemTypeSequence,
   assertUserMessagesInclude,
   assertVisibleTurnItemsMirrorLocalTurnItems,
   OPENCODE2_QUESTION_PROMPT,
@@ -22,13 +21,6 @@ export function assertOpenCode2QuestionOutput(
   assertSemanticProjectionIntegrity(projection);
   assertVisibleTurnItemsMirrorLocalTurnItems(projection);
   assertUserMessagesInclude(projection, [OPENCODE2_QUESTION_PROMPT]);
-  assertTurnItemTypeSequence(projection, [
-    "user_message",
-    "assistant_message",
-    "user_input_request",
-    "assistant_message",
-    "checkpoint",
-  ]);
   assertAssistantTextIncludes(projection, "blue");
 
   const [request] = projection.runtimeRequests;

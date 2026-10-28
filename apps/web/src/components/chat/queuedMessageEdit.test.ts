@@ -8,7 +8,6 @@ import {
   type ComposerImageAttachment,
 } from "../../composerDraftStore";
 import { prepareQueuedEditAttachments, recoverQueuedMessageEdit } from "./queuedMessageEdit";
-
 const environmentId = EnvironmentId.make("remote-environment");
 const threadTarget = scopeThreadRef(environmentId, ThreadId.make("thread:edit"));
 const editTarget = DraftId.make("queued-edit:test");
@@ -18,7 +17,9 @@ const file: ComposerFileAttachment = {
   name: "report.pdf",
   mimeType: "application/pdf",
   sizeBytes: 6,
-  file: new File(["report"], "report.pdf", { type: "application/pdf" }),
+  file: new File(["report"], "report.pdf", {
+    type: "application/pdf",
+  }),
 };
 const image: ComposerImageAttachment = {
   type: "image",
@@ -26,7 +27,9 @@ const image: ComposerImageAttachment = {
   name: "screen.png",
   mimeType: "image/png",
   sizeBytes: 5,
-  file: new File(["image"], "screen.png", { type: "image/png" }),
+  file: new File(["image"], "screen.png", {
+    type: "image/png",
+  }),
   previewUrl: "blob:screen",
 };
 const uploadedFile = {
@@ -36,15 +39,22 @@ const uploadedFile = {
   mimeType: file.mimeType,
   sizeBytes: file.sizeBytes,
 };
-
 describe("queued message file edits", () => {
   beforeEach(() => {
-    useComposerDraftStore.setState({ draftsByThreadKey: {}, draftThreadsByThreadKey: {} });
+    useComposerDraftStore.setState({
+      draftsByThreadKey: {},
+      draftThreadsByThreadKey: {},
+    });
   });
-
   it.each([
-    { images: [], label: "file-only" },
-    { images: [image], label: "mixed" },
+    {
+      images: [],
+      label: "file-only",
+    },
+    {
+      images: [image],
+      label: "mixed",
+    },
   ])("preserves a generic file in a $label save", async ({ images }) => {
     const attachments = await prepareQueuedEditAttachments({
       existingAttachments: [],
@@ -61,7 +71,6 @@ describe("queued message file edits", () => {
         dataUrl: "data:image/png;base64,aW1hZ2U=",
       });
   });
-
   it("fails a save instead of dropping a file whose upload is missing", async () => {
     await expect(
       prepareQueuedEditAttachments({
@@ -73,26 +82,32 @@ describe("queued message file edits", () => {
       }),
     ).rejects.toThrow("Retry or remove");
   });
-
   it("keeps file-only edits when another client starts the queued run", () => {
     const store = useComposerDraftStore.getState();
     store.setPrompt(editTarget, "Original message");
     store.addFiles(editTarget, [file]);
     expect(
-      recoverQueuedMessageEdit({ editTarget, threadTarget, originalText: "Original message" }),
+      recoverQueuedMessageEdit({
+        editTarget,
+        threadTarget,
+        originalText: "Original message",
+      }),
     ).toBe("kept");
     expect(store.getComposerDraft(threadTarget)?.prompt).toBe("Original message");
     expect(store.getComposerDraft(threadTarget)?.files).toEqual([file]);
     expect(store.getComposerDraft(editTarget)).toBeNull();
   });
-
   it("does not overwrite a separate draft when the queued run leaves", () => {
     const store = useComposerDraftStore.getState();
     store.setPrompt(threadTarget, "Separate draft");
     store.addFiles(editTarget, [file]);
-    expect(recoverQueuedMessageEdit({ editTarget, threadTarget, originalText: "" })).toBe(
-      "discarded",
-    );
+    expect(
+      recoverQueuedMessageEdit({
+        editTarget,
+        threadTarget,
+        originalText: "",
+      }),
+    ).toBe("discarded");
     expect(store.getComposerDraft(threadTarget)?.prompt).toBe("Separate draft");
     expect(store.getComposerDraft(editTarget)).toBeNull();
   });

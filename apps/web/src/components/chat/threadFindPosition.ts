@@ -1,6 +1,5 @@
 import type { ThreadFindStart } from "./threadFind";
 import { collectThreadFindRanges } from "./threadFindHighlights";
-
 export function readThreadFindPosition(
   container: HTMLElement,
   query: string,
@@ -17,7 +16,10 @@ export function readThreadFindPosition(
     if (!entryId) continue;
     const matches = collectThreadFindRanges(row, query);
     const next = matches.find((match) => match.range.getBoundingClientRect().bottom > viewport.top);
-    return { entryId, occurrence: next?.occurrence ?? matches.length };
+    return {
+      entryId,
+      occurrence: next?.occurrence ?? matches.length,
+    };
   }
   return undefined;
 }

@@ -2,7 +2,6 @@ import { assert, describe, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   CheckpointId,
-  EnvironmentId,
   NodeId,
   ProviderInstanceId,
   ProviderSessionId,
@@ -21,7 +20,7 @@ import {
 import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
-import * as Duration from "effect/Duration";
+
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
@@ -35,7 +34,7 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
 import * as TestProviderHost from "@t3tools/provider-testing/TestProviderHost";
 import * as ProviderContinuationRequests from "@t3tools/provider-core/server/ProviderContinuationRequests";
-import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
+
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import { handoffBudget } from "@t3tools/provider-core/server/handoffBudget";
@@ -49,13 +48,13 @@ import {
   type PiAdapterV2Options,
 } from "./adapter.ts";
 import { makePiRpcConnection, type PiRpcRecord } from "./rpc.ts";
-import { loadMcpBridge } from "./mcpBridge.testkit.ts";
+
 import { turnItemOutputText } from "../../../client-runtime/src/work-log/itemDetail.ts";
 
 const layerTest = Layer.mergeAll(
   NodeServices.layer,
   IdAllocator.layer,
-  McpProviderSessions.layer,
+
   TestProviderHost.layer().pipe(Layer.provide(NodeServices.layer)),
 );
 
@@ -1459,32 +1458,6 @@ describe("PiAdapterV2", () => {
     }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );
 
-  it.effect("injects the T3 MCP extension and bearer when a session exists", () =>
-    Effect.gen(function* () {
-      yield* (yield* McpProviderSessions.McpProviderSessions).set({
-        environmentId: EnvironmentId.make("environment-pi-mcp"),
-        threadId: THREAD_ID,
-        providerSessionId: "mcp-session-pi",
-        providerInstanceId: PI_INSTANCE_ID,
-        endpoint: "http://127.0.0.1:43123/mcp",
-        authorizationHeader: "Bearer secret-pi-token",
-        browserToolsAvailable: true,
-      });
-      const fake = yield* makeFakePi;
-      yield* openRuntime(fake);
-      const spawn = fake.lastSpawn();
-      assert.isTrue(spawn.args.includes("--extension"));
-      const extensions = spawn.args.flatMap((arg, index) =>
-        arg === "--extension" ? [spawn.args[index + 1]] : [],
-      );
-      assert.isFalse(spawn.args.includes("--no-extensions"));
-      assert.isTrue(extensions.some((path) => path?.endsWith("pi-t3-mcp-extension.ts")));
-      assert.equal(spawn.env.T3_MCP_URL, "http://127.0.0.1:43123/mcp");
-      assert.equal(spawn.env.T3_MCP_BEARER_TOKEN, "secret-pi-token");
-      assert.equal(spawn.env.T3_PI_RUNTIME_MODE, "full-access");
-    }).pipe(Effect.scoped, Effect.provide(layerTest)),
-  );
-
   it.effect("rejects a resume while a turn is active", () =>
     Effect.gen(function* () {
       const fake = yield* makeFakePi;
@@ -2143,72 +2116,6 @@ describe("PiAdapterV2", () => {
             return yield* Effect.die("Expected a read image tool item");
           assert.deepEqual(event.turnItem.output, { content: imageContent, structuredContent });
           assert.equal(turnItemOutputText(event.turnItem), note);
-        }
-      }).pipe(Effect.scoped, Effect.provide(layerTest)),
-  );
-
-  it.effect(
-    "delivers realistic MCP screenshots through the bridge, JSONL transport, and adapter",
-    () =>
-      Effect.gen(function* () {
-        const fake = yield* makeFakePi;
-        const { runtime, takeEvent } = yield* openRuntime(fake);
-        const providerThread = yield* runtime.ensureThread({
-          threadId: THREAD_ID,
-          modelSelection: modelSelection("default"),
-          runtimePolicy,
-        });
-        yield* startTurn(runtime, providerThread);
-        yield* fake.takeRequest("prompt");
-        yield* fake.emit({ type: "agent_start" });
-        for (const size of [3.25 * 1024 * 1024, 10 * 1024 * 1024]) {
-          const pixels = Buffer.alloc(size, 0x61);
-          const data = pixels.toString("base64");
-          const content = [
-            { type: "text", text: "Screenshot captured" },
-            { type: "image", data, mimeType: "image/png" },
-          ];
-          const metadata = { screenshot: { width: 1200, height: 800 }, ready: true };
-          const bridge = yield* Effect.promise(() =>
-            loadMcpBridge({ modern: true, result: { content, structuredContent: metadata } }),
-          );
-          const tool = bridge.tools.find((tool) => tool.name === "mcp__t3-code__preview_snapshot")!;
-          const result = yield* Effect.promise(() => tool.execute("screenshot", {}));
-          assert.deepEqual(result.structuredContent, { content, structuredContent: metadata });
-          yield* fake.emit(
-            {
-              type: "tool_execution_end",
-              toolCallId: "screenshot",
-              toolName: tool.name,
-              result,
-              isError: false,
-            },
-            64 * 1024,
-          );
-          yield* fake.emit({
-            type: "tool_execution_end",
-            toolCallId: "after-screenshot",
-            toolName: "marker",
-            result: { content: [{ type: "text", text: "after" }] },
-          });
-          const event = yield* takeEvent(
-            (event) => event.type === "turn_item.updated" && event.turnItem.type === "dynamic_tool",
-          );
-          if (event.type !== "turn_item.updated" || event.turnItem.type !== "dynamic_tool")
-            return yield* Effect.die("Expected a screenshot tool item");
-          assert.equal(event.turnItem.toolName, tool.name);
-          assert.equal(event.turnItem.status, "completed");
-          assert.deepEqual(event.turnItem.output, { content, structuredContent: metadata });
-          assert.equal(turnItemOutputText(event.turnItem), "Screenshot captured");
-          const image = toolOutputImages(event.turnItem.output)[0];
-          assert.equal(image?.mimeType, "image/png");
-          assert.deepEqual(Buffer.from(image!.data!, "base64"), pixels);
-          yield* takeEvent(
-            (event) =>
-              event.type === "turn_item.updated" &&
-              event.turnItem.type === "dynamic_tool" &&
-              event.turnItem.toolName === "marker",
-          );
         }
       }).pipe(Effect.scoped, Effect.provide(layerTest)),
   );

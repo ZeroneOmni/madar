@@ -1,9 +1,12 @@
 import type { RuntimeMode } from "@t3tools/contracts";
 import { type LucideIcon, LockIcon, LockOpenIcon, PenLineIcon, SparklesIcon } from "lucide-react";
-
 export const runtimeModeConfig: Record<
   RuntimeMode,
-  { label: string; description: string; icon: LucideIcon }
+  {
+    label: string;
+    description: string;
+    icon: LucideIcon;
+  }
 > = {
   "approval-required": {
     label: "Supervised",
@@ -26,5 +29,4 @@ export const runtimeModeConfig: Record<
     icon: LockOpenIcon,
   },
 };
-
 export const runtimeModeOptions = Object.keys(runtimeModeConfig) as RuntimeMode[];

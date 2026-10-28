@@ -1,5 +1,4 @@
 import type { SnapShotSource } from "@t3tools/contracts";
-
 import type { ComposerFileAttachment } from "../../composerDraftStore";
 import { type ChatFileAttachment, type ChatImageAttachment, isVideoAttachment } from "../../types";
 import type {
@@ -18,7 +17,6 @@ import {
 import { resolveExternalWebLinkHost } from "./externalLinkContextMenu";
 import type { MediaActionSource } from "../media/MediaActions";
 import { resolveProtocolRelativeMediaUrl } from "../media/mediaContent";
-
 export interface ExpandedImageItem {
   src: string | null;
   name: string;
@@ -32,12 +30,10 @@ export interface ExpandedImageItem {
   srcFragment?: string;
   actionsSource?: MediaActionSource;
 }
-
 export interface ExpandedImagePreview {
   images: ExpandedImageItem[];
   index: number;
 }
-
 export async function resolveMarkdownMediaPreview(input: {
   source: string;
   resolvedFilePath?: string | undefined;
@@ -47,7 +43,9 @@ export async function resolveMarkdownMediaPreview(input: {
   onOpenFile?: ((relativePath: string) => void) | undefined;
   createAssetUrl: (input: {
     environmentId: EnvironmentId;
-    input: { resource: AssetResource };
+    input: {
+      resource: AssetResource;
+    };
   }) => Promise<AtomCommandResult<AssetCreateUrlResult, unknown>>;
 }): Promise<ExpandedImagePreview | null> {
   const media = resolveMediaSource(input.source, {
@@ -58,7 +56,6 @@ export async function resolveMarkdownMediaPreview(input: {
   if (media === null) return null;
   const { kind, name, reference } = media;
   const relativePath = reference?.kind === "file" ? reference.relativePath : undefined;
-
   let src: string;
   let asset: MediaActionSource["asset"];
   if (media.access === "direct") {
@@ -67,10 +64,15 @@ export async function resolveMarkdownMediaPreview(input: {
     if (media.access === "unavailable" || !input.threadRef || !input.httpBaseUrl) {
       throw new Error("Reconnect to this environment and open the media again.");
     }
-    asset = { environmentId: input.threadRef.environmentId, resource: media.resource };
+    asset = {
+      environmentId: input.threadRef.environmentId,
+      resource: media.resource,
+    };
     const result = await input.createAssetUrl({
       environmentId: asset.environmentId,
-      input: { resource: asset.resource },
+      input: {
+        resource: asset.resource,
+      },
     });
     if (result._tag === "Failure") throw squashAtomCommandFailure(result);
     const assetUrl = resolveAssetUrl(input.httpBaseUrl, result.value.relativeUrl);
@@ -82,19 +84,40 @@ export async function resolveMarkdownMediaPreview(input: {
       {
         src,
         name,
-        ...(kind === "video" ? { type: "video", autoPlay: false } : {}),
-        ...(media.access === "direct" && resolveExternalWebLinkHost(media.uri) !== null
-          ? { originalUrl: media.uri }
+        ...(kind === "video"
+          ? {
+              type: "video",
+              autoPlay: false,
+            }
           : {}),
-        ...(media.srcFragment ? { srcFragment: media.srcFragment } : {}),
+        ...(media.access === "direct" && resolveExternalWebLinkHost(media.uri) !== null
+          ? {
+              originalUrl: media.uri,
+            }
+          : {}),
+        ...(media.srcFragment
+          ? {
+              srcFragment: media.srcFragment,
+            }
+          : {}),
         actionsSource: {
           kind,
           name,
           src,
-          ...(reference ? { reference } : {}),
-          ...(asset ? { asset } : {}),
+          ...(reference
+            ? {
+                reference,
+              }
+            : {}),
+          ...(asset
+            ? {
+                asset,
+              }
+            : {}),
           ...(relativePath && input.onOpenFile
-            ? { onOpenFile: () => input.onOpenFile?.(relativePath) }
+            ? {
+                onOpenFile: () => input.onOpenFile?.(relativePath),
+              }
             : {}),
         },
       },
@@ -102,7 +125,6 @@ export async function resolveMarkdownMediaPreview(input: {
     index: 0,
   };
 }
-
 export function buildAttachmentVideoAsset(
   environmentId: EnvironmentId,
   attachment: Pick<ChatFileAttachment, "id" | "name" | "mimeType">,
@@ -117,7 +139,6 @@ export function buildAttachmentVideoAsset(
     },
   };
 }
-
 export function buildAttachmentVideoPreview(
   environmentId: EnvironmentId,
   attachment: ChatFileAttachment,
@@ -139,26 +160,27 @@ export function buildAttachmentVideoPreview(
           kind: "video",
           name: attachment.name,
           src,
-          ...(asset ? { asset } : {}),
+          ...(asset
+            ? {
+                asset,
+              }
+            : {}),
         },
       },
     ],
     index: 0,
   };
 }
-
 export function expandedImageKey(preview: ExpandedImagePreview): string {
   const item = preview.images[preview.index];
   const asset = item?.actionsSource?.asset;
   return `${item?.src ?? (asset ? JSON.stringify([asset.environmentId, asset.resource]) : "image")}:${preview.index}`;
 }
-
 export function attachVideoThumbnail(video: HTMLVideoElement, file: File): () => void {
   const url = URL.createObjectURL(file);
   video.src = url;
   return () => URL.revokeObjectURL(url);
 }
-
 export function buildExpandedImagePreview(
   images: ReadonlyArray<ChatImageAttachment | ComposerFileAttachment>,
   selectedImageId: string,
@@ -202,7 +224,11 @@ export function buildExpandedImagePreview(
       src: image.src,
       name: image.name,
       mimeType: image.mimeType,
-      ...(image.source?.kind === "snap-shot" ? { source: image.source } : {}),
+      ...(image.source?.kind === "snap-shot"
+        ? {
+            source: image.source,
+          }
+        : {}),
     })),
     index: selectedIndex,
   };

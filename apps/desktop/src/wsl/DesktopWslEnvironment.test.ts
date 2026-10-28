@@ -104,10 +104,10 @@ describe.skipIf(posixShellRunner === null)("WSL runtime install script (executed
         "set -eu",
         "work=$(mktemp -d)",
         'stage="$work/stage/t3-0.0.0-linux-x64"',
-        'mkdir -p "$stage/node_modules/node-pty/build/Release" "$work/home"',
+        'mkdir -p "$stage/node_modules/fixture-native" "$work/home"',
         `printf '%s' ${sh(serverEntry)} > "$stage/t3"`,
         'chmod +x "$stage/t3"',
-        `printf '%s' 'pty-native-payload' > "$stage/node_modules/node-pty/build/Release/pty.node"`,
+        `printf '%s' 'native-payload' > "$stage/node_modules/fixture-native/fixture.node"`,
         `tar -czf "$work/wsl-runtime.tar.gz" -C "$work/stage" t3-0.0.0-linux-x64`,
         `printf 'work:%s\\n' "$work"`,
         `printf 'archiveSha:%s\\n' "$(sha256sum "$work/wsl-runtime.tar.gz" | cut -d ' ' -f 1)"`,
@@ -424,4 +424,84 @@ describe("parseResolvedPath", () => {
       "/usr/local/bin:/usr/bin",
     );
   });
+});
+import * as NodeServices from "@effect/platform-node/NodeServices";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Sink from "effect/Sink";
+import * as Stream from "effect/Stream";
+import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
+import * as DesktopConfig from "../app/DesktopConfig.ts";
+import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
+import * as WslEnvironment from "./DesktopWslEnvironment.ts";
+
+it.effect.each([
+  {
+    name: "a compatible Node runtime without native build tools",
+    version: "24.1.0",
+    code: 0,
+    ok: true,
+  },
+  { name: "a missing Node runtime", version: null, code: 127, ok: false },
+  { name: "an unsupported Node version", version: "18.0.0", code: 0, ok: false },
+])("validates %s during mounted WSL backend launch", ({ version, code, ok }) => {
+  let spawns = 0;
+  const output =
+    version === null
+      ? ""
+      : "nodePath:/usr/bin/node\nnodeVersion:" + version + "\nresolvedPath:/usr/bin:/bin\n";
+  const spawner = ChildProcessSpawner.make(() =>
+    Effect.sync(() => {
+      spawns++;
+      return ChildProcessSpawner.makeHandle({
+        pid: ChildProcessSpawner.ProcessId(123),
+        exitCode: Effect.succeed(ChildProcessSpawner.ExitCode(code)),
+        isRunning: Effect.succeed(false),
+        kill: () => Effect.void,
+        unref: Effect.succeed(Effect.void),
+        stdin: Sink.drain,
+        stdout: Stream.make(new TextEncoder().encode(output)),
+        stderr: Stream.empty,
+        all: Stream.empty,
+        getInputFd: () => Sink.drain,
+        getOutputFd: () => Stream.empty,
+      });
+    }),
+  );
+  const environment = DesktopEnvironment.layer({
+    dirname: "/fixture/apps/desktop/dist-electron",
+    homeDirectory: "/fixture/home",
+    platform: "linux",
+    processArch: "x64",
+    appVersion: "test",
+    appPath: "/fixture/apps/desktop",
+    isPackaged: false,
+    resourcesPath: "/fixture/resources",
+    runningUnderArm64Translation: false,
+  }).pipe(Layer.provide(DesktopConfig.layerTest({})), Layer.provide(NodeServices.layer));
+  return Effect.gen(function* () {
+    const wsl = yield* WslEnvironment.DesktopWslEnvironment;
+    const result = yield* wsl.ensureNode("test", "/fixture", { nodeEngineRange: ">=24" });
+    expect(result.ok).toBe(ok);
+    if (result.ok)
+      expect(result).toEqual({
+        ok: true,
+        nodePath: "/usr/bin/node",
+        resolvedPath: "/usr/bin:/bin",
+      });
+    else expect(result.fatal).toBe(true);
+    expect(spawns).toBe(1);
+  }).pipe(
+    Effect.provide(
+      WslEnvironment.layer.pipe(
+        Layer.provide(
+          Layer.mergeAll(
+            environment,
+            NodeServices.layer,
+            Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, spawner),
+          ),
+        ),
+      ),
+    ),
+  );
 });

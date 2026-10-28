@@ -1,27 +1,38 @@
 import { use, type CSSProperties } from "react";
-
 import { resolveDiffThemeName } from "../../lib/diffRendering";
 import type { EmbeddedScript } from "../../lib/embeddedScripts";
 import { getSyntaxHighlighterPromise } from "../../lib/syntaxHighlighting";
-
 interface SyntaxToken {
   readonly content: string;
   readonly offset: number;
   readonly color?: string;
   readonly fontStyle?: number;
 }
-
 type TokenLines = ReadonlyArray<ReadonlyArray<SyntaxToken>>;
-
 const NO_EMBEDDED_SCRIPTS: ReadonlyArray<EmbeddedScript> = [];
-
 function syntaxTokenStyle(token: SyntaxToken): CSSProperties {
   const fontStyle = token.fontStyle ?? 0;
   return {
-    ...(token.color ? { color: token.color } : {}),
-    ...(fontStyle & 1 ? { fontStyle: "italic" } : {}),
-    ...(fontStyle & 2 ? { fontWeight: 700 } : {}),
-    ...(fontStyle & 4 ? { textDecoration: "underline" } : {}),
+    ...(token.color
+      ? {
+          color: token.color,
+        }
+      : {}),
+    ...(fontStyle & 1
+      ? {
+          fontStyle: "italic",
+        }
+      : {}),
+    ...(fontStyle & 2
+      ? {
+          fontWeight: 700,
+        }
+      : {}),
+    ...(fontStyle & 4
+      ? {
+          textDecoration: "underline",
+        }
+      : {}),
   };
 }
 
@@ -43,7 +54,10 @@ export function HighlightedTokens({
   for (const script of embedded) use(getSyntaxHighlighterPromise(script.language));
   const themeName = resolveDiffThemeName(theme);
   const tokenize = (text: string, lang: string) =>
-    highlighter.codeToTokens(text, { lang, theme: themeName }).tokens;
+    highlighter.codeToTokens(text, {
+      lang,
+      theme: themeName,
+    }).tokens;
   const lines = keyedLines(
     code,
     withEmbeddedScripts(code, tokenize(code, language), embedded, tokenize),
@@ -79,7 +93,6 @@ export function HighlightedTokens({
     </>
   );
 }
-
 export function withEmbeddedScripts(
   code: string,
   lines: TokenLines,
@@ -87,7 +100,9 @@ export function withEmbeddedScripts(
   tokenize: (text: string, language: string) => TokenLines,
 ): TokenLines {
   if (embedded.length === 0) return lines;
-  const styles = Array.from<SyntaxToken | undefined>({ length: code.length });
+  const styles = Array.from<SyntaxToken | undefined>({
+    length: code.length,
+  });
   for (const token of lines.flat()) {
     styles.fill(token, token.offset, token.offset + token.content.length);
   }
@@ -106,7 +121,6 @@ export function withEmbeddedScripts(
   }
   return restyledLines(code, styles);
 }
-
 function restyledLines(
   code: string,
   styles: ReadonlyArray<SyntaxToken | undefined>,
@@ -129,8 +143,16 @@ function restyledLines(
       tokens.push({
         content: code.slice(index, next),
         offset: index,
-        ...(style?.color ? { color: style.color } : {}),
-        ...(style?.fontStyle ? { fontStyle: style.fontStyle } : {}),
+        ...(style?.color
+          ? {
+              color: style.color,
+            }
+          : {}),
+        ...(style?.fontStyle
+          ? {
+              fontStyle: style.fontStyle,
+            }
+          : {}),
       });
       index = next;
     }
@@ -152,15 +174,21 @@ export function keyedLines<Token extends SyntaxToken>(
     const key = `${lineStart}:${text}`;
     const ending = endings[index] ?? "";
     lineStart += text.length + ending.length;
-    return { key, tokens, ending };
+    return {
+      key,
+      tokens,
+      ending,
+    };
   });
 }
-
 interface Word {
   readonly key: string;
-  readonly pieces: Array<{ key: string; text: string; token: SyntaxToken }>;
+  readonly pieces: Array<{
+    key: string;
+    text: string;
+    token: SyntaxToken;
+  }>;
 }
-
 export function wordsOf(tokens: ReadonlyArray<SyntaxToken>): Array<string | Word> {
   const parts: Array<string | Word> = [];
   let word: Word | null = null;
@@ -173,10 +201,17 @@ export function wordsOf(tokens: ReadonlyArray<SyntaxToken>): Array<string | Word
         word = null;
       } else {
         if (!word) {
-          word = { key: String(offset), pieces: [] };
+          word = {
+            key: String(offset),
+            pieces: [],
+          };
           parts.push(word);
         }
-        word.pieces.push({ key: String(offset), text, token });
+        word.pieces.push({
+          key: String(offset),
+          text,
+          token,
+        });
       }
       offset += text.length;
     }

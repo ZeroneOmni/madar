@@ -1,4 +1,4 @@
-import { PullRequestGlyph } from "../pullRequest/pullRequestIcons";
+import { GitMergeIcon } from "lucide-react";
 import { type ToolActivityIcon } from "@t3tools/contracts";
 import { toolActivityFaviconUrl } from "@t3tools/shared/favicon";
 import { getProjectFaviconCacheKey } from "@t3tools/shared/projectFavicon";
@@ -25,13 +25,10 @@ import {
 import { useAssetUrlState } from "../../assets/assetUrls";
 import { cn } from "~/lib/utils";
 import { TimelineRowCtx } from "./timelineRowContext";
-
 export const failedToolIconClassName = "text-tool-error-icon/40";
-
 export function toolIconAcceptsTint(toolIcon: ToolActivityIcon | undefined): boolean {
   return toolIcon === undefined;
 }
-
 export type WorkEntryIconName =
   | "bot"
   | "brain"
@@ -53,7 +50,6 @@ export type WorkEntryIconName =
   | "wrench"
   | "x"
   | "zap";
-
 function BrowserAppIcon({ className }: { className: string }) {
   return (
     <svg
@@ -73,7 +69,6 @@ function BrowserAppIcon({ className }: { className: string }) {
     </svg>
   );
 }
-
 export function ToolActivityIconView(props: {
   icon: ToolActivityIcon | undefined;
   fallbackName: WorkEntryIconName;
@@ -125,9 +120,13 @@ export function ToolActivityIconView(props: {
     />
   );
 }
-
 function NativeAppToolActivityIcon(props: {
-  app: Extract<ToolActivityIcon, { readonly _tag: "native-app" }>["app"];
+  app: Extract<
+    ToolActivityIcon,
+    {
+      readonly _tag: "native-app";
+    }
+  >["app"];
   fallbackName: WorkEntryIconName;
   className: string;
   muted: boolean;
@@ -161,9 +160,7 @@ function NativeAppToolActivityIcon(props: {
     />
   );
 }
-
 const loadedToolActivityIconSrcs = new Map<string, string>();
-
 function ToolActivityImageIcon(props: {
   cacheKey: string;
   src: string;
@@ -226,11 +223,10 @@ function ToolActivityImageIcon(props: {
     </>
   );
 }
-
 function WorkEntryIcon({ name, className }: { name: WorkEntryIconName; className: string }) {
   switch (name) {
     case "pull-request":
-      return <PullRequestGlyph.pullRequest className={className} aria-hidden />;
+      return <GitMergeIcon className={className} aria-hidden />;
     case "bot":
       return <BotIcon className={className} aria-hidden />;
     case "brain":

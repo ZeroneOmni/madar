@@ -562,10 +562,7 @@ export const make = Effect.gen(function* () {
           )).some(Boolean);
           if (!shouldRefresh) return null;
           // Re-resolve the branch; cached PRs may belong to a checkout's previous branch.
-          const remote = yield* workflow.remoteStatus(
-            { cwd },
-            { refreshUpstream: false, refreshMissingPullRequest: true },
-          );
+          const remote = yield* workflow.remoteStatus({ cwd }, { refreshUpstream: false });
           return yield* updateCachedRemoteStatus(cwd, remote, { publish: true });
         }),
       );

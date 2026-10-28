@@ -36,14 +36,11 @@ import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import type { deriveThreadActivityRun } from "@t3tools/client-runtime/state/thread-execution";
 import type { EnvironmentThreadStatus } from "@t3tools/client-runtime/state/threads";
 import type { TimelineEntry } from "../../session-logic";
-
 const TIMELINE_SCROLL_CANCEL_SENTINEL = Object.freeze({});
-
 interface TimelineAnchor {
   readonly threadKey: string | null;
   readonly messageId: MessageId | null;
 }
-
 interface TimelineFollowInput {
   readonly legendListRef: RefObject<LegendListRef | null>;
   readonly composerRef: RefObject<ChatComposerHandle | null>;
@@ -94,7 +91,9 @@ export function useTimelineFollow(input: TimelineFollowInput) {
   // thread switches. LegendList fires scroll events with isAtEnd=false while
   // initialScrollAtEnd is settling; hiding is always immediate.
   const showScrollDebouncer = useRef(
-    new Debouncer(() => setShowScrollToBottom(true), { wait: 150 }),
+    new Debouncer(() => setShowScrollToBottom(true), {
+      wait: 150,
+    }),
   );
   const timelineScrollIntentRef = useRef<"toward-end" | "away-from-end" | null>(null);
   const timelineScrollModeRef = useRef<TimelineScrollMode>("following-end");
@@ -143,7 +142,9 @@ export function useTimelineFollow(input: TimelineFollowInput) {
       // the browser regardless of the queue; a same-position instant write is
       // the only way to halt it where it is.
       const scrollNode = legendListRef.current?.getScrollableNode() as
-        | { scrollTop?: number }
+        | {
+            scrollTop?: number;
+          }
         | null
         | undefined;
       const currentScrollTop = scrollNode?.scrollTop;
@@ -189,7 +190,6 @@ export function useTimelineFollow(input: TimelineFollowInput) {
     ) {
       return;
     }
-
     isAtEndRef.current = true;
     timelineScrollModeRef.current = "anchoring-new-turn";
     liveFollowUserScrollGenerationRef.current = anchorUserScrollGenerationRef.current;
@@ -197,7 +197,10 @@ export function useTimelineFollow(input: TimelineFollowInput) {
     activeTimelineAnchorIndexRef.current = null;
     showScrollDebouncer.current.cancel();
     setShowScrollToBottom(false);
-    setTimelineAnchor({ threadKey: activeThreadKey, messageId });
+    setTimelineAnchor({
+      threadKey: activeThreadKey,
+      messageId,
+    });
   }, [
     activeActivityRun,
     activeThreadKey,
@@ -234,7 +237,6 @@ export function useTimelineFollow(input: TimelineFollowInput) {
       onScrollStart: handlePageScrollStart,
     });
     pageScrollControllerRef.current = controller;
-
     return () => {
       controller.dispose();
       if (pageScrollControllerRef.current === controller) {
@@ -433,7 +435,9 @@ export function useTimelineFollow(input: TimelineFollowInput) {
             handleManualNavigation();
           }
         };
-        scrollNode.addEventListener("scroll", handleScroll, { passive: true });
+        scrollNode.addEventListener("scroll", handleScroll, {
+          passive: true,
+        });
         scrollNode.addEventListener("wheel", handleWheel, {
           passive: true,
         });
@@ -454,7 +458,6 @@ export function useTimelineFollow(input: TimelineFollowInput) {
       });
     };
     attach(12);
-
     return () => {
       if (frame !== null) {
         cancelAnimationFrame(frame);
@@ -469,7 +472,6 @@ export function useTimelineFollow(input: TimelineFollowInput) {
     legendListRef,
     timelineRealContentOverflowsViewportStable,
   ]);
-
   const onTimelineAnchorReady = (messageId: MessageId, anchorIndex: number) => {
     if (pendingTimelineAnchorRef.current === messageId) {
       pendingTimelineAnchorRef.current = null;
@@ -549,18 +551,19 @@ export function useTimelineFollow(input: TimelineFollowInput) {
           typeof currentScrollOffset === "number" &&
           Math.abs(currentScrollOffset - pending.offset) <= 2
         ) {
-          void list?.scrollToOffset({ offset: pending.offset, animated: false });
+          void list?.scrollToOffset({
+            offset: pending.offset,
+            animated: false,
+          });
         }
       }
     });
   };
   const onTimelineAnchorSizeChangedStable = useStableCallback(onTimelineAnchorSizeChanged);
-
   const onToolOutputCollapsedAtEnd = () => {
     composerRef.current?.restoreAfterTimelineReachedEnd();
   };
   const onToolOutputCollapsedAtEndStable = useStableCallback(onToolOutputCollapsedAtEnd);
-
   const onIsAtEndChange = (isAtEnd: boolean) => {
     if (
       !isAtEnd &&
@@ -627,7 +630,10 @@ export function useTimelineFollow(input: TimelineFollowInput) {
   });
   if (timelineThreadReset.threadKey !== activeThreadKey) {
     const followEnd = readTimelinePosition(routeThreadKey)?.atEnd !== false;
-    setTimelineThreadReset({ threadKey: activeThreadKey, followEnd });
+    setTimelineThreadReset({
+      threadKey: activeThreadKey,
+      followEnd,
+    });
     setTimelineLiveFollowEnabled(followEnd);
     setShowScrollToBottom(!followEnd);
   }
@@ -656,9 +662,11 @@ export function useTimelineFollow(input: TimelineFollowInput) {
     activeTimelineAnchorIndexRef.current = null;
     showScrollDebouncer.current.cancel();
     setShowScrollToBottom(false);
-    setTimelineAnchor({ threadKey, messageId });
+    setTimelineAnchor({
+      threadKey,
+      messageId,
+    });
   };
-
   return {
     showScrollToBottom,
     timelineLiveFollowEnabled,

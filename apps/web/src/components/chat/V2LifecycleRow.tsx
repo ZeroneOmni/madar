@@ -40,7 +40,6 @@ import {
   MinusIcon,
   XIcon,
 } from "lucide-react";
-
 import { Tooltip, TooltipTrigger, TooltipPopup } from "../ui/tooltip";
 import {
   applyProviderInstanceSettings,
@@ -56,7 +55,6 @@ import { TimelineSystemDivider } from "./TimelineSystemDivider";
 import { subagentResumedSince } from "./V2LifecycleRow.logic";
 import { Button, InlineButton } from "../ui/button";
 import { T3Wordmark } from "../T3Wordmark";
-
 const LIFECYCLE_TYPES = new Set<OrchestrationV2TurnItem["type"]>([
   "run_interrupt_request",
   "run_interrupt_result",
@@ -66,13 +64,10 @@ const LIFECYCLE_TYPES = new Set<OrchestrationV2TurnItem["type"]>([
   "subagent",
   "thread_created",
 ]);
-
 export function isV2LifecycleItem(item: OrchestrationV2TurnItem): boolean {
   return LIFECYCLE_TYPES.has(item.type);
 }
-
 export type { HandoffTimelineRun } from "@t3tools/client-runtime/handoff";
-
 export function V2LifecycleRow(props: {
   readonly item: OrchestrationV2TurnItem;
   readonly environmentId: EnvironmentId;
@@ -210,34 +205,56 @@ export function V2LifecycleRow(props: {
   }
   return null;
 }
-
 const STATUS_VISUALS: Record<
   OrchestrationV2TurnItem["status"],
-  { dotClass: string; label: string }
+  {
+    dotClass: string;
+    label: string;
+  }
 > = {
-  pending: { dotClass: "bg-info", label: "Queued" },
-  running: { dotClass: "bg-info", label: "Running" },
-  waiting: { dotClass: "bg-info", label: "Waiting" },
-  idle: { dotClass: "bg-muted-foreground/50", label: "Idle · resumable" },
-  completed: { dotClass: "bg-success", label: "Completed" },
-  failed: { dotClass: "bg-destructive", label: "Failed" },
-  cancelled: { dotClass: "bg-muted-foreground/60", label: "Stopped" },
-  interrupted: { dotClass: "bg-muted-foreground/60", label: "Stopped" },
+  pending: {
+    dotClass: "bg-info",
+    label: "Queued",
+  },
+  running: {
+    dotClass: "bg-info",
+    label: "Running",
+  },
+  waiting: {
+    dotClass: "bg-info",
+    label: "Waiting",
+  },
+  idle: {
+    dotClass: "bg-muted-foreground/50",
+    label: "Idle · resumable",
+  },
+  completed: {
+    dotClass: "bg-success",
+    label: "Completed",
+  },
+  failed: {
+    dotClass: "bg-destructive",
+    label: "Failed",
+  },
+  cancelled: {
+    dotClass: "bg-muted-foreground/60",
+    label: "Stopped",
+  },
+  interrupted: {
+    dotClass: "bg-muted-foreground/60",
+    label: "Stopped",
+  },
 };
-
 function subagentStatusVisual(status: OrchestrationV2TurnItem["status"]) {
   return STATUS_VISUALS[status];
 }
-
 const SETTLED_SUBAGENT_STATUSES = new Set<OrchestrationV2TurnItem["status"]>([
   "completed",
   "failed",
   "cancelled",
   "interrupted",
 ]);
-
 const GENERIC_CHILD_END = /^Child task ended with status\b/i;
-
 function plainDetail(text: string): string {
   return text
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
@@ -246,15 +263,12 @@ function plainDetail(text: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
-
 function isoOrNull(value: DateTime.Utc | null | undefined): string | null {
   return value ? DateTime.formatIso(value) : null;
 }
-
 export function SubagentElapsed({ agent }: { agent: Parameters<typeof AgentElapsed>[0]["agent"] }) {
   return <AgentElapsed agent={agent} />;
 }
-
 function SubagentAvatar({
   driver,
   displayName,
@@ -323,7 +337,6 @@ export function EnvironmentSubagentAvatar({
   );
   return <SubagentAvatar {...props} displayName={displayName} iconUrl={iconUrl} />;
 }
-
 const NOTIFICATION_OUTCOME_STATUS: Record<
   OrchestrationV2Notification["outcome"],
   OrchestrationV2TurnItem["status"] | null
@@ -334,7 +347,6 @@ const NOTIFICATION_OUTCOME_STATUS: Record<
   updated: null,
   unknown: null,
 };
-
 const NOTIFICATION_OUTCOME_LABEL: Record<OrchestrationV2Notification["outcome"], string> = {
   completed: "Finished",
   failed: "Failed",
@@ -342,7 +354,6 @@ const NOTIFICATION_OUTCOME_LABEL: Record<OrchestrationV2Notification["outcome"],
   updated: "Updated",
   unknown: "Finished",
 };
-
 export function SubagentNotificationLink(props: {
   readonly parentRef: ScopedThreadRef;
   readonly childThreadId: ThreadId;
@@ -389,7 +400,6 @@ export function SubagentNotificationLink(props: {
     />
   );
 }
-
 function SubagentTimelineLink(props: {
   readonly parentRef: ScopedThreadRef;
   readonly subagentId: NodeId;
@@ -515,7 +525,6 @@ function SubagentTimelineLink(props: {
     </Tooltip>
   );
 }
-
 function SubagentTimelineTooltip(
   props: Parameters<typeof SubagentTimelineLink>[0] & {
     model: string | null;
@@ -556,7 +565,6 @@ function SubagentTimelineTooltip(
     />
   );
 }
-
 function EnvironmentHandoffRow({
   environmentId,
   ...props
@@ -569,7 +577,6 @@ function EnvironmentHandoffRow({
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
   return <HandoffRow {...props} environmentId={environmentId} providers={providers} />;
 }
-
 export function HandoffRow(props: {
   readonly environmentId: EnvironmentId;
   readonly endpoints: HandoffEndpoints;
@@ -615,7 +622,6 @@ export function HandoffRow(props: {
     />
   );
 }
-
 function HandoffEndpoint(props: {
   readonly entries: ReadonlyArray<ProviderInstanceEntry>;
   readonly instanceId: ProviderInstanceId;

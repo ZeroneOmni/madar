@@ -5,13 +5,11 @@ import type { TimelineEntry } from "../../session-logic";
 import type { MessagesTimelineRow } from "./MessagesTimeline.logic";
 import type { AssistantCitationRequest, AssistantCitationTarget } from "./AssistantCitationSource";
 import { toastManager } from "../ui/toast";
-
 export interface CitationHistoryPage {
   readonly loading: boolean;
   readonly cursor?: string | null;
   readonly onLoadEarlier: () => void;
 }
-
 export function useAssistantCitationTarget({
   request,
   entries,
@@ -44,14 +42,12 @@ export function useAssistantCitationTarget({
     requestedPages: Set<string>;
     done: boolean;
   } | null>(null);
-
   if (ready !== null && ready.key !== request?.key) {
     setReady(null);
   }
   if (!request && finishedKey !== null) {
     setFinishedKey(null);
   }
-
   useEffect(() => {
     if (navigationRef.current && navigationRef.current.target.key !== request?.key) {
       navigationRef.current.target.activationRef.current.dismissed = true;
@@ -64,7 +60,12 @@ export function useAssistantCitationTarget({
     if (navigationRef.current?.target.key !== request.key) {
       const target: AssistantCitationTarget = {
         ...request,
-        activationRef: { current: { scrolled: false, dismissed: false } },
+        activationRef: {
+          current: {
+            scrolled: false,
+            dismissed: false,
+          },
+        },
         onComplete: () => {
           if (navigationRef.current?.target !== target) return;
           navigationRef.current.done = true;
@@ -86,7 +87,11 @@ export function useAssistantCitationTarget({
     const fail = (title: string, description: string) => {
       navigation.done = true;
       setFinishedKey(navigation.target.key);
-      toastManager.add({ type: "warning", title, description });
+      toastManager.add({
+        type: "warning",
+        title,
+        description,
+      });
     };
     const source = entries.find(
       (entry) =>
@@ -142,7 +147,6 @@ export function useAssistantCitationTarget({
     rows,
     viewport,
   ]);
-
   useEffect(() => {
     if (!request) return;
     const dismiss = (onlyPending: boolean) => {
@@ -173,8 +177,12 @@ export function useAssistantCitationTarget({
     const onNavigation = () => dismiss(true);
     document.addEventListener("keydown", onKeyDown);
     document.addEventListener("pointerdown", onNavigation, true);
-    viewport?.addEventListener("wheel", onWheel, { passive: true });
-    viewport?.addEventListener("touchmove", onNavigation, { passive: true });
+    viewport?.addEventListener("wheel", onWheel, {
+      passive: true,
+    });
+    viewport?.addEventListener("touchmove", onNavigation, {
+      passive: true,
+    });
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("pointerdown", onNavigation, true);
@@ -182,7 +190,6 @@ export function useAssistantCitationTarget({
       viewport?.removeEventListener("touchmove", onNavigation);
     };
   }, [onManualNavigation, request, viewport]);
-
   const target = ready?.key === request?.key ? ready : null;
   const positioning = request !== null && finishedKey !== request.key;
   const sourceRow =
@@ -193,6 +200,10 @@ export function useAssistantCitationTarget({
     target,
     positioning,
     onListLoad,
-    alwaysRender: sourceRow ? { keys: [sourceRow.id] } : undefined,
+    alwaysRender: sourceRow
+      ? {
+          keys: [sourceRow.id],
+        }
+      : undefined,
   };
 }

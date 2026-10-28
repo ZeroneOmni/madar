@@ -12,13 +12,11 @@ import { getTriggerDisplayModelName, type ModelEsque } from "./providerIconUtils
 
 // Fallback TTL: Claude's 1h cache plus slack.
 const CLAUDE_RESUME_COMPACTION_FALLBACK_MS = 70 * 60_000;
-
 export function providerSupportsManualCompaction(
   provider: ProviderInstanceEntry | null | undefined,
 ): boolean {
   return provider?.snapshot.slashCommands.some((command) => command.name === "compact") ?? false;
 }
-
 export function hasAvailableCompactionProvider(input: {
   readonly providers: ReadonlyArray<ProviderInstanceEntry>;
   readonly driverKind: ProviderDriverKind;
@@ -37,22 +35,26 @@ export function hasAvailableCompactionProvider(input: {
         (provider) => provider.continuationGroupKey === lockedContinuationGroupKey,
       )
     : driverProviders;
-
   return providerSupportsManualCompaction(
     resolveSelectableProviderInstanceEntry(compatibleProviders, input.instanceId ?? undefined),
   );
 }
-
 export function hasDismissedResumeCompaction(
-  activities: ReadonlyArray<{ readonly kind: string; readonly payload: unknown }>,
+  activities: ReadonlyArray<{
+    readonly kind: string;
+    readonly payload: unknown;
+  }>,
 ): boolean {
   return activities.some((activity) => {
     if (activity.kind !== "user-input.resolved") return false;
     const payload = activity.payload;
     if (!payload || typeof payload !== "object") return false;
-    const answers = (payload as { readonly answers?: unknown }).answers;
+    const answers = (
+      payload as {
+        readonly answers?: unknown;
+      }
+    ).answers;
     if (!answers || typeof answers !== "object" || Array.isArray(answers)) return false;
-
     return Object.entries(answers).some(
       ([question, answer]) =>
         isClaudeResumeCompactionQuestion(question) &&
@@ -60,7 +62,6 @@ export function hasDismissedResumeCompaction(
     );
   });
 }
-
 export function shouldOfferResumeCompaction(input: {
   readonly provider: string | null | undefined;
   readonly usedTokens: number | null | undefined;
@@ -74,7 +75,6 @@ export function shouldOfferResumeCompaction(input: {
   ) {
     return false;
   }
-
   const updatedAt = Date.parse(input.updatedAt ?? "");
   const now = Date.parse(input.now);
   return (
@@ -83,7 +83,6 @@ export function shouldOfferResumeCompaction(input: {
     now - updatedAt >= (input.promptCacheTtlMs ?? CLAUDE_RESUME_COMPACTION_FALLBACK_MS)
   );
 }
-
 export function resolveContextWindowModelDisplayName(
   selection: ModelSelection | null | undefined,
   modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<ModelEsque>>,
@@ -91,14 +90,11 @@ export function resolveContextWindowModelDisplayName(
   if (!selection) {
     return null;
   }
-
   const selectedModel = modelOptionsByInstance
     .get(selection.instanceId)
     ?.find((model) => model.slug === selection.model);
-
   return selectedModel ? getTriggerDisplayModelName(selectedModel) : selection.model;
 }
-
 export function formatContextWindowCompactionMessage(
   modelDisplayName: string | null | undefined,
   autoCompactThreshold?: number | null,
@@ -110,7 +106,6 @@ export function formatContextWindowCompactionMessage(
     ? `Context for ${modelDisplayName} compacts automatically when needed.`
     : "Context compacts automatically when needed.";
 }
-
 export function shouldReserveContextWindowMeter(input: {
   readonly meterEnabled: boolean;
   readonly detailLoading: boolean;
@@ -124,7 +119,6 @@ export function shouldReserveContextWindowMeter(input: {
     input.providerReportsContextWindow !== false
   );
 }
-
 export function formatContextWindowCost(cost: {
   readonly amount: number;
   readonly currency: string;

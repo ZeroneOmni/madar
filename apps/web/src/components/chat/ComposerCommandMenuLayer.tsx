@@ -1,14 +1,12 @@
 import { type ReactNode, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { observeResize } from "~/lib/observeResize";
-
 type ComposerCommandMenuPosition = {
   bottom: number;
   left: number;
   maxHeight: number;
   width: number;
 };
-
 function composerCommandMenuPositionsEqual(
   a: ComposerCommandMenuPosition,
   b: ComposerCommandMenuPosition,
@@ -17,17 +15,14 @@ function composerCommandMenuPositionsEqual(
     a.bottom === b.bottom && a.left === b.left && a.maxHeight === b.maxHeight && a.width === b.width
   );
 }
-
 export function ComposerCommandMenuLayer(props: {
   anchor: HTMLElement | null;
   children: ReactNode;
 }) {
   const [position, setPosition] = useState<ComposerCommandMenuPosition | null>(null);
-
   useLayoutEffect(() => {
     const anchor = props.anchor;
     if (!anchor) return;
-
     const updatePosition = () => {
       const form = anchor.closest<HTMLElement>('[data-chat-composer-form="true"]');
       const mainSurface = form?.querySelector<HTMLElement>(
@@ -56,26 +51,21 @@ export function ComposerCommandMenuLayer(props: {
         current && composerCommandMenuPositionsEqual(current, next) ? current : next,
       );
     };
-
     updatePosition();
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
-
     const observed: Element[] = [anchor];
     for (let element = anchor.parentElement; element; element = element.parentElement) {
       observed.push(element);
     }
     const stopObserving = observeResize(observed, updatePosition);
-
     return () => {
       stopObserving();
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
   }, [props.anchor]);
-
   if (!props.anchor || !position) return null;
-
   return createPortal(
     <div
       className="pointer-events-auto fixed z-40 flex flex-col"

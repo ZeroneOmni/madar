@@ -1,5 +1,4 @@
 import type { RestingComposerControlsMeasurement } from "../composerFooterLayout";
-
 function elementOuterWidth(element: HTMLElement): number {
   const width = element.getBoundingClientRect().width;
   if (width === 0) return 0;
@@ -10,7 +9,6 @@ function elementOuterWidth(element: HTMLElement): number {
     (Number.parseFloat(style.marginInlineEnd) || 0)
   );
 }
-
 function elementInlineMarginWidth(element: HTMLElement): number {
   const style = getComputedStyle(element);
   return (
@@ -18,7 +16,6 @@ function elementInlineMarginWidth(element: HTMLElement): number {
     (Number.parseFloat(style.marginInlineEnd) || 0)
   );
 }
-
 function providerModelPickerNaturalWidth(picker: HTMLElement): number {
   const renderedWidth = picker.getBoundingClientRect().width;
   if (renderedWidth === 0) return 0;
@@ -34,13 +31,14 @@ function providerModelPickerNaturalWidth(picker: HTMLElement): number {
   );
   return naturalWidth + elementInlineMarginWidth(picker);
 }
-
 function providerModelPickerMinimumWidth(picker: HTMLElement): number {
   const minWidth = Number.parseFloat(getComputedStyle(picker).minWidth) || 0;
   return minWidth + elementInlineMarginWidth(picker);
 }
-
-function controlBlockWidths(block: HTMLElement): { natural: number; iconOnly: number } {
+function controlBlockWidths(block: HTMLElement): {
+  natural: number;
+  iconOnly: number;
+} {
   const compact = block.dataset.composerBlockIconOnly === "true";
   let natural = elementOuterWidth(block);
   let iconOnly = natural;
@@ -61,7 +59,10 @@ function controlBlockWidths(block: HTMLElement): { natural: number; iconOnly: nu
     natural -= compact ? width + gap : 0;
     iconOnly += compact ? 0 : width + gap;
   }
-  return { natural, iconOnly: Math.min(natural, iconOnly) };
+  return {
+    natural,
+    iconOnly: Math.min(natural, iconOnly),
+  };
 }
 
 /** Measure independently of controls hidden by the previous render. */

@@ -1,6 +1,5 @@
 import type { OrchestrationV2Run, OrchestrationV2RunStatus, RunId } from "@t3tools/contracts";
 import { latestExecutedRun } from "@t3tools/shared/orchestrationV2ThreadError";
-
 export type ThreadActivityStatus = "working" | "approval" | "input" | "idle";
 
 /** Background threads say these too, so a status sounds the same wherever it's heard. */
@@ -11,7 +10,6 @@ export const THREAD_STATUS_TEXT = {
   failed: "Failed",
   stopped: "Stopped",
 } as const;
-
 export interface ThreadActivitySnapshot {
   readonly status: ThreadActivityStatus;
   /** The pending approval or question, when there is one. */
@@ -19,7 +17,6 @@ export interface ThreadActivitySnapshot {
   readonly runId: RunId | null;
   readonly runStatus: OrchestrationV2RunStatus | null;
 }
-
 export interface ThreadAnnouncementMemory {
   readonly snapshot: ThreadActivitySnapshot;
   /**
@@ -32,20 +29,17 @@ export interface ThreadAnnouncementMemory {
   /** The run shown while idle belongs to the last turn, even if it is still settling. */
   readonly idleRunId: RunId | null;
 }
-
 const ACTIVE_RUN_STATUSES: ReadonlySet<OrchestrationV2RunStatus | null> = new Set([
   "preparing",
   "starting",
   "running",
   "waiting",
 ]);
-
 const STARTING_RUN_STATUSES: ReadonlySet<OrchestrationV2RunStatus | null> = new Set([
   "queued",
   "preparing",
   "starting",
 ]);
-
 export function runOutcomeText(status: OrchestrationV2RunStatus | null): string | null {
   switch (status) {
     case "completed":
@@ -59,7 +53,6 @@ export function runOutcomeText(status: OrchestrationV2RunStatus | null): string 
       return null;
   }
 }
-
 interface RunState {
   readonly runId: RunId;
   readonly status: OrchestrationV2RunStatus;
@@ -83,12 +76,21 @@ export function isDetailBehindShell(detailRun: RunState | null, shellRun: RunSta
  * the last run that did ran.
  */
 export function announcedRun(
-  activityRun: (RunState & { readonly startedAt: string | null }) | null,
+  activityRun:
+    | (RunState & {
+        readonly startedAt: string | null;
+      })
+    | null,
   runs: ReadonlyArray<OrchestrationV2Run>,
 ): RunState | null {
   if (activityRun?.status !== "cancelled" || activityRun.startedAt !== null) return activityRun;
   const run = latestExecutedRun(runs);
-  return run === null ? null : { runId: run.id, status: run.status };
+  return run === null
+    ? null
+    : {
+        runId: run.id,
+        status: run.status,
+      };
 }
 
 /**
@@ -99,7 +101,10 @@ export function announcedRun(
 export function nextThreadAnnouncement(
   previous: ThreadAnnouncementMemory | null,
   next: ThreadActivitySnapshot,
-): { readonly memory: ThreadAnnouncementMemory; readonly announcement: string | null } {
+): {
+  readonly memory: ThreadAnnouncementMemory;
+  readonly announcement: string | null;
+} {
   const idle = next.status === "idle";
   // A run still starting up while the thread looks idle (a queued message,
   // a resume) is the next turn's, not a leftover from the last one.
@@ -110,7 +115,6 @@ export function nextThreadAnnouncement(
     !idle && ACTIVE_RUN_STATUSES.has(next.runStatus) && next.runId !== idleRunId
       ? next.runId
       : null;
-
   if (previous === null) {
     return {
       memory: {
@@ -122,9 +126,12 @@ export function nextThreadAnnouncement(
       announcement: null,
     };
   }
-  const memory = { ...previous, snapshot: next, idleRunId };
+  const memory = {
+    ...previous,
+    snapshot: next,
+    idleRunId,
+  };
   const { turnRunId } = previous;
-
   if (!idle) {
     // Sending can look idle for a moment before the server reports the run,
     // so a turn is tied to its run as soon as one appears, and only another
@@ -146,7 +153,13 @@ export function nextThreadAnnouncement(
           : turnStarted
             ? "Working"
             : null;
-    return { memory: { ...memory, turnRunId: nextTurnRunId }, announcement };
+    return {
+      memory: {
+        ...memory,
+        turnRunId: nextTurnRunId,
+      },
+      announcement,
+    };
   }
 
   // Work can stop a moment before the run settles; the ending waits for the run.
@@ -154,22 +167,55 @@ export function nextThreadAnnouncement(
   if (turnRunId === null) {
     // A run that settled unseen is history too, or the next failed send would claim it.
     const settledRunId = outcome === null ? previous.settledRunId : next.runId;
-    return { memory: { ...memory, settledRunId }, announcement: null };
+    return {
+      memory: {
+        ...memory,
+        settledRunId,
+      },
+      announcement: null,
+    };
   }
   if (next.runStatus === "rolled_back") {
-    return { memory: { ...memory, turnRunId: null, settledRunId: next.runId }, announcement: null };
+    return {
+      memory: {
+        ...memory,
+        turnRunId: null,
+        settledRunId: next.runId,
+      },
+      announcement: null,
+    };
   }
-  if (outcome === null) return { memory, announcement: null };
+  if (outcome === null)
+    return {
+      memory,
+      announcement: null,
+    };
   // Work stopped without a new run, e.g. a send that failed; the retry is a new turn.
   if (next.runId === previous.settledRunId) {
-    return { memory: { ...memory, turnRunId: null }, announcement: null };
+    return {
+      memory: {
+        ...memory,
+        turnRunId: null,
+      },
+      announcement: null,
+    };
   }
   // The last turn's run settling while this turn waits for its own run is not this turn's ending.
   if (turnRunId === "unknown" && next.runId === previous.idleRunId) {
-    return { memory: { ...memory, settledRunId: next.runId }, announcement: null };
+    return {
+      memory: {
+        ...memory,
+        settledRunId: next.runId,
+      },
+      announcement: null,
+    };
   }
   return {
-    memory: { ...memory, turnRunId: null, settledRunId: next.runId },
+    memory: {
+      ...memory,
+      turnRunId: null,
+      settledRunId: next.runId,
+    },
     announcement: outcome,
   };
 }

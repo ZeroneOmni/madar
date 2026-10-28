@@ -3,7 +3,7 @@ import * as NodeCrypto from "node:crypto";
 import * as NodePath from "node:path";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { extractFile } from "@electron/asar";
+
 import { assert, it } from "@effect/vitest";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Deferred from "effect/Deferred";
@@ -44,8 +44,6 @@ import {
   stageWslRuntimeArchive,
   ancestorNodeModulesPaths,
   copyDirectoryPreservingSymlinks,
-  LinuxBrowserSecretHostError,
-  stageBrowserSecret,
   validateWindowsPackagedPayload,
   verifyPackagedBundleIsSelfContained,
   WindowsPrimaryNativeProbeError,
@@ -86,8 +84,8 @@ const makeLinuxCliArchiveFixture = Effect.fn("test.makeLinuxCliArchiveFixture")(
   const members = [
     `${input.stem}/t3`,
     `${input.stem}/client/index.html`,
-    `${input.stem}/node_modules/node-pty/package.json`,
-    `${input.stem}/node_modules/node-pty/build/Release/pty.node`,
+    `${input.stem}/node_modules/@napi-rs/keyring/package.json`,
+    `${input.stem}/node_modules/@napi-rs/keyring/native.node`,
     ...(input.extraMembers ?? []),
   ].filter((member) => !(input.omitMembers ?? []).includes(member));
   for (const member of members) {
@@ -129,9 +127,8 @@ const WINDOWS_PAYLOAD_FIXTURE_VERSION = "1.2.3";
 const makeWindowsPayloadFixture = Effect.fn("test.makeWindowsPayloadFixture")(function* (input: {
   readonly copyUnpackedNatives: boolean;
   readonly serverEntrySource?: string;
-  readonly wslRuntime?: "valid" | "loose-server-tree" | "missing-pty" | "bad-digest";
+  readonly wslRuntime?: "valid" | "loose-server-tree" | "bad-digest";
   readonly targetArch?: "x64" | "arm64";
-  readonly ptyPrebuildArch?: "x64" | "arm64";
 }) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -176,21 +173,14 @@ const makeWindowsPayloadFixture = Effect.fn("test.makeWindowsPayloadFixture")(fu
             root: path.join(tempDir, "wsl-runtime"),
             stem: "apps",
             omitMembers: ["apps/t3", "apps/client/index.html"],
-            extraMembers: ["apps/server/dist/bin.mjs", "node_modules/node-pty/package.json"],
+            extraMembers: [
+              "apps/server/dist/bin.mjs",
+              "node_modules/@napi-rs/keyring/package.json",
+            ],
           })
         : yield* makeLinuxCliArchiveFixture({
             root: path.join(tempDir, "wsl-runtime"),
             stem,
-            ...(input.wslRuntime === "missing-pty" || input.ptyPrebuildArch !== undefined
-              ? { omitMembers: [`${stem}/node_modules/node-pty/build/Release/pty.node`] }
-              : {}),
-            ...(input.ptyPrebuildArch !== undefined
-              ? {
-                  extraMembers: [
-                    `${stem}/node_modules/node-pty/prebuilds/linux-${input.ptyPrebuildArch}/pty.node`,
-                  ],
-                }
-              : {}),
           });
     const archivePath = path.join(resourcesDir, WSL_RUNTIME_ARCHIVE_NAME);
     const hashPath = path.join(resourcesDir, WSL_RUNTIME_ARCHIVE_HASH_NAME);
@@ -550,11 +540,10 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           "@ff-labs/fff-node": "0.9.4",
           "@opencode-ai/sdk": "^1.3.15",
           "@pierre/diffs": "1.3.0",
-          "node-pty": "1.1.0",
         },
         desktopDependencies: {
           "@napi-rs/keyring": "1.3.0",
-          "playwright-core": "1.60.0",
+          "@clerk/electron-passkeys": "1.0.0",
         },
         arch: "arm64",
         fffNodeVersion: "0.9.4",
@@ -562,9 +551,9 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       {
         "@cursor/sdk": "1.0.22",
         "@ff-labs/fff-node": "0.9.4",
-        "node-pty": "1.1.0",
+
         "@napi-rs/keyring": "1.3.0",
-        "playwright-core": "1.60.0",
+        "@clerk/electron-passkeys": "1.0.0",
         "@ff-labs/fff-bin-darwin-arm64": "0.9.4",
       },
     );
@@ -572,15 +561,15 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     assert.deepStrictEqual(
       resolveMergedStageDependencies({
         platform: "linux",
-        serverDependencies: { "@ff-labs/fff-node": "0.9.4", "node-pty": "1.1.0", effect: "4.0.0" },
-        desktopDependencies: { "@crowecawcaw/xa11y": "0.13.0" },
+        serverDependencies: { "@ff-labs/fff-node": "0.9.4", effect: "4.0.0" },
+        desktopDependencies: { "@clerk/electron-passkeys": "1.0.0" },
         arch: "x64",
         fffNodeVersion: "0.9.4",
       }),
       {
         "@ff-labs/fff-node": "0.9.4",
-        "node-pty": "1.1.0",
-        "@crowecawcaw/xa11y": "0.13.0",
+
+        "@clerk/electron-passkeys": "1.0.0",
         "@ff-labs/fff-bin-linux-x64-gnu": "0.9.4",
         "@ff-labs/fff-bin-linux-x64-musl": "0.9.4",
       },
@@ -635,69 +624,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
             ),
           );
         }
-      }),
-    ),
-  );
-
-  it.effect("unpacks target Windows natives while excluding the other architecture", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem;
-        const path = yield* Path.Path;
-        const tempDir = yield* fs.makeTempDirectoryScoped({
-          prefix: "t3-windows-architecture-test-",
-        });
-        const sourceDir = path.join(tempDir, "server");
-        const nativeFiles = [
-          "node_modules/node-pty/prebuilds/win32-x64/conpty/OpenConsole.exe",
-          "node_modules/node-pty/prebuilds/win32-arm64/conpty/OpenConsole.exe",
-          "node_modules/node-pty/third_party/conpty/1.0.0/win10-x64/OpenConsole.exe",
-          "node_modules/node-pty/third_party/conpty/1.0.0/win10-arm64/OpenConsole.exe",
-          "node_modules/node-pty/prebuilds/win32-x64/pty.node",
-          "node_modules/node-pty/prebuilds/linux-x64/pty.node",
-        ];
-
-        for (const nativeFile of nativeFiles) {
-          const nativePath = path.join(sourceDir, nativeFile);
-          yield* fs.makeDirectory(path.dirname(nativePath), { recursive: true });
-          yield* fs.writeFileString(nativePath, nativeFile.includes("linux") ? "\x7fELF" : "MZ");
-        }
-
-        const asarPath = path.join(tempDir, "server.asar");
-        yield* packWindowsServerAsar({ sourceDir, asarPath, arch: "x64" });
-        const unpackedRoot = `${asarPath}.unpacked`;
-
-        assert.isTrue(
-          yield* fs.exists(
-            path.join(
-              unpackedRoot,
-              "node_modules/node-pty/prebuilds/win32-x64/conpty/OpenConsole.exe",
-            ),
-          ),
-        );
-        assert.isTrue(
-          yield* fs.exists(
-            path.join(unpackedRoot, "node_modules/node-pty/prebuilds/win32-x64/pty.node"),
-          ),
-        );
-        assert.isFalse(
-          yield* fs.exists(path.join(unpackedRoot, "node_modules/node-pty/prebuilds/linux-x64")),
-        );
-        assert.equal(
-          extractFile(
-            asarPath,
-            path.join("node_modules", "node-pty", "prebuilds", "linux-x64", "pty.node"),
-          ).toString(),
-          "\x7fELF",
-        );
-        assert.isFalse(
-          yield* fs.exists(path.join(unpackedRoot, "node_modules/node-pty/prebuilds/win32-arm64")),
-        );
-        assert.isFalse(
-          yield* fs.exists(
-            path.join(unpackedRoot, "node_modules/node-pty/third_party/conpty/1.0.0/win10-arm64"),
-          ),
-        );
       }),
     ),
   );
@@ -869,7 +795,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
   );
 
   it.effect.each(["x64", "arm64"] as const)(
-    "accepts an embedded archive with the Linux %s node-pty prebuild",
+    "accepts a Linux %s CLI archive without a terminal dependency",
     (targetArch) =>
       Effect.scoped(
         Effect.gen(function* () {
@@ -877,7 +803,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
             copyUnpackedNatives: true,
             wslRuntime: "valid",
             targetArch,
-            ptyPrebuildArch: targetArch,
           });
           const result = yield* validateWindowsPackagedPayload({
             stageDistDir: fixture.stageDistDir,
@@ -890,31 +815,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           assert.equal(result.packagedAppDir, fixture.packagedAppDir);
         }),
       ).pipe(Effect.provideService(HostProcess.Platform, "linux")),
-  );
-
-  it.effect.each(["x64", "arm64"] as const)(
-    "rejects a node-pty prebuild for the wrong architecture in a Linux %s archive",
-    (targetArch) =>
-      Effect.scoped(
-        Effect.gen(function* () {
-          const fixture = yield* makeWindowsPayloadFixture({
-            copyUnpackedNatives: true,
-            wslRuntime: "valid",
-            targetArch,
-            ptyPrebuildArch: targetArch === "x64" ? "arm64" : "x64",
-          });
-          const error = yield* validateWindowsPackagedPayload({
-            stageDistDir: fixture.stageDistDir,
-            appExecutableName: fixture.appExecutableName,
-            targetArch,
-            appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
-            expectWslRuntime: true,
-          }).pipe(Effect.flip);
-
-          assert.instanceOf(error, WindowsPackagedPayloadValidationError);
-          assert.equal(error.reason, "wsl-runtime-invalid");
-        }),
-      ),
   );
 
   it.effect("rejects an embedded archive built for a different release version", () =>
@@ -952,31 +852,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
 
         assert.instanceOf(error, WindowsPackagedPayloadValidationError);
         assert.equal(error.reason, "wsl-runtime-missing");
-      }),
-    ),
-  );
-
-  it.effect("rejects an embedded archive without the Linux node-pty binary", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const fixture = yield* makeWindowsPayloadFixture({
-          copyUnpackedNatives: true,
-          wslRuntime: "missing-pty",
-        });
-        const error = yield* validateWindowsPackagedPayload({
-          stageDistDir: fixture.stageDistDir,
-          appExecutableName: fixture.appExecutableName,
-          targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
-          expectWslRuntime: true,
-        }).pipe(Effect.flip);
-
-        assert.instanceOf(error, WindowsPackagedPayloadValidationError);
-        assert.equal(error.reason, "wsl-runtime-invalid");
-        assert.deepStrictEqual(error.missingFiles, [
-          `${wslRuntimeArchiveStem(WINDOWS_PAYLOAD_FIXTURE_VERSION, "x64")}/node_modules/node-pty/build/Release/pty.node`,
-          `${wslRuntimeArchiveStem(WINDOWS_PAYLOAD_FIXTURE_VERSION, "x64")}/node_modules/node-pty/prebuilds/linux-x64/pty.node`,
-        ]);
       }),
     ),
   );
@@ -1061,39 +936,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           spawnerLayer,
           Layer.succeed(HostProcess.Platform, "win32"),
           Layer.succeed(HostProcess.Architecture, "x64"),
-        ),
-      ),
-    );
-  });
-
-  it.effect("refuses a Linux build on a host that cannot build the browser secret helper", () => {
-    const commands: Array<{ readonly command: string }> = [];
-    const spawnerLayer = Layer.succeed(
-      ChildProcessSpawner.ChildProcessSpawner,
-      ChildProcessSpawner.make((command) => {
-        commands.push(command as unknown as (typeof commands)[number]);
-        return Effect.succeed(mockProcess(0));
-      }),
-    );
-
-    return Effect.gen(function* () {
-      const error = yield* stageBrowserSecret({
-        repoRoot: "/repo",
-        stageResourcesDir: "/stage/resources",
-        platform: "linux",
-        arch: "x64",
-        verbose: false,
-      }).pipe(Effect.flip);
-      assert.instanceOf(error, LinuxBrowserSecretHostError);
-      assert.equal(error.hostPlatform, "darwin");
-      assert.include(error.message, "Linux host");
-      assert.lengthOf(commands, 0);
-    }).pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          spawnerLayer,
-          Layer.succeed(HostProcess.Platform, "darwin"),
-          Layer.succeed(HostProcess.Architecture, "arm64"),
         ),
       ),
     );

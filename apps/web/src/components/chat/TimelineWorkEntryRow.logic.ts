@@ -5,9 +5,13 @@ import { toolGroupAction } from "./MessagesTimeline.logic";
 import { formatWorkspaceRelativePath } from "../../filePathDisplay";
 import { type TimelineWorkEntry, type TimelineRow } from "./timelineRowContext";
 import { type WorkEntryIconName } from "./TimelineToolActivityIcon";
-
 export function toolGroupSummaryIconName(
-  kind: Extract<TimelineRow, { kind: "work-toggle" }>["summaryKind"],
+  kind: Extract<
+    TimelineRow,
+    {
+      kind: "work-toggle";
+    }
+  >["summaryKind"],
 ): WorkEntryIconName {
   switch (kind) {
     case "pull-request":
@@ -48,7 +52,6 @@ export function toolGroupSummaryIconName(
       return "hammer";
   }
 }
-
 export function workToneIcon(tone: TimelineWorkEntry["tone"]): {
   iconName: WorkEntryIconName;
   className: string;
@@ -76,7 +79,6 @@ export function workToneIcon(tone: TimelineWorkEntry["tone"]): {
     className: "text-foreground/92",
   };
 }
-
 export function workEntryRawCommand(
   workEntry: Pick<TimelineWorkEntry, "command" | "rawCommand">,
 ): string | null {
@@ -86,7 +88,6 @@ export function workEntryRawCommand(
   }
   return rawCommand === workEntry.command.trim() ? null : rawCommand;
 }
-
 export function buildToolCallExpandedBody(
   workEntry: TimelineWorkEntry,
   workspaceRoot: string | undefined,
@@ -142,7 +143,6 @@ export function buildToolCallExpandedBody(
   }
   return blocks.length > 0 ? blocks.join("\n\n") : null;
 }
-
 export function workEntryIconName(workEntry: TimelineWorkEntry): WorkEntryIconName {
   if (workEntry.structuredPayload?.type === "notification") {
     if (workEntry.structuredPayload.outcome === "failed") return "circle-alert";
@@ -177,14 +177,12 @@ export function workEntryIconName(workEntry: TimelineWorkEntry): WorkEntryIconNa
   if (toolPresentation) return toolPresentation.icon;
   const action = toolGroupAction(workEntry);
   if (action !== "other") return toolGroupSummaryIconName(action);
-
   switch (workEntry.itemType) {
     case "dynamic_tool":
       return "wrench";
     case "subagent":
       return "bot";
   }
-
   return workToneIcon(workEntry.tone).iconName;
 }
 
@@ -196,7 +194,11 @@ export function remarkThoughtPreview(fallback: string) {
       const last = children.at(-1);
       const text = value.replace(/\s+/g, " ");
       if (last?.type === "text") last.value = (last.value + text).replace(/\s+/g, " ");
-      else children.push({ type: "text", value: text });
+      else
+        children.push({
+          type: "text",
+          value: text,
+        });
     };
     const visit = (node: Root | RootContent) => {
       if (node.type === "html" || node.type === "definition") return;
@@ -207,8 +209,15 @@ export function remarkThoughtPreview(fallback: string) {
           position: node.position,
           data: {
             hName: "code",
-            hProperties: { className: ["language-math", "math-inline"] },
-            hChildren: [{ type: "text", value: node.value }],
+            hProperties: {
+              className: ["language-math", "math-inline"],
+            },
+            hChildren: [
+              {
+                type: "text",
+                value: node.value,
+              },
+            ],
           },
         });
       } else if ("alt" in node) append(node.alt ?? "");
@@ -231,6 +240,11 @@ export function remarkThoughtPreview(fallback: string) {
     if (last?.type === "text") last.value = last.value.trimEnd();
     tree.children = children.some((child) => child.type !== "text" || child.value)
       ? children
-      : [{ type: "text", value: fallback }];
+      : [
+          {
+            type: "text",
+            value: fallback,
+          },
+        ];
   };
 }

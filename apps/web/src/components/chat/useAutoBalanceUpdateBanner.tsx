@@ -1,7 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
 import { useState } from "react";
-
 import { environmentIdsKey } from "~/state/environmentAtomList";
 import type { EnvironmentPresentation } from "~/state/environments";
 import { environmentUpdateStatesAtom } from "~/state/server";
@@ -25,7 +24,6 @@ import { InlineButton } from "../ui/button";
 import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 import { ComposerServerUpdateIcon } from "./ComposerServerUpdateStatus";
-
 export function useAutoBalanceUpdateBanner(
   environments: readonly EnvironmentPresentation[],
 ): ComposerBannerStackItem | null {
@@ -36,7 +34,14 @@ export function useAutoBalanceUpdateBanner(
   );
   const states = environments.flatMap((environment, index) => {
     const state = updateStates[index];
-    return state ? [{ environment, state }] : [];
+    return state
+      ? [
+          {
+            environment,
+            state,
+          },
+        ]
+      : [];
   });
   const [dismissedNotices, setDismissedNotices] = useState<ReadonlySet<string | ServerUpdateState>>(
     () => new Set(),
@@ -75,7 +80,6 @@ export function useAutoBalanceUpdateBanner(
     ];
   });
   if (machines.length === 0) return null;
-
   const running = machines.filter((machine) => machine.state.status === "running").length;
   const failed = machines.filter((machine) => machine.state.status === "failed").length;
   const manual = machines.filter((machine) => !machine.remoteUpdate).length;

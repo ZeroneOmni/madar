@@ -5,7 +5,6 @@ import type {
 import type { ProviderDriverKind, ProviderInstanceId, ServerProvider } from "@t3tools/contracts";
 import { ChevronDownIcon, LoaderCircleIcon, SquareIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
-
 import { AgentElapsed } from "./AgentElapsed";
 import { SubagentTooltipContent } from "./SubagentTooltipContent";
 import { ThreadHoverCardPopup } from "../ThreadHoverCard";
@@ -18,7 +17,6 @@ import {
   THREAD_DETAILS_PANEL_SPLIT_GROUP_CLASS,
   THREAD_DETAILS_PANEL_SPLIT_SEPARATOR_CLASS,
 } from "./threadDetailsPanelStyles";
-
 function phaseElapsed(phase: SubagentWorkflowGroup["phases"][number]) {
   const instants = (key: "startedAt" | "completedAt") =>
     phase.members
@@ -34,7 +32,6 @@ function phaseElapsed(phase: SubagentWorkflowGroup["phases"][number]) {
     completedAt,
   };
 }
-
 function phaseStatusLabel(phase: SubagentWorkflowGroup["phases"][number]) {
   if (phase.state === "running") return "running";
   if (phase.members.some((member) => member.status === "failed")) return "failed";
@@ -45,7 +42,6 @@ function phaseStatusLabel(phase: SubagentWorkflowGroup["phases"][number]) {
   }
   return phase.state === "done" ? "done" : "not started";
 }
-
 function WorkflowMemberRow({
   member,
   providerInstanceId,
@@ -107,7 +103,6 @@ function WorkflowMemberRow({
     </li>
   );
 }
-
 export function ThreadLineageWorkflowRow({
   group,
   header,

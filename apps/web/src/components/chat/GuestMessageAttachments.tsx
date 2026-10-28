@@ -1,12 +1,10 @@
 import type { ChatAttachment } from "@t3tools/contracts";
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
-
 import { useTheme } from "~/hooks/useTheme";
 import { cn } from "~/lib/utils";
 import { type ChatFileAttachment, isFileAttachment, isImageAttachment } from "../../types";
 import { AttachmentImage } from "../media/AttachmentImage";
 import { PierreEntryIcon } from "./PierreEntryIcon";
-
 const IMAGE_FRAME =
   "aspect-[4/3] overflow-hidden rounded-lg border border-border/80 bg-background/70";
 const FILE_ROW = "flex min-w-0 items-center gap-2 py-1 text-sm";

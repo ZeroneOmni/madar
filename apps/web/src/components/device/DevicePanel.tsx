@@ -7,8 +7,6 @@ import type {
 } from "@t3tools/contracts";
 import { ArrowUpRight, CircleAlert, Play, Smartphone, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
-
-import { usePreviewMiniPlayerStore } from "~/previewMiniPlayerStore";
 import { useRightPanelStore, type RightPanelSurface } from "~/rightPanelStore";
 import { Button } from "~/components/ui/button";
 import { DiscoveryList } from "~/components/ui/discovery-list";
@@ -23,23 +21,27 @@ import { DeviceLoadingView } from "./DeviceLoadingView";
 import { DeviceSetup, deviceHubReadiness, isAndroidDiscoveryUncertain } from "./DeviceSetup";
 import { DeviceWorkspace } from "./DeviceWorkspace";
 import { PreviewPanelShell, type PreviewPanelMode } from "../preview/PreviewPanelShell";
-
 const platformLabel = (platform: DevicePlatform) =>
   platform === "ios" ? "iOS Simulators" : "Android Emulators";
-
 const deviceKey = (device: Pick<DeviceSummary, "hostId" | "id">) =>
   `${device.hostId}\u0000${device.id}`;
-
 export function DevicePanel(props: {
   readonly mode: PreviewPanelMode;
   readonly threadRef: ScopedThreadRef;
-  readonly surface: Extract<RightPanelSurface, { kind: "device" }>;
+  readonly surface: Extract<
+    RightPanelSurface,
+    {
+      kind: "device";
+    }
+  >;
   readonly visible: boolean;
   readonly onDismissSetup: () => void;
 }) {
   const { environmentId, threadId } = props.threadRef;
   const { state, loaded } = useDeviceState(environmentId);
-  const list = useAtomCommand(deviceEnvironment.list, { reportFailure: false });
+  const list = useAtomCommand(deviceEnvironment.list, {
+    reportFailure: false,
+  });
   const open = useAtomCommand(deviceEnvironment.open);
   const close = useAtomCommand(deviceEnvironment.close);
   // The panel stays mounted across thread switches, so an in-flight open or
@@ -53,15 +55,16 @@ export function DevicePanel(props: {
   const pendingDevice = operation?.scope === scope ? operation.pending : null;
   const operationError = operation?.scope === scope ? operation.error : null;
   const pendingDeviceKey = pendingDevice ? deviceKey(pendingDevice) : null;
-
   const hostDisabled = state.hostStatus === "disabled";
 
   // Opening setup never grants permission to install or start helpers.
   useEffect(() => {
     if (!props.visible || !loaded || hostDisabled) return;
-    void list({ environmentId, input: {} });
+    void list({
+      environmentId,
+      input: {},
+    });
   }, [environmentId, list, loaded, props.visible, hostDisabled]);
-
   const sessions = state.sessions.filter((session) => session.threadId === threadId);
   const activeSession = props.surface.target
     ? sessions.find(
@@ -75,19 +78,26 @@ export function DevicePanel(props: {
         (device) => device.hostId === activeSession.hostId && device.id === activeSession.deviceId,
       )
     : undefined;
-
   const grouped = groupDevices(state);
-
   const startOperation = (pending: DeviceSummary | null) => {
-    const started = { scope, pending, error: null };
+    const started = {
+      scope,
+      pending,
+      error: null,
+    };
     setOperation(started);
     // Returning to the same thread can start a newer operation before this one settles.
     return (error: string | null) =>
       setOperation((current) =>
-        current === started ? { ...started, pending: null, error } : current,
+        current === started
+          ? {
+              ...started,
+              pending: null,
+              error,
+            }
+          : current,
       );
   };
-
   const selectDevice = async (value: string) => {
     const device = state.devices.find((candidate) => deviceKey(candidate) === value);
     if (!device) return;
@@ -113,19 +123,6 @@ export function DevicePanel(props: {
       settleOperation(null);
     }
   };
-
-  const floatActive = () => {
-    if (!activeDevice) return;
-    usePreviewMiniPlayerStore.getState().open(props.threadRef, {
-      kind: "device",
-      hostId: activeDevice.hostId,
-      deviceId: activeDevice.id,
-      platform: activeDevice.platform,
-      name: activeDevice.name,
-    });
-    useRightPanelStore.getState().close(props.threadRef);
-  };
-
   const closeActive = (powerOff: boolean) => {
     if (!powerOff) {
       useRightPanelStore.getState().closeSurface(props.threadRef, props.surface.id);
@@ -146,7 +143,6 @@ export function DevicePanel(props: {
       else useRightPanelStore.getState().closeSurface(props.threadRef, props.surface.id);
     });
   };
-
   const bootingDevices =
     state.bootingDevices?.filter((device) => device.threadId === threadId) ?? [];
   const { ready: hostReady, busy: hostBusy } = deviceHubReadiness(state);
@@ -155,15 +151,24 @@ export function DevicePanel(props: {
     const status = state.hostStatuses[host.id];
     const detail = status?.detail ?? (host.kind === "local" ? state.hostStatusDetail : undefined);
     return detail && (status?.status ?? state.hostStatus) === "ready"
-      ? [{ hostId: host.id, label: host.label, detail }]
+      ? [
+          {
+            hostId: host.id,
+            label: host.label,
+            detail,
+          },
+        ]
       : [];
   });
   const unavailablePlatforms = state.hosts.flatMap((host) =>
     host.platforms
       .filter((platform) => !platform.available)
-      .map((platform) => ({ ...platform, hostId: host.id, hostLabel: host.label })),
+      .map((platform) => ({
+        ...platform,
+        hostId: host.id,
+        hostLabel: host.label,
+      })),
   );
-
   if (loaded && (!state.onboardingCompleted || hostDisabled)) {
     return (
       <Dialog
@@ -178,7 +183,6 @@ export function DevicePanel(props: {
       </Dialog>
     );
   }
-
   return (
     <PreviewPanelShell mode={props.mode}>
       <div className="relative flex min-h-0 flex-1 flex-col">
@@ -223,7 +227,6 @@ export function DevicePanel(props: {
                 diagnostics.find(({ hostId }) => hostId === activeDevice.hostId)?.detail
               }
               visible={props.visible}
-              onFloat={floatActive}
               onClose={() => closeActive(false)}
               onPowerOff={() => closeActive(true)}
             />
@@ -329,7 +332,12 @@ export function DevicePanel(props: {
                     className={grouped.length > 0 ? "self-start" : "self-center"}
                     variant="outline"
                     size="sm"
-                    onClick={() => void list({ environmentId, input: {} })}
+                    onClick={() =>
+                      void list({
+                        environmentId,
+                        input: {},
+                      })
+                    }
                   >
                     Refresh devices
                   </Button>
@@ -342,7 +350,6 @@ export function DevicePanel(props: {
     </PreviewPanelShell>
   );
 }
-
 function DeviceNotice(props: {
   readonly tone: "warning" | "error";
   readonly onDismiss: () => void;
@@ -376,7 +383,6 @@ function DeviceNotice(props: {
     </div>
   );
 }
-
 function DeviceDiscoveryWarning(props: { readonly label: string; readonly detail: string }) {
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
@@ -387,14 +393,20 @@ function DeviceDiscoveryWarning(props: { readonly label: string; readonly detail
     </DeviceNotice>
   );
 }
-
 function groupDevices(state: DeviceServiceState) {
-  const groups: Array<{ platform: DevicePlatform; devices: DeviceSummary[] }> = [];
+  const groups: Array<{
+    platform: DevicePlatform;
+    devices: DeviceSummary[];
+  }> = [];
   for (const platform of ["ios", "android"] as const) {
     const devices = state.devices
       .filter((device) => device.platform === platform)
       .toSorted((a, b) => Number(b.booted) - Number(a.booted) || a.name.localeCompare(b.name));
-    if (devices.length > 0) groups.push({ platform, devices });
+    if (devices.length > 0)
+      groups.push({
+        platform,
+        devices,
+      });
   }
   return groups;
 }

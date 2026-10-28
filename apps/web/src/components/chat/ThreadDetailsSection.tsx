@@ -1,7 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-
 import { cn } from "../../lib/utils";
-
 export function ThreadDetailsSection({
   headingId,
   title,

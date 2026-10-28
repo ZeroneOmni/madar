@@ -1,3 +1,5 @@
+import { isEditableFocused } from "../lib/editableFocus";
+import { isModelPickerOpen } from "../modelPickerVisibility";
 import { useAtomValue } from "@effect/atom-react";
 import * as Schema from "effect/Schema";
 import {
@@ -9,26 +11,14 @@ import {
   type ReactNode,
 } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-
-import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { isElectron } from "../env";
-import {
-  releaseThreadUndoShortcut,
-  threadUndoClaimsShortcut,
-  undoLatestThreadAction,
-} from "../hooks/showThreadUndoNotice";
 import { getLocalStorageItem, removeLocalStorageItem } from "../hooks/useLocalStorage";
 import {
   isRichTextBoldShortcut,
   resolveShortcutCommand,
   shortcutLabelForCommand,
 } from "../keybindings";
-import { isEditableFocused } from "../lib/editableFocus";
-import { isPreviewFocused } from "../lib/previewFocus";
-import { isTerminalFocused } from "../lib/terminalFocus";
-import { isModelPickerOpen } from "../modelPickerVisibility";
-import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
-import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
+
 import { cn, isMacPlatform } from "../lib/utils";
 import { primaryServerKeybindingsAtom } from "../state/server";
 import { useEnvironmentIdentificationMode, useLegacySidebarEnabled } from "../hooks/useSettings";
@@ -63,26 +53,21 @@ import {
 } from "./ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { useThreadRouteRef } from "../hooks/useThreadRouteTarget";
-
 const MACOS_TRAFFIC_LIGHTS_LEFT_INSET = "var(--desktop-window-controls-inset, 90px)";
-
 function subscribeToViewportWidth(onChange: () => void): () => void {
   window.addEventListener("resize", onChange);
   return () => window.removeEventListener("resize", onChange);
 }
-
 function readViewportWidth(): number {
   return window.innerWidth;
 }
 
 // Cache the synchronous fullscreen IPC read until subscription.
 let windowFullscreenSnapshot: boolean | null = null;
-
 function macosDesktopBridge() {
   if (!isElectron || !isMacPlatform(navigator.platform)) return null;
   return window.desktopBridge ?? null;
 }
-
 function subscribeToWindowFullscreen(onChange: () => void): () => void {
   const bridge = macosDesktopBridge();
   if (
@@ -102,7 +87,6 @@ function subscribeToWindowFullscreen(onChange: () => void): () => void {
     windowFullscreenSnapshot = null;
   };
 }
-
 function readWindowFullscreen(): boolean {
   if (windowFullscreenSnapshot === null) {
     const getWindowFullscreenState = macosDesktopBridge()?.getWindowFullscreenState;
@@ -111,7 +95,6 @@ function readWindowFullscreen(): boolean {
   }
   return windowFullscreenSnapshot;
 }
-
 function readInitialThreadSidebarWidth(): number {
   try {
     return resolveInitialThreadSidebarWidth(
@@ -123,9 +106,10 @@ function readInitialThreadSidebarWidth(): number {
     return resolveInitialThreadSidebarWidth(null, window.innerWidth);
   }
 }
-
 function SidebarControl() {
-  const usagePageOpen = useLocation({ select: (location) => location.pathname === "/usage" });
+  const usagePageOpen = useLocation({
+    select: (location) => location.pathname === "/usage",
+  });
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const { toggleSidebar, isMobile, mobileSheetMounted } = useSidebar();
   const isSidebarVisible = useSidebarVisibility();
@@ -134,9 +118,10 @@ function SidebarControl() {
     environmentIdentificationMode === "artwork",
   );
   const shortcutLabel = shortcutLabelForCommand(keybindings, "sidebar.toggle", {
-    context: { usagePageOpen },
+    context: {
+      usagePageOpen,
+    },
   });
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -156,16 +141,17 @@ function SidebarControl() {
         return;
       }
       if (
-        resolveShortcutCommand(event, keybindings, { context: { usagePageOpen } }) !==
-        "sidebar.toggle"
+        resolveShortcutCommand(event, keybindings, {
+          context: {
+            usagePageOpen,
+          },
+        }) !== "sidebar.toggle"
       )
         return;
-
       event.preventDefault();
       event.stopPropagation();
       toggleSidebar();
     };
-
     window.addEventListener("keydown", onKeyDown, true);
     const unsubscribe = window.desktopBridge?.onMenuAction((action) => {
       if (action === "sidebar.toggle") toggleSidebar();
@@ -175,7 +161,6 @@ function SidebarControl() {
       unsubscribe?.();
     };
   }, [keybindings, toggleSidebar, usagePageOpen]);
-
   return (
     <div
       className={cn(
@@ -204,20 +189,16 @@ function SidebarControl() {
     </div>
   );
 }
-
 function routePanelsOpen(routeThreadRef: ReturnType<typeof useThreadRouteRef>) {
-  if (!routeThreadRef) return { terminalOpen: false, previewOpen: false };
+  if (!routeThreadRef)
+    return {
+      terminalOpen: false,
+      previewOpen: false,
+    };
   return {
-    terminalOpen: selectThreadTerminalUiState(
-      useTerminalUiStateStore.getState().terminalUiStateByThreadKey,
-      routeThreadRef,
-    ).terminalOpen,
-    previewOpen:
-      selectActiveRightPanel(useRightPanelStore.getState().byThreadKey, routeThreadRef) ===
-      "preview",
+    previewOpen: false,
   };
 }
-
 export function NavigationHistoryShortcuts() {
   const usagePageOpen = useLocation({ select: (location) => location.pathname === "/usage" });
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
@@ -234,8 +215,8 @@ export function NavigationHistoryShortcuts() {
       }
       const command = resolveShortcutCommand(event, keybindings, {
         context: {
-          terminalFocus: isTerminalFocused(),
-          previewFocus: isPreviewFocused(),
+          terminalFocus: false,
+          previewFocus: false,
           ...routePanelsOpen(routeThreadRef),
           editableFocus: isEditableFocused(event.target),
           modelPickerOpen: isModelPickerOpen(),
@@ -256,7 +237,6 @@ export function NavigationHistoryShortcuts() {
 
   return null;
 }
-
 const MODIFIER_KEYS = new Set(["Alt", "Control", "Meta", "Shift"]);
 
 // Undoes the thread actions in the sidebar's notice. Settings and Usage own
@@ -269,7 +249,6 @@ function ThreadUndoShortcut() {
   const noticeVisible = useSidebarVisibility();
   // Outlives the effect: undoing an archive navigates, which re-runs it mid-hold.
   const heldUndoKey = useRef<string | null>(null);
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // A held key undoes once. Cancel its repeats so they cannot fall through
@@ -285,8 +264,8 @@ function ThreadUndoShortcut() {
       if (!MODIFIER_KEYS.has(event.key)) heldUndoKey.current = null;
       const command = resolveShortcutCommand(event, keybindings, {
         context: {
-          terminalFocus: isTerminalFocused(),
-          previewFocus: isPreviewFocused(),
+          terminalFocus: false,
+          previewFocus: false,
           ...routePanelsOpen(routeThreadRef),
           editableFocus:
             isEditableFocused(event.target) && !(noticeVisible && threadUndoClaimsShortcut()),
@@ -314,10 +293,8 @@ function ThreadUndoShortcut() {
       window.removeEventListener("input", onInput, true);
     };
   }, [keybindings, noticeVisible, routeThreadRef]);
-
   return null;
 }
-
 export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const legacySidebarEnabled = useLegacySidebarEnabled();
@@ -328,7 +305,9 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const { active: panelAnimationsActive, durationMs: panelAnimationDurationMs } =
     usePanelAnimationSettings();
   useThreadVisitedMigration();
-  const pathname = useLocation({ select: (location) => location.pathname });
+  const pathname = useLocation({
+    select: (location) => location.pathname,
+  });
   const panelAnimationsSuppressed = usePanelNavigationSuppression(pathname);
   const routePanelAnimationsActive = panelAnimationsActive && !panelAnimationsSuppressed;
   const appModalOpen = isAppModalPage(pathname);
@@ -353,7 +332,9 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   );
   const windowControlsInsetStyle = (
     isMacosDesktop && !isWindowFullscreen
-      ? { "--workspace-controls-left": MACOS_TRAFFIC_LIGHTS_LEFT_INSET }
+      ? {
+          "--workspace-controls-left": MACOS_TRAFFIC_LIGHTS_LEFT_INSET,
+        }
       : {}
   ) as CSSProperties;
   const sidebarProviderStyle = {
@@ -361,27 +342,25 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
     "--panel-animation-duration": `${panelAnimationDurationMs}ms`,
     ...windowControlsInsetStyle,
   } as CSSProperties;
-
   useEffect(() => {
     const onMenuAction = window.desktopBridge?.onMenuAction;
     if (typeof onMenuAction !== "function") {
       return;
     }
-
     const unsubscribe = onMenuAction((action) => {
       if (action === "open-settings") {
         const isSettingsRoute = /^\/settings(\/|$)/.test(pathname);
         if (!isSettingsRoute) {
-          void navigate({ to: "/settings" });
+          void navigate({
+            to: "/settings",
+          });
         }
       }
     });
-
     return () => {
       unsubscribe?.();
     };
   }, [navigate, pathname]);
-
   return (
     <PanelAnimationSuppressionProvider value={panelAnimationsSuppressed}>
       <SidebarProvider
@@ -425,3 +404,9 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
     </PanelAnimationSuppressionProvider>
   );
 }
+import { isCommandPaletteOpen } from "../commandPaletteBus";
+import {
+  releaseThreadUndoShortcut,
+  threadUndoClaimsShortcut,
+  undoLatestThreadAction,
+} from "../hooks/showThreadUndoNotice";

@@ -24,7 +24,6 @@ import { toastManager } from "../ui/toast";
 import { useThreadActionMenu } from "~/hooks/useThreadActionMenu";
 import { readLocalApi } from "~/localApi";
 import { threadEnvironment } from "../../state/threads";
-import { serverEnvironment } from "../../state/server";
 import { canShareWithGuestAtom } from "./guestShareAvailability";
 import { useAtomValue } from "@effect/atom-react";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
@@ -41,28 +40,45 @@ import { cn } from "~/lib/utils";
 import { textDirection } from "~/textDirection";
 import { useClientSettings } from "../../hooks/useSettings";
 import { GuestShareIndicator } from "./GuestShareControls";
-
 interface ChatHeaderProps {
   activeThreadEnvironmentId: EnvironmentId;
   activeThreadId: ThreadId;
   activeThreadTitle: string;
   isServerThread: boolean;
   activeProject: EnvironmentProject | null;
-  parentThreadLink: { threadId: ThreadId; title: string } | null;
+  parentThreadLink: {
+    threadId: ThreadId;
+    title: string;
+  } | null;
   onOpenThread: (threadId: ThreadId) => void;
   rightPanelOpen: boolean;
   onNewThreadInProject: () => void;
   onOpenProjectSettings?: (() => void) | undefined;
 }
-
-function resolveRenameCommit(input: {
-  readonly title: string;
-  readonly originalTitle: string;
-}): { action: "commit"; title: string } | { action: "reject-empty" } | { action: "noop" } {
+function resolveRenameCommit(input: { readonly title: string; readonly originalTitle: string }):
+  | {
+      action: "commit";
+      title: string;
+    }
+  | {
+      action: "reject-empty";
+    }
+  | {
+      action: "noop";
+    } {
   const trimmed = input.title.trim();
-  if (trimmed.length === 0) return { action: "reject-empty" };
-  if (trimmed === input.originalTitle) return { action: "noop" };
-  return { action: "commit", title: trimmed };
+  if (trimmed.length === 0)
+    return {
+      action: "reject-empty",
+    };
+  if (trimmed === input.originalTitle)
+    return {
+      action: "noop",
+    };
+  return {
+    action: "commit",
+    title: trimmed,
+  };
 }
 
 // Delay the input-swallowing native menu through the double-click rename interval.
@@ -169,15 +185,24 @@ export const ChatHeader = memo(function ChatHeader({
   const commitRename = (title: string) => {
     setRenaming(null);
     if (!readEnvironmentScope(activeThreadEnvironmentId, AuthOrchestrationOperateScope)) return;
-    const resolution = resolveRenameCommit({ title, originalTitle: activeThreadTitle });
+    const resolution = resolveRenameCommit({
+      title,
+      originalTitle: activeThreadTitle,
+    });
     if (resolution.action === "reject-empty") {
-      toastManager.add({ type: "warning", title: "Thread title cannot be empty" });
+      toastManager.add({
+        type: "warning",
+        title: "Thread title cannot be empty",
+      });
       return;
     }
     if (resolution.action === "noop") return;
     void updateThreadMetadata({
       environmentId: activeThreadEnvironmentId,
-      input: { threadId: activeThreadId, title: resolution.title },
+      input: {
+        threadId: activeThreadId,
+        title: resolution.title,
+      },
     }).then((result) => {
       if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
@@ -215,7 +240,10 @@ export const ChatHeader = memo(function ChatHeader({
     cancelPendingTitleMenu();
     const rect = titleButtonRef.current?.getBoundingClientRect();
     if (!rect) return;
-    openMenu({ x: rect.left, y: rect.bottom + 4 });
+    openMenu({
+      x: rect.left,
+      y: rect.bottom + 4,
+    });
   };
   const openMenuFromTitle = (event: ReactMouseEvent<HTMLButtonElement>) => {
     if (isTrailingDoubleClick(event.detail)) return;
@@ -247,16 +275,28 @@ export const ChatHeader = memo(function ChatHeader({
       const api = readLocalApi();
       if (!api) return;
       void api.contextMenu
-        .show([{ id: "project-settings", label: "Project settings", icon: "settings" }], {
-          x: event.clientX,
-          y: event.clientY,
-        })
+        .show(
+          [
+            {
+              id: "project-settings",
+              label: "Project settings",
+              icon: "settings",
+            },
+          ],
+          {
+            x: event.clientX,
+            y: event.clientY,
+          },
+        )
         .then((action) => {
           if (action === "project-settings") onOpenProjectSettings?.();
         });
       return;
     }
-    openMenu({ x: event.clientX, y: event.clientY });
+    openMenu({
+      x: event.clientX,
+      y: event.clientY,
+    });
   };
   const handleRenameKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing || event.keyCode === 229) return;

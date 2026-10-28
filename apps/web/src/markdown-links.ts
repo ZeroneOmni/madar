@@ -7,10 +7,7 @@ import {
   resolveMarkdownFileLinkTarget,
 } from "@t3tools/shared/markdownLinks";
 import { parseFileUrlHref, splitFilePathPosition } from "@t3tools/shared/fileLinks";
-
 import { formatWorkspaceRelativePath } from "./filePathDisplay";
-import { isTerminalLinkActivation } from "./terminal-links";
-
 export interface MarkdownFileLinkMeta {
   filePath: string;
   workspaceLookupPath: string | null;
@@ -21,24 +18,20 @@ export interface MarkdownFileLinkMeta {
   line?: number;
   column?: number;
 }
-
 export function shouldOpenMarkdownFileLinkInEditor(
   event: Pick<MouseEvent, "metaKey" | "ctrlKey">,
   platform?: string,
 ): boolean {
-  return isTerminalLinkActivation(event, platform);
+  return /Mac|iPhone|iPad/.test(platform ?? navigator.platform) ? event.metaKey : event.ctrlKey;
 }
-
 export function shouldOpenMarkdownFileLinkInBrowserByDefault(path: string): boolean {
   return /\.pdf$/i.test(path.split(/[?#]/, 1)[0] ?? "");
 }
-
 export function rewriteMarkdownFileUriHref(href: string | undefined): string | null {
   if (!href) return null;
   const target = parseFileUrlHref(normalizeMarkdownLinkDestination(href));
   return target ? `${target.path}${target.hash}` : null;
 }
-
 export function resolveInlineCodeFileLinkMeta(
   codeText: string,
   cwd?: string,
@@ -46,14 +39,12 @@ export function resolveInlineCodeFileLinkMeta(
 ): MarkdownFileLinkMeta | null {
   const candidate = inlineCodeFilePathCandidate(codeText);
   if (candidate === null) return null;
-
   return resolveMarkdownFileLinkMeta(
     candidate,
     cwd,
     inlineCodePathNamesFromWorkspaceRoot(candidate, cwd, baseDir) ? cwd : baseDir,
   );
 }
-
 function inlineCodePathNamesFromWorkspaceRoot(
   candidate: string,
   cwd: string | undefined,
@@ -64,7 +55,6 @@ function inlineCodePathNamesFromWorkspaceRoot(
   if (!splitFilePathPosition(candidate).path.includes("/")) return false;
   return workspaceRelativeFilePath(baseDir, cwd) !== null;
 }
-
 export function resolveMarkdownFileLinkMeta(
   href: string | undefined,
   cwd?: string,
@@ -84,7 +74,6 @@ export function resolveMarkdownFileLinkMeta(
         : null,
   };
 }
-
 function buildFileLinkMetaFromTarget(targetPath: string, cwd?: string) {
   const { path, line, column } = splitFilePathPosition(targetPath);
   return {
@@ -93,7 +82,15 @@ function buildFileLinkMetaFromTarget(targetPath: string, cwd?: string) {
     displayPath: formatWorkspaceRelativePath(targetPath, cwd),
     workspaceRelativePath: workspaceRelativeFilePath(path, cwd),
     basename: fileBasename(path),
-    ...(line !== undefined ? { line } : {}),
-    ...(column !== undefined ? { column } : {}),
+    ...(line !== undefined
+      ? {
+          line,
+        }
+      : {}),
+    ...(column !== undefined
+      ? {
+          column,
+        }
+      : {}),
   };
 }

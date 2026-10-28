@@ -18,7 +18,6 @@ import {
   type SelectionActionPoint,
 } from "~/lib/selectionActions";
 import { Button } from "../ui/button";
-
 export function AssistantSelectionToolbar({
   viewport,
   threadRef,
@@ -35,7 +34,6 @@ export function AssistantSelectionToolbar({
   } | null>(null);
   const toolbarRef = useRef<HTMLButtonElement>(null);
   const actionsRef = useRef<ReturnType<typeof observeSelectionActions> | null>(null);
-
   useLayoutEffect(() => {
     const toolbar = toolbarRef.current;
     if (!toolbar || !selection) return;
@@ -43,7 +41,6 @@ export function AssistantSelectionToolbar({
     toolbar.style.left = `${Math.max(8, Math.min(selection.position.x, window.innerWidth - rect.width - 8))}px`;
     toolbar.style.top = `${Math.max(8, Math.min(selection.position.y, window.innerHeight - rect.height - 8))}px`;
   }, [selection]);
-
   useEffect(() => {
     if (!viewport) return;
     const clear = () => setSelection(null);
@@ -118,7 +115,11 @@ export function AssistantSelectionToolbar({
             pointer.y <= line.bottom + 8,
         );
       setSelection({
-        sourceAnchor: { source: captured.source, range: captured.range, viewport },
+        sourceAnchor: {
+          source: captured.source,
+          range: captured.range,
+          viewport,
+        },
         citation: {
           version: 1,
           ...threadRef,
@@ -129,7 +130,10 @@ export function AssistantSelectionToolbar({
           bounds: viewportRect,
           selectionRect: rects.item(rects.length - 1) ?? rect,
           pointer: pointerOnText ? pointer : null,
-          viewport: { width: window.innerWidth, height: window.innerHeight },
+          viewport: {
+            width: window.innerWidth,
+            height: window.innerHeight,
+          },
         }),
       });
     };
@@ -159,7 +163,9 @@ export function AssistantSelectionToolbar({
       if (toolbar.disabled) return;
       event.preventDefault();
       event.stopPropagation();
-      toolbar.focus({ preventScroll: true });
+      toolbar.focus({
+        preventScroll: true,
+      });
     };
     document.addEventListener("keydown", focusActions, true);
     document.addEventListener("selectionchange", actions.selectionChanged);
@@ -170,7 +176,6 @@ export function AssistantSelectionToolbar({
       actionsRef.current = null;
     };
   }, [threadRef, viewport]);
-
   if (!selection) return null;
   const tooLong = selection.citation.text.length > ASSISTANT_CITATION_MAX_TEXT_LENGTH;
   const dismiss = () => {
@@ -192,7 +197,10 @@ export function AssistantSelectionToolbar({
       disabled={tooLong}
       aria-label={tooLong ? "Selection is too long to cite" : "Cite selection in composer"}
       className="fixed z-50 max-w-[calc(100vw-1rem)]"
-      style={{ left: selection.position.x, top: selection.position.y }}
+      style={{
+        left: selection.position.x,
+        top: selection.position.y,
+      }}
       onPointerDown={(event) => event.preventDefault()}
       onClick={cite}
       onKeyDown={(event) => {

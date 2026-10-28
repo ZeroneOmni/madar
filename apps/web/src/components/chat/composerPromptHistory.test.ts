@@ -1,28 +1,49 @@
 import { ScheduledTaskId } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
-
 import {
   buildComposerPromptHistoryEntries,
   recallableComposerPrompt,
   stepComposerPromptHistory,
   type ComposerPromptHistoryPosition,
 } from "./composerPromptHistory";
-
 const entries = buildComposerPromptHistoryEntries([
-  { id: "m1", role: "user", text: "first" },
-  { id: "a1", role: "assistant", text: "reply" },
-  { id: "m2", role: "user", text: "second" },
-  { id: "m3", role: "user", text: "third" },
+  {
+    id: "m1",
+    role: "user",
+    text: "first",
+  },
+  {
+    id: "a1",
+    role: "assistant",
+    text: "reply",
+  },
+  {
+    id: "m2",
+    role: "user",
+    text: "second",
+  },
+  {
+    id: "m3",
+    role: "user",
+    text: "third",
+  },
 ]);
-
 function backward(position: ComposerPromptHistoryPosition | null, currentPrompt: string) {
-  return stepComposerPromptHistory({ direction: "backward", entries, position, currentPrompt });
+  return stepComposerPromptHistory({
+    direction: "backward",
+    entries,
+    position,
+    currentPrompt,
+  });
 }
-
 function forward(position: ComposerPromptHistoryPosition | null, currentPrompt: string) {
-  return stepComposerPromptHistory({ direction: "forward", entries, position, currentPrompt });
+  return stepComposerPromptHistory({
+    direction: "forward",
+    entries,
+    position,
+    currentPrompt,
+  });
 }
-
 describe("recallableComposerPrompt", () => {
   it.each([
     "Render <preview_annotation>",
@@ -35,7 +56,6 @@ describe("recallableComposerPrompt", () => {
       ),
     ).toBe("Prompt");
   });
-
   it("preserves a malformed annotation containing a nested opening tag", () => {
     const text =
       "Prompt\n<preview_annotation>\nouter literal\n<preview_annotation>\ninner\n</preview_annotation>";
@@ -53,7 +73,6 @@ describe("recallableComposerPrompt", () => {
       "Ultrathink:\nInvestigate this\n\n<terminal_context>\n- Terminal 1 lines 12-13:\n  12 | git status\n  13 | On branch main\n</terminal_context>\n\n<element_context>\n- <button>:\n  url: https://example.com\n</element_context>";
     expect(recallableComposerPrompt(sent)).toBe("Investigate this");
   });
-
   it.each([
     ["Look at @terminal-1:4 please", "Look at please"],
     [
@@ -69,7 +88,6 @@ describe("recallableComposerPrompt", () => {
       typed + "\n\n<terminal_context>\n- Terminal 1 line 4:\n  4 | ls\n</terminal_context>";
     expect(recallableComposerPrompt(sent)).toBe(expected);
   });
-
   it("strips only review comments appended at the end", () => {
     const block = '<review_comment filePath="src/app.ts">Keep this configurable.</review_comment>';
     expect(recallableComposerPrompt("Please update this.\n\n" + block)).toBe("Please update this.");
@@ -77,7 +95,6 @@ describe("recallableComposerPrompt", () => {
     expect(recallableComposerPrompt(midPrompt)).toBe(midPrompt);
     expect(recallableComposerPrompt(midPrompt + "\n\n" + block)).toBe(midPrompt);
   });
-
   it("removes canonical references without restoring dangling chips", () => {
     const sent =
       "Look at [Terminal](t3-context://v1/terminal/term-1) please\n    indented  code\n![image](t3-context://v1/image/img-1)";
@@ -85,90 +102,188 @@ describe("recallableComposerPrompt", () => {
     expect(recallableComposerPrompt("![image](t3-context://v1/image/img-1)")).toBe("");
   });
 });
-
 describe("buildComposerPromptHistoryEntries", () => {
   it("collapses consecutive duplicates onto the newest message id", () => {
     const collapsed = buildComposerPromptHistoryEntries([
-      { id: "m1", role: "user", text: "same" },
-      { id: "m2", role: "user", text: "same" },
-      { id: "m3", role: "user", text: "other" },
-      { id: "m4", role: "user", text: "same" },
+      {
+        id: "m1",
+        role: "user",
+        text: "same",
+      },
+      {
+        id: "m2",
+        role: "user",
+        text: "same",
+      },
+      {
+        id: "m3",
+        role: "user",
+        text: "other",
+      },
+      {
+        id: "m4",
+        role: "user",
+        text: "same",
+      },
     ]);
     expect(collapsed).toEqual([
-      { id: "m2", prompt: "same" },
-      { id: "m3", prompt: "other" },
-      { id: "m4", prompt: "same" },
+      {
+        id: "m2",
+        prompt: "same",
+      },
+      {
+        id: "m3",
+        prompt: "other",
+      },
+      {
+        id: "m4",
+        prompt: "same",
+      },
     ]);
   });
-
   it("skips messages sent by automations, agents, and T3 Code", () => {
     const typed = buildComposerPromptHistoryEntries([
-      { id: "m1", role: "user", text: "typed" },
-      { id: "m2", role: "user", text: "scheduled", scheduledTaskId: ScheduledTaskId.make("task") },
+      {
+        id: "m1",
+        role: "user",
+        text: "typed",
+      },
+      {
+        id: "m2",
+        role: "user",
+        text: "scheduled",
+        scheduledTaskId: ScheduledTaskId.make("task"),
+      },
       {
         id: "scheduled-task-message:task:1:scheduled",
         role: "user",
         text: "[Triggered by schedule task: Daily]\n\nlegacy scheduled",
       },
-      { id: "m3", role: "user", text: "from agent", createdBy: "agent", creationSource: "mcp" },
-      { id: "m4", role: "user", text: "from server", createdBy: "agent", creationSource: "server" },
+      {
+        id: "m3",
+        role: "user",
+        text: "from agent",
+        createdBy: "agent",
+        creationSource: "mcp",
+      },
+      {
+        id: "m4",
+        role: "user",
+        text: "from server",
+        createdBy: "agent",
+        creationSource: "server",
+      },
     ]);
-    expect(typed).toEqual([{ id: "m1", prompt: "typed" }]);
+    expect(typed).toEqual([
+      {
+        id: "m1",
+        prompt: "typed",
+      },
+    ]);
   });
 });
-
 describe("stepComposerPromptHistory", () => {
   it("walks back from the newest entry", () => {
     const first = backward(null, "");
-    expect(first).toEqual({ position: { entryId: "m3", recalled: "third" }, prompt: "third" });
+    expect(first).toEqual({
+      position: {
+        entryId: "m3",
+        recalled: "third",
+      },
+      prompt: "third",
+    });
     expect(backward(first!.position, "third")?.prompt).toBe("second");
   });
-
   it("walks forward and empties the composer past the newest entry", () => {
-    const newer = forward({ entryId: "m2", recalled: "second" }, "second");
+    const newer = forward(
+      {
+        entryId: "m2",
+        recalled: "second",
+      },
+      "second",
+    );
     expect(newer?.prompt).toBe("third");
-    expect(forward(newer!.position, "third")).toEqual({ position: null, prompt: "" });
+    expect(forward(newer!.position, "third")).toEqual({
+      position: null,
+      prompt: "",
+    });
   });
-
   it("treats an edited recall as a fresh draft", () => {
-    const position: ComposerPromptHistoryPosition = { entryId: "m3", recalled: "third" };
+    const position: ComposerPromptHistoryPosition = {
+      entryId: "m3",
+      recalled: "third",
+    };
     expect(backward(position, "third edited")).toBeNull();
     expect(forward(position, "third edited")).toBeNull();
-    expect(backward(position, "")?.position).toEqual({ entryId: "m3", recalled: "third" });
+    expect(backward(position, "")?.position).toEqual({
+      entryId: "m3",
+      recalled: "third",
+    });
   });
-
   it("follows the entry by id when the list changes under it", () => {
     const grown = buildComposerPromptHistoryEntries([
-      { id: "m0", role: "user", text: "zeroth" },
-      { id: "m1", role: "user", text: "A" },
-      { id: "m2", role: "user", text: "B" },
-      { id: "m3", role: "user", text: "A" },
+      {
+        id: "m0",
+        role: "user",
+        text: "zeroth",
+      },
+      {
+        id: "m1",
+        role: "user",
+        text: "A",
+      },
+      {
+        id: "m2",
+        role: "user",
+        text: "B",
+      },
+      {
+        id: "m3",
+        role: "user",
+        text: "A",
+      },
     ]);
     const older = stepComposerPromptHistory({
       direction: "backward",
       entries: grown,
-      position: { entryId: "m1", recalled: "A" },
+      position: {
+        entryId: "m1",
+        recalled: "A",
+      },
       currentPrompt: "A",
     });
     expect(older?.prompt).toBe("zeroth");
     const missing = stepComposerPromptHistory({
       direction: "forward",
       entries: grown,
-      position: { entryId: "gone", recalled: "not sent" },
+      position: {
+        entryId: "gone",
+        recalled: "not sent",
+      },
       currentPrompt: "not sent",
     });
     expect(missing).toBeNull();
   });
-
   it("falls back to matching text when a duplicate collapse retires the id", () => {
     const collapsed = buildComposerPromptHistoryEntries([
-      { id: "m1", role: "user", text: "first" },
-      { id: "m3", role: "user", text: "A" },
+      {
+        id: "m1",
+        role: "user",
+        text: "first",
+      },
+      {
+        id: "m3",
+        role: "user",
+        text: "A",
+      },
     ]);
     const step = stepComposerPromptHistory({
       direction: "backward",
       entries: collapsed,
-      position: { entryId: "m2", recalled: "A" },
+      position: {
+        entryId: "m2",
+        recalled: "A",
+      },
       currentPrompt: "A",
     });
     expect(step?.prompt).toBe("first");

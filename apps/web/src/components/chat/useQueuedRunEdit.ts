@@ -5,12 +5,12 @@ import {
   type EnvironmentId,
   type MessageId,
   type OrchestrationMessageContext,
-  type PreviewAnnotationPayload,
   type RunId,
   type ScopedThreadRef,
   type ThreadContextRecord,
   type ThreadId,
 } from "@t3tools/contracts";
+import { type PreviewAnnotationPayload } from "../../lib/legacyPreviewAnnotation";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { ATTACHMENT_ONLY_BOOTSTRAP_PROMPT } from "@t3tools/shared/composerContextReferences";
 import { useEffect, useRef, useState, type RefObject } from "react";
@@ -42,7 +42,6 @@ import type { ChatComposerHandle } from "./ChatComposer";
 import { fileAttachmentCapabilityBlockReason } from "./composerAttachmentFiles";
 import { prepareQueuedEditAttachments, recoverQueuedMessageEdit } from "./queuedMessageEdit";
 import type { EditQueuedRunRequest } from "./QueuedRunsControl";
-
 interface EditingQueuedRun {
   readonly threadId: ThreadId;
   readonly runId: RunId;
@@ -51,7 +50,6 @@ interface EditingQueuedRun {
   readonly existingAttachments: ReadonlyArray<ChatAttachment>;
   readonly context?: OrchestrationMessageContext | undefined;
 }
-
 export interface QueuedRunEditContent {
   readonly prompt: string;
   readonly images: ReadonlyArray<ComposerImageAttachment>;
@@ -61,11 +59,9 @@ export interface QueuedRunEditContent {
   readonly previewAnnotations: ReadonlyArray<PreviewAnnotationPayload>;
   readonly threadContexts: ReadonlyArray<ThreadContextRecord>;
 }
-
 function queuedEditDraftTarget(routeThreadRef: ScopedThreadRef, runId: RunId) {
   return DraftId.make(`queued-edit:${scopedThreadKey(routeThreadRef)}:${runId}`);
 }
-
 async function submitQueuedRunEdit(input: {
   readonly environmentId: EnvironmentId;
   readonly draftTarget: ComposerThreadTarget;
@@ -89,10 +85,18 @@ async function submitQueuedRunEdit(input: {
       if (reason !== null) throw new Error(reason);
     };
     validateFiles();
-    for (const file of files) startAttachmentUpload({ environmentId, image: file, draftTarget });
+    for (const file of files)
+      startAttachmentUpload({
+        environmentId,
+        image: file,
+        draftTarget,
+      });
     await awaitAttachmentUploads(files.map((file) => file.id));
     validateFiles();
-    const uploaded = getUploadedAttachments({ environmentId, images: files });
+    const uploaded = getUploadedAttachments({
+      environmentId,
+      images: files,
+    });
     if (uploaded === null) throw new Error("Retry or remove failed uploads before saving.");
     return uploaded;
   };
@@ -149,9 +153,10 @@ async function submitQueuedRunEdit(input: {
     return error instanceof Error ? error.message : "Could not save the edited queued message.";
   }
 }
-
 function useEditQueuedRunCommand() {
-  return useAtomCommand(threadEnvironment.editQueuedRun, { reportFailure: false });
+  return useAtomCommand(threadEnvironment.editQueuedRun, {
+    reportFailure: false,
+  });
 }
 
 /** Edits preserve the thread draft; attachment removals stay local until save. */
@@ -161,7 +166,9 @@ export function useQueuedRunEdit(input: {
   readonly threadDraftTarget: ComposerThreadTarget;
   readonly activeThreadId: ThreadId | null;
   readonly serverProjection: ThreadStructure | null;
-  readonly promptRef: { current: string };
+  readonly promptRef: {
+    current: string;
+  };
   readonly composerRef: RefObject<ChatComposerHandle | null>;
 }) {
   const {
@@ -182,10 +189,12 @@ export function useQueuedRunEdit(input: {
   }
   const draftTarget =
     editing === null ? threadDraftTarget : queuedEditDraftTarget(routeThreadRef, editing.runId);
-
   const imageResources = (editing?.existingAttachments ?? [])
     .filter((attachment) => attachment.type === "image")
-    .map((attachment) => ({ _tag: "attachment" as const, attachmentId: attachment.id }));
+    .map((attachment) => ({
+      _tag: "attachment" as const,
+      attachmentId: attachment.id,
+    }));
   const imageUrls = useAssetUrls(environmentId, imageResources);
   const urlByAttachmentId = new Map(
     imageResources.map((resource, index) => [resource.attachmentId, imageUrls[index] ?? null]),
@@ -197,7 +206,6 @@ export function useQueuedRunEdit(input: {
           attachment,
           url: urlByAttachmentId.get(attachment.id) ?? null,
         }));
-
   const focusComposerSoon = () => {
     window.requestAnimationFrame(() => composerRef.current?.focusAtEnd());
   };
@@ -205,7 +213,6 @@ export function useQueuedRunEdit(input: {
     useComposerDraftStore
       .getState()
       .clearComposerContent(queuedEditDraftTarget(routeThreadRef, runId));
-
   const beginEdit = useStableCallback((request: EditQueuedRunRequest) => {
     if (activeThreadId === null) return;
     if (editing !== null && editing.runId !== request.runId) clearEditDraft(editing.runId);
@@ -242,7 +249,6 @@ export function useQueuedRunEdit(input: {
           },
     );
   });
-
   useEffect(() => {
     if (editing === null || activeThreadId !== editing.threadId) return;
     if (serverProjection === null) return;
@@ -268,7 +274,6 @@ export function useQueuedRunEdit(input: {
     // oxlint-disable-next-line react/set-state-in-effect -- Leaving edit mode follows the draft recovery and toast above, which must run once after commit.
     setEditing(null);
   }, [activeThreadId, editing, routeThreadRef, serverProjection, threadDraftTarget]);
-
   const saveEdit = async (
     content: QueuedRunEditContent,
     setThreadError: (threadId: ThreadId, error: string | null) => void,
@@ -312,7 +317,6 @@ export function useQueuedRunEdit(input: {
     setEditing(null);
     focusComposerSoon();
   };
-
   return {
     editingRunId: editing?.runId ?? null,
     isEditing: editing !== null,

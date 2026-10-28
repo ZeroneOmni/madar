@@ -42,9 +42,7 @@ import {
 import { draftSendState } from "./chatViewSend";
 import type { useLocalDispatchState } from "./useLocalDispatchState";
 import type { useTimelineFollow } from "./useTimelineFollow";
-
 type LocalDispatchState = ReturnType<typeof useLocalDispatchState>;
-
 interface PlanSendBase {
   readonly environmentId: EnvironmentId;
   readonly routeThreadKey: string;
@@ -58,10 +56,11 @@ interface PlanSendBase {
   readonly beginLocalDispatch: LocalDispatchState["beginLocalDispatch"];
   readonly resetLocalDispatch: LocalDispatchState["resetLocalDispatch"];
 }
-
 interface PlanFollowUpSendInput extends PlanSendBase {
   readonly runtimeMode: RuntimeMode;
-  readonly localCheckoutBranchMismatch: { readonly currentBranch: string } | null;
+  readonly localCheckoutBranchMismatch: {
+    readonly currentBranch: string;
+  } | null;
   readonly setOptimisticUserMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   readonly setThreadError: ReturnType<typeof makeThreadErrorSetter>;
   readonly anchorNewTurn: ReturnType<typeof useTimelineFollow>["anchorNewTurn"];
@@ -104,7 +103,6 @@ export function usePlanFollowUpSend(input: PlanFollowUpSendInput) {
     (store) => store.setInteractionMode,
   );
   const { sendInFlight: sendInFlightRef } = draftSendState(routeThreadKey);
-
   return async function submitPlanFollowUp({
     text,
     context,
@@ -124,17 +122,14 @@ export function usePlanFollowUpSend(input: PlanFollowUpSendInput) {
     ) {
       return false;
     }
-
     const trimmed = text.trim();
     if (!trimmed) {
       return false;
     }
-
     const sendCtx = composerRef.current?.getSendContext();
     if (!sendCtx?.providerAvailable || !sendCtx.interactionModeEnabled) {
       return false;
     }
-
     const threadIdForSend = activeThread.id;
     const messageIdForSend = newMessageId();
     const messageCreatedAt = new Date().toISOString();
@@ -145,46 +140,50 @@ export function usePlanFollowUpSend(input: PlanFollowUpSendInput) {
       effort: sendCtx.selectedPromptEffort,
       text: trimmed,
     });
-
     sendInFlightRef.current = true;
-    beginLocalDispatch({ preparingWorktree: false });
+    beginLocalDispatch({
+      preparingWorktree: false,
+    });
     setThreadError(threadIdForSend, null);
-
     anchorNewTurn(
       scopedThreadKey(scopeThreadRef(activeThread.environmentId, threadIdForSend)),
       messageIdForSend,
     );
-
     setOptimisticUserMessages((existing) => [
       ...existing,
       {
         id: messageIdForSend,
         role: "user",
         text: outgoingMessageText,
-        ...(context ? { context } : {}),
+        ...(context
+          ? {
+              context,
+            }
+          : {}),
         runId: null,
         createdAt: messageCreatedAt,
         updatedAt: messageCreatedAt,
         streaming: false,
       },
     ]);
-
     const settingsResult = await persistThreadSettingsForNextTurn({
       threadId: threadIdForSend,
       createdAt: messageCreatedAt,
-      ...(localCheckoutBranchMismatch ? { branch: localCheckoutBranchMismatch.currentBranch } : {}),
+      ...(localCheckoutBranchMismatch
+        ? {
+            branch: localCheckoutBranchMismatch.currentBranch,
+          }
+        : {}),
       runtimeMode,
       interactionMode: nextInteractionMode,
     });
     let failure: AtomCommandResult<unknown, unknown> | null =
       settingsResult._tag === "Failure" ? settingsResult : null;
-
     if (failure === null) {
       setComposerDraftInteractionMode(
         scopeThreadRef(activeThread.environmentId, threadIdForSend),
         nextInteractionMode,
       );
-
       const startResult = await startThreadTurn({
         environmentId,
         input: {
@@ -193,7 +192,11 @@ export function usePlanFollowUpSend(input: PlanFollowUpSendInput) {
             messageId: messageIdForSend,
             role: "user",
             text: outgoingMessageText,
-            ...(context ? { context } : {}),
+            ...(context
+              ? {
+                  context,
+                }
+              : {}),
             attachments: [],
           },
           modelSelection: sendCtx.selectedModelSelection,
@@ -213,13 +216,11 @@ export function usePlanFollowUpSend(input: PlanFollowUpSendInput) {
       });
       failure = startResult._tag === "Failure" ? startResult : null;
     }
-
     if (failure === null) {
       sendInFlightRef.current = false;
       resetLocalDispatch();
       return true;
     }
-
     setOptimisticUserMessages((existing) =>
       existing.filter((message) => message.id !== messageIdForSend),
     );
@@ -235,7 +236,6 @@ export function usePlanFollowUpSend(input: PlanFollowUpSendInput) {
     return false;
   };
 }
-
 interface ImplementPlanInNewThreadInput extends PlanSendBase {
   readonly activeProject: EnvironmentProject | null;
   readonly activeEnvironmentUnavailable: boolean;
@@ -264,13 +264,16 @@ export function useImplementPlanInNewThread(input: ImplementPlanInNewThreadInput
     defaultRuntimeMode,
   } = input;
   const navigate = useNavigate();
-  const createThread = useOrchestrationCommand(threadEnvironment.create, { reportFailure: false });
-  const deleteThread = useOrchestrationCommand(threadEnvironment.delete, { reportFailure: false });
+  const createThread = useOrchestrationCommand(threadEnvironment.create, {
+    reportFailure: false,
+  });
+  const deleteThread = useOrchestrationCommand(threadEnvironment.delete, {
+    reportFailure: false,
+  });
   const startThreadTurn = useOrchestrationCommand(threadEnvironment.startTurn, {
     reportFailure: false,
   });
   const { sendInFlight: sendInFlightRef } = draftSendState(routeThreadKey);
-
   return async () => {
     if (
       !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope) ||
@@ -285,12 +288,10 @@ export function useImplementPlanInNewThread(input: ImplementPlanInNewThreadInput
     ) {
       return;
     }
-
     const sendCtx = composerRef.current?.getSendContext();
     if (!sendCtx?.providerAvailable || !sendCtx.interactionModeEnabled) {
       return;
     }
-
     const createdAt = new Date().toISOString();
     const nextThreadId = newThreadId();
     const planMarkdown = activeProposedPlan.planMarkdown;
@@ -303,10 +304,10 @@ export function useImplementPlanInNewThread(input: ImplementPlanInNewThreadInput
     });
     const nextThreadTitle = truncate(buildPlanImplementationThreadTitle(planMarkdown));
     const nextThreadModelSelection: ModelSelection = sendCtx.selectedModelSelection;
-
     sendInFlightRef.current = true;
-    beginLocalDispatch({ preparingWorktree: false });
-
+    beginLocalDispatch({
+      preparingWorktree: false,
+    });
     const createResult = await createThread({
       environmentId,
       input: {
@@ -323,7 +324,6 @@ export function useImplementPlanInNewThread(input: ImplementPlanInNewThreadInput
     });
     let failure: AtomCommandResult<unknown, unknown> | null =
       createResult._tag === "Failure" ? createResult : null;
-
     if (failure === null) {
       const startResult = await startThreadTurn({
         environmentId,
@@ -348,14 +348,12 @@ export function useImplementPlanInNewThread(input: ImplementPlanInNewThreadInput
       });
       failure = startResult._tag === "Failure" ? startResult : null;
     }
-
     if (failure === null) {
       const startedResult = await settlePromise(() =>
         waitForStartedServerThread(scopeThreadRef(activeThread.environmentId, nextThreadId)),
       );
       failure = startedResult._tag === "Failure" ? startedResult : null;
     }
-
     if (failure === null) {
       const navigateResult = await settlePromise(() =>
         navigate({
@@ -368,7 +366,6 @@ export function useImplementPlanInNewThread(input: ImplementPlanInNewThreadInput
       );
       failure = navigateResult._tag === "Failure" ? navigateResult : null;
     }
-
     if (failure !== null) {
       const cleanupResult = await deleteThread({
         environmentId,

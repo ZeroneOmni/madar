@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-
 import { pendingDraftWork } from "./pendingDraftWork";
-
 describe("PendingDraftWork", () => {
   it("holds a draft until every transfer it started has finished", async () => {
     const pending = pendingDraftWork;
@@ -11,7 +9,10 @@ describe("PendingDraftWork", () => {
       const promise = new Promise<void>((settle) => {
         resolve = settle;
       });
-      return { promise, resolve };
+      return {
+        promise,
+        resolve,
+      };
     };
     const fast = defer();
     const slow = defer();
@@ -24,7 +25,6 @@ describe("PendingDraftWork", () => {
       }
     };
     const both = Promise.all([transfer(fast.promise), transfer(slow.promise)]);
-
     expect(pending.has(key)).toBe(true);
     fast.resolve();
     await fast.promise;
@@ -33,7 +33,6 @@ describe("PendingDraftWork", () => {
     await both;
     expect(pending.has(key)).toBe(false);
   });
-
   it("does not go negative when a transfer ends twice", () => {
     const pending = pendingDraftWork;
     pending.begin("double-end");

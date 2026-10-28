@@ -1,11 +1,9 @@
 import { observeResize } from "~/lib/observeResize";
 import { shouldAnimateComposerRestingTransition } from "../composerFooterLayout";
 import { useEffect, useLayoutEffect, useRef } from "react";
-
 const COMPOSER_RESTING_TRANSITION_CLEANUP_BUFFER_MS = 50;
 const COMPOSER_RESTING_TRANSITION_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
 const COMPOSER_RESTING_CONTROLS_ARRIVAL_DRIFT_PX = 4;
-
 export function useComposerRestingTransition(
   isCollapsed: boolean,
   isResting: boolean,
@@ -43,7 +41,6 @@ export function useComposerRestingTransition(
   const transitionCleanupTimeoutRef = useRef<number | null>(null);
   const transitionLayoutRequestRef = useRef(0);
   const hasCompletedInitialLayoutRef = useRef(false);
-
   const clearOverlayPin = () => {
     // The overlay belongs to the chat view and outlives this composer, so it
     // is remembered from pin time rather than re-resolved through a ref that
@@ -55,7 +52,6 @@ export function useComposerRestingTransition(
     overlay?.style.removeProperty("flex-direction");
     overlay?.style.removeProperty("justify-content");
   };
-
   const clearTransitionStyles = () => {
     const element = elementRef.current;
     const footer = element?.querySelector<HTMLElement>('[data-chat-composer-footer="true"]');
@@ -89,18 +85,14 @@ export function useComposerRestingTransition(
     }
     clearOverlayPin();
   };
-
   useLayoutEffect(() => {
     isCollapsedRef.current = isCollapsed;
   });
-
   const transitionToCurrentGeometry = (stateChanged: boolean) => {
     const element = elementRef.current;
     const surface = element?.querySelector<HTMLElement>('[data-chat-composer-surface="true"]');
     if (!element || !surface) return;
-
     const nextIsCollapsed = isCollapsedRef.current;
-
     const visibleTransitionElement = (selector: string) =>
       Array.from(element.querySelectorAll<HTMLElement>(selector)).find(
         (candidate) => candidate.getClientRects().length > 0,
@@ -115,7 +107,6 @@ export function useComposerRestingTransition(
     const controls = nextIsCollapsed
       ? restingControlsRef.current
       : element.querySelector<HTMLElement>('[data-chat-composer-controls="left"]');
-
     const shell = element.closest<HTMLElement>('[data-slot="composer-shell"]');
     const modelStrip = shell?.querySelector<HTMLElement>('[data-composer-model-strip="true"]');
     const interruptedStripHeight =
@@ -153,7 +144,6 @@ export function useComposerRestingTransition(
       stateChangeAnimationsRef.current = [];
     }
     clearTransitionStyles();
-
     const nextRect = element.getBoundingClientRect();
     const nextHeight = nextRect.height;
     const nextModelStripHeight = modelStrip?.getBoundingClientRect().height ?? null;
@@ -181,7 +171,6 @@ export function useComposerRestingTransition(
       stateChanged,
       hasInterruptedAnimation: interruptedHeight !== null,
     });
-
     if (
       shouldAnimate &&
       animationsActive &&
@@ -204,7 +193,6 @@ export function useComposerRestingTransition(
         element.style.clipPath = `inset(0 0 -${controlsClearance}px 0)`;
       }
       surface.style.height = "100%";
-
       if (overlay && overlayHeight !== null) {
         overlay.style.height = `${String(overlayHeight)}px`;
         overlay.style.display = "flex";
@@ -212,7 +200,6 @@ export function useComposerRestingTransition(
         overlay.style.justifyContent = "flex-end";
         pinnedOverlayRef.current = overlay;
       }
-
       if (footer) {
         footer.style.position = "absolute";
         footer.style.top = "auto";
@@ -226,7 +213,6 @@ export function useComposerRestingTransition(
           footer.style.right = "1px";
         }
       }
-
       let stripAnimation: Animation | null = null;
       if (modelStrip) {
         const stripHeight = modelStrip.getBoundingClientRect().height;
@@ -247,13 +233,30 @@ export function useComposerRestingTransition(
         modelStrip.style.zIndex = "20";
         shell?.setAttribute("data-model-strip-transition", "true");
         stripAnimation = modelStrip.animate(
-          [{ height: `${fromHeight}px` }, { height: `${toHeight}px` }],
-          { duration, easing: COMPOSER_RESTING_TRANSITION_EASING, fill: "both" },
+          [
+            {
+              height: `${fromHeight}px`,
+            },
+            {
+              height: `${toHeight}px`,
+            },
+          ],
+          {
+            duration,
+            easing: COMPOSER_RESTING_TRANSITION_EASING,
+            fill: "both",
+          },
         );
       }
-
       const animation = element.animate(
-        [{ height: `${previousHeight}px` }, { height: `${nextHeight}px` }],
+        [
+          {
+            height: `${previousHeight}px`,
+          },
+          {
+            height: `${nextHeight}px`,
+          },
+        ],
         {
           duration,
           easing: COMPOSER_RESTING_TRANSITION_EASING,
@@ -262,7 +265,6 @@ export function useComposerRestingTransition(
       );
       animationRef.current = animation;
       animationTargetHeightRef.current = nextHeight;
-
       const animatedRect = element.getBoundingClientRect();
       const previousBottom =
         overlayRect && previousContentOffsetsRef.current.surfaceBottomInset !== null
@@ -292,7 +294,14 @@ export function useComposerRestingTransition(
         if (Math.abs(offset) < 0.5 && Math.abs(offsetX) < 0.5) return;
         contentAnimations.push(
           content.animate(
-            [{ transform: `translate(${offsetX}px, ${offset}px)` }, { transform: "none" }],
+            [
+              {
+                transform: `translate(${offsetX}px, ${offset}px)`,
+              },
+              {
+                transform: "none",
+              },
+            ],
             {
               duration,
               easing: COMPOSER_RESTING_TRANSITION_EASING,
@@ -316,10 +325,8 @@ export function useComposerRestingTransition(
         animateContentPosition(controls, previousControlsTop, previousControlsLeft);
       }
       contentAnimationsRef.current = contentAnimations;
-
       if (stateChanged) {
         const stateChangeAnimations: Animation[] = [];
-
         const previousPromptHeight = previousContentOffsetsRef.current.promptHeight;
         if (
           !nextIsCollapsed &&
@@ -332,8 +339,12 @@ export function useComposerRestingTransition(
           stateChangeAnimations.push(
             prompt.animate(
               [
-                { clipPath: `inset(0 0 ${String(hiddenHeight)}px 0)` },
-                { clipPath: "inset(0 0 0 0)" },
+                {
+                  clipPath: `inset(0 0 ${String(hiddenHeight)}px 0)`,
+                },
+                {
+                  clipPath: "inset(0 0 0 0)",
+                },
               ],
               {
                 duration,
@@ -342,7 +353,6 @@ export function useComposerRestingTransition(
             ),
           );
         }
-
         const arrivingControls = nextIsCollapsed
           ? restingControlsRef.current
           : element.querySelector<HTMLElement>('[data-chat-composer-controls="left"]');
@@ -353,8 +363,14 @@ export function useComposerRestingTransition(
           stateChangeAnimations.push(
             arrivingControls.animate(
               [
-                { opacity: 0, transform: `translateY(${String(drift)}px)` },
-                { opacity: 1, transform: "none" },
+                {
+                  opacity: 0,
+                  transform: `translateY(${String(drift)}px)`,
+                },
+                {
+                  opacity: 1,
+                  transform: "none",
+                },
               ],
               {
                 duration: nextIsCollapsed ? duration : duration / 2,
@@ -365,7 +381,6 @@ export function useComposerRestingTransition(
             ),
           );
         }
-
         const arrivingImagePreviews = nextIsCollapsed
           ? Array.from(
               element.querySelectorAll<HTMLElement>('[data-chat-composer-resting-images="true"]'),
@@ -375,17 +390,26 @@ export function useComposerRestingTransition(
             );
         for (const imagePreview of arrivingImagePreviews) {
           stateChangeAnimations.push(
-            imagePreview.animate([{ opacity: 0 }, { opacity: 1 }], {
-              duration: nextIsCollapsed ? duration : duration / 2,
-              delay: nextIsCollapsed ? 0 : duration / 2,
-              fill: "backwards",
-              easing: COMPOSER_RESTING_TRANSITION_EASING,
-            }),
+            imagePreview.animate(
+              [
+                {
+                  opacity: 0,
+                },
+                {
+                  opacity: 1,
+                },
+              ],
+              {
+                duration: nextIsCollapsed ? duration : duration / 2,
+                delay: nextIsCollapsed ? 0 : duration / 2,
+                fill: "backwards",
+                easing: COMPOSER_RESTING_TRANSITION_EASING,
+              },
+            ),
           );
         }
         stateChangeAnimationsRef.current = stateChangeAnimations;
       }
-
       const finishTransition = (cancelAnimations: boolean) => {
         if (animationRef.current !== animation) return;
         if (transitionCleanupTimeoutRef.current !== null) {
@@ -420,7 +444,6 @@ export function useComposerRestingTransition(
     } else {
       animationTargetHeightRef.current = null;
     }
-
     previousCollapsedRef.current = nextIsCollapsed;
     previousHeightRef.current = nextHeight;
     previousModelStripHeightRef.current = nextModelStripHeight;
@@ -433,7 +456,6 @@ export function useComposerRestingTransition(
       surfaceBottomInset: overlayRect ? overlayRect.bottom - nextRect.bottom : null,
     };
   };
-
   useLayoutEffect(() => {
     const requestId = transitionLayoutRequestRef.current + 1;
     transitionLayoutRequestRef.current = requestId;
@@ -451,7 +473,6 @@ export function useComposerRestingTransition(
       }
     };
   }, [isCollapsed, transitionToCurrentGeometry]);
-
   useLayoutEffect(() => {
     if (previousRestingRef.current === isResting) return;
     previousRestingRef.current = isResting;
@@ -459,11 +480,9 @@ export function useComposerRestingTransition(
     const overlay = elementRef.current?.closest<HTMLElement>('[data-chat-composer-overlay="true"]');
     if (overlay) onOverlayHeightChange(overlay.getBoundingClientRect().height);
   }, [isResting, onOverlayHeightChange]);
-
   useLayoutEffect(() => {
     const element = elementRef.current;
     if (!element) return;
-
     const body = element.querySelector<HTMLElement>('[data-chat-composer-body="true"]');
     return observeResize(body ? [element, body] : element, (entries) => {
       if (animationRef.current) {
@@ -503,7 +522,6 @@ export function useComposerRestingTransition(
       };
     });
   }, [restingControlsRef, transitionToCurrentGeometry]);
-
   useEffect(() => {
     hasCompletedInitialLayoutRef.current = true;
     return () => {
@@ -521,6 +539,5 @@ export function useComposerRestingTransition(
       clearTransitionStyles();
     };
   }, [clearTransitionStyles]);
-
   return elementRef;
 }

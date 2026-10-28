@@ -8,6 +8,7 @@ import {
 } from "@t3tools/contracts";
 import {
   DEFAULT_RESOLVED_KEYBINDINGS,
+  isSupportedKeybindingCommand,
   parseKeybindingWhenExpression,
   US_SHIFTED_TO_UNSHIFTED_KEYS,
 } from "@t3tools/shared/keybindings";
@@ -56,14 +57,7 @@ export interface KeybindingRow {
 export type WhenVariableOption = string;
 export type KeybindingCommandOption = KeybindingCommand;
 
-const CORE_WHEN_VARIABLES = [
-  "terminalFocus",
-  "terminalOpen",
-  "isWeb",
-  "isDesktop",
-  "true",
-  "false",
-] as const;
+const CORE_WHEN_VARIABLES = ["isWeb", "isDesktop", "true", "false"] as const;
 
 const DEFAULT_WHEN_VARIABLES = new Set<string>(CORE_WHEN_VARIABLES);
 for (const binding of DEFAULT_RESOLVED_KEYBINDINGS) {
@@ -73,7 +67,7 @@ for (const binding of DEFAULT_RESOLVED_KEYBINDINGS) {
 export const DEFAULT_WHEN_VARIABLE =
   [...DEFAULT_WHEN_VARIABLES].find(
     (identifier) => identifier !== "true" && identifier !== "false",
-  ) ?? "terminalFocus";
+  ) ?? "composerFocus";
 const KNOWN_WHEN_VARIABLES = new Set(DEFAULT_WHEN_VARIABLES);
 
 export function shortcutToKeybindingInput(shortcut: KeybindingShortcut): string {
@@ -209,10 +203,8 @@ const KEYBINDING_GROUPS = [
   },
   { id: "threads", title: "Threads", prefixes: ["thread", "chat", "pullRequest"] },
   { id: "composer", title: "Composer", prefixes: ["composer", "modelPicker"] },
-  { id: "terminal", title: "Terminal", prefixes: ["terminal"] },
-  { id: "preview", title: "Preview & diff", prefixes: ["preview", "diff"] },
+
   { id: "appearance", title: "Appearance", prefixes: ["theme", "appearance", "themeEditor"] },
-  { id: "scripts", title: "Project scripts", prefixes: ["script"] },
 ] as const;
 const OTHER_KEYBINDING_GROUP = { id: "other", title: "Other" } as const;
 
@@ -245,6 +237,7 @@ export function buildKeybindingRows(
 ): ReadonlyArray<KeybindingRow> {
   const rowsById = new Map<string, KeybindingRow>();
   for (const binding of keybindings) {
+    if (!isSupportedKeybindingCommand(binding.command)) continue;
     const defaultBinding = defaultBindingForBinding(binding);
     const key = shortcutToKeybindingInput(binding.shortcut);
     const when = whenAstToExpression(binding.whenAst);
@@ -349,8 +342,11 @@ export function buildWhenVariableOptions(): ReadonlyArray<WhenVariableOption> {
 export function buildKeybindingCommandOptions(
   keybindings: ResolvedKeybindingsConfig,
 ): ReadonlyArray<KeybindingCommandOption> {
-  const commands = new Set<KeybindingCommand>(STATIC_KEYBINDING_COMMANDS);
+  const commands = new Set<KeybindingCommand>(
+    STATIC_KEYBINDING_COMMANDS.filter(isSupportedKeybindingCommand),
+  );
   for (const binding of keybindings) {
+    if (!isSupportedKeybindingCommand(binding.command)) continue;
     commands.add(binding.command);
   }
   return [...commands].toSorted((left, right) => compareCommands(left, right, commandLabel));

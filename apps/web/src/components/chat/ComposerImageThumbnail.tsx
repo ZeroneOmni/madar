@@ -1,10 +1,8 @@
 import { memo, useEffect, useState, type ReactNode } from "react";
-
 import {
   createComposerImageThumbnail,
   readComposerImageThumbnail,
 } from "../../lib/imageCompression";
-
 export const ComposerImageThumbnail = memo(function ComposerImageThumbnail({
   file,
   alt,
@@ -16,11 +14,18 @@ export const ComposerImageThumbnail = memo(function ComposerImageThumbnail({
   className: string;
   fallback: ReactNode;
 }) {
-  const [preview, setPreview] = useState<{ file: File; src: string | null } | null>(null);
+  const [preview, setPreview] = useState<{
+    file: File;
+    src: string | null;
+  } | null>(null);
   useEffect(() => {
     let active = true;
     void createComposerImageThumbnail(file).then((src) => {
-      if (active) setPreview({ file, src });
+      if (active)
+        setPreview({
+          file,
+          src,
+        });
     });
     return () => {
       active = false;

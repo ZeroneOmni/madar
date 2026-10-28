@@ -12,8 +12,6 @@ import {
   FlaskConicalIcon,
   BlocksIcon,
   BotIcon,
-  createLucideIcon,
-  CalendarClockIcon,
   GitBranchIcon,
   HardDriveIcon,
   PanelsTopLeftIcon,
@@ -25,7 +23,6 @@ import {
   XIcon,
 } from "lucide-react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import { Kbd } from "../ui/kbd";
@@ -48,19 +45,6 @@ import {
 } from "./settingsSearch";
 import { useAvailableSettingsSearchItems } from "./useAvailableSettingsSearchItems";
 import { validateSettingsScopeSearch } from "./settingsScope";
-
-const SnapShotIcon = createLucideIcon("snap-shot", [
-  [
-    "path",
-    {
-      d: "M8 3H6a3 3 0 0 0-3 3v2M16 3h2a3 3 0 0 1 3 3v2M21 16v2a3 3 0 0 1-3 3h-2M8 21H6a3 3 0 0 1-3-3v-2",
-      key: "capture-frame",
-    },
-  ],
-  ["rect", { width: "10", height: "8", x: "7", y: "8", rx: "2", key: "window" }],
-  ["circle", { cx: "12", cy: "12", r: "1.5", key: "lens" }],
-]);
-
 const T3ConnectSidebarSignIn = lazy(() =>
   import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
     default: module.T3ConnectSidebarSignIn,
@@ -71,30 +55,33 @@ const T3ConnectSidebarAvatar = lazy(() =>
     default: module.T3ConnectSidebarAvatar,
   })),
 );
-
 const SETTINGS_SECTION_ICONS: Readonly<
-  Record<SettingsPath, ComponentType<{ className?: string }>>
+  Record<
+    SettingsPath,
+    ComponentType<{
+      className?: string;
+    }>
+  >
 > = {
   "/settings/general": Settings2Icon,
   "/settings/diagnostics": Settings2Icon,
   "/settings/appearance": PaletteIcon,
   "/settings/projects": PanelsTopLeftIcon,
   "/settings/keybindings": KeyboardIcon,
-  "/settings/snap-shot": SnapShotIcon,
   "/settings/providers": BotIcon,
   "/settings/integrations": BlocksIcon,
-  "/settings/scheduled-tasks": CalendarClockIcon,
   "/settings/source-control": GitBranchIcon,
   "/settings/storage": HardDriveIcon,
   "/settings/connections": Link2Icon,
   "/settings/beta": FlaskConicalIcon,
   "/settings/archived": ArchiveIcon,
 };
-
 const SETTINGS_NAV_ITEMS: ReadonlyArray<{
   label: string;
   to: SettingsPath;
-  icon: ComponentType<{ className?: string }>;
+  icon: ComponentType<{
+    className?: string;
+  }>;
 }> = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[])
   .filter((to) => to !== "/settings/diagnostics")
   .map((to) => ({
@@ -102,16 +89,18 @@ const SETTINGS_NAV_ITEMS: ReadonlyArray<{
     label: SETTINGS_SECTION_LABELS[to],
     icon: SETTINGS_SECTION_ICONS[to],
   }));
-
 function SettingsSectionIcon({ to }: { to: SettingsPath }) {
   const Icon = SETTINGS_SECTION_ICONS[to];
   return <Icon className="size-3.5 h-5 shrink-0 text-sidebar-muted-foreground/60" />;
 }
-
 export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
-  const currentHash = useLocation({ select: (location) => location.hash });
-  const currentSearch = useLocation({ select: (location) => location.search });
+  const currentHash = useLocation({
+    select: (location) => location.hash,
+  });
+  const currentSearch = useLocation({
+    select: (location) => location.search,
+  });
   const scopeSearch = validateSettingsScopeSearch(currentSearch);
   const navItems = SETTINGS_NAV_ITEMS.filter(
     (item) => item.to !== "/settings/projects" || isSettingsOverviewVisible(scopeSearch),
@@ -130,15 +119,13 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   if (activeResultIndex > maxResultIndex) {
     setActiveResultIndex(maxResultIndex);
   }
-
   useEffect(() => {
     const result = results[activeResultIndex];
     if (!result) return;
-    document
-      .getElementById(`settings-search-result-${result.id}`)
-      ?.scrollIntoView({ block: "nearest" });
+    document.getElementById(`settings-search-result-${result.id}`)?.scrollIntoView({
+      block: "nearest",
+    });
   }, [activeResultIndex, results]);
-
   useEffect(() => {
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;
@@ -150,7 +137,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       const isSlashShortcut =
         event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey;
       if (!isFindShortcut && !isSlashShortcut) return;
-
       const target = event.target;
       if (
         target instanceof HTMLElement &&
@@ -164,7 +150,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       ) {
         return;
       }
-
       event.preventDefault();
       setCompactSearchOpen(true);
       searchInputRef.current?.focus();
@@ -173,11 +158,9 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
   useEffect(() => {
     if (compactSearchOpen) searchInputRef.current?.focus();
   }, [compactSearchOpen]);
-
   const handleSectionClick = (to: SettingsPath) => {
     void navigate({
       to,
@@ -186,7 +169,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       hashScrollIntoView: false,
     });
   };
-
   const clearSearch = () => {
     setQuery("");
     setActiveResultIndex(0);
@@ -204,10 +186,11 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       hash: targetId,
       replace: true,
       hashScrollIntoView: false,
-      state: { settingsTargetHighlight: true },
+      state: {
+        settingsTargetHighlight: true,
+      },
     });
   };
-
   const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape" && isSearching) {
       event.preventDefault();
@@ -232,7 +215,6 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       if (result) handleSearchResultClick(result);
     }
   };
-
   return (
     <nav
       aria-label="Settings sections"

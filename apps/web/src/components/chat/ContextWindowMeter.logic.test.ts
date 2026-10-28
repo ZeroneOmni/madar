@@ -7,7 +7,6 @@ import {
   resolveContextWindowModelDisplayName,
   shouldReserveContextWindowMeter,
 } from "./ContextWindowMeter.logic";
-
 function claudeProvider(input: {
   instanceId: string;
   continuationGroupKey: string;
@@ -16,22 +15,29 @@ function claudeProvider(input: {
   return {
     instanceId: ProviderInstanceId.make(input.instanceId),
     driver: ProviderDriverKind.make("claudeAgent"),
-    continuation: { groupKey: input.continuationGroupKey },
+    continuation: {
+      groupKey: input.continuationGroupKey,
+    },
     enabled: input.enabled ?? true,
     installed: true,
     version: null,
     status: "ready",
-    auth: { status: "authenticated" },
+    auth: {
+      status: "authenticated",
+    },
     checkedAt: "2026-08-24T12:00:00.000Z",
     models: [],
-    slashCommands: [{ name: "compact", description: "" }],
+    slashCommands: [
+      {
+        name: "compact",
+        description: "",
+      },
+    ],
     skills: [],
   };
 }
-
 describe("hasAvailableCompactionProvider", () => {
   const originalInstanceId = ProviderInstanceId.make("claude_original");
-
   it("rejects a fallback in a different locked continuation group", () => {
     const providers = deriveProviderInstanceEntries([
       claudeProvider({
@@ -44,7 +50,6 @@ describe("hasAvailableCompactionProvider", () => {
         continuationGroupKey: "claude:home:/other",
       }),
     ]);
-
     expect(
       hasAvailableCompactionProvider({
         providers,
@@ -54,7 +59,6 @@ describe("hasAvailableCompactionProvider", () => {
       }),
     ).toBe(false);
   });
-
   it("accepts an enabled fallback in the locked continuation group", () => {
     const providers = deriveProviderInstanceEntries([
       claudeProvider({
@@ -67,7 +71,6 @@ describe("hasAvailableCompactionProvider", () => {
         continuationGroupKey: "claude:home:/original",
       }),
     ]);
-
     expect(
       hasAvailableCompactionProvider({
         providers,
@@ -78,7 +81,6 @@ describe("hasAvailableCompactionProvider", () => {
     ).toBe(true);
   });
 });
-
 describe("resolveContextWindowModelDisplayName", () => {
   it("uses the selected model from the exact provider instance", () => {
     const primaryInstanceId = ProviderInstanceId.make("codex");
@@ -86,11 +88,25 @@ describe("resolveContextWindowModelDisplayName", () => {
     const modelOptionsByInstance = new Map([
       [
         primaryInstanceId,
-        [{ slug: "gpt-5.6-sol", name: "Primary profile model", shortName: "Primary" }],
+        [
+          {
+            slug: "gpt-5.6-sol",
+            name: "Primary profile model",
+            shortName: "Primary",
+          },
+        ],
       ],
-      [selectedInstanceId, [{ slug: "gpt-5.6-sol", name: "GPT-5.6 Sol", shortName: "5.6 Sol" }]],
+      [
+        selectedInstanceId,
+        [
+          {
+            slug: "gpt-5.6-sol",
+            name: "GPT-5.6 Sol",
+            shortName: "5.6 Sol",
+          },
+        ],
+      ],
     ]);
-
     expect(
       resolveContextWindowModelDisplayName(
         {
@@ -102,7 +118,6 @@ describe("resolveContextWindowModelDisplayName", () => {
     ).toBe("5.6 Sol");
   });
 });
-
 describe("hasDismissedResumeCompaction", () => {
   it("recognizes the native resume dialog's permanent dismissal", () => {
     expect(
@@ -119,7 +134,6 @@ describe("hasDismissedResumeCompaction", () => {
       ]),
     ).toBe(true);
   });
-
   it("ignores unrelated questions that end with Claude's compaction prompt", () => {
     expect(
       hasDismissedResumeCompaction([
@@ -135,7 +149,6 @@ describe("hasDismissedResumeCompaction", () => {
     ).toBe(false);
   });
 });
-
 describe("shouldReserveContextWindowMeter", () => {
   const loadingStartedThread = {
     meterEnabled: true,
@@ -143,11 +156,9 @@ describe("shouldReserveContextWindowMeter", () => {
     threadStarted: true,
     providerReportsContextWindow: true,
   };
-
   it("holds the meter's slot while a started thread's detail loads", () => {
     expect(shouldReserveContextWindowMeter(loadingStartedThread)).toBe(true);
   });
-
   it("reserves while the thread's provider is not in the catalog yet", () => {
     expect(
       shouldReserveContextWindowMeter({

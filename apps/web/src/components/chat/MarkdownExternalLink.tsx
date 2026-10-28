@@ -1,23 +1,17 @@
 import { faviconUrlForOrigin } from "@t3tools/shared/favicon";
 import { GlobeIcon } from "lucide-react";
 import { Children, Fragment, memo, useState, type ReactNode } from "react";
-
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
-
 import { cn } from "../../lib/utils";
 import { sourceControlIcon } from "../../sourceControlPresentation";
-
 const MARKDOWN_LINK_FAVICON_CLASS_NAME = "block size-full shrink-0 select-none";
-
 const failedFaviconHosts = new Set<string>();
-
 function sourceControlHostIcon(host: string): ReactNode {
   const definition = sourceControlClients.findByPublicDomain(host);
   if (definition === undefined) return null;
   const Icon = sourceControlIcon(definition);
   return <Icon className={MARKDOWN_LINK_FAVICON_CLASS_NAME} />;
 }
-
 const MarkdownLinkFavicon = memo(function MarkdownLinkFavicon({ host }: { host: string }) {
   const [failedHost, setFailedHost] = useState<string | null>(null);
   const brandIcon = sourceControlHostIcon(host);
@@ -47,13 +41,11 @@ const MarkdownLinkFavicon = memo(function MarkdownLinkFavicon({ host }: { host: 
     </span>
   );
 });
-
 function leadingExternalLinkTextLength(text: string): number {
   const protocol = /^(?:https?:\/\/)/i.exec(text)?.[0];
   if (protocol) return protocol.length;
   return Math.min(text.length, 1);
 }
-
 function breakableExternalLinkText(text: string): ReactNode[] {
   return Array.from(text, (character, index) => (
     <Fragment key={`${index}:${character}`}>
@@ -62,7 +54,6 @@ function breakableExternalLinkText(text: string): ReactNode[] {
     </Fragment>
   ));
 }
-
 export function MarkdownExternalLinkContent({
   host,
   plainText,
@@ -84,10 +75,8 @@ export function MarkdownExternalLinkContent({
       </>
     );
   }
-
   const childNodes = Children.toArray(children);
   const firstChild = childNodes[0];
-
   if (typeof firstChild === "string" && firstChild.length > 0) {
     const leadingLength = leadingExternalLinkTextLength(firstChild);
     return (
@@ -101,7 +90,6 @@ export function MarkdownExternalLinkContent({
       </>
     );
   }
-
   return (
     <>
       <span className="whitespace-nowrap">

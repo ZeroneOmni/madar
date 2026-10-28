@@ -1,10 +1,8 @@
-import { EnvironmentId, MessageId, RunId, ScheduledTaskId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, MessageId, ScheduledTaskId, ThreadId } from "@t3tools/contracts";
 import type { LegendListRef } from "@legendapp/list/react";
 import { createRef, Profiler, type ComponentProps, type ReactElement } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
-
 import "~/index.css";
-
 import { act, render } from "../../../test/render";
 import { MessagesTimeline } from "./MessagesTimeline";
 import { makeStreamingTimelineFixture } from "../../test-fixtures";
@@ -12,7 +10,6 @@ import { deriveTimelineEntriesFromVisibleTurnItems } from "../../session-logic";
 import { remarkThoughtPreview } from "./TimelineWorkEntryRow.logic";
 import { parseMarkdownWithMath } from "@t3tools/shared/markdownMath";
 import { collectThreadFindRanges } from "./threadFindHighlights";
-
 const environmentQuery = vi.hoisted(() => ({
   error: "Pull request not found",
   data: null as unknown,
@@ -29,10 +26,8 @@ vi.mock(import("~/state/query"), async (original) => ({
     refresh: () => {},
   })) as never,
 }));
-
 const ENVIRONMENT_ID = EnvironmentId.make("environment-local");
 const CREATED_AT = "2026-03-17T19:12:28.000Z";
-
 type TimelineProps = ComponentProps<typeof MessagesTimeline>;
 type Entry = TimelineProps["timelineEntries"][number];
 
@@ -44,16 +39,13 @@ function baseProps(): Omit<TimelineProps, "timelineEntries"> {
     activeTurnInProgress: false,
     listRef: createRef<LegendListRef | null>(),
     latestRun: null,
-    turnDiffSummaries: [],
     runs: [],
     routeThreadKey: `environment-local:thread-${Math.random().toString(36).slice(2)}`,
     onOpenTurnDiff: () => {},
     onOpenThread: () => {},
     onForkFromRun: async () => {},
-    onRollbackCheckpoint: () => {},
     supportsConversationRollback: false,
-    onRevertToTurnCount: () => {},
-    isRevertingCheckpoint: false,
+
     onImageExpand: () => {},
     activeThreadEnvironmentId: ENVIRONMENT_ID,
     markdownCwd: undefined,
@@ -70,10 +62,16 @@ function baseProps(): Omit<TimelineProps, "timelineEntries"> {
     onManualNavigation: () => {},
   };
 }
-
 function message(
   text: string,
-  overrides: Partial<Extract<Entry, { kind: "message" }>["message"]> = {},
+  overrides: Partial<
+    Extract<
+      Entry,
+      {
+        kind: "message";
+      }
+    >["message"]
+  > = {},
   id = "message-1",
 ): Entry {
   return {
@@ -92,11 +90,12 @@ function message(
     },
   };
 }
-
 async function renderElement(element: ReactElement) {
   const container = document.createElement("div");
   container.style.cssText = "height: 1200px; width: 900px; display: flex; flex-direction: column;";
-  const screen = await render(element, { container });
+  const screen = await render(element, {
+    container,
+  });
   const buttons = (name: string | RegExp) =>
     [...container.querySelectorAll<HTMLElement>("button, [role=button]")].filter((button) => {
       const label = button.getAttribute("aria-label") ?? button.textContent ?? "";
@@ -112,34 +111,48 @@ async function renderElement(element: ReactElement) {
     },
   });
 }
-
 function renderTimeline(entries: ReadonlyArray<Entry>, props: Partial<TimelineProps> = {}) {
   return renderElement(
     <MessagesTimeline {...baseProps()} timelineEntries={entries as Entry[]} {...props} />,
   );
 }
-
 async function click(element: HTMLElement) {
   await act(async () => element.click());
 }
-
-function setup({ scheduledTasks = [] as ReadonlyArray<{ id: string; title: string }> } = {}) {
-  environmentQuery.data = { tasks: scheduledTasks };
+function setup({
+  scheduledTasks = [] as ReadonlyArray<{
+    id: string;
+    title: string;
+  }>,
+} = {}) {
+  environmentQuery.data = {
+    tasks: scheduledTasks,
+  };
 }
-
 const TASK_ID = ScheduledTaskId.make("task-1");
 const AUTOMATION_PROMPT = "Triage the inbox\n\nLabel every new issue and close duplicates.";
-
 describe("MessagesTimeline messages", () => {
   it("settles when equally long messages have very different rendered heights", async () => {
     const props = baseProps();
-    const tall = message("a\n\n".repeat(6000), { role: "assistant" }, "tall");
-    const earlier = Array.from({ length: 80 }, (_, index) =>
-      message(
-        `<details><summary>Reply ${index}</summary>${"compact ".repeat(2250)}</details>`,
-        { role: "assistant" },
-        `earlier-${index}`,
-      ),
+    const tall = message(
+      "a\n\n".repeat(6000),
+      {
+        role: "assistant",
+      },
+      "tall",
+    );
+    const earlier = Array.from(
+      {
+        length: 80,
+      },
+      (_, index) =>
+        message(
+          `<details><summary>Reply ${index}</summary>${"compact ".repeat(2250)}</details>`,
+          {
+            role: "assistant",
+          },
+          `earlier-${index}`,
+        ),
     );
     let nestedCommits = 0;
     let maxNestedCommits = 0;
@@ -163,7 +176,10 @@ describe("MessagesTimeline messages", () => {
     });
     await screen.rerender(timeline([...earlier, tall]));
     await act(() => {
-      void props.listRef.current!.scrollToIndex({ index: 0, animated: false });
+      void props.listRef.current!.scrollToIndex({
+        index: 0,
+        animated: false,
+      });
     });
     await vi.waitFor(async () => {
       await act(() => {
@@ -175,7 +191,6 @@ describe("MessagesTimeline messages", () => {
     });
     expect(maxNestedCommits).toBeLessThan(20);
   });
-
   it("preserves XML-like tags and comparisons in user messages as text", async () => {
     const source = [
       'Without reading a file, do you have <global-agent-instructions scope="workspace">',
@@ -187,16 +202,20 @@ describe("MessagesTimeline messages", () => {
     for (const line of source) expect(screen.text()).toContain(line);
     expect(screen.container.querySelector("global-agent-instructions, nested")).toBeNull();
   });
-
   it("renders unsafe user HTML as inert source text", async () => {
     const source =
       '<script>globalThis.__t3Xss = 1</script><img src="x" onerror="globalThis.__t3Xss = 2">';
     await using screen = await renderTimeline([message(source)]);
     expect(screen.text()).toContain(source);
     expect(screen.container.querySelector("script, img")).toBeNull();
-    expect((globalThis as { __t3Xss?: number }).__t3Xss).toBeUndefined();
+    expect(
+      (
+        globalThis as {
+          __t3Xss?: number;
+        }
+      ).__t3Xss,
+    ).toBeUndefined();
   });
-
   it("renders sanitized raw HTML in assistant messages", async () => {
     await using screen = await renderTimeline([
       message(
@@ -208,7 +227,9 @@ describe("MessagesTimeline messages", () => {
           '<a href="javascript:globalThis.__t3Xss = 4">Unsafe link</a>',
           "</details>",
         ].join(""),
-        { role: "assistant" },
+        {
+          role: "assistant",
+        },
       ),
     ]);
     expect(screen.container.querySelector("[data-markdown-details]")?.textContent).toContain(
@@ -218,53 +239,50 @@ describe("MessagesTimeline messages", () => {
     expect(screen.container.querySelector("script, [onclick], [onerror]")).toBeNull();
     expect(screen.container.innerHTML).not.toContain("javascript:");
     await click(screen.button("Safe details"));
-    expect((globalThis as { __t3Xss?: number }).__t3Xss).toBeUndefined();
+    expect(
+      (
+        globalThis as {
+          __t3Xss?: number;
+        }
+      ).__t3Xss,
+    ).toBeUndefined();
   });
 });
-
 describe("MessagesTimeline automation prompts", () => {
-  it("folds an automation prompt into a bubble titled by its task", async () => {
-    setup({ scheduledTasks: [{ id: TASK_ID, title: "Nightly triage" }] });
-    await using screen = await renderTimeline([
-      message(AUTOMATION_PROMPT, { scheduledTaskId: TASK_ID }),
-    ]);
-    const row = screen.button(/^Automation/);
-    expect(row.textContent).toContain("Nightly triage");
-    expect(row.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.text()).not.toContain("close duplicates");
-
-    await click(row);
-    expect(screen.text()).toContain("Label every new issue and close duplicates.");
-    const link = [...screen.container.querySelectorAll("a")].find(
-      (anchor) => anchor.textContent === "Open automation",
-    );
-    expect(link?.getAttribute("href")).toContain(`taskId=${TASK_ID}`);
-    expect(screen.buttons(/copy/i)).not.toHaveLength(0);
-  });
-
   it("falls back to the prompt's first line without a task title", async () => {
     setup();
     await using screen = await renderTimeline([
-      message(AUTOMATION_PROMPT, { scheduledTaskId: TASK_ID }),
+      message(AUTOMATION_PROMPT, {
+        scheduledTaskId: TASK_ID,
+      }),
     ]);
     expect(screen.button(/^Automation/).textContent).toContain("Triage the inbox");
   });
-
   it("leaves ordinary user messages as full bubbles", async () => {
     setup();
     await using screen = await renderTimeline([message(AUTOMATION_PROMPT)]);
     expect(screen.buttons(/^Automation/)).toHaveLength(0);
     expect(screen.text()).toContain("Label every new issue and close duplicates.");
   });
-
   it("reveals a find match beyond the folded automation prompt's initial viewport", async () => {
     setup();
     const prompt = `${"Inspect the next item.\n\n".repeat(16)}Close duplicates.`;
-    await using screen = await renderTimeline([message(prompt, { scheduledTaskId: TASK_ID })], {
-      findExpanded: true,
-      findQuery: "duplicates",
-      activeFindMatch: { entryId: "entry-message-1", runId: null, occurrence: 0 },
-    });
+    await using screen = await renderTimeline(
+      [
+        message(prompt, {
+          scheduledTaskId: TASK_ID,
+        }),
+      ],
+      {
+        findExpanded: true,
+        findQuery: "duplicates",
+        activeFindMatch: {
+          entryId: "entry-message-1",
+          runId: null,
+          occurrence: 0,
+        },
+      },
+    );
     await vi.waitFor(() =>
       expect(screen.button(/^Automation/).getAttribute("aria-expanded")).toBe("true"),
     );
@@ -277,85 +295,65 @@ describe("MessagesTimeline automation prompts", () => {
       details.getBoundingClientRect().bottom,
     );
   });
-
-  it("shows edit-from-here once an automation prompt is expanded", async () => {
-    setup();
-    const runId = RunId.make("run-1");
-    await using screen = await renderTimeline(
-      [
-        message(
-          AUTOMATION_PROMPT,
-          { scheduledTaskId: TASK_ID, runId, inputIntent: "turn_start" },
-          "user-1",
-        ),
-        message("Done", { role: "assistant", runId }, "assistant-1"),
-      ],
-      {
-        supportsConversationRollback: true,
-        threadStartCheckpointReady: true,
-        turnDiffSummaries: [
-          {
-            runId,
-            checkpointTurnCount: 1,
-            checkpointRef: "checkpoint-1" as never,
-            status: "ready",
-            files: [],
-            assistantMessageId: MessageId.make("assistant-1"),
-            completedAt: CREATED_AT,
-          },
-        ],
-      },
-    );
-    expect(screen.buttons("Edit from here")).toHaveLength(0);
-    await click(screen.button(/^Automation/));
-    expect(screen.buttons("Edit from here")).toHaveLength(1);
-  });
 });
-
 const SENDER_THREAD_ID = ThreadId.make("thread-sender");
 const AGENT_MESSAGE = "Review finished\n\nThe migration drops the index before backfilling it.";
-
 describe("MessagesTimeline agent messages", () => {
   it("folds a message from another agent into a one-line preview", async () => {
     setup();
     const onOpenThread = vi.fn();
     await using screen = await renderTimeline(
-      [message(AGENT_MESSAGE, { createdBy: "agent", senderThreadId: SENDER_THREAD_ID })],
-      { onOpenThread },
+      [
+        message(AGENT_MESSAGE, {
+          createdBy: "agent",
+          senderThreadId: SENDER_THREAD_ID,
+        }),
+      ],
+      {
+        onOpenThread,
+      },
     );
     const row = screen.button(/^Agent/);
     expect(row.textContent).toContain("Review finished");
     expect(row.getAttribute("aria-expanded")).toBe("false");
     expect(screen.text()).not.toContain("drops the index");
     expect(screen.buttons("Open thread")).toHaveLength(0);
-
     await click(row);
     expect(screen.text()).toContain("The migration drops the index before backfilling it.");
     await click(screen.button("Open thread"));
     expect(onOpenThread).toHaveBeenCalledWith(SENDER_THREAD_ID);
-
     await click(screen.button(/^Agent/));
     expect(screen.text()).not.toContain("drops the index");
   });
-
   it("leaves messages sent by T3 Code as full bubbles", async () => {
     setup();
     await using screen = await renderTimeline([
-      message(AGENT_MESSAGE, { createdBy: "agent", creationSource: "server" }),
+      message(AGENT_MESSAGE, {
+        createdBy: "agent",
+        creationSource: "server",
+      }),
     ]);
     expect(screen.buttons(/^Agent/)).toHaveLength(0);
     expect(screen.text()).toContain("drops the index");
   });
-
   it("reveals a find match inside a folded agent message", async () => {
     setup();
     const text = `${"Checked the next file.\n\n".repeat(16)}The migration drops the index.`;
     await using screen = await renderTimeline(
-      [message(text, { createdBy: "agent", senderThreadId: SENDER_THREAD_ID })],
+      [
+        message(text, {
+          createdBy: "agent",
+          senderThreadId: SENDER_THREAD_ID,
+        }),
+      ],
       {
         findExpanded: true,
         findQuery: "drops the index",
-        activeFindMatch: { entryId: "entry-message-1", runId: null, occurrence: 0 },
+        activeFindMatch: {
+          entryId: "entry-message-1",
+          runId: null,
+          occurrence: 0,
+        },
       },
     );
     await vi.waitFor(() =>
@@ -369,7 +367,6 @@ describe("MessagesTimeline agent messages", () => {
     );
   });
 });
-
 describe("compact reasoning math", () => {
   it("keeps formulas while flattening compact reasoning previews", () => {
     const tree = parseMarkdownWithMath("## Reasoning\n\nUse **norm** $|x|$ and \\[x^2\\]");
@@ -388,7 +385,6 @@ describe("compact reasoning math", () => {
     ]);
   });
 });
-
 it("renders automatic compaction as one live divider that finishes with its reason and token delta", async () => {
   setup();
   const fixture = makeStreamingTimelineFixture();
@@ -412,7 +408,11 @@ it("renders automatic compaction as one live divider that finishes with its reas
       visibleTurnItems: [
         {
           ...prompt,
-          item: { ...promptItem, text: "/compact", idleCompaction: "beforeCacheExpires" },
+          item: {
+            ...promptItem,
+            text: "/compact",
+            idleCompaction: "beforeCacheExpires",
+          },
         },
         {
           ...compaction,
@@ -444,9 +444,15 @@ it("renders automatic compaction as one live divider that finishes with its reas
   );
   const container = document.createElement("div");
   container.style.cssText = "height: 1200px; width: 900px; display: flex; flex-direction: column;";
-  await using screen = await render(ui(false), { container });
+  await using screen = await render(ui(false), {
+    container,
+  });
   await expect
-    .element(screen.getByRole("separator", { name: "Compacting before the cache expires…" }))
+    .element(
+      screen.getByRole("separator", {
+        name: "Compacting before the cache expires…",
+      }),
+    )
     .toBeVisible();
   expect(container.textContent).not.toContain("/compact");
   expect(container.textContent).not.toContain("Thinking");

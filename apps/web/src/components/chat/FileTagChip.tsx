@@ -1,7 +1,6 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import { ContextChipLabel } from "../ContextChip";
 import { WorkspaceEntryIcon } from "./WorkspaceEntryIcon";
-
 export function FileTagChipContent(props: {
   path: string;
   label: string;

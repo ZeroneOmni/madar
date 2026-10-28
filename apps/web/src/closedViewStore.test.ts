@@ -1,123 +1,71 @@
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
-import {
-  type EnvironmentId,
-  INCOGNITO_BROWSER_PROFILE_ID,
-  type PreviewSessionSnapshot,
-  ThreadId,
-} from "@t3tools/contracts";
-import { beforeEach, describe, expect, it } from "vite-plus/test";
-
+import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { describe, expect, it } from "vite-plus/test";
 import { type ClosedViewEntry, useClosedViewStore } from "./closedViewStore";
 
-const refA = scopeThreadRef("env-1" as EnvironmentId, ThreadId.make("thread-A"));
-const refB = scopeThreadRef("env-2" as EnvironmentId, ThreadId.make("thread-A"));
-const diff = (threadRef: typeof refA) =>
-  ({ kind: "panel-tab", threadRef, surface: { kind: "diff", id: "diff" } }) as const;
-
-beforeEach(() => {
-  useClosedViewStore.setState({ entries: [] });
-});
-
-const snapshot: PreviewSessionSnapshot = {
-  threadId: refA.threadId,
-  tabId: "private-tab",
-  profileId: INCOGNITO_BROWSER_PROFILE_ID,
-  navStatus: { _tag: "Success", url: "https://private.example", title: "Private page" },
-  canGoBack: false,
-  canGoForward: false,
-  updatedAt: "2026-10-06T17:00:00.000Z",
-};
+const ref = scopeThreadRef(EnvironmentId.make("env-1"), ThreadId.make("thread-A"));
+const file = {
+  kind: "panel-tab",
+  threadRef: ref,
+  surface: {
+    kind: "file",
+    id: "file:config",
+    relativePath: "config.txt",
+    revealLine: null,
+    revealRequestId: 0,
+  },
+} as const;
 
 describe("closedViewStore", () => {
-  it.each([
-    { id: "bad", kind: "browser", threadRef: refA, snapshot: {} },
-    {
-      id: "bad",
-      kind: "browser",
-      threadRef: refA,
-      snapshot: { ...snapshot, profileId: "default", navStatus: null },
-    },
-    { id: "bad", kind: "panel-tab", surface: { kind: "diff", id: "diff" } },
-    { id: "bad", kind: "panel-tab", threadRef: refA },
-    { id: "bad", kind: "panel-tab", threadRef: {}, surface: { kind: "diff", id: "diff" } },
-    { id: "bad", kind: "panel-tab", threadRef: refA, surface: {} },
-    { id: "bad", kind: "panel-tab", threadRef: refA, surface: { kind: "file", id: "file:x" } },
-    {
-      id: "bad",
-      kind: "panel-tab",
-      threadRef: refA,
-      surface: { kind: "device", id: "device:x", target: {} },
-    },
-    {
-      id: "bad",
-      kind: "panel-tab",
-      threadRef: refA,
-      surface: { kind: "pull-request", id: "pull-request:x", repository: "owner/repo", number: 1 },
-    },
-  ])("discards incomplete saved views %j while retaining valid history", async (entry) => {
-    const id = useClosedViewStore.getState().remember(diff(refA));
+  it("migrates saved history by keeping file tabs and dropping retired surfaces", async () => {
+    useClosedViewStore.setState({ entries: [] });
+    const id = useClosedViewStore.getState().remember(file);
     const { storage, name } = useClosedViewStore.persist.getOptions();
-    await storage!.setItem(name!, {
-      state: { entries: [entry as ClosedViewEntry, ...useClosedViewStore.getState().entries] },
-      version: 1,
-    });
-    await useClosedViewStore.persist.rehydrate();
-    expect(useClosedViewStore.persist.hasHydrated()).toBe(true);
-    expect(useClosedViewStore.getState().entries).toEqual([{ ...diff(refA), id }]);
-    expect(() => useClosedViewStore.getState().remember(diff(refB))).not.toThrow();
-  });
-
-  it("keeps private tabs available in memory without saving their metadata", async () => {
-    const store = useClosedViewStore.getState();
-    const publicId = store.remember(diff(refA));
-    const privateId = store.remember({ kind: "browser", threadRef: refA, snapshot });
-    expect(useClosedViewStore.getState().entries.map((entry) => entry.id)).toEqual([
-      privateId,
-      publicId,
-    ]);
-    const { storage, name } = useClosedViewStore.persist.getOptions();
-    const saved = JSON.stringify(await storage!.getItem(name!));
-    expect(saved).not.toContain("private.example");
-    expect(saved).not.toContain("Private page");
-    await useClosedViewStore.persist.rehydrate();
-    expect(useClosedViewStore.getState().entries.map((entry) => entry.id)).toEqual([publicId]);
-  });
-
-  it("removes private metadata and malformed entries from history saved by earlier versions", async () => {
-    const store = useClosedViewStore.getState();
-    const publicId = store.remember(diff(refA));
-    const browserId = store.remember({
-      kind: "browser",
-      threadRef: refA,
-      snapshot: {
-        ...snapshot,
-        tabId: "public-tab",
-        profileId: "default",
-        navStatus: { _tag: "Success", url: "https://public.example", title: "Public page" },
-      },
-    });
-    store.remember({ kind: "browser", threadRef: refA, snapshot });
-    const { storage, name } = useClosedViewStore.persist.getOptions();
+    const valid = useClosedViewStore.getState().entries;
     await storage!.setItem(name!, {
       state: {
         entries: [
-          null,
-          {},
-          { kind: "browser" },
-          { kind: "browser", snapshot: null },
-          ...useClosedViewStore.getState().entries,
+          ...valid,
+          { id: "browser", kind: "browser", threadRef: ref, snapshot: { tabId: "old" } },
+          ...["preview", "terminal", "diff", "pull-request", "pull-requests"].map((kind) => ({
+            id: kind,
+            kind: "panel-tab",
+            threadRef: ref,
+            surface: { kind, id: kind },
+          })),
+          {
+            id: "invalid",
+            kind: "panel-tab",
+            threadRef: ref,
+            surface: { kind: "file", id: "bad" },
+          },
         ] as ClosedViewEntry[],
       },
-      version: 0,
+      version: 2,
     });
     await useClosedViewStore.persist.rehydrate();
-    expect(useClosedViewStore.persist.hasHydrated()).toBe(true);
+    expect(useClosedViewStore.getState().entries).toEqual([{ ...file, id }]);
+    expect(JSON.stringify(await storage!.getItem(name!))).not.toContain('"terminal"');
+  });
+  it("keeps the latest closure once per file and scopes history to its environment", () => {
+    useClosedViewStore.setState({ entries: [] });
+    const store = useClosedViewStore.getState();
+    store.remember(file);
+    const second = store.remember({
+      ...file,
+      threadRef: scopeThreadRef(EnvironmentId.make("env-2"), ref.threadId),
+    });
+    const latest = store.remember(file);
     expect(useClosedViewStore.getState().entries.map((entry) => entry.id)).toEqual([
-      browserId,
-      publicId,
+      latest,
+      second,
     ]);
-    const saved = JSON.stringify(await storage!.getItem(name!));
-    expect(saved).not.toContain("private.example");
-    expect(saved).not.toContain("Private page");
+    store.defer(latest);
+    expect(useClosedViewStore.getState().entries.map((entry) => entry.id)).toEqual([
+      second,
+      latest,
+    ]);
+    store.remove(second);
+    expect(useClosedViewStore.getState().entries.map((entry) => entry.id)).toEqual([latest]);
   });
 });

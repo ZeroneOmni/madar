@@ -3,28 +3,22 @@ export const DRAFT_HERO_TRANSITION_EASING = "cubic-bezier(0.4, 0, 0.2, 1)";
 export const MOBILE_COMPOSER_VIEW_TRANSITION_NAME = "t3-mobile-composer";
 export const MOBILE_DRAFT_HEADLINE_VIEW_TRANSITION_NAME = "t3-mobile-draft-headline";
 const MOBILE_COMPOSER_TRANSITION_DURATION_PROPERTY = "--mobile-composer-transition-duration";
-
 type ComposerViewTransition = {
   readonly finished: Promise<void>;
 };
-
 let activeMobileComposerTransition: Promise<void> | null = null;
-
 type ComposerViewTransitionDocument = Document & {
   startViewTransition?: (update: () => void | Promise<void>) => ComposerViewTransition;
 };
-
 export async function waitForDraftHeroTransition(): Promise<void> {
   const mobileComposerTransition = activeMobileComposerTransition;
   if (typeof document === "undefined" || typeof document.getAnimations !== "function") {
     await mobileComposerTransition;
     return;
   }
-
   const activeTransitions = document
     .getAnimations()
     .filter((animation) => animation.id === DRAFT_HERO_TRANSITION_ANIMATION_ID);
-
   await Promise.all([
     mobileComposerTransition,
     ...activeTransitions.map(async (animation) => {
@@ -34,16 +28,17 @@ export async function waitForDraftHeroTransition(): Promise<void> {
     }),
   ]);
 }
-
 export async function runMobileComposerTransition(
   update: () => void | Promise<void>,
-  options: { active: boolean; durationMs: number },
+  options: {
+    active: boolean;
+    durationMs: number;
+  },
 ): Promise<void> {
   if (typeof document === "undefined" || typeof window === "undefined") {
     await update();
     return;
   }
-
   const transitionDocument = document as ComposerViewTransitionDocument;
   const mobileViewport = window.matchMedia?.("(max-width: 639px)").matches ?? false;
   const prefersReducedMotion =
@@ -57,7 +52,6 @@ export async function runMobileComposerTransition(
     await update();
     return;
   }
-
   let updateStarted = false;
   const runUpdate = async () => {
     if (updateStarted) return;

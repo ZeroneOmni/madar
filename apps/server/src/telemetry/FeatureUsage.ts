@@ -50,19 +50,10 @@ const COMMAND_FEATURES: {
  * Thread launches are left out because `client.thread.started` counts them.
  */
 const METHOD_FEATURES: Readonly<Record<string, (payload: Payload) => FeatureUsage>> = {
-  [WS_METHODS.terminalOpen]: () => ({ feature: "terminal.open" }),
-  [WS_METHODS.previewOpen]: () => ({ feature: "preview.open" }),
   [WS_METHODS.deviceOpen]: () => ({ feature: "device.open" }),
   [WS_METHODS.shellOpenInEditor]: (payload) => use("editor.open", literal(payload, "editor")),
   [WS_METHODS.vcsCreateWorktree]: () => ({ feature: "worktree.create" }),
-  [WS_METHODS.gitRunStackedAction]: (payload) =>
-    use("git.stacked_action", literal(payload, "action")),
-  [WS_METHODS.pullRequestsRunAction]: (payload) =>
-    use("pull_request.action", literal(payload, "action")),
-  [WS_METHODS.pullRequestsSubmitReview]: () => ({ feature: "pull_request.review" }),
-  [WS_METHODS.pullRequestsComment]: () => ({ feature: "pull_request.comment" }),
-  [WS_METHODS.scheduledTasksUpsert]: () => ({ feature: "scheduled_task.save" }),
-  [WS_METHODS.scheduledTasksRunNow]: () => ({ feature: "scheduled_task.run_now" }),
+
   [WS_METHODS.agentSessionsImport]: () => ({ feature: "agent_session.import" }),
   [WS_METHODS.projectCloneStart]: () => ({ feature: "project.clone" }),
   [WS_METHODS.sourceControlPublishRepository]: () => ({ feature: "repository.publish" }),

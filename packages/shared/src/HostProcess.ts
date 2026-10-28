@@ -1,6 +1,6 @@
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
-import * as NodeDns from "node:dns";
+
 import * as NodeOS from "node:os";
 import * as NodeSea from "node:sea";
 
@@ -74,24 +74,6 @@ export const IsExecutable = Context.Reference<boolean>("@t3tools/shared/HostProc
 });
 
 /** Includes hostname-resolved addresses absent from interfaces, such as Debian's 127.0.1.1 used by Firefox locks. */
-export const Addresses = Context.Reference<Effect.Effect<ReadonlySet<string>>>(
-  "@t3tools/shared/HostProcess/Addresses",
-  {
-    defaultValue: () =>
-      Effect.gen(function* () {
-        const interfaces = Object.values(NodeOS.networkInterfaces())
-          .flat()
-          .flatMap((entry) => (entry ? [entry.address] : []));
-        const resolved = yield* Effect.tryPromise(() =>
-          NodeDns.promises.lookup(NodeOS.hostname(), { all: true }),
-        ).pipe(
-          Effect.map((entries) => entries.map((entry) => entry.address)),
-          Effect.orElseSucceed(() => [] as ReadonlyArray<string>),
-        );
-        return new Set([...interfaces, ...resolved]);
-      }),
-  },
-);
 
 export const UserId = Context.Reference<number | undefined>("@t3tools/shared/HostProcess/UserId", {
   defaultValue: () => process.getuid?.(),

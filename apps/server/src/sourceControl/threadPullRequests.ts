@@ -8,8 +8,7 @@ export const {
   normalizeThreadPullRequestKey,
   legacyThreadPullRequestKey,
   threadPullRequestKeysEqual,
-  threadPullRequestKeyOf,
-  resolveThreadPullRequestChains,
+
   threadPullRequestsOf,
   applyThreadPullRequestLinkUpdate,
 } = makeThreadPullRequests(sourceControlDefinitions);

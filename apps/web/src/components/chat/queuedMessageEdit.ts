@@ -6,7 +6,6 @@ import {
   type ComposerImageAttachment,
   type ComposerThreadTarget,
 } from "../../composerDraftStore";
-
 export function recoverQueuedMessageEdit(input: {
   readonly editTarget: ComposerThreadTarget;
   readonly threadTarget: ComposerThreadTarget;
@@ -24,7 +23,6 @@ export function recoverQueuedMessageEdit(input: {
   store.clearComposerContent(input.editTarget);
   return dirty ? "discarded" : "clean";
 }
-
 export async function prepareQueuedEditAttachments(input: {
   readonly existingAttachments: ReadonlyArray<ChatAttachment>;
   readonly images: ReadonlyArray<ComposerImageAttachment>;
@@ -45,7 +43,11 @@ export async function prepareQueuedEditAttachments(input: {
       mimeType: image.mimeType,
       sizeBytes: image.sizeBytes,
       dataUrl: await input.readImage(image.file),
-      ...(image.source ? { source: image.source } : {}),
+      ...(image.source
+        ? {
+            source: image.source,
+          }
+        : {}),
     })),
   );
   return [...input.existingAttachments, ...images, ...files];

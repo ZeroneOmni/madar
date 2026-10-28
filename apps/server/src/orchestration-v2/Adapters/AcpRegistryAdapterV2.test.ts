@@ -12,7 +12,7 @@ import {
   ThreadId,
 } from "@t3tools/contracts";
 import { pendingBackgroundTurnItems } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
-import { resolveSelfInvocation } from "@t3tools/shared/nodeRuntime";
+
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
 import * as DateTime from "effect/DateTime";
@@ -28,7 +28,6 @@ import * as HttpClientResponse from "effect/http/HttpClientResponse";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as EffectAcpErrors from "effect-acp/errors";
 
-import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as TestProviderHost from "@t3tools/provider-testing/TestProviderHost";
 import {
   makeProviderReplayGate,
@@ -106,7 +105,7 @@ const layerInjectedRuntimeCatalog = Layer.mock(AcpRegistrySupport.AcpRegistryCat
 const layerTest = Layer.mergeAll(
   NodeServices.layer,
   IdAllocator.layer,
-  McpProviderSessions.layer,
+
   layerHost,
   layerRegistry,
   ServerSettings.layerTest(),
@@ -238,7 +237,6 @@ const openClaudeReplaySession = Effect.fn("openClaudeReplaySession")(function* (
     ...(replayGate === undefined ? {} : { replayGate }),
   });
   const adapterOptions = {
-    selfInvocation: yield* resolveSelfInvocation(),
     instanceId,
     settings: yield* decodeAcpRegistryAdapterSettings({ agentId: "claude-acp" }),
     environment: {},
@@ -509,7 +507,6 @@ describe("AcpRegistryAdapterV2", () => {
       const instanceId = ProviderInstanceId.make("acp-registry-stored-picks");
       let published: AcpRegistryLiveConfiguration | undefined;
       const adapter = yield* makeAcpRegistryAdapterV2({
-        selfInvocation: yield* resolveSelfInvocation(),
         instanceId,
         settings: yield* decodeAcpRegistryAdapterSettings({
           agentId: "fixture-agent",
@@ -922,7 +919,6 @@ describe("AcpRegistryAdapterV2", () => {
         let launched: NodeJS.ProcessEnv | undefined;
         const instanceId = ProviderInstanceId.make("acp-registry-launch-environment");
         const adapter = yield* makeAcpRegistryAdapterV2({
-          selfInvocation: yield* resolveSelfInvocation(),
           instanceId,
           settings: yield* decodeAcpRegistryAdapterSettings(config),
           environment,

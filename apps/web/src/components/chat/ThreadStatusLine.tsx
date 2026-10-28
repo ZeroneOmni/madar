@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
-
 import { InlineButton } from "../ui/button";
-
 export function ThreadStatusLine(props: {
   readonly icon: ReactNode;
   readonly label: string;

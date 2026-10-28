@@ -31,7 +31,6 @@ import { resolveAssistantCitationCommentDismissal } from "./assistantCitationCom
 import { observeAssistantCitationCommentSource } from "./AssistantCitationSource";
 import { composerFloatingLayerProps } from "./composerEventScope";
 import { observeResize } from "~/lib/observeResize";
-
 export function AssistantCitationChip({
   citation,
   composer = false,
@@ -109,7 +108,10 @@ export function AssistantCitationChip({
   const label = assistantCitationLabel(citation);
   const sourceLinkProps = {
     to: "/$environmentId/$threadId" as const,
-    params: { environmentId: citation.environmentId, threadId: citation.threadId },
+    params: {
+      environmentId: citation.environmentId,
+      threadId: citation.threadId,
+    },
     hash: assistantCitationHash(citation),
     "data-markdown-copy": serializeAssistantCitation(citation),
     resetScroll: false,
@@ -185,7 +187,9 @@ export function AssistantCitationChip({
               align="end"
               anchor={popupAnchor}
               initialFocus={() => {
-                commentInputRef.current?.focus({ preventScroll: true });
+                commentInputRef.current?.focus({
+                  preventScroll: true,
+                });
                 return false;
               }}
               finalFocus={
@@ -245,14 +249,21 @@ export function AssistantCitationChip({
     </ContextChip>
   );
 }
-
 function AssistantCitationQuote({ citation }: { citation: AssistantCitation }) {
-  const [fade, setFade] = useState({ top: false, bottom: false });
+  const [fade, setFade] = useState({
+    top: false,
+    bottom: false,
+  });
   const updateFade = (element: HTMLElement) => {
     const top = element.scrollTop > 1;
     const bottom = element.scrollHeight - element.clientHeight - element.scrollTop > 1;
     setFade((current) =>
-      current.top === top && current.bottom === bottom ? current : { top, bottom },
+      current.top === top && current.bottom === bottom
+        ? current
+        : {
+            top,
+            bottom,
+          },
     );
   };
   const observeFade = (element: HTMLDivElement | null) =>

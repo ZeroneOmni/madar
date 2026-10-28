@@ -208,24 +208,7 @@ export const planThreadDeletion = Effect.fn("ThreadDeletion.planThreadDeletion")
       },
     });
   }
-  effects.push({
-    id: `effect:${command.commandId}:scheduled-tasks.cleanup`,
-    commandId: command.commandId,
-    threadId: command.threadId,
-    request: { type: "scheduled-tasks.cleanup" },
-  });
-  effects.push({
-    id: `effect:${command.commandId}:terminal.cleanup`,
-    commandId: command.commandId,
-    threadId: command.threadId,
-    request: { type: "terminal.cleanup" },
-  });
-  effects.push({
-    id: `effect:${command.commandId}:preview.cleanup`,
-    commandId: command.commandId,
-    threadId: command.threadId,
-    request: { type: "preview.cleanup" },
-  });
+
   const attachmentIds = Array.from(new Set(input.attachmentIds));
   if (attachmentIds.length > 0) {
     effects.push({

@@ -1,20 +1,15 @@
 import { Children, isValidElement, type ReactNode } from "react";
 import type { ExtraProps as ReactMarkdownExtraProps } from "react-markdown";
-
 import { fnv1a32, type DiffThemeName } from "../../lib/diffRendering";
-
 const CODE_FENCE_LANGUAGE_REGEX = /(?:^|\s)language-([^\s]+)/;
-
 export function extractFenceLanguage(className: string | undefined): string {
   const match = className?.match(CODE_FENCE_LANGUAGE_REGEX);
   const raw = match?.[1] ?? "text";
   // Shiki doesn't bundle a gitignore grammar; ini is a close match.
   return raw === "gitignore" ? "ini" : raw;
 }
-
 const FENCE_TITLE_ATTR_REGEX = /(?:^|\s)(?:title|file(?:name)?)=(?:"([^"]+)"|'([^']+)'|(\S+))/i;
 const FENCE_FILENAME_TOKEN_REGEX = /^[\w@][\w@./-]*\.[A-Za-z0-9]+$/;
-
 export function extractFenceTitle(meta: string | undefined): string | null {
   if (!meta) return null;
   const attrMatch = FENCE_TITLE_ATTR_REGEX.exec(meta);
@@ -22,7 +17,6 @@ export function extractFenceTitle(meta: string | undefined): string | null {
   if (attrTitle) return attrTitle;
   return meta.split(/\s+/).find((candidate) => FENCE_FILENAME_TOKEN_REGEX.test(candidate)) ?? null;
 }
-
 export function extractPreCodeMeta(node: unknown): string | undefined {
   const children = (
     node as
@@ -30,8 +24,12 @@ export function extractPreCodeMeta(node: unknown): string | undefined {
           children?: Array<{
             type?: string;
             tagName?: string;
-            data?: { meta?: unknown };
-            properties?: { dataCodeMeta?: unknown };
+            data?: {
+              meta?: unknown;
+            };
+            properties?: {
+              dataCodeMeta?: unknown;
+            };
           }>;
         }
       | undefined
@@ -40,7 +38,6 @@ export function extractPreCodeMeta(node: unknown): string | undefined {
   const meta = codeNode?.properties?.dataCodeMeta ?? codeNode?.data?.meta;
   return typeof meta === "string" && meta.trim().length > 0 ? meta.trim() : undefined;
 }
-
 export function isClosedCodeFence(
   node: ReactMarkdownExtraProps["node"],
   text: string,
@@ -64,7 +61,6 @@ export function isClosedCodeFence(
     source.replace(/\r$/, "").split(/\r\n|\r|\n/).length > code.split(/\r\n|\r|\n/).length
   );
 }
-
 export function nodeToPlainText(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") {
     return String(node);
@@ -72,25 +68,32 @@ export function nodeToPlainText(node: ReactNode): string {
   if (Array.isArray(node)) {
     return node.map((child) => nodeToPlainText(child)).join("");
   }
-  if (isValidElement<{ children?: ReactNode }>(node)) {
+  if (
+    isValidElement<{
+      children?: ReactNode;
+    }>(node)
+  ) {
     return nodeToPlainText(node.props.children);
   }
   return "";
 }
-
-export function extractCodeBlock(
-  children: ReactNode,
-): { className: string | undefined; code: string } | null {
+export function extractCodeBlock(children: ReactNode): {
+  className: string | undefined;
+  code: string;
+} | null {
   const childNodes = Children.toArray(children);
   if (childNodes.length !== 1) {
     return null;
   }
-
   const onlyChild = childNodes[0];
   if (
-    !isValidElement<{ className?: string; children?: ReactNode; node?: { tagName?: string } }>(
-      onlyChild,
-    )
+    !isValidElement<{
+      className?: string;
+      children?: ReactNode;
+      node?: {
+        tagName?: string;
+      };
+    }>(onlyChild)
   ) {
     return null;
   }
@@ -99,13 +102,11 @@ export function extractCodeBlock(
   if (onlyChild.type !== "code" && onlyChild.props.node?.tagName !== "code") {
     return null;
   }
-
   return {
     className: onlyChild.props.className,
     code: nodeToPlainText(onlyChild.props.children),
   };
 }
-
 export function createHighlightCacheKey(
   code: string,
   language: string,
@@ -113,7 +114,6 @@ export function createHighlightCacheKey(
 ): string {
   return `${fnv1a32(code).toString(36)}:${code.length}:${language}:${themeName}`;
 }
-
 export function estimateHighlightedSize(html: string, code: string): number {
   return Math.max(html.length * 2, code.length * 3);
 }

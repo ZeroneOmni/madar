@@ -1,11 +1,9 @@
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { MinusIcon, PlusIcon, XIcon } from "lucide-react";
 import { useRef, useState } from "react";
-
 import { HtmlRenderDocument } from "../files/BrowserDocumentFrame";
 import { Button } from "../ui/button";
 import { Dialog, DialogPopup, DialogTitle } from "../ui/dialog";
-
 export function HtmlRenderDialog(props: {
   readonly src: string;
   readonly title: string;
@@ -36,7 +34,12 @@ export function HtmlRenderDialog(props: {
             <XIcon />
           </Button>
           <div className="h-[min(86vh,calc(100vh-160px))] overflow-auto overscroll-contain rounded-lg bg-background p-4 shadow-2xl ring-1 ring-border/70 [container-type:size]">
-            <div className="h-[100cqh] w-[100cqw]" style={{ zoom }}>
+            <div
+              className="h-[100cqh] w-[100cqw]"
+              style={{
+                zoom,
+              }}
+            >
               <HtmlRenderDocument
                 src={props.src}
                 title={props.title}

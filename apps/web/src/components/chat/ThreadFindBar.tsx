@@ -5,7 +5,6 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "../ui/input-group"
 import { cn } from "~/lib/utils";
 import { formatThreadFindCount } from "./threadFind";
 import { THREAD_DETAILS_CARD_GAP } from "./threadDetailsCardLayout";
-
 interface ThreadFindBarProps {
   readonly open: boolean;
   readonly query: string;
@@ -20,12 +19,9 @@ interface ThreadFindBarProps {
   readonly onPrevious: () => void;
   readonly onClose: () => void;
 }
-
 export const THREAD_FIND_BAR_RESERVED_HEIGHT = 36 + THREAD_DETAILS_CARD_GAP;
-
 export function ThreadFindBar(props: ThreadFindBarProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-
   useEffect(() => {
     if (!props.open) return;
     inputRef.current?.focus();
@@ -35,9 +31,7 @@ export function ThreadFindBar(props: ThreadFindBarProps) {
     props.focusRequestId,
     props.open,
   ]);
-
   if (!props.open) return null;
-
   const hasQuery = props.query.trim().length > 0;
   const noResults = hasQuery && !props.status && props.matchCount === 0;
   let label = "";
@@ -57,7 +51,6 @@ export function ThreadFindBar(props: ThreadFindBarProps) {
       else props.onNext();
     }
   };
-
   return (
     <div
       data-thread-find-bar

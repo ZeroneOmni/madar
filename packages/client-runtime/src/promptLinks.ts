@@ -5,18 +5,11 @@ import {
   type PullRequestLinkedThreadsResult,
   type RepositoryIdentity,
   type ServerProvider,
-  type ThreadLinkedPullRequest,
   type ThreadId,
-  type ThreadPullRequestLink,
 } from "@t3tools/contracts";
 import { resolveSelectableModel, type SelectableModelOption } from "@t3tools/shared/model";
 import type { AsyncResult } from "effect/reactivity";
-import type { PromptLinkPullRequest, PromptLinkRepository } from "@t3tools/shared/promptLinks";
-import {
-  threadPullRequestKeyOf,
-  threadPullRequestsOf,
-  visibleThreadPullRequests,
-} from "./threadPullRequests.ts";
+import type { PromptLinkRepository } from "@t3tools/shared/promptLinks";
 
 const repositoryKey = (repository: PromptLinkRepository) =>
   `github.com/${repository.owner}/${repository.name}`.toLowerCase();
@@ -34,29 +27,6 @@ export function findPromptLinkProjects<
       project.repositoryIdentity != null &&
       repositoryGroupingKeyOf(project.repositoryIdentity).toLowerCase() === key,
   );
-}
-
-export function findPromptLinkPullRequestThread<
-  T extends {
-    readonly updatedAt: string;
-    readonly pullRequests?: ReadonlyArray<ThreadPullRequestLink> | undefined;
-    readonly linkedPullRequest?: ThreadLinkedPullRequest | null | undefined;
-  },
->(threads: ReadonlyArray<T>, pullRequest: PromptLinkPullRequest): T | undefined {
-  const key = threadPullRequestKeyOf({
-    host: "github.com",
-    repository: `${pullRequest.owner}/${pullRequest.name}`,
-    number: pullRequest.number,
-  });
-  let latest: T | undefined;
-  for (const thread of threads) {
-    if (latest !== undefined && thread.updatedAt <= latest.updatedAt) continue;
-    const linked = visibleThreadPullRequests(threadPullRequestsOf(thread)).some(
-      (link) => threadPullRequestKeyOf(link) === key,
-    );
-    if (linked) latest = thread;
-  }
-  return latest;
 }
 
 /**

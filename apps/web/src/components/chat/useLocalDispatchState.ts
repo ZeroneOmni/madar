@@ -7,7 +7,6 @@ import {
   hasServerAcknowledgedLocalDispatch,
   type LocalDispatchSnapshot,
 } from "../ChatView.logic";
-
 export function useLocalDispatchState(input: {
   activeThread: Thread | undefined;
   activeLatestRun: Thread["latestRun"] | null;
@@ -18,11 +17,9 @@ export function useLocalDispatchState(input: {
   threadError: string | null | undefined;
 }) {
   const [localDispatch, setLocalDispatch] = useState<LocalDispatchSnapshot | null>(null);
-
   const resetLocalDispatch = () => {
     setLocalDispatch(null);
   };
-
   const serverAcknowledgedLocalDispatch = hasServerAcknowledgedLocalDispatch({
     localDispatch,
     phase: input.phase,
@@ -46,7 +43,11 @@ export function useLocalDispatchState(input: {
         return active.preparingWorktree === preparingWorktree &&
           active.submissionIntent === submissionIntent
           ? active
-          : { ...active, preparingWorktree, submissionIntent };
+          : {
+              ...active,
+              preparingWorktree,
+              submissionIntent,
+            };
       }
       return createLocalDispatchSnapshot(input.activeThread, {
         ...options,
@@ -54,7 +55,6 @@ export function useLocalDispatchState(input: {
       });
     });
   };
-
   return {
     beginLocalDispatch,
     resetLocalDispatch,

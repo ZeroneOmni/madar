@@ -56,7 +56,6 @@ import {
   workEntryIconName,
 } from "./TimelineWorkEntryRow.logic";
 import { formatWorkingTimerNow } from "./TimelineWorkGroupRows.logic";
-
 export const WorkGroupSection = memo(function WorkGroupSection({
   anchorKey,
   disclosureAnchorKey = anchorKey,
@@ -66,7 +65,12 @@ export const WorkGroupSection = memo(function WorkGroupSection({
 }: {
   anchorKey: string;
   disclosureAnchorKey?: string;
-  groupedEntries: Extract<MessagesTimelineRow, { kind: "work" }>["groupedEntries"];
+  groupedEntries: Extract<
+    MessagesTimelineRow,
+    {
+      kind: "work";
+    }
+  >["groupedEntries"];
   isExpandedToolGroup: boolean;
   displayLabel?: string | undefined;
 }) {
@@ -76,7 +80,6 @@ export const WorkGroupSection = memo(function WorkGroupSection({
   const nonEmptyEntries = groupedEntries.filter((entry) =>
     workEntryIsVisibleInGroup(entry, isExpandedToolGroup),
   );
-
   if (nonEmptyEntries.length === 0) return null;
   if (isExpandedToolGroup && nonEmptyEntries.every((entry) => entry.itemType === "reasoning")) {
     return <ReasoningTraceContent entries={nonEmptyEntries} />;
@@ -92,7 +95,6 @@ export const WorkGroupSection = memo(function WorkGroupSection({
       />
     );
   }
-
   return (
     <section aria-label="Activity">
       {nonEmptyEntries.map((workEntry) => (
@@ -107,11 +109,9 @@ export const WorkGroupSection = memo(function WorkGroupSection({
     </section>
   );
 });
-
 function WorkingTimer({ createdAt }: { createdAt: string }) {
   const textRef = useRef<HTMLSpanElement>(null);
   const initialText = formatWorkingTimerNow(createdAt);
-
   useEffect(() => {
     const updateText = () => {
       if (textRef.current) {
@@ -122,16 +122,13 @@ function WorkingTimer({ createdAt }: { createdAt: string }) {
     const id = setInterval(updateText, 1000);
     return () => clearInterval(id);
   }, [createdAt]);
-
   return (
     <span ref={textRef} className="tabular-nums">
       {initialText}
     </span>
   );
 }
-
 const compactWorkEntryHeight = 24;
-
 function ExpandedWorkGroupEntries({
   anchorKey,
   disclosureAnchorKey,
@@ -150,8 +147,15 @@ function ExpandedWorkGroupEntries({
   const [restoringPosition, setRestoringPosition] = useState(initialScrollIndex !== undefined);
   const listRef = useRef<LegendListRef>(null);
   const [expandedContentHeight, setExpandedContentHeight] = useState(0);
-  const [fades, setFades] = useState({ top: false, bottom: false, viewportHeight: 0 });
-  const [appendState, setAppendState] = useState({ entries, follow: false });
+  const [fades, setFades] = useState({
+    top: false,
+    bottom: false,
+    viewportHeight: 0,
+  });
+  const [appendState, setAppendState] = useState({
+    entries,
+    follow: false,
+  });
   // Capture the pre-change edge once per incoming array, before new layout
   // metrics arrive. Edge/viewport changes never turn a status update into a follow.
   if (appendState.entries !== entries) {
@@ -162,7 +166,6 @@ function ExpandedWorkGroupEntries({
         shouldFollowWorkGroupAppend(appendState.entries, entries, fades.bottom ? Infinity : 0),
     });
   }
-
   const groupView = {
     state: viewState,
     onToggleEntry: (collapsed: boolean) => onToggleWorkEntry(disclosureAnchorKey, collapsed),
@@ -179,10 +182,13 @@ function ExpandedWorkGroupEntries({
       previous.bottom === bottom &&
       previous.viewportHeight === viewportHeight
         ? previous
-        : { top, bottom, viewportHeight },
+        : {
+            top,
+            bottom,
+            viewportHeight,
+          },
     );
   };
-
   const handleScroll = () => {
     const state = listRef.current?.getState();
     const position = state && resolveWorkGroupScrollAnchor(state);
@@ -194,7 +200,6 @@ function ExpandedWorkGroupEntries({
     }
     updateScrollFades();
   };
-
   const handleLoad = () => {
     const list = listRef.current;
     const element = list?.getScrollableNode();
@@ -206,12 +211,14 @@ function ExpandedWorkGroupEntries({
         Math.min(list.getState().scroll, element.scrollHeight - element.clientHeight),
       );
       if (Math.abs(element.scrollTop - offset) > 1) {
-        void list.scrollToOffset({ offset, animated: false });
+        void list.scrollToOffset({
+          offset,
+          animated: false,
+        });
       }
     }
     setRestoringPosition(false);
   };
-
   useLayoutEffect(() => {
     const element = listRef.current?.getScrollableNode();
     if (!element) return;
@@ -219,11 +226,9 @@ function ExpandedWorkGroupEntries({
     const content = element.firstElementChild;
     return observeResize(content ? [element, content] : element, updateScrollFades);
   }, [updateScrollFades]);
-
   const renderEntry = ({ item }: { item: TimelineWorkEntry }) => (
     <SimpleWorkEntryRow key={item.id} workEntry={item} workspaceRoot={workspaceRoot} />
   );
-
   const updateExpandedContentHeight = () => {
     const state = listRef.current?.getState();
     let height = 0;
@@ -236,9 +241,7 @@ function ExpandedWorkGroupEntries({
     }
     setExpandedContentHeight(height);
   };
-
   useLayoutEffect(updateExpandedContentHeight, [entries, updateExpandedContentHeight]);
-
   return (
     <WorkGroupViewCtx value={groupView}>
       <WorkLogList>
@@ -251,15 +254,30 @@ function ExpandedWorkGroupEntries({
           estimatedItemSize={compactWorkEntryHeight}
           drawDistance={240}
           recycleItems
-          {...(initialScrollIndex ? { initialScrollIndex } : {})}
+          {...(initialScrollIndex
+            ? {
+                initialScrollIndex,
+              }
+            : {})}
           maintainScrollAtEnd={
-            appendState.follow ? { animated: false, on: { dataChange: true } } : false
+            appendState.follow
+              ? {
+                  animated: false,
+                  on: {
+                    dataChange: true,
+                  },
+                }
+              : false
           }
           maintainScrollAtEndThreshold={1 / Math.max(1, fades.viewportHeight)}
           // Measure the restored row even when an intra-row offset puts its
           // estimated bounds outside the list's small bootstrap render window.
           {...(restoringPosition && initialScrollIndex
-            ? { alwaysRender: { indices: [initialScrollIndex.index] } }
+            ? {
+                alwaysRender: {
+                  indices: [initialScrollIndex.index],
+                },
+              }
             : {})}
           maintainVisibleContentPosition
           onLoad={handleLoad}
@@ -270,7 +288,9 @@ function ExpandedWorkGroupEntries({
           role="region"
           aria-label="Tool calls"
           data-tool-group-scroll
-          style={{ maxHeight: `calc(min(18rem, 50dvh) + ${expandedContentHeight}px)` }}
+          style={{
+            maxHeight: `calc(min(18rem, 50dvh) + ${expandedContentHeight}px)`,
+          }}
           className={cn(
             "scrollbar-gutter-stable scroll-py-6 overflow-x-hidden rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
             getVirtualizedScrollFadeClassName(fades),
@@ -280,10 +300,17 @@ function ExpandedWorkGroupEntries({
     </WorkGroupViewCtx>
   );
 }
-
 const workEntryKey = (entry: TimelineWorkEntry) => entry.id;
-
-export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "working" }> }) {
+export function WorkingTimelineRow({
+  row,
+}: {
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "working";
+    }
+  >;
+}) {
   const { isCompacting, isPreparingWorktree, backgroundWorktreeSetup } =
     use(TimelineRowActivityCtx);
   const compacting = row.compacting ?? (isCompacting ? "Compacting…" : undefined);
@@ -316,12 +343,7 @@ export function WorkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
     </div>
   );
 }
-
 function BackgroundWorktreeSetupChip({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
-  const ctx = use(TimelineRowCtx);
-  const terminalId = snapshot.setupScript?.terminalId ?? null;
-  const openTerminal = ctx.onOpenWorktreeSetupTerminal;
-  const onOpenTerminal = openTerminal && terminalId ? () => openTerminal(terminalId) : null;
   const scriptName = snapshot.setupScript?.name ?? "Setup script";
   return (
     <Popover>
@@ -339,18 +361,11 @@ function BackgroundWorktreeSetupChip({ snapshot }: { snapshot: WorktreeSetupSnap
         <span className="truncate">Background setup</span>
       </PopoverTrigger>
       <PopoverPopup side="bottom" align="end" width="lg" padding="compact">
-        <WorktreeSetupCard
-          snapshot={snapshot}
-          embedded
-          onCancel={null}
-          onWorkLocally={null}
-          onOpenTerminal={onOpenTerminal}
-        />
+        <WorktreeSetupCard snapshot={snapshot} embedded onCancel={null} onWorkLocally={null} />
       </PopoverPopup>
     </Popover>
   );
 }
-
 function CompactingLabel({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5">
@@ -359,9 +374,18 @@ function CompactingLabel({ label }: { label: string }) {
     </span>
   );
 }
-
-export function ThinkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "thinking" }> }) {
+export function ThinkingTimelineRow({
+  row,
+}: {
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "thinking";
+    }
+  >;
+}) {
   const ctx = use(TimelineRowCtx);
+
   const { isCompacting, isPreparingWorktree } = use(TimelineRowActivityCtx);
   if (isPreparingWorktree || isCompacting) return <WorkLogRow label="" />;
   const activity = <LiveActivityRow label="Thinking" iconName="brain" active shimmer />;
@@ -378,7 +402,6 @@ export function ThinkingTimelineRow({ row }: { row: Extract<TimelineRow, { kind:
     </button>
   );
 }
-
 function LiveActivityRow({
   label,
   iconName,
@@ -417,7 +440,6 @@ function LiveActivityRow({
     </div>
   );
 }
-
 function LiveActivityContent({
   label,
   iconName,
@@ -437,7 +459,6 @@ function LiveActivityContent({
 }) {
   const showTrailingFailureMark =
     failed && iconName !== undefined && !toolIconAcceptsTint(toolIcon);
-
   return (
     <WorkLogRow
       icon={
@@ -482,24 +503,27 @@ function LiveActivityContent({
     />
   );
 }
-
 export function LiveWorkEntryTimelineRow({
   row,
 }: {
-  row: Extract<TimelineRow, { kind: "work-live" }>;
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "work-live";
+    }
+  >;
 }) {
   const ctx = use(TimelineRowCtx);
+
   const threadTarget = useThreadReadTarget(row.entry, ctx.activeThreadEnvironmentId);
   const questionHeading = row.entry.questionAnswer
     ? getQuestionTextPreview(row.entry.questionAnswer)
     : "";
   const label = questionHeading || liveWorkEntryLabel(row.entry, ctx.workspaceRoot, row.active);
   const threadLabel = threadReadLabel(label, threadTarget);
-
   const failed = workEntryDisplayIndicatesToolFailure(row.entry);
   const thoughtLine = row.thought && !row.expanded ? liveThoughtLine(row.thought.detail ?? "") : "";
   const thoughtIsStatus = thoughtLine !== "" && row.entry === row.thought;
-
   return (
     <button
       type="button"
@@ -582,13 +606,18 @@ export function LiveWorkEntryTimelineRow({
     </button>
   );
 }
-
 export function WorkGroupToggleTimelineRow({
   row,
 }: {
-  row: Extract<TimelineRow, { kind: "work-toggle" }>;
+  row: Extract<
+    TimelineRow,
+    {
+      kind: "work-toggle";
+    }
+  >;
 }) {
   const ctx = use(TimelineRowCtx);
+
   return (
     <WorkGroupHeader
       label={row.summary}
@@ -602,7 +631,6 @@ export function WorkGroupToggleTimelineRow({
     />
   );
 }
-
 function WorkGroupHeader(props: {
   label: string;
   iconName: WorkEntryIconName;

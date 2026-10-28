@@ -33,7 +33,6 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-
 import { useIncrementalTimelineEntries } from "~/hooks/useIncrementalTimelineEntries";
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { useStableCallback } from "~/hooks/useStableCallback";
@@ -69,19 +68,16 @@ import {
   unplacedGuestMessages,
 } from "./guestStream.logic";
 import { guestTurnItemSource } from "./guestTurnItemSource";
-
 interface GuestEntry {
   /** Unspent invite from the URL hash, if this load came from a link. */
   readonly credential: string | null;
   readonly shareId: string | null;
 }
-
 let capturedEntry: GuestEntry | null = null;
 
 // A reload keeps the tab's session, so it keeps which messages still wait for a row too.
 const AWAITING_ROWS_KEY = "t3:guest-awaiting-rows";
 const AWAITING_ROWS_LIMIT = 50;
-
 function readAwaitingRowIds(): ReadonlySet<GuestMessageId> {
   try {
     const stored: unknown = JSON.parse(sessionStorage.getItem(AWAITING_ROWS_KEY) ?? "[]");
@@ -94,7 +90,6 @@ function readAwaitingRowIds(): ReadonlySet<GuestMessageId> {
     return new Set();
   }
 }
-
 function writeAwaitingRowIds(ids: ReadonlySet<GuestMessageId>) {
   try {
     sessionStorage.setItem(AWAITING_ROWS_KEY, JSON.stringify([...ids].slice(-AWAITING_ROWS_LIMIT)));
@@ -125,12 +120,18 @@ function takeGuestEntry(): GuestEntry {
         ? window.location.pathname
         : `${window.location.pathname}?${GUEST_SHARE_PARAM}=${encodeURIComponent(shareId)}`,
     );
-    capturedEntry = { credential: credential === "" ? null : credential, shareId };
+    capturedEntry = {
+      credential: credential === "" ? null : credential,
+      shareId,
+    };
   }
   return capturedEntry;
 }
-
-const decodeErrorBody = Schema.decodeUnknownOption(Schema.Struct({ message: Schema.String }));
+const decodeErrorBody = Schema.decodeUnknownOption(
+  Schema.Struct({
+    message: Schema.String,
+  }),
+);
 
 /** Resolves to null on success, or to a message the guest can read. */
 async function postGuest(
@@ -141,10 +142,15 @@ async function postGuest(
     const response = await fetch(
       `${GUEST_ROUTE_PREFIX}/${path}`,
       body instanceof FormData
-        ? { method: "POST", body }
+        ? {
+            method: "POST",
+            body,
+          }
         : {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: {
+              "content-type": "application/json",
+            },
             body: JSON.stringify(body),
           },
     );
@@ -158,7 +164,6 @@ async function postGuest(
     return "Could not reach the server.";
   }
 }
-
 const STATUS_LABEL: Record<ThreadGuestMessageStatus, string> = {
   pending: "Waiting for approval",
   sent: "Sent",
@@ -167,9 +172,7 @@ const STATUS_LABEL: Record<ThreadGuestMessageStatus, string> = {
 
 /** Same column as the owner's timeline, so both views wrap text at the same width. */
 const LANE = "chat-content-lane px-4";
-
 type GuestAccess = "checking" | "session" | "name" | "none";
-
 export function GuestPage() {
   const [{ credential, shareId }] = useState(takeGuestEntry);
   // A browser that already joined this share goes straight back in, even from the spent link.
@@ -202,7 +205,6 @@ export function GuestPage() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
-
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
       {access === "checking" ? (
@@ -212,7 +214,10 @@ export function GuestPage() {
           credential={credential}
           onJoined={() => {
             // The invite is spent; a remount must open the session, not the name form again.
-            capturedEntry = { credential: null, shareId };
+            capturedEntry = {
+              credential: null,
+              shareId,
+            };
             setAccess("session");
           }}
         />
@@ -227,7 +232,6 @@ export function GuestPage() {
     </div>
   );
 }
-
 function GuestSession({ shareId }: { readonly shareId: string }) {
   const [stream, dispatch] = useReducer(applyGuestStreamEvent, null, () => ({
     ...initialGuestStreamState,
@@ -237,11 +241,9 @@ function GuestSession({ shareId }: { readonly shareId: string }) {
   // EventSource closes for good only on a non-200 response, which the guest routes send for a
   // missing, invalid, or ended session. Network drops reconnect on their own.
   const [rejected, setRejected] = useState(false);
-
   useEffect(() => {
     if (stream.view) document.title = stream.view.title;
   }, [stream.view]);
-
   useEffect(() => {
     const source = new EventSource(
       `${GUEST_ROUTE_PREFIX}/stream?${GUEST_SHARE_PARAM}=${encodeURIComponent(shareId)}`,
@@ -257,7 +259,6 @@ function GuestSession({ shareId }: { readonly shareId: string }) {
     });
     return () => source.close();
   }, [shareId]);
-
   if (stream.ended || (rejected && stream.view !== null)) {
     return <Notice title="This link has ended" detail="The owner stopped sharing this thread." />;
   }
@@ -279,7 +280,6 @@ function GuestSession({ shareId }: { readonly shareId: string }) {
     />
   );
 }
-
 function Notice({ title, detail }: { readonly title: string; readonly detail?: string }) {
   return (
     <div className="m-auto flex max-w-sm flex-col gap-1 p-6 text-center">
@@ -288,7 +288,6 @@ function Notice({ title, detail }: { readonly title: string; readonly detail?: s
     </div>
   );
 }
-
 function NameForm({
   credential,
   onJoined,
@@ -304,7 +303,10 @@ function NameForm({
     const trimmed = name.trim();
     if (trimmed === "" || submitting) return;
     setSubmitting(true);
-    const failure = await postGuest("redeem", { credential, name: trimmed });
+    const failure = await postGuest("redeem", {
+      credential,
+      name: trimmed,
+    });
     setSubmitting(false);
     if (failure === null) onJoined();
     else setError(failure);
@@ -342,7 +344,7 @@ function NameForm({
 // see isGuestPage.
 const GUEST_ENVIRONMENT_ID = EnvironmentId.make("guest");
 const NO_COMPOSER = createRef<ChatComposerHandle>();
-const NO_TURN_DIFFS: ReadonlyArray<never> = [];
+
 const NO_OPTIMISTIC_MESSAGES: ReadonlyArray<never> = [];
 const ignore = () => {};
 
@@ -408,9 +410,14 @@ function GuestThread({
     setTimelineAnchor: ignore,
   });
   const renderHtmlRender = useStableCallback(
-    (row: Extract<TimelineRow, { kind: "html-render" }>) => (
-      <GuestHtmlRender itemId={row.id} reference={row.htmlRender} shareId={shareId} />
-    ),
+    (
+      row: Extract<
+        TimelineRow,
+        {
+          kind: "html-render";
+        }
+      >,
+    ) => <GuestHtmlRender itemId={row.id} reference={row.htmlRender} shareId={shareId} />,
   );
   const unplaced = unplacedGuestMessages(messages, items, awaitingRowIds);
   // The guest's waiting messages sit in the list footer, which the list does not follow on its
@@ -451,14 +458,10 @@ function GuestThread({
           activeTurnStartedAt={workStartedAt}
           latestRun={activityRun}
           runningRunId={runningRunId}
-          turnDiffSummaries={NO_TURN_DIFFS}
           runs={projection.runs}
           routeThreadKey={threadKey}
           onOpenThread={ignore}
-          onRollbackCheckpoint={ignore}
           supportsConversationRollback={false}
-          onRevertToTurnCount={ignore}
-          isRevertingCheckpoint={false}
           onImageExpand={openExpandedImage}
           onFileOpen={openFile}
           onFileDownload={openFile}
@@ -500,7 +503,6 @@ function GuestThread({
     </>
   );
 }
-
 function ExpiryLabel({ expiresAt }: { readonly expiresAt: string }) {
   const nowMinute = useNowMinute();
   return (
@@ -509,10 +511,8 @@ function ExpiryLabel({ expiresAt }: { readonly expiresAt: string }) {
     </span>
   );
 }
-
 const BUBBLE =
   "flex min-w-0 max-w-[80%] flex-col gap-2 rounded-2xl p-3 text-sm whitespace-pre-wrap [overflow-wrap:anywhere]";
-
 const openInNewTab = (url: string) => window.open(url, "_blank", "noopener,noreferrer");
 /** Guests have no image viewer; the browser shows the picture in its own tab. */
 const openExpandedImage = (preview: ExpandedImagePreview) => {
@@ -545,7 +545,11 @@ function UnplacedGuestMessage({
           attachments={message.attachments ?? []}
           imageUrl={(attachment) => (served ? url(attachment) : undefined)}
           onOpenImage={(attachment) => openInNewTab(url(attachment))}
-          {...(served ? { fileHref: url } : {})}
+          {...(served
+            ? {
+                fileHref: url,
+              }
+            : {})}
         />
         {message.text ? <span>{message.text}</span> : null}
       </div>
@@ -556,7 +560,10 @@ function UnplacedGuestMessage({
 
 /** The thread's model, labeled as the owner's composer labels it, with no way to change it. */
 function GuestModelLabel({ model }: { readonly model: GuestThreadModel }) {
-  const label = getTriggerDisplayModelName({ slug: model.name, ...model });
+  const label = getTriggerDisplayModelName({
+    slug: model.name,
+    ...model,
+  });
   return (
     <ComposerControl
       render={<span />}
@@ -577,7 +584,6 @@ function GuestModelLabel({ model }: { readonly model: GuestThreadModel }) {
     </ComposerControl>
   );
 }
-
 interface StagedFile {
   readonly key: string;
   readonly file: File;
@@ -598,7 +604,6 @@ function StagedImage({ file }: { readonly file: File }) {
     />
   );
 }
-
 function GuestComposer({
   shareId,
   model,
@@ -617,7 +622,10 @@ function GuestComposer({
     if (added.length === 0) return;
     const next = [
       ...files,
-      ...added.map((file) => ({ key: `staged-${nextFileKey.current++}`, file })),
+      ...added.map((file) => ({
+        key: `staged-${nextFileKey.current++}`,
+        file,
+      })),
     ];
     const problem = guestFilesProblem(next.map((staged) => staged.file));
     setError(problem);

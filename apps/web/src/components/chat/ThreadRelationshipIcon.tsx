@@ -2,7 +2,6 @@ import type { ProviderDriverKind, ServerProvider } from "@t3tools/contracts";
 import { BotIcon, type LucideIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
-
 export function threadRelationshipStatusLabel(status: string | null): string {
   switch (status) {
     case "preparing":
@@ -41,7 +40,6 @@ export function threadRelationshipStatusLabel(status: string | null): string {
       return "Unknown";
   }
 }
-
 export function ThreadRelationshipIcon({
   driver,
   provider,

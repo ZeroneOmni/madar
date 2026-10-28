@@ -6,7 +6,6 @@ interface MarkdownActionFailureContext {
   readonly fenceTitle?: string;
   readonly copyTarget?: string;
 }
-
 export function reportMarkdownActionFailure(
   context: MarkdownActionFailureContext,
   cause: unknown,

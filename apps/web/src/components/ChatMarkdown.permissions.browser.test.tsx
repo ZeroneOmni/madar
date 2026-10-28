@@ -232,40 +232,11 @@ it("does not reveal a file after revocation during its workspace lookup", async 
   expect(state.openEditor).not.toHaveBeenCalled();
 });
 
-it.each(["link-to-thread", "unlink-from-thread"])(
-  "rechecks %s after a native context menu returns",
-  async (action) => {
-    using _setup = setup();
-    state.linkedPullRequest = action === "unlink-from-thread" ? linkedPullRequest : null;
-    let choose: (action: string) => void = () => {
-      throw new Error("Menu not opened");
-    };
-    state.choose.mockImplementationOnce(
-      () =>
-        new Promise<string>((resolve) => {
-          choose = resolve;
-        }),
-    );
-    await using screen = await renderMarkdown(`[Review](${linkedPullRequest.url})`);
-    await screen.openContextMenu();
-    expect(offeredActions()).toContain(action);
-    await act(async () => {
-      state.allowed = false;
-      choose(action);
-    });
-    expect(state.updateMetadata).not.toHaveBeenCalled();
-
-    await setAllowed(true);
-    state.choose.mockResolvedValue(action);
-    await screen.openContextMenu();
-    await vi.waitFor(() =>
-      expect(state.updateMetadata).toHaveBeenCalledExactlyOnceWith({
-        environmentId: threadRef.environmentId,
-        input: {
-          threadId: threadRef.threadId,
-          linkedPullRequest: action === "link-to-thread" ? linkedPullRequest : null,
-        },
-      }),
-    );
-  },
-);
+it("keeps external PR links usable without offering the retired linking actions", async () => {
+  using _setup = setup();
+  state.choose.mockResolvedValue("open-external");
+  await using screen = await renderMarkdown("[Review](" + linkedPullRequest.url + ")");
+  await screen.openContextMenu();
+  expect(offeredActions()).toEqual(["open-external", "copy-link"]);
+  await vi.waitFor(() => expect(state.openExternal).toHaveBeenCalledWith(linkedPullRequest.url));
+});

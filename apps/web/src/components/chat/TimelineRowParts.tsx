@@ -3,13 +3,10 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "~/lib/utils";
 import { type TimestampFormat } from "@t3tools/contracts/settings";
 import { formatChatTimestampTooltip, formatDayAwareTimestamp } from "../../timestampFormat";
-
 export const MESSAGE_HEADING_LEVEL = 3;
-
 export function MessageAuthorHeading({ children }: { children: string }) {
   return <h3 className="sr-only select-none">{children}</h3>;
 }
-
 export function TimelineRowTimestamp({
   createdAt,
   timestampFormat,
@@ -40,7 +37,6 @@ export function TimelineRowTimestamp({
     </Tooltip>
   );
 }
-
 export function ActivityShimmerOverlay({ children }: { children: ReactNode }) {
   return (
     <span

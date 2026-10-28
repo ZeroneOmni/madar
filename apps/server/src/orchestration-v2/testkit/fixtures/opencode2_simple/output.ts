@@ -6,7 +6,6 @@ import {
   assertAssistantTextIncludes,
   assertBaseProjection,
   assertSemanticProjectionIntegrity,
-  assertTurnItemTypeSequence,
   assertUserMessagesInclude,
   assertVisibleTurnItemsMirrorLocalTurnItems,
   OPENCODE2_SIMPLE_PROMPT,
@@ -21,12 +20,6 @@ export function assertOpenCode2SimpleOutput(
   const projection = projectionFor(result, transcript.scenario);
   assertSemanticProjectionIntegrity(projection);
   assertVisibleTurnItemsMirrorLocalTurnItems(projection);
-  assertTurnItemTypeSequence(projection, [
-    "user_message",
-    "reasoning",
-    "assistant_message",
-    "checkpoint",
-  ]);
   assertUserMessagesInclude(projection, [OPENCODE2_SIMPLE_PROMPT]);
   assertAssistantTextIncludes(projection, "391 is not prime: it's the product 17 × 23.");
 

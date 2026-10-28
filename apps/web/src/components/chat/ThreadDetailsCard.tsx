@@ -12,7 +12,6 @@ import {
   resolveThreadDetailsCardLayout,
 } from "./threadDetailsCardLayout";
 import { observeResize } from "../../lib/observeResize";
-
 export function ThreadDetailsCard({
   threadRef,
   anchor,
@@ -39,8 +38,7 @@ export function ThreadDetailsCard({
     ? resolveThreadDetailsCardLayout({
         container: canvas.container,
         lane: canvas.lane,
-        frame: canvas.layout.frame,
-        overlapsDetailsCard: canvas.layout.overlapsDetailsCard,
+        frame: null,
         topInset: canvas.detailsCardTopInset,
       })
     : null;
@@ -56,11 +54,19 @@ export function ThreadDetailsCard({
   const measurementKey = `${threadRef.environmentId}:${threadRef.threadId}:${preferredPlacement?.width ?? "popup"}`;
   const [measurements, setMeasurements] = useState({
     key: measurementKey,
-    heights: { full: 0, compact: 0 },
+    heights: {
+      full: 0,
+      compact: 0,
+    },
     fullContentHeight: 0,
   });
   const contentHeights =
-    measurements.key === measurementKey ? measurements.heights : { full: 0, compact: 0 };
+    measurements.key === measurementKey
+      ? measurements.heights
+      : {
+          full: 0,
+          compact: 0,
+        };
   const height = placement?.height ?? Math.max(0, (canvas?.container.height ?? 0) - 52);
   const density = resolveThreadDetailsCardDensity(height, contentHeights);
   const reportDetailsCard = canvas?.reportDetailsCard;
@@ -75,7 +81,11 @@ export function ThreadDetailsCard({
   useLayoutEffect(() => {
     reportDetailsCard?.(
       inlineOpen && cardLeft !== undefined && cardRight !== undefined && cardBottom !== undefined
-        ? { left: cardLeft, right: cardRight, bottom: cardBottom }
+        ? {
+            left: cardLeft,
+            right: cardRight,
+            bottom: cardBottom,
+          }
         : null,
     );
   }, [reportDetailsCard, inlineOpen, cardLeft, cardRight, cardBottom]);
@@ -99,7 +109,13 @@ export function ThreadDetailsCard({
       const fittingHeight =
         next - Array.from(lists).reduce((sum, list) => sum + list.offsetHeight, 0);
       setMeasurements((current) => {
-        const heights = current.key === measurementKey ? current.heights : { full: 0, compact: 0 };
+        const heights =
+          current.key === measurementKey
+            ? current.heights
+            : {
+                full: 0,
+                compact: 0,
+              };
         const fullContentHeight =
           density === "full"
             ? next
@@ -112,7 +128,10 @@ export function ThreadDetailsCard({
           ? current
           : {
               key: measurementKey,
-              heights: { ...heights, [density]: fittingHeight },
+              heights: {
+                ...heights,
+                [density]: fittingHeight,
+              },
               fullContentHeight,
             };
       });
@@ -127,7 +146,13 @@ export function ThreadDetailsCard({
         mode === "popover" &&
           "max-h-[min(calc(100dvh-6.5rem),calc(var(--available-height,100dvh)-1rem))]",
       )}
-      style={placement ? { maxHeight: height } : undefined}
+      style={
+        placement
+          ? {
+              maxHeight: height,
+            }
+          : undefined
+      }
       data-thread-details-card
     >
       <ScrollArea scrollFade className="min-h-0">
@@ -181,7 +206,11 @@ export function ThreadDetailsCard({
           align="end"
           // Account for the find panel's 8px card padding.
           alignOffset={THREAD_DETAILS_CARD_GAP - 8}
-          collisionAvoidance={{ side: "shift", align: "shift", fallbackAxisSide: "none" }}
+          collisionAvoidance={{
+            side: "shift",
+            align: "shift",
+            fallbackAxisSide: "none",
+          }}
           side="bottom"
           sideOffset={topInset}
           variant="panel"

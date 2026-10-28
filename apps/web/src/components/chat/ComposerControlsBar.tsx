@@ -73,7 +73,6 @@ export function ComposerControlsBar(props: {
   providerInstanceEntries: ReadonlyArray<ProviderInstanceEntry>;
   keybindings: ChatComposerProps["keybindings"];
   modelOptionsByInstance: ReadonlyMap<ProviderInstanceId, ReadonlyArray<AppModelOption>>;
-  terminalOpen: boolean;
   modelPickerOpen: boolean;
   onModelPickerOpenChange: (open: boolean) => void;
   modelPickerIconClassName: string | undefined;
@@ -122,7 +121,6 @@ export function ComposerControlsBar(props: {
     providerInstanceEntries,
     keybindings,
     modelOptionsByInstance,
-    terminalOpen,
     modelPickerOpen,
     onModelPickerOpenChange,
     modelPickerIconClassName,
@@ -131,8 +129,16 @@ export function ComposerControlsBar(props: {
   const providerTraitsMenuContent = renderProviderTraitsMenuContent({
     provider: selectedProvider,
     instanceId: selectedInstanceId,
-    ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
-    ...(routeKind === "draft" && draftId ? { draftId } : {}),
+    ...(routeKind === "server"
+      ? {
+          threadRef: routeThreadRef,
+        }
+      : {}),
+    ...(routeKind === "draft" && draftId
+      ? {
+          draftId,
+        }
+      : {}),
     model: selectedModel,
     models: selectedProviderModels,
     modelOptions: composerModelOptions?.[selectedInstanceId],
@@ -144,8 +150,16 @@ export function ComposerControlsBar(props: {
   const providerTraitsPickerInput = {
     provider: selectedProvider,
     instanceId: selectedInstanceId,
-    ...(routeKind === "server" ? { threadRef: routeThreadRef } : {}),
-    ...(routeKind === "draft" && draftId ? { draftId } : {}),
+    ...(routeKind === "server"
+      ? {
+          threadRef: routeThreadRef,
+        }
+      : {}),
+    ...(routeKind === "draft" && draftId
+      ? {
+          draftId,
+        }
+      : {}),
     model: selectedModel,
     models: selectedProviderModels,
     modelOptions: composerModelOptions?.[selectedInstanceId],
@@ -231,7 +245,6 @@ export function ComposerControlsBar(props: {
             )
           : "-ms-2.5 min-w-13"
       }
-      terminalOpen={terminalOpen}
       open={modelPickerOpen}
       instanceIndicatorBackground={
         composerControlsCollapsed

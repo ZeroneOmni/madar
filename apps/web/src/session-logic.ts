@@ -2,7 +2,6 @@ import type { ThreadStructure, ThreadStructureRuntime } from "@t3tools/client-ru
 import { resolveThreadWorkingStartedAt } from "@t3tools/client-runtime/state/models";
 import {
   type AssetResource,
-  type OrchestrationV2Checkpoint,
   type OrchestrationV2ExecutionNode,
   type OrchestrationV2PlanArtifact,
   type OrchestrationV2ProjectedTurnItem,
@@ -40,7 +39,6 @@ import type {
 import type { ThreadRunSummary, ThreadRuntimeSummary } from "@t3tools/client-runtime/state/shell";
 import { threadRuntimeHasInterruptibleRun } from "@t3tools/client-runtime/state/thread-execution";
 import { turnItemIsWorkspacePreparation } from "@t3tools/client-runtime/state/turn-item-presentation";
-
 import {
   isImageAttachment,
   type ChatAttachment,
@@ -52,13 +50,11 @@ import {
 import * as DateTime from "effect/DateTime";
 import * as Equal from "effect/Equal";
 import { shallow } from "zustand/vanilla/shallow";
-
 export { formatDuration } from "@t3tools/shared/orchestrationTiming";
 export {
   workEntryDisplayIndicatesToolFailure,
   workEntryIndicatesToolFailure,
 } from "@t3tools/client-runtime/work-log/presentation";
-
 export type WorkLogToolLifecycleStatus =
   | "idle"
   | "inProgress"
@@ -66,7 +62,6 @@ export type WorkLogToolLifecycleStatus =
   | "failed"
   | "declined"
   | "stopped";
-
 export interface WorkLogEntry {
   readonly questionAnswer?: import("@t3tools/contracts").UserInputAttachmentAnswerPayload;
   readonly id: string;
@@ -95,10 +90,8 @@ export interface WorkLogEntry {
   readonly sourceItemType?: OrchestrationV2TurnItem["type"];
   readonly projectedItem?: OrchestrationV2ProjectedTurnItem;
 }
-
 export type PendingApproval = ThreadPendingApproval;
 export type PendingUserInput = ThreadPendingUserInput;
-
 export interface ActivePlanState {
   readonly createdAt: string;
   readonly runId: RunId | null;
@@ -109,7 +102,6 @@ export interface ActivePlanState {
     readonly durationMs?: number;
   }>;
 }
-
 export interface LatestProposedPlanState {
   readonly id: PlanId;
   readonly createdAt: string;
@@ -118,12 +110,10 @@ export interface LatestProposedPlanState {
   readonly planMarkdown: string;
   readonly status: OrchestrationV2PlanArtifact["status"];
 }
-
 export type TimelineAttempt = Pick<
   OrchestrationV2RunAttempt,
   "id" | "runId" | "attemptOrdinal" | "rootNodeId" | "status" | "completedAt"
 >;
-
 export type TimelineEntry = (
   | {
       readonly id: string;
@@ -170,7 +160,6 @@ export type TimelineEntry = (
 ) & {
   readonly attempt?: TimelineAttempt;
 };
-
 export function workLogEntryIsToolLike(entry: WorkLogEntry): boolean {
   return (
     entry.tone === "tool" ||
@@ -180,11 +169,9 @@ export function workLogEntryIsToolLike(entry: WorkLogEntry): boolean {
     entry.requestKind !== undefined
   );
 }
-
 export function workEntrySignalsSevereFailure(entry: WorkLogEntry): boolean {
   return entry.itemType === "error";
 }
-
 export function workEntryIndicatesToolSuccess(entry: WorkLogEntry): boolean {
   if (
     !workLogEntryIsToolLike(entry) ||
@@ -202,7 +189,6 @@ export function workEntryIndicatesToolSuccess(entry: WorkLogEntry): boolean {
     status !== "idle"
   );
 }
-
 export function workEntryIndicatesToolNeutralStatus(entry: WorkLogEntry): boolean {
   return (
     workLogEntryIsToolLike(entry) &&
@@ -210,7 +196,6 @@ export function workEntryIndicatesToolNeutralStatus(entry: WorkLogEntry): boolea
     !workEntryIndicatesToolSuccess(entry)
   );
 }
-
 export function isLatestRunSettled(
   latestRun: Pick<ThreadRunSummary, "runId" | "startedAt" | "completedAt" | "status"> | null,
   runtime: Pick<ThreadRuntimeSummary, "status" | "activeRunId"> | null,
@@ -226,7 +211,6 @@ export function isLatestRunSettled(
     return false;
   return runtime?.activeRunId !== latestRun.runId;
 }
-
 export function deriveActiveWorkStartedAt(
   latestRun: Pick<
     ThreadRunSummary,
@@ -235,22 +219,22 @@ export function deriveActiveWorkStartedAt(
   runtime: Pick<ThreadRuntimeSummary, "status" | "activeRunId" | "activityStartedAt"> | null,
   sendStartedAt: string | null,
 ): string | null {
-  const startedAt = resolveThreadWorkingStartedAt({ latestRun, runtime });
+  const startedAt = resolveThreadWorkingStartedAt({
+    latestRun,
+    runtime,
+  });
   return startedAt ?? (runtime?.activeRunId == null ? sendStartedAt : null);
 }
-
 export function derivePendingApprovals(
   approvals: ReadonlyArray<ThreadPendingApproval>,
 ): ThreadPendingApproval[] {
   return [...approvals].toSorted((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
-
 export function derivePendingUserInputs(
   inputs: ReadonlyArray<ThreadPendingUserInput>,
 ): ThreadPendingUserInput[] {
   return [...inputs].toSorted((left, right) => left.createdAt.localeCompare(right.createdAt));
 }
-
 export function deriveActivePlanState(
   projection: ThreadStructure | null,
   latestRunId: RunId | undefined,
@@ -280,7 +264,11 @@ export function deriveActivePlanState(
     steps: plan.steps.map(({ text, status, durationMs }) => ({
       step: text,
       status: status === "running" ? "inProgress" : status,
-      ...(durationMs === undefined ? {} : { durationMs }),
+      ...(durationMs === undefined
+        ? {}
+        : {
+            durationMs,
+          }),
     })),
   };
 }
@@ -315,7 +303,6 @@ export function selectComposerTasksPlan(
   }
   return latestStartedRun?.providerThreadId === planProviderThreadId ? plan : null;
 }
-
 function planItemTime(
   projection: ThreadStructure,
   plan: Pick<OrchestrationV2PlanArtifact, "id" | "runId">,
@@ -334,10 +321,14 @@ function planItemTime(
     run?.completedAt ?? run?.startedAt ?? run?.requestedAt ?? projection.thread.createdAt,
   );
 }
-
 function toLatestProposedPlanState(
   projection: ThreadStructure,
-  plan: Extract<OrchestrationV2PlanArtifact, { readonly kind: "proposed_plan" }>,
+  plan: Extract<
+    OrchestrationV2PlanArtifact,
+    {
+      readonly kind: "proposed_plan";
+    }
+  >,
 ): LatestProposedPlanState {
   const updatedAt = planItemTime(projection, plan);
   return {
@@ -349,7 +340,6 @@ function toLatestProposedPlanState(
     status: plan.status,
   };
 }
-
 export function findLatestProposedPlan(
   projection: ThreadStructure | null,
   latestRunId: RunId | string | null | undefined,
@@ -366,11 +356,9 @@ export function findLatestProposedPlan(
     .at(-1);
   return plan === undefined ? null : toLatestProposedPlanState(projection, plan);
 }
-
 export function hasActionableProposedPlan(plan: LatestProposedPlanState | null): boolean {
   return plan?.status === "active";
 }
-
 const STANDALONE_V2_ITEM_TYPES = new Set<OrchestrationV2ProjectedTurnItem["item"]["type"]>([
   "fork",
   "handoff",
@@ -379,24 +367,20 @@ const STANDALONE_V2_ITEM_TYPES = new Set<OrchestrationV2ProjectedTurnItem["item"
   "secret_request",
   "subagent",
 ]);
-
 const PERSISTENT_RESOURCE_V2_ITEM_TYPES = new Set<OrchestrationV2TurnItem["type"]>([
   "fork",
   "thread_created",
   // Still answerable after a steer supersedes the attempt that asked.
   "secret_request",
 ]);
-
 export function timelineEntryIsPersistentResourceCard(entry: TimelineEntry): boolean {
   return (
     entry.kind === "event" && PERSISTENT_RESOURCE_V2_ITEM_TYPES.has(entry.projectedItem.item.type)
   );
 }
-
 function projectedItemCreatedAt(row: OrchestrationV2ProjectedTurnItem): string {
   return DateTime.formatIso(row.item.startedAt ?? row.item.updatedAt);
 }
-
 function projectedWorkEntryStatus(
   item: OrchestrationV2TurnItem,
 ): NonNullable<WorkLogEntry["toolLifecycleStatus"]> {
@@ -416,7 +400,6 @@ function projectedWorkEntryStatus(
       return "stopped";
   }
 }
-
 function projectedWorkEntryTone(item: OrchestrationV2TurnItem): WorkLogEntry["tone"] {
   if (item.type === "error") return "info";
   if (item.type === "reasoning") return "thinking";
@@ -435,10 +418,17 @@ function projectedWorkEntryTone(item: OrchestrationV2TurnItem): WorkLogEntry["to
       return "info";
   }
 }
-
 export function providerErrorPresentation(
-  item: Extract<OrchestrationV2TurnItem, { readonly type: "error" }>,
-): { readonly label: string; readonly detail: string } {
+  item: Extract<
+    OrchestrationV2TurnItem,
+    {
+      readonly type: "error";
+    }
+  >,
+): {
+  readonly label: string;
+  readonly detail: string;
+} {
   if (item.retry === undefined) {
     return {
       label:
@@ -471,7 +461,6 @@ export function providerErrorPresentation(
     detail: `${item.failure.message}${retryDelay}`,
   };
 }
-
 function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry {
   const { item } = row;
   const title = item.title?.trim() || null;
@@ -486,7 +475,6 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
     projectedItem: row,
     ...extractToolActivityPresentation(item),
   } as const;
-
   switch (item.type) {
     case "thread_created":
       return {
@@ -498,13 +486,21 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
         ...common,
         label: contextCompactionLabel(item),
         sourceActivityKind: "context-compaction",
-        ...(item.summary ? { detail: item.summary } : {}),
+        ...(item.summary
+          ? {
+              detail: item.summary,
+            }
+          : {}),
       };
     case "reasoning":
       return {
         ...common,
         label: title ?? "Thinking",
-        ...(item.text ? { detail: item.text } : {}),
+        ...(item.text
+          ? {
+              detail: item.text,
+            }
+          : {}),
       };
     case "command_execution":
       return {
@@ -532,7 +528,11 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
       return {
         ...common,
         label: title ?? formatSearchToolLabel(item) ?? "Searched files",
-        ...(item.pattern ? { detail: item.pattern } : {}),
+        ...(item.pattern
+          ? {
+              detail: item.pattern,
+            }
+          : {}),
         toolTitle: title ?? "File search",
         toolData: item,
       };
@@ -540,7 +540,11 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
       return {
         ...common,
         label: title ?? "Searched the web",
-        ...(item.patterns?.length ? { detail: item.patterns.join(", ") } : {}),
+        ...(item.patterns?.length
+          ? {
+              detail: item.patterns.join(", "),
+            }
+          : {}),
         toolTitle: title ?? "Web search",
         toolData: item,
       };
@@ -563,9 +567,13 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
         ...common,
         ...presentation,
         ...(item.failure.class === "usage_limit" && item.status !== "completed"
-          ? { sourceActivityKind: "runtime.warning" }
+          ? {
+              sourceActivityKind: "runtime.warning",
+            }
           : item.retry === undefined
-            ? { sourceActivityKind: "runtime.error" }
+            ? {
+                sourceActivityKind: "runtime.error",
+              }
             : {}),
         toolData: item,
       };
@@ -573,9 +581,14 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
     case "dynamic_tool": {
       const classified = classifyToolActivity({
         itemType: "dynamic_tool_call",
-        data: { toolName: item.toolName ?? undefined, input: item.input },
+        data: {
+          toolName: item.toolName ?? undefined,
+          input: item.input,
+        },
       });
-      const [readPath] = collectToolFilePaths({ input: item.input });
+      const [readPath] = collectToolFilePaths({
+        input: item.input,
+      });
       return {
         ...common,
         label:
@@ -583,10 +596,17 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
           (classified === "read"
             ? formatReadToolLabel(readPath ?? "")
             : classified === "search"
-              ? (formatSearchToolLabel({ input: item.input }) ?? item.toolName ?? "Tool call")
+              ? (formatSearchToolLabel({
+                  input: item.input,
+                }) ??
+                item.toolName ??
+                "Tool call")
               : (item.toolName ?? "Tool call")),
         toolTitle: title ?? item.toolName ?? "Tool",
-        toolData: { input: item.input, output: item.output },
+        toolData: {
+          input: item.input,
+          output: item.output,
+        },
       };
     }
     case "approval_request":
@@ -600,7 +620,11 @@ function projectedWorkEntry(row: OrchestrationV2ProjectedTurnItem): WorkLogEntry
       return {
         ...common,
         label: title ?? (item.questionAnswer ? "Answered questions" : "Input requested"),
-        ...(item.questionAnswer ? { questionAnswer: item.questionAnswer } : {}),
+        ...(item.questionAnswer
+          ? {
+              questionAnswer: item.questionAnswer,
+            }
+          : {}),
         toolData: item,
       };
     default:
@@ -622,12 +646,10 @@ export interface TimelineEntriesInput {
   readonly nodes?: ReadonlyArray<OrchestrationV2ExecutionNode>;
   readonly plans?: ReadonlyArray<OrchestrationV2PlanArtifact>;
 }
-
 export interface TimelineEntriesProjection {
   readonly input: TimelineEntriesInput;
   readonly entries: TimelineEntry[];
 }
-
 export function deriveTimelineEntriesFromVisibleTurnItems(
   input: TimelineEntriesInput,
 ): TimelineEntry[] {
@@ -638,7 +660,6 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
   );
   const nodeById = new Map((input.nodes ?? []).map((node) => [node.id, node] as const));
   const planById = new Map((input.plans ?? []).map((plan) => [plan.id, plan] as const));
-
   const resolveAttempt = (item: OrchestrationV2TurnItem): TimelineAttempt | undefined => {
     if (item.nodeId === null || item.runId === null) return undefined;
     let nodeId: OrchestrationV2ExecutionNode["id"] | null = item.nodeId;
@@ -655,7 +676,6 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
     }
     return undefined;
   };
-
   const foldedAnswerMessageIds = new Set(
     input.visibleTurnItems.flatMap(({ item }) =>
       item.type === "user_input_request" && item.questionAnswer
@@ -670,7 +690,12 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
     if (item.type === "user_message" && foldedAnswerMessageIds.has(item.messageId)) continue;
     const createdAt = projectedItemCreatedAt(row);
     const attempt = resolveAttempt(item);
-    const attemptMetadata = attempt === undefined ? {} : { attempt };
+    const attemptMetadata =
+      attempt === undefined
+        ? {}
+        : {
+            attempt,
+          };
     if (item.type === "notification") {
       entries.push({
         id: item.id,
@@ -695,12 +720,21 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
         id: item.messageId,
         role: item.type === "user_message" ? "user" : "assistant",
         text: item.text,
-        ...(item.type === "user_message" && item.context ? { context: item.context } : {}),
+        ...(item.type === "user_message" && item.context
+          ? {
+              context: item.context,
+            }
+          : {}),
         ...((item.attachments?.length ?? 0) > 0
           ? {
               attachments: (item.attachments ?? []).map((attachment) => {
                 const previewUrl = input.attachmentUrlById?.get(attachment.id);
-                return previewUrl ? { ...attachment, previewUrl } : attachment;
+                return previewUrl
+                  ? {
+                      ...attachment,
+                      previewUrl,
+                    }
+                  : attachment;
               }),
             }
           : {}),
@@ -710,16 +744,30 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
           ? {
               createdBy: item.createdBy,
               creationSource: item.creationSource,
-              ...(item.senderThreadId !== undefined ? { senderThreadId: item.senderThreadId } : {}),
-              ...(item.idleCompaction !== undefined ? { idleCompaction: item.idleCompaction } : {}),
+              ...(item.senderThreadId !== undefined
+                ? {
+                    senderThreadId: item.senderThreadId,
+                  }
+                : {}),
+              ...(item.idleCompaction !== undefined
+                ? {
+                    idleCompaction: item.idleCompaction,
+                  }
+                : {}),
               ...(item.scheduledTaskId !== undefined
-                ? { scheduledTaskId: item.scheduledTaskId }
+                ? {
+                    scheduledTaskId: item.scheduledTaskId,
+                  }
                 : {}),
             }
           : {}),
         createdAt,
         updatedAt: DateTime.formatIso(item.updatedAt),
-        ...(item.type === "user_message" ? { inputIntent: item.inputIntent } : {}),
+        ...(item.type === "user_message"
+          ? {
+              inputIntent: item.inputIntent,
+            }
+          : {}),
       };
       committedMessageIds.add(message.id);
       entries.push({
@@ -732,7 +780,6 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
       });
       continue;
     }
-
     if (item.type === "proposed_plan") {
       const plan = planById.get(item.planId);
       const proposedPlan = {
@@ -752,7 +799,6 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
       });
       continue;
     }
-
     const htmlRender =
       item.type === "dynamic_tool" && item.status === "completed"
         ? htmlRenderFromToolItem(item)
@@ -768,7 +814,6 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
       });
       continue;
     }
-
     const mcpApp =
       item.type === "dynamic_tool" && item.status === "completed"
         ? mcpAppFromToolItem(item)
@@ -787,7 +832,6 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
       });
       continue;
     }
-
     if (STANDALONE_V2_ITEM_TYPES.has(item.type)) {
       entries.push({
         id: item.id,
@@ -798,7 +842,6 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
       });
       continue;
     }
-
     entries.push({
       id: item.id,
       kind: "work",
@@ -807,7 +850,6 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
       ...attemptMetadata,
     });
   }
-
   const retainedMessageIds = new Set([...committedMessageIds, ...foldedAnswerMessageIds]);
   for (const message of input.anchoredMessages ?? []) {
     if (retainedMessageIds.has(message.id)) continue;
@@ -827,7 +869,6 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
       entries.splice(insertionIndex, 0, entry);
     }
   }
-
   for (const message of input.optimisticMessages) {
     if (message.inputIntent !== "queued_turn" && !retainedMessageIds.has(message.id)) {
       retainedMessageIds.add(message.id);
@@ -839,13 +880,15 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
       });
     }
   }
-
   return entries;
 }
-
-type AttachmentResource = Extract<AssetResource, { readonly _tag: "attachment" }>;
+type AttachmentResource = Extract<
+  AssetResource,
+  {
+    readonly _tag: "attachment";
+  }
+>;
 const EMPTY_IMAGE_RESOURCES = Object.freeze<ReadonlyArray<AttachmentResource>>([]);
-
 export function selectMessageImageResources(
   attachments: ChatMessage["attachments"],
 ): ReadonlyArray<AttachmentResource> {
@@ -858,9 +901,11 @@ export function selectMessageImageResources(
   }
   return attachmentIds.size === 0
     ? EMPTY_IMAGE_RESOURCES
-    : Array.from(attachmentIds, (attachmentId) => ({ _tag: "attachment", attachmentId }));
+    : Array.from(attachmentIds, (attachmentId) => ({
+        _tag: "attachment",
+        attachmentId,
+      }));
 }
-
 export function selectHandoffImageResources(
   messages: ReadonlyArray<Pick<ChatMessage, "id" | "role" | "attachments">> | undefined,
   handoffs: Readonly<Record<string, ReadonlyArray<string>>>,
@@ -875,9 +920,11 @@ export function selectHandoffImageResources(
   }
   return attachmentIds.size === 0
     ? EMPTY_IMAGE_RESOURCES
-    : Array.from(attachmentIds, (attachmentId) => ({ _tag: "attachment", attachmentId }));
+    : Array.from(attachmentIds, (attachmentId) => ({
+        _tag: "attachment",
+        attachmentId,
+      }));
 }
-
 export function createMessageAttachmentPreviewProjector() {
   const attachmentsBySource = new WeakMap<
     ReadonlyArray<ChatAttachment>,
@@ -904,7 +951,10 @@ export function createMessageAttachmentPreviewProjector() {
           ? attachment
           : previewUrl === previousUrl
             ? previousAttachment
-            : { ...attachment, previewUrl };
+            : {
+                ...attachment,
+                previewUrl,
+              };
       hasOverrides ||= next !== attachment;
       if (next !== previousAttachment) {
         changed ??= previous.slice();
@@ -919,12 +969,14 @@ export function createMessageAttachmentPreviewProjector() {
     }
     const previousMessage = messagesBySource.get(message);
     if (previousMessage?.attachments === attachments) return previousMessage;
-    const result = { ...message, attachments };
+    const result = {
+      ...message,
+      attachments,
+    };
     messagesBySource.set(message, result);
     return result;
   };
 }
-
 export function isStreamingMessageTextUpdate(previous: ChatMessage, next: ChatMessage): boolean {
   if (
     previous.role !== "assistant" ||
@@ -938,7 +990,6 @@ export function isStreamingMessageTextUpdate(previous: ChatMessage, next: ChatMe
   const { text: _nextText, updatedAt: _nextUpdatedAt, ...nextMetadata } = next;
   return shallow(previousMetadata, nextMetadata);
 }
-
 export function isStreamingTurnItemTextUpdate(
   previous: OrchestrationV2ProjectedTurnItem,
   next: OrchestrationV2ProjectedTurnItem,
@@ -960,7 +1011,6 @@ export function isStreamingTurnItemTextUpdate(
   // Wire decoding recreates timestamps and attachments; compare only the changed item's metadata.
   return Equal.equals(previousMetadata, nextMetadata);
 }
-
 function reuseTimelineEntries(
   input: TimelineEntriesInput,
   previous: TimelineEntriesProjection,
@@ -1035,16 +1085,22 @@ function reuseTimelineEntries(
   }
   return entries;
 }
-
 export function deriveTimelineEntriesFromVisibleTurnItemsWithState(
   input: TimelineEntriesInput,
   previous: TimelineEntriesProjection | null = null,
 ): TimelineEntriesProjection {
   const reused = previous === null ? null : reuseTimelineEntries(input, previous);
-  if (reused !== null) return { input, entries: reused };
+  if (reused !== null)
+    return {
+      input,
+      entries: reused,
+    };
   const entries = deriveTimelineEntriesFromVisibleTurnItems(input);
   if (previous === null || !shallow(input.attachmentUrlById, previous.input.attachmentUrlById)) {
-    return { input, entries };
+    return {
+      input,
+      entries,
+    };
   }
   const previousMessages = new Map(
     previous.entries.flatMap((entry) =>
@@ -1057,7 +1113,12 @@ export function deriveTimelineEntriesFromVisibleTurnItemsWithState(
       if (entry.kind !== "message" || entry.projectedItem === undefined) return entry;
       const before = previousMessages.get(entry.id);
       if (before?.projectedItem !== entry.projectedItem) return entry;
-      return before.attempt === entry.attempt ? before : { ...entry, message: before.message };
+      return before.attempt === entry.attempt
+        ? before
+        : {
+            ...entry,
+            message: before.message,
+          };
     }),
   };
 }
@@ -1116,20 +1177,6 @@ export function deriveRevertTurnCountByUserMessageId(input: {
   }
   return byUserMessageId;
 }
-
-export function findRevertCheckpoint(
-  checkpoints: ReadonlyArray<OrchestrationV2Checkpoint>,
-  turnCount: number,
-): OrchestrationV2Checkpoint | undefined {
-  return checkpoints.findLast(
-    (checkpoint) =>
-      checkpoint.status === "ready" &&
-      (turnCount === 0
-        ? checkpoint.ordinalWithinScope === 0 && checkpoint.appRunOrdinal === null
-        : checkpoint.appRunOrdinal === turnCount),
-  );
-}
-
 export function derivePhase(runtime: ThreadStructureRuntime | null): SessionPhase {
   if (runtime === null) return "disconnected";
   if (
@@ -1152,5 +1199,4 @@ export function deriveCanInterruptRunningThread(
     (derivePhase(runtime) === "running" || threadRuntimeHasInterruptibleRun(runtime))
   );
 }
-
 export type { TurnDiffSummary };

@@ -18,9 +18,7 @@ import {
   takeThreadFindQuery,
 } from "./threadFindActionBus";
 import { toastManager } from "../ui/toast";
-
 const EMPTY_SKILLS: readonly InlineSkill[] = [];
-
 const CLOSED_FIND = {
   threadKey: null as string | null,
   query: "",
@@ -37,7 +35,6 @@ const CLOSED_FIND = {
     navigationId: number;
   } | null,
 };
-
 export function useThreadFind({
   thread,
   enabled,
@@ -123,7 +120,6 @@ export function useThreadFind({
     take();
     return subscribeThreadFindQuery(take);
   }, [enabled, openOnQuery, threadKey]);
-
   const remote = useServerResults(
     isOpen ? thread : null,
     state.query,
@@ -159,20 +155,30 @@ export function useThreadFind({
     findQuery,
     activeFindMatch:
       entryId !== undefined && occurrence !== undefined
-        ? { entryId, runId: runId ?? null, occurrence }
+        ? {
+            entryId,
+            runId: runId ?? null,
+            occurrence,
+          }
         : null,
     findNavigationId: navigationId,
   };
   // Keep timeline identity stable during count and response updates to avoid extra jumps.
   const [storedTimeline, setTimeline] = useState(() => ({
     fields: nextTimeline,
-    props: { ...nextTimeline, findPositionReaderRef: positionReader },
+    props: {
+      ...nextTimeline,
+      findPositionReaderRef: positionReader,
+    },
   }));
   let timeline = storedTimeline;
   if (!sameTimeline(timeline.fields, nextTimeline)) {
     timeline = {
       fields: nextTimeline,
-      props: { ...nextTimeline, findPositionReaderRef: positionReader },
+      props: {
+        ...nextTimeline,
+        findPositionReaderRef: positionReader,
+      },
     };
     setTimeline(timeline);
   }
@@ -227,14 +233,16 @@ export function useThreadFind({
         start:
           pending || !selected
             ? previous.start
-            : { entryId: selected.entryId, occurrence: selected.occurrence },
+            : {
+                entryId: selected.entryId,
+                occurrence: selected.occurrence,
+              },
         offset: pending ? previous.offset + delta : delta,
         navigationId: nextNavigationId,
         requestId: nextNavigationId,
       };
     });
   };
-
   const refreshLiveResultsRef = useRef(() => {});
   useLayoutEffect(() => {
     refreshLiveResultsRef.current = () => {
@@ -248,7 +256,10 @@ export function useThreadFind({
         remote.refresh();
         return;
       }
-      const start = { entryId: match.entryId, occurrence: match.occurrence };
+      const start = {
+        entryId: match.entryId,
+        occurrence: match.occurrence,
+      };
       if (
         state.offset === 0 &&
         state.start?.entryId === start.entryId &&
@@ -288,7 +299,6 @@ export function useThreadFind({
       refreshAfterSearchRef.current = false;
     };
   }, [threadKey, isOpen, state.query]);
-
   return {
     isOpen,
     open,
@@ -321,12 +331,10 @@ export function useThreadFind({
     timelineProps: timeline.props,
   };
 }
-
 type TimelineFields = Omit<
   ReturnType<typeof useThreadFind>["timelineProps"],
   "findPositionReaderRef"
 >;
-
 function sameTimeline(a: TimelineFields, b: TimelineFields) {
   const aMatch = a.activeFindMatch;
   const bMatch = b.activeFindMatch;
@@ -342,7 +350,6 @@ function sameTimeline(a: TimelineFields, b: TimelineFields) {
         aMatch.occurrence === bMatch.occurrence)
   );
 }
-
 function rebaseLocalSelection(
   selection: typeof CLOSED_FIND.localSelection,
   data: OrchestrationV2SearchThreadResult | null,
@@ -354,9 +361,13 @@ function rebaseLocalSelection(
   const entry = data.navigation?.find((entry) => entry.entryId === selection.match.entryId);
   if (!entry || selection.match.occurrence >= entry.count) return selection;
   const activeIndex = entry.startIndex + selection.match.occurrence;
-  return activeIndex === selection.activeIndex ? selection : { ...selection, activeIndex };
+  return activeIndex === selection.activeIndex
+    ? selection
+    : {
+        ...selection,
+        activeIndex,
+      };
 }
-
 function useServerResults(
   thread: ScopedThreadRef | null,
   query: string,
@@ -366,7 +377,10 @@ function useServerResults(
   skills: readonly InlineSkill[],
   progressive: boolean,
 ) {
-  const skillLabels = skills.map(({ name, displayName }) => ({ name, displayName }));
+  const skillLabels = skills.map(({ name, displayName }) => ({
+    name,
+    displayName,
+  }));
   const normalizedQuery = query.trim();
   const debouncedQuery = useDebouncedValue(normalizedQuery, 100);
   const environmentId = thread?.environmentId;
@@ -378,8 +392,16 @@ function useServerResults(
           input: {
             threadId,
             query: debouncedQuery,
-            ...(start ? { start } : {}),
-            ...(offset !== 0 ? { offset } : {}),
+            ...(start
+              ? {
+                  start,
+                }
+              : {}),
+            ...(offset !== 0
+              ? {
+                  offset,
+                }
+              : {}),
             skills: skillLabels,
           },
         }
@@ -392,7 +414,10 @@ function useServerResults(
   let atom = storedAtom.atom;
   if (storedAtom.key !== targetKey) {
     atom = resolveThreadFindAtom(target, progressive);
-    setStoredAtom({ key: targetKey, atom });
+    setStoredAtom({
+      key: targetKey,
+      atom,
+    });
   }
   const result = useEnvironmentQuery(atom);
   const key = thread
@@ -426,7 +451,6 @@ function useServerResults(
       (normalizedQuery !== debouncedQuery || result.isPending),
   };
 }
-
 function resolveThreadFindAtom(
   target: Parameters<typeof orchestrationEnvironment.threadFind>[0] | null,
   progressive: boolean,

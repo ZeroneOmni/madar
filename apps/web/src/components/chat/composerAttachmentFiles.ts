@@ -7,19 +7,15 @@ import {
   clampFileAttachmentUploadBytes,
   fileAttachmentTooLargeMessage,
 } from "@t3tools/client-runtime/state/attachments";
-
 import type { ComposerFileAttachment, ComposerImageAttachment } from "../../composerDraftStore";
 import { isHeicImageFile } from "../../lib/imageCompression";
 import { isVideoAttachment, videoMimeType } from "../../types";
-
 type ComposerAttachmentFileKind = "image" | "file" | "unsupported-image";
-
 interface FileAttachmentCapabilityState {
   readonly attachmentUploadsCapabilityKnown: boolean;
   readonly supportsAttachmentUploads: boolean;
   readonly maxFileAttachmentBytes: number | null;
 }
-
 const IMAGE_MIME_TYPE_BY_EXTENSION: Readonly<Record<string, string>> = {
   gif: "image/gif",
   jpeg: "image/jpeg",
@@ -39,7 +35,6 @@ function inferImageMimeTypeFromName(name: string): string | null {
   }
   return IMAGE_MIME_TYPE_BY_EXTENSION[name.slice(dotIndex + 1).toLowerCase()] ?? null;
 }
-
 function inferImageMimeTypeForUnknownFile(file: Pick<File, "name" | "type">): string | null {
   const mimeType = file.type.toLowerCase();
   if (mimeType !== "" && mimeType !== "application/octet-stream") {
@@ -47,7 +42,6 @@ function inferImageMimeTypeForUnknownFile(file: Pick<File, "name" | "type">): st
   }
   return inferImageMimeTypeFromName(file.name);
 }
-
 export function normalizeComposerImageFileMimeType(file: File): File {
   const inferredMimeType = inferImageMimeTypeForUnknownFile(file);
   if (!inferredMimeType) {
@@ -58,7 +52,6 @@ export function normalizeComposerImageFileMimeType(file: File): File {
     lastModified: file.lastModified,
   });
 }
-
 function isDngFile(file: Pick<File, "name" | "type">): boolean {
   const mimeType = file.type.split(";", 1)[0]?.trim().toLowerCase();
   return (
@@ -68,16 +61,17 @@ function isDngFile(file: Pick<File, "name" | "type">): boolean {
     mimeType === "image/x-adobe-dng"
   );
 }
-
 export function composerFileAttachmentMimeType(file: Pick<File, "name" | "type">): string {
   // Downstream image detection uses MIME, even for attachments staged as files.
   if (isDngFile(file)) return "image/x-adobe-dng";
   return (
-    videoMimeType({ name: file.name, mimeType: file.type }) ??
+    videoMimeType({
+      name: file.name,
+      mimeType: file.type,
+    }) ??
     (file.type || "application/octet-stream")
   );
 }
-
 export function classifyComposerAttachmentFile(
   file: Pick<File, "name" | "type">,
 ): ComposerAttachmentFileKind {
@@ -93,7 +87,6 @@ export function classifyComposerAttachmentFile(
   }
   return isProviderSendTurnSupportedImageMimeType(file.type) ? "image" : "unsupported-image";
 }
-
 export function isPreviewableComposerVideo(
   file: ComposerFileAttachment,
   environmentId: EnvironmentId,
@@ -104,7 +97,6 @@ export function isPreviewableComposerVideo(
       (file.uploadedAttachmentId !== undefined && file.uploadEnvironmentId === environmentId))
   );
 }
-
 export function composerOtherFilesForPresentation(
   files: ReadonlyArray<ComposerFileAttachment>,
   environmentId: EnvironmentId,
@@ -114,7 +106,6 @@ export function composerOtherFilesForPresentation(
     (file) => !isPreviewableComposerVideo(file, environmentId) && !inlineFileIds.has(file.id),
   );
 }
-
 export function fileAttachmentStagingLimit(input: FileAttachmentCapabilityState): number | null {
   if (!input.attachmentUploadsCapabilityKnown) {
     return PROVIDER_SEND_TURN_MAX_FILE_BYTES;
@@ -124,10 +115,12 @@ export function fileAttachmentStagingLimit(input: FileAttachmentCapabilityState)
   }
   return clampFileAttachmentUploadBytes(input.maxFileAttachmentBytes);
 }
-
 export function fileAttachmentCapabilityBlockReason(
   input: FileAttachmentCapabilityState & {
-    readonly files: ReadonlyArray<{ readonly name: string; readonly sizeBytes: number }>;
+    readonly files: ReadonlyArray<{
+      readonly name: string;
+      readonly sizeBytes: number;
+    }>;
   },
 ): string | null {
   if (input.files.length === 0) {
@@ -155,7 +148,6 @@ export function attachmentsToReleaseOnUploadCapabilityLoss(
     (attachment) => !(attachment.type === "file" && attachment.uploadedAttachmentId !== undefined),
   );
 }
-
 export function shouldHandleComposerAttachmentPaste(input: {
   readonly files: ReadonlyArray<File>;
   readonly plainText: string;
@@ -169,10 +161,8 @@ export function shouldHandleComposerAttachmentPaste(input: {
   ) {
     return true;
   }
-
   if (input.plainText.length > 0) {
     return false;
   }
-
   return input.files.some((file) => classifyComposerAttachmentFile(file) === "file");
 }

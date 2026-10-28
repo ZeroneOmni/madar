@@ -1,23 +1,21 @@
 import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type Ref } from "react";
-
 import {
   onWindowControlsOverlayGeometryChange,
   windowControlsOverlayHeight,
 } from "../../lib/windowControlsOverlay";
-
 import { AttachmentImage } from "../media/AttachmentImage";
-
 const MAX_ZOOM = 8;
 
 // Subtract the caption strip, matching dialog CSS's --native-titlebar-height.
 function readViewerSize() {
-  return { width: window.innerWidth, height: window.innerHeight - windowControlsOverlayHeight() };
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight - windowControlsOverlayHeight(),
+  };
 }
-
 export interface ZoomableImageHandle {
   pan: (key: string) => boolean;
 }
-
 export function ZoomableImage({
   src,
   name,
@@ -32,11 +30,19 @@ export function ZoomableImage({
   ref?: Ref<ZoomableImageHandle>;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+  const [naturalSize, setNaturalSize] = useState({
+    width: 0,
+    height: 0,
+  });
   const [viewerSize, setViewerSize] = useState(readViewerSize);
   const [zoom, setZoom] = useState(1);
   const zoomRef = useRef(1);
-  const anchorRef = useRef<{ x: number; y: number; clientX: number; clientY: number } | null>(null);
+  const anchorRef = useRef<{
+    x: number;
+    y: number;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
   const dragRef = useRef<{
     pointerId: number;
     x: number;
@@ -54,7 +60,6 @@ export function ZoomableImage({
   );
   const width = naturalSize.width * fit * zoom;
   const height = naturalSize.height * fit * zoom;
-
   useImperativeHandle(
     ref,
     () => ({
@@ -88,8 +93,13 @@ export function ZoomableImage({
     }),
     [],
   );
-
-  const changeZoom = (next: number, point?: { x: number; y: number }) => {
+  const changeZoom = (
+    next: number,
+    point?: {
+      x: number;
+      y: number;
+    },
+  ) => {
     const viewport = viewportRef.current;
     const previous = zoomRef.current;
     const clamped = Math.min(MAX_ZOOM, Math.max(1, next));
@@ -106,7 +116,6 @@ export function ZoomableImage({
     zoomRef.current = clamped;
     setZoom(clamped);
   };
-
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     const anchor = anchorRef.current;
@@ -116,7 +125,6 @@ export function ZoomableImage({
     viewport.scrollTop = anchor.y * zoom - (anchor.clientY - bounds.top);
     anchorRef.current = null;
   }, [zoom]);
-
   useEffect(() => {
     const resize = () => {
       setViewerSize(readViewerSize());
@@ -130,7 +138,6 @@ export function ZoomableImage({
       stopOverlayListener();
     };
   }, [changeZoom]);
-
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
@@ -145,10 +152,11 @@ export function ZoomableImage({
         y: event.clientY,
       });
     };
-    viewport.addEventListener("wheel", wheel, { passive: false });
+    viewport.addEventListener("wheel", wheel, {
+      passive: false,
+    });
     return () => viewport.removeEventListener("wheel", wheel);
   }, [changeZoom]);
-
   return (
     <div className="min-w-0">
       <div
@@ -167,7 +175,10 @@ export function ZoomableImage({
         onClick={(event) => {
           // Pointer capture emits a click after dragging; preserve zoom.
           if (suppressClickRef.current || event.detail > 1) return;
-          changeZoom(zoomRef.current > 1 ? 1 : 2, { x: event.clientX, y: event.clientY });
+          changeZoom(zoomRef.current > 1 ? 1 : 2, {
+            x: event.clientX,
+            y: event.clientY,
+          });
         }}
         onKeyDown={(event) => {
           if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -237,7 +248,15 @@ export function ZoomableImage({
           draggable={false}
           className="block max-w-none select-none"
           style={
-            naturalSize.width ? { width, height } : { maxWidth: "var(--media-width)", maxHeight }
+            naturalSize.width
+              ? {
+                  width,
+                  height,
+                }
+              : {
+                  maxWidth: "var(--media-width)",
+                  maxHeight,
+                }
           }
           onLoad={(event) => {
             setNaturalSize({

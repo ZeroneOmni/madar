@@ -7,10 +7,8 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
 import { findRevealRef, MarkdownFindContext } from "./markdownFindContext";
-
 export function MarkdownDetails({
   children,
   open = false,
@@ -28,11 +26,12 @@ export function MarkdownDetails({
   );
   const summaryNode = summaryIndex >= 0 ? childNodes[summaryIndex] : null;
   const summary =
-    isValidElement<{ children?: ReactNode }>(summaryNode) && summaryNode.props.children
+    isValidElement<{
+      children?: ReactNode;
+    }>(summaryNode) && summaryNode.props.children
       ? summaryNode.props.children
       : "Details";
   const content = childNodes.filter((_, index) => index !== summaryIndex);
-
   return (
     <div className="my-2 border-y border-border/60">
       <Collapsible

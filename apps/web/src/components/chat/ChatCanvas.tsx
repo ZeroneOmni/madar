@@ -1,9 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ComponentProps, type CSSProperties } from "react";
 import { ChatCanvasContext } from "./ChatCanvasContext";
-import { resolveChatCanvasLayout, type ChatCanvasPreview } from "./chatCanvasLayout";
-import type { PreviewMiniPlayerObstacles } from "../preview/previewMiniPlayerLayout";
+import { resolveChatCanvasLayout, type CanvasDetailsCard } from "./chatCanvasLayout";
 import { observeResize } from "../../lib/observeResize";
-
 export function ChatCanvas({
   composerOverlayElement,
   detailsCardTopInset = 0,
@@ -16,9 +14,8 @@ export function ChatCanvas({
   const elementRef = useRef<HTMLDivElement | null>(null);
   const widthProbeRef = useRef<HTMLDivElement | null>(null);
   const [timelineElement, registerTimeline] = useState<HTMLElement | null>(null);
-  const [preview, setPreview] = useState<ChatCanvasPreview | null>(null);
-  const [detailsCard, setDetailsCard] = useState<PreviewMiniPlayerObstacles["detailsCard"]>(null);
-  const reportDetailsCard = (next: PreviewMiniPlayerObstacles["detailsCard"]) => {
+  const [detailsCard, setDetailsCard] = useState<CanvasDetailsCard | null>(null);
+  const reportDetailsCard = (next: CanvasDetailsCard | null) => {
     setDetailsCard((current) =>
       current?.left === next?.left &&
       current?.right === next?.right &&
@@ -39,21 +36,6 @@ export function ChatCanvas({
     findBarRight: 0,
     findBarBottom: 0,
   });
-  const reportPreview = (next: ChatCanvasPreview) => {
-    setPreview((current) =>
-      current?.key === next.key &&
-      current.width === next.width &&
-      current.lastInteraction === next.lastInteraction &&
-      current.position?.x === next.position?.x &&
-      current.position?.y === next.position?.y &&
-      current.source.width === next.source.width &&
-      current.source.height === next.source.height
-        ? current
-        : next,
-    );
-  };
-  const clearPreview = (key: string) =>
-    setPreview((current) => (current?.key === key ? null : current));
   useLayoutEffect(() => {
     const element = elementRef.current;
     const probe = widthProbeRef.current;
@@ -93,7 +75,10 @@ export function ChatCanvas({
     if (timelineElement) observed.push(timelineElement);
     return observeResize(observed, measure);
   }, [composerOverlayElement, timelineElement, detailsCardTopInset]);
-  const container = { width: measurements.width, height: measurements.height };
+  const container = {
+    width: measurements.width,
+    height: measurements.height,
+  };
   const findBar =
     detailsCardTopInset > 0
       ? {
@@ -104,17 +89,16 @@ export function ChatCanvas({
       : null;
   const context = {
     container,
-    lane: { padding: measurements.padding, minChatWidth: measurements.minChatWidth },
+    lane: {
+      padding: measurements.padding,
+      minChatWidth: measurements.minChatWidth,
+    },
     layout: resolveChatCanvasLayout({
       ...measurements,
       container,
-      preview,
       detailsCard,
       findBar,
     }),
-    previewKey: preview?.key ?? null,
-    reportPreview,
-    clearPreview,
     registerTimeline,
     reportDetailsCard,
     detailsCardTopInset: findBar?.bottom ?? 0,
@@ -126,7 +110,6 @@ export function ChatCanvas({
         {...props}
         ref={elementRef}
         data-chat-canvas
-        data-preview-overlaps-chat={layout.overlapsChat || undefined}
         className="relative flex min-h-0 min-w-0 flex-1 flex-col"
         style={
           {

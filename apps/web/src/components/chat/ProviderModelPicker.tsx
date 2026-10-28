@@ -26,12 +26,14 @@ import {
 } from "./ComposerControl";
 import { useComposerMenuProps } from "./composerEventScope";
 import { shortcutLabelForCommand } from "../../keybindings";
-
 export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   environmentId: EnvironmentId | null;
   activeInstanceId: ProviderInstanceId;
   model: string;
-  selectedModels?: ReadonlyArray<{ instanceId: ProviderInstanceId; model: string }>;
+  selectedModels?: ReadonlyArray<{
+    instanceId: ProviderInstanceId;
+    model: string;
+  }>;
   onToggleModel?: (instanceId: ProviderInstanceId, model: string) => void;
   lockedProvider: ProviderDriverKind | null;
   lockedContinuationGroupKey?: string | null;
@@ -58,10 +60,8 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const [uncontrolledIsMenuOpen, setUncontrolledIsMenuOpen] = useState(false);
   const isMenuOpen = props.open ?? uncontrolledIsMenuOpen;
   const size = props.size ?? "sm";
-
   const activeEntry =
     props.instanceEntries.find((entry) => entry.instanceId === props.activeInstanceId) ?? null;
-
   const activeInstanceId = props.activeInstanceId;
   const selectedInstanceOptions = props.modelOptionsByInstance.get(activeInstanceId) ?? [];
   const selectedModel =
@@ -83,31 +83,26 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
     : triggerTitle;
   const showInstanceBadge =
     activeEntry !== null && shouldShowInstanceBadge(activeEntry, props.instanceEntries);
-
   const setIsMenuOpen = (open: boolean) => {
     props.onOpenChange?.(open);
     if (props.open === undefined) {
       setUncontrolledIsMenuOpen(open);
     }
   };
-
   useEffect(() => {
     if (!isMenuOpen) {
       return;
     }
-
     const { documentElement, body } = document;
     const previousDocumentOverscrollBehavior = documentElement.style.overscrollBehavior;
     const previousBodyOverflow = body.style.overflow;
     const previousBodyPaddingRight = body.style.paddingRight;
     const scrollbarWidth = window.innerWidth - documentElement.clientWidth;
-
     documentElement.style.overscrollBehavior = "contain";
     body.style.overflow = "hidden";
     if (scrollbarWidth > 0) {
       body.style.paddingRight = `${scrollbarWidth}px`;
     }
-
     const shouldAllowOverlayScroll = (target: EventTarget | null) => {
       return target instanceof Element && target.closest("[data-model-picker-content]");
     };
@@ -123,28 +118,31 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
       }
       event.preventDefault();
     };
-
-    document.addEventListener("wheel", preventBackgroundWheel, { capture: true, passive: false });
+    document.addEventListener("wheel", preventBackgroundWheel, {
+      capture: true,
+      passive: false,
+    });
     document.addEventListener("touchmove", preventBackgroundTouchMove, {
       capture: true,
       passive: false,
     });
-
     return () => {
-      document.removeEventListener("wheel", preventBackgroundWheel, { capture: true });
-      document.removeEventListener("touchmove", preventBackgroundTouchMove, { capture: true });
+      document.removeEventListener("wheel", preventBackgroundWheel, {
+        capture: true,
+      });
+      document.removeEventListener("touchmove", preventBackgroundTouchMove, {
+        capture: true,
+      });
       documentElement.style.overscrollBehavior = previousDocumentOverscrollBehavior;
       body.style.overflow = previousBodyOverflow;
       body.style.paddingRight = previousBodyPaddingRight;
     };
   }, [isMenuOpen]);
-
   const handleInstanceModelChange = (instanceId: ProviderInstanceId, model: string) => {
     if (props.disabled) return;
     props.onInstanceModelChange(instanceId, model);
     setIsMenuOpen(false);
   };
-
   const shortcutLabel = props.keybindings
     ? shortcutLabelForCommand(props.keybindings, "modelPicker.toggle")
     : null;
@@ -179,7 +177,6 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const triggerTooltipContent = shortcutLabel
     ? `${props.triggerLabel ?? allModelNames ?? triggerLabel} · ${shortcutLabel}`
     : (props.triggerLabel ?? allModelNames ?? triggerLabel);
-
   return (
     <Popover
       open={isMenuOpen}
@@ -284,7 +281,11 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           environmentId={props.environmentId}
           activeInstanceId={activeInstanceId}
           model={props.model}
-          {...(props.selectedModels !== undefined ? { selectedModels: props.selectedModels } : {})}
+          {...(props.selectedModels !== undefined
+            ? {
+                selectedModels: props.selectedModels,
+              }
+            : {})}
           {...(props.onToggleModel
             ? {
                 onToggleModel: (instanceId: ProviderInstanceId, model: string) => {
@@ -295,11 +296,19 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
           lockedProvider={props.lockedProvider}
           lockedContinuationGroupKey={props.lockedContinuationGroupKey ?? null}
           instanceEntries={props.instanceEntries}
-          {...(props.keybindings ? { keybindings: props.keybindings } : {})}
+          {...(props.keybindings
+            ? {
+                keybindings: props.keybindings,
+              }
+            : {})}
           modelOptionsByInstance={props.modelOptionsByInstance}
           terminalOpen={props.terminalOpen ?? false}
           onRequestClose={() => setIsMenuOpen(false)}
-          {...(props.onOpenProviderSetup ? { onOpenProviderSetup: props.onOpenProviderSetup } : {})}
+          {...(props.onOpenProviderSetup
+            ? {
+                onOpenProviderSetup: props.onOpenProviderSetup,
+              }
+            : {})}
           getModelDisabledReason={(instanceId, model) =>
             props.disabled
               ? "Model picker is disabled"

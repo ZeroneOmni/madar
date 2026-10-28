@@ -1,5 +1,5 @@
+import { MessageSquareIcon } from "lucide-react";
 import { useRenderedAppearance } from "../../hooks/useTheme";
-import { PullRequestGlyph } from "../pullRequest/pullRequestIcons";
 import { ReadOnlySourcePreview } from "../files/AttachmentFilePreview";
 import { useRightPanelStore } from "~/rightPanelStore";
 import { COMPOSER_CONTEXT_KINDS } from "@t3tools/contracts";
@@ -21,27 +21,19 @@ import {
 import { PREFERRED_HIGHLIGHTER } from "../../lib/syntaxHighlighting";
 import ChatMarkdown from "../ChatMarkdown";
 import { ThreadContextChip } from "../ThreadContextChip";
-import { MessageCircleIcon, MousePointerClickIcon, PaintbrushIcon } from "lucide-react";
+import { MousePointerClickIcon, PaintbrushIcon } from "lucide-react";
 import type { ComposerContextId, KnownComposerContextRecord } from "@t3tools/contracts";
 import { buildExpandedImagePreview } from "./ExpandedImagePreview";
 import { WorkspaceEntryIcon, WorkspaceEntryTooltip } from "./WorkspaceEntryIcon";
-import { TerminalContextInlineChip } from "./TerminalContextInlineChip";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import {
   ContextChipPopover as UserMessageContextPopover,
   ContextChipShell,
   FileChip,
   ImageChipButton,
-  PULL_REQUEST_CHIP_KINDS,
-  PullRequestChip,
   UnresolvedChip,
 } from "../contextChipParts";
-import {
-  isPullRequestSummaryContext,
-  pullRequestContextDisplayState,
-  pullRequestContextKindLabel,
-  reviewCommentContextLabel,
-} from "~/lib/composerContextRecords";
+import { reviewCommentContextLabel } from "~/lib/composerContextRecords";
 import { formatComposerContextReference } from "@t3tools/shared/composerContextReferences";
 import { ContextChip, ContextChipLabel, type ContextChipKind } from "../ContextChip";
 import { createContextPresentationRegistry } from "../contextPresentationRegistry";
@@ -54,9 +46,13 @@ import {
   type ReviewCommentContext,
 } from "../../reviewCommentContext";
 import { TimelineRowCtx } from "./timelineRowContext";
-
 function UserMessageMentionChip(props: {
-  record: Extract<KnownComposerContextRecord, { kind: "mention" }>;
+  record: Extract<
+    KnownComposerContextRecord,
+    {
+      kind: "mention";
+    }
+  >;
   copyMarkdown: string;
 }) {
   const ctx = use(TimelineRowCtx);
@@ -94,7 +90,6 @@ function UserMessageMentionChip(props: {
     </Tooltip>
   );
 }
-
 function UserMessageContextChip(props: {
   icon: ReactNode;
   label: string;
@@ -114,30 +109,13 @@ function UserMessageContextChip(props: {
     />
   );
 }
-
-function UserMessagePullRequestContextChip(props: {
-  record: Extract<KnownComposerContextRecord, { kind: "review-comment" }>;
-  copyMarkdown: string;
-  kind: ContextChipKind;
-}) {
-  const { activeThreadEnvironmentId, openPullRequest } = use(TimelineRowCtx);
-  const metadata = props.record.pullRequest;
-  if (metadata === undefined) return null;
-  return (
-    <PullRequestChip
-      metadata={metadata}
-      environmentId={activeThreadEnvironmentId}
-      label={reviewCommentContextLabel(props.record)}
-      kindLabel={pullRequestContextKindLabel(props.record)}
-      kind={props.kind}
-      copyMarkdown={props.copyMarkdown}
-      onOpen={openPullRequest}
-    />
-  );
-}
-
 function UserMessagePreviewAnnotationDetails(props: {
-  record: Extract<KnownComposerContextRecord, { kind: "preview-annotation" }>;
+  record: Extract<
+    KnownComposerContextRecord,
+    {
+      kind: "preview-annotation";
+    }
+  >;
   image: ChatImageAttachment | null;
 }) {
   const ctx = use(TimelineRowCtx);
@@ -226,11 +204,15 @@ function UserMessagePreviewAnnotationDetails(props: {
     </div>
   );
 }
-
 function UserMessageElementDetails({
   record,
 }: {
-  record: Extract<KnownComposerContextRecord, { kind: "element" }>;
+  record: Extract<
+    KnownComposerContextRecord,
+    {
+      kind: "element";
+    }
+  >;
 }) {
   const sourceLabel = record.source?.fileName
     ? `${record.source.fileName}${record.source.lineNumber === null ? "" : `:${record.source.lineNumber}`}`
@@ -266,7 +248,6 @@ function UserMessageElementDetails({
     </div>
   );
 }
-
 interface UserMessageContextRenderContext {
   reference: ChatMarkdownContextReference;
   annotationImage: ChatImageAttachment | null;
@@ -277,7 +258,6 @@ interface UserMessageContextRenderContext {
   onExpandVideo: (file: ChatFileAttachment) => void;
   onOpenFile: (file: ChatFileAttachment) => void;
 }
-
 function UnavailableUserMessageContextChip(props: UserMessageContextRenderContext) {
   return (
     <UnresolvedChip
@@ -287,7 +267,6 @@ function UnavailableUserMessageContextChip(props: UserMessageContextRenderContex
     />
   );
 }
-
 const userMessageContextPresentationRegistry = createContextPresentationRegistry<
   KnownComposerContextRecord,
   UserMessageContextRenderContext,
@@ -395,18 +374,17 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
     {
       kind: "terminal",
       canRender: (record) => record.kind === "terminal",
-      render: (record, context, definition) =>
+      render: (record, context, _definition) =>
         record.kind === "terminal" ? (
-          <span data-markdown-copy={context.copyMarkdown}>
-            <TerminalContextInlineChip
-              label={record.label}
-              terminalLabel={record.terminalLabel}
-              lineStart={record.lineStart}
-              lineEnd={record.lineEnd}
-              text={record.text}
-              detailsMode={definition.capabilities.details}
-            />
-          </span>
+          <UserMessageContextPopover
+            kind="terminal"
+            icon={<MessageSquareIcon />}
+            label={record.terminalLabel}
+            copyMarkdown={context.copyMarkdown}
+            accessibleLabel={`Terminal context, ${record.terminalLabel}`}
+          >
+            <ReadOnlySourcePreview name={record.terminalLabel} text={record.text} />
+          </UserMessageContextPopover>
         ) : (
           <UnavailableUserMessageContextChip {...context} />
         ),
@@ -436,25 +414,15 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
         if (record.kind !== "review-comment") {
           return <UnavailableUserMessageContextChip {...context} />;
         }
-        const isPullRequest = isPullRequestSummaryContext(record);
         const label = reviewCommentContextLabel(record);
-        const kindLabel = isPullRequest ? pullRequestContextKindLabel(record) : "Review comment";
-        const pullRequestState = pullRequestContextDisplayState(record) ?? "unknown";
-        if (isPullRequest && record.pullRequest !== undefined) {
-          return (
-            <UserMessagePullRequestContextChip
-              record={record}
-              copyMarkdown={context.copyMarkdown}
-              kind={PULL_REQUEST_CHIP_KINDS[pullRequestState]}
-            />
-          );
-        }
+        const kindLabel = "Review comment";
+
         return (
           <UserMessageContextPopover
+            kind="review-comment"
+            icon={<MessageSquareIcon />}
             copyMarkdown={context.copyMarkdown}
             accessibleLabel={`${kindLabel}, ${label}${record.pullRequest ? `, ${record.pullRequest.title}` : ""}`}
-            kind={isPullRequest ? PULL_REQUEST_CHIP_KINDS[pullRequestState] : "review-comment"}
-            icon={isPullRequest ? <PullRequestGlyph.pullRequest /> : <MessageCircleIcon />}
             label={label}
           >
             <UserMessageReviewCommentCard
@@ -469,9 +437,15 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
                 text: record.text,
                 diff: record.diff,
                 ...(record.fenceLanguage !== undefined
-                  ? { fenceLanguage: record.fenceLanguage }
+                  ? {
+                      fenceLanguage: record.fenceLanguage,
+                    }
                   : {}),
-                ...(record.pullRequest !== undefined ? { pullRequest: record.pullRequest } : {}),
+                ...(record.pullRequest !== undefined
+                  ? {
+                      pullRequest: record.pullRequest,
+                    }
+                  : {}),
               }}
             />
           </UserMessageContextPopover>
@@ -499,7 +473,6 @@ const userMessageContextPresentationRegistry = createContextPresentationRegistry
   ],
   fallback: (_kind, _record, context) => <UnavailableUserMessageContextChip {...context} />,
 });
-
 export function UserMessageContextReferenceChip(props: {
   reference: ChatMarkdownContextReference;
   record: KnownComposerContextRecord | undefined;
@@ -526,7 +499,6 @@ export function UserMessageContextReferenceChip(props: {
     onOpenFile: props.onOpenFile,
   });
 }
-
 function UserMessageReviewCommentCard({ comment }: { comment: ReviewCommentContext }) {
   const renderedAppearance = useRenderedAppearance();
   const ctx = use(TimelineRowCtx);
@@ -535,7 +507,6 @@ function UserMessageReviewCommentCard({ comment }: { comment: ReviewCommentConte
     buildReviewCommentRenderablePatch(comment),
     `review-comment:${comment.id}`,
   );
-
   return (
     <div className="space-y-2 rounded-lg border border-border/70 bg-background/70 p-3">
       <div className="space-y-1">

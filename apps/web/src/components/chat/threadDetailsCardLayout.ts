@@ -1,19 +1,19 @@
-import type { PreviewMiniPlayerFrame } from "../preview/previewMiniPlayerLayout";
+import type { CanvasFrame } from "./chatCanvasLayout";
 import { DETAILS_CARD_CLEARANCE } from "./chatCanvasLayout";
-
 export const THREAD_DETAILS_CARD_GAP = 12;
 // Keep in sync with --thread-details-panel-width.
 const THREAD_DETAILS_CARD_WIDTH = 280;
-
 export function resolveThreadDetailsCardDensity(
   height: number,
-  content: { full: number; compact: number },
+  content: {
+    full: number;
+    compact: number;
+  },
 ) {
   if (content.full === 0 || content.full <= height) return "full";
   if (content.compact === 0 || content.compact <= height) return "compact";
   return "essential";
 }
-
 export function resolveThreadDetailsCardLayout({
   container,
   lane,
@@ -21,9 +21,15 @@ export function resolveThreadDetailsCardLayout({
   overlapsDetailsCard = false,
   topInset = 0,
 }: {
-  container: { width: number; height: number };
-  lane: { padding: number; minChatWidth: number };
-  frame: PreviewMiniPlayerFrame | null;
+  container: {
+    width: number;
+    height: number;
+  };
+  lane: {
+    padding: number;
+    minChatWidth: number;
+  };
+  frame: CanvasFrame | null;
   overlapsDetailsCard?: boolean;
   topInset?: number;
 }) {

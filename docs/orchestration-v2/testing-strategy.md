@@ -20,7 +20,7 @@ command dispatch
   -> assertions
 ```
 
-The replay framework replaces the external provider process or network stream. It does not replace the adapter, normalizer, command/event infrastructure, projection reducers/projectors, checkpoint policy, or business logic.
+The replay framework replaces the external provider process or network stream. It does not replace the adapter, normalizer, command/event infrastructure, projection reducers/projectors, or business logic.
 
 Raw provider frames in replay transcripts are realistic transport evidence. In production, equivalent raw frames are diagnostic log data with bounded retention. Integration tests should still use real normalized orchestration persistence/projections so replay input exercises the same adapter and orchestration paths as live provider output.
 
@@ -42,7 +42,6 @@ Not allowed in integration tests:
 - mocked provider event normalizer.
 - mocked command/event infrastructure or V2 event sink.
 - mocked projection reducer.
-- mocked checkpoint service behavior.
 - mocked provider capability policy.
 - pre-normalized domain events used as the input for adapter tests.
 - custom clock/id services that duplicate Effect's `Clock`, `DateTime`, or `Random` services.
@@ -100,7 +99,7 @@ The replay runtime owns deterministic transport semantics:
 - resume cursor/session restoration.
 - transcript metadata validation.
 
-The replay runtime must not know what a turn, plan, approval, subagent, or checkpoint means. Provider adapters interpret provider-specific frames.
+The replay runtime must not know what a turn, plan, approval, or subagent means. Provider adapters interpret provider-specific frames.
 
 Recovery tests use replay only at the provider transport boundary. App restart is tested by tearing down and recreating the outermost orchestrator/server layer against durable persistence. Idle cleanup and crash recovery are tested through production lifecycle services such as the session reaper or runtime recovery policy. Tests must not add adapter or orchestrator methods whose only purpose is to restart sessions for assertions.
 
@@ -164,22 +163,20 @@ Recommended levels:
 3. Provider adapter replay tests from raw transcript to V2 domain events.
 4. Full orchestration integration tests from commands through replay runtime to final projection.
 
-The fourth level is the most important one. It is the test that catches lifecycle mismatches such as child turns closing parent runs or checkpoints being captured too early.
+The fourth level is the most important one. It is the test that catches lifecycle mismatches such as child turns closing parent runs.
 
 ## First Ten Integration Tests
 
-V2 should start with roughly ten strong tests:
+V2 should start with a focused set of strong tests:
 
-1. `simple`: sending one message creates one run, one root node, one provider turn, one assistant response, and one root checkpoint.
+1. `simple`: sending one message creates one run, one root node, one provider turn, one assistant response.
 2. `multi_turn`: follow-up messages create monotonically ordered app runs on the same app thread.
 3. `message_steering`: steering attaches to the active run intent instead of becoming an unrelated run.
 4. `turn_interrupt`: interrupt acknowledgement does not complete the run until the provider terminal event arrives.
 5. `steering_restart_fallback`: a provider without native steering interrupts the active attempt and creates a replacement attempt under the same run.
 6. `subagent`: child provider turns create nested execution nodes and never complete the parent run.
-7. `subagent_checkpoint`: child/subagent nodes create nested checkpoint scopes without advancing the app run count.
-8. `thread_rollback`: rollback targets checkpoint scopes and reconciles provider rollback snapshots.
-9. `approval_request`: provider approval callbacks become durable runtime requests and are resolved through the real adapter path.
-10. `provider_switch_return`: switching away from a provider creates a context handoff, and switching back resumes the prior provider thread with a delta handoff.
+7. `approval_request`: provider approval callbacks become durable runtime requests and are resolved through the real adapter path.
+8. `provider_switch_return`: switching away from a provider creates a context handoff, and switching back resumes the prior provider thread with a delta handoff.
 
 Additional tests should be added only when they protect a new invariant or reproduce a real failure mode.
 
@@ -206,7 +203,6 @@ Good assertions:
 - active/final run attempt.
 - execution node parent/child structure.
 - provider thread and provider turn correlation.
-- checkpoint scope hierarchy.
 - pending/resolved runtime requests.
 - handoff coverage and strategy.
 - replay transcript frame count and normalized event count when relevant.

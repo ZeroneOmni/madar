@@ -12,7 +12,6 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collaps
 import { cn } from "~/lib/utils";
 import { ComposerBanner } from "./ComposerBanner";
 import ChatMarkdown from "../ChatMarkdown";
-
 interface PendingUserInputPanelProps {
   pendingUserInputs: PendingUserInput[];
   cwd: string | undefined;
@@ -25,7 +24,6 @@ interface PendingUserInputPanelProps {
   onAdvance: () => void;
   onDismiss: (requestId: RuntimeRequestId) => void;
 }
-
 export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserInputPanel({
   pendingUserInputs,
   cwd,
@@ -41,7 +39,6 @@ export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserIn
   if (pendingUserInputs.length === 0) return null;
   const activePrompt = pendingUserInputs[0];
   if (!activePrompt) return null;
-
   return (
     <ComposerPendingUserInputCard
       key={activePrompt.requestId}
@@ -58,7 +55,6 @@ export const ComposerPendingUserInputPanel = memo(function ComposerPendingUserIn
     />
   );
 });
-
 const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard({
   prompt,
   cwd,
@@ -102,7 +98,6 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
       !customAnswerActive && progress.selectedOptionValues.includes(option.value ?? option.label),
   );
   const isCollapsed = collapsedQuestionId !== null && collapsedQuestionId === activeQuestion?.id;
-
   if (
     optimisticSingleSelect &&
     activeQuestion &&
@@ -113,7 +108,6 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
   ) {
     setOptimisticSingleSelect(null);
   }
-
   useEffect(() => {
     const clearAutoAdvance = () => {
       if (autoAdvanceTimerRef.current !== null) {
@@ -124,14 +118,16 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
     if (disabled || activeQuestion?.id === undefined) clearAutoAdvance();
     return clearAutoAdvance;
   }, [activeQuestion?.id, disabled]);
-
   const handleOptionSelection = (questionId: string, optionValue: string) => {
     if (disabled || isResponding) return;
     if (activeQuestion?.multiSelect) {
       onToggleOption(questionId, optionValue);
       return;
     }
-    setOptimisticSingleSelect({ questionId, optionValue });
+    setOptimisticSingleSelect({
+      questionId,
+      optionValue,
+    });
     onToggleOption(questionId, optionValue);
     if (autoAdvanceTimerRef.current !== null) {
       window.clearTimeout(autoAdvanceTimerRef.current);
@@ -141,10 +137,8 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
       advance();
     }, 200);
   };
-
   const selectOptionFromShortcut = useEffectEvent(handleOptionSelection);
   const backgroundThread = use(BackgroundThreadContext);
-
   useEffect(() => {
     if (!activeQuestion || responseDisabled || isCollapsed || backgroundThread) return;
     const handler = (event: globalThis.KeyboardEvent) => {
@@ -171,11 +165,9 @@ const ComposerPendingUserInputCard = memo(function ComposerPendingUserInputCard(
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [activeQuestion, backgroundThread, isCollapsed, responseDisabled]);
-
   if (!activeQuestion) {
     return null;
   }
-
   return (
     <Collapsible
       open={!isCollapsed}

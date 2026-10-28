@@ -2,19 +2,15 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
 import { ChevronDownIcon, XIcon } from "lucide-react";
 import type { ComponentProps } from "react";
-
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
-
 export type ComposerBannerVariant = "default" | "error" | "info" | "success" | "warning";
-
 const surfaceColors = cn(
   "[--chat-composer-attached-surface:var(--chat-composer-glass-surface,var(--card))]",
   "dark:[--chat-composer-attached-surface:var(--chat-composer-glass-surface,var(--surface-raised))]",
   "[html[data-theme-id]_&]:[--chat-composer-attached-surface:var(--app-theme-surface-raised)]",
 );
-
 const neutralOutline = cn(
   "[--chat-composer-attached-outline:var(--chat-composer-outline,color-mix(in_srgb,var(--contrast-foreground)_8%,transparent))]",
   "dark:[--chat-composer-attached-outline:var(--chat-composer-outline,color-mix(in_srgb,var(--color-white)_5%,transparent))]",
@@ -22,7 +18,6 @@ const neutralOutline = cn(
   "dark:[html[data-theme-id]:not([data-theme-id=t3-chat])_&]:[--chat-composer-attached-outline:var(--chat-composer-outline,color-mix(in_srgb,var(--app-theme-input)_30%,var(--background)))]",
   "dark:[html[data-theme-id=t3-chat]_&]:[--chat-composer-attached-outline:#241e28]",
 );
-
 const variantColors: Record<ComposerBannerVariant, string> = {
   default: neutralOutline,
   error:
@@ -32,7 +27,6 @@ const variantColors: Record<ComposerBannerVariant, string> = {
   warning:
     "[--chat-composer-attached-outline:color-mix(in_srgb,var(--warning)_28%,transparent)] [--chat-composer-attached-tint:color-mix(in_srgb,var(--warning)_8%,transparent)]",
 };
-
 function Surface({
   placement = "attached",
   variant = "default",
@@ -65,7 +59,6 @@ function Surface({
     />
   );
 }
-
 const peekBorder: Record<ComposerBannerVariant, string> = {
   default: "border-(--chat-composer-attached-outline)",
   error: "border-destructive/24",
@@ -73,12 +66,13 @@ const peekBorder: Record<ComposerBannerVariant, string> = {
   success: "border-(--chat-composer-attached-outline)",
   warning: "border-warning/24",
 };
-
 function Peek({
   className,
   variant = "default",
   ...props
-}: ComponentProps<"button"> & { variant?: ComposerBannerVariant }) {
+}: ComponentProps<"button"> & {
+  variant?: ComposerBannerVariant;
+}) {
   return (
     <button
       type="button"
@@ -97,7 +91,6 @@ function Peek({
     />
   );
 }
-
 function Attachment({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
@@ -112,7 +105,6 @@ function Attachment({ className, ...props }: ComponentProps<"div">) {
     />
   );
 }
-
 function Dock({ className, ...props }: ComponentProps<"div">) {
   return (
     <Attachment
@@ -124,7 +116,6 @@ function Dock({ className, ...props }: ComponentProps<"div">) {
     />
   );
 }
-
 function Column({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
@@ -137,7 +128,6 @@ function Column({ className, ...props }: ComponentProps<"div">) {
     />
   );
 }
-
 function Root({
   className,
   density = "default",
@@ -180,7 +170,6 @@ function Root({
     />
   );
 }
-
 function Row({
   className,
   render,
@@ -208,7 +197,6 @@ function Row({
     props: mergeProps<"div">(rowProps, props),
   });
 }
-
 function Icon({ className, ...props }: ComponentProps<"span">) {
   return (
     <span
@@ -223,7 +211,6 @@ function Icon({ className, ...props }: ComponentProps<"span">) {
     />
   );
 }
-
 function Content({ className, ...props }: ComponentProps<"span">) {
   return (
     <span
@@ -239,7 +226,6 @@ function Content({ className, ...props }: ComponentProps<"span">) {
     />
   );
 }
-
 function Separator() {
   return (
     <span
@@ -251,7 +237,6 @@ function Separator() {
     </span>
   );
 }
-
 function Actions({ className, ...props }: ComponentProps<"span">) {
   return (
     <span
@@ -266,18 +251,18 @@ function Actions({ className, ...props }: ComponentProps<"span">) {
     />
   );
 }
-
 function Children({ className, render, ...props }: useRender.ComponentProps<"div">) {
   return useRender({
     defaultTagName: "div",
     render,
     props: mergeProps<"div">(
-      { className: cn("grid gap-px [&_[data-composer-banner-row]]:min-h-5", className) },
+      {
+        className: cn("grid gap-px [&_[data-composer-banner-row]]:min-h-5", className),
+      },
       props,
     ),
   });
 }
-
 function Scroll({ className, children, ...props }: ComponentProps<typeof ScrollArea>) {
   return (
     <ScrollArea
@@ -291,7 +276,6 @@ function Scroll({ className, children, ...props }: ComponentProps<typeof ScrollA
     </ScrollArea>
   );
 }
-
 function Count({ className, ...props }: ComponentProps<"span">) {
   return (
     <span
@@ -303,17 +287,14 @@ function Count({ className, ...props }: ComponentProps<"span">) {
     />
   );
 }
-
 function Body({ className, ...props }: ComponentProps<"div">) {
   return <div className={cn("min-w-0 ps-8 sm:ps-7", className)} {...props} />;
 }
-
 function Dot({ className, ...props }: ComponentProps<"span">) {
   return (
     <span className={cn("size-1.5 flex-none rounded-full bg-current", className)} {...props} />
   );
 }
-
 function ToggleIcon({ expanded }: { expanded: boolean }) {
   return (
     <Button
@@ -327,7 +308,6 @@ function ToggleIcon({ expanded }: { expanded: boolean }) {
     </Button>
   );
 }
-
 function Dismiss({ className, children, ...props }: ComponentProps<typeof Button>) {
   return (
     <Button size="icon-xs" variant="ghost" className={className} {...props}>
@@ -335,7 +315,6 @@ function Dismiss({ className, children, ...props }: ComponentProps<typeof Button
     </Button>
   );
 }
-
 export const ComposerBanner = {
   Surface,
   Peek,

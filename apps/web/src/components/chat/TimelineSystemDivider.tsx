@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-
 import { cn } from "~/lib/utils";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
-
 export function TimelineSystemDivider(props: {
   readonly label: string;
   readonly detail?: ReactNode | null;
@@ -31,7 +29,6 @@ export function TimelineSystemDivider(props: {
       ) : null}
     </>
   );
-
   return (
     <div
       className={cn(

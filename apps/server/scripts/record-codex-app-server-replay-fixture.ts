@@ -1,7 +1,6 @@
 import * as NodeOS from "node:os";
 
 import { CODEX_THREAD_CONFIG } from "../src/orchestration-v2/Adapters/CodexAdapterV2.ts";
-import { revertCodexThread } from "../src/provider/CodexThreadRevert.ts";
 import { buildCodexInitializeParams } from "../src/provider/CodexProvider.ts";
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -36,9 +35,6 @@ import {
   SUBAGENT_V2_PROMPT,
   SUBAGENT_V2_NESTED_APPROVAL_PROMPT,
   SUBAGENT_V2_NESTED_PROMPT,
-  THREAD_ROLLBACK_AFTER_PROMPT,
-  THREAD_ROLLBACK_FIRST_PROMPT,
-  THREAD_ROLLBACK_SECOND_PROMPT,
   THREAD_FORK_NATIVE_CONTINUE_FIRST_PROMPT,
   THREAD_FORK_NATIVE_CONTINUE_SECOND_PROMPT,
   THREAD_FORK_NATIVE_CONTINUE_SOURCE_PROMPT,
@@ -99,9 +95,6 @@ const SCENARIO_NAMES = [
   "turn_interrupt",
   "turn_interrupt_mid_tool",
   "command_output_streaming",
-  "thread_rollback",
-  "thread_rollback_after_restart",
-  "thread_rollback_to_stopped_turn",
   "thread_fork_native_continue",
   "thread_fork_native_siblings",
   "thread_merge_back_continue",
@@ -152,20 +145,12 @@ type ReplayStep =
       readonly turnOverrides?: Omit<TurnStartParams, "input" | "threadId">;
     }
   | {
-      readonly type: "rollback";
-      readonly label: string;
-      readonly numTurns: number;
-    }
-  | {
       readonly type: "fork";
       readonly label: string;
       readonly from?: string;
       readonly as?: string;
     };
-type TurnReplayStep = Exclude<
-  ReplayStep,
-  { readonly type: "rollback" } | { readonly type: "fork" }
->;
+type TurnReplayStep = Exclude<ReplayStep, { readonly type: "fork" }>;
 
 interface ReplayScenario {
   readonly name: ScenarioName;
@@ -787,121 +772,6 @@ function scenarios(): ReadonlyArray<ReplayScenario> {
       ],
     },
     {
-      name: "thread_rollback",
-      fileName: "thread_rollback.ndjson",
-      description:
-        "One thread completes two turns, rolls back the most recent turn, then starts another turn.",
-      runs: [
-        {
-          name: "rollback-one-turn",
-          description:
-            "Two completed turns, thread/revert before the second turn, then a post-rollback turn.",
-          steps: [
-            {
-              type: "turn",
-              label: "first-before-rollback",
-              prompt: THREAD_ROLLBACK_FIRST_PROMPT,
-            },
-            {
-              type: "turn",
-              label: "second-before-rollback",
-              prompt: THREAD_ROLLBACK_SECOND_PROMPT,
-            },
-            {
-              type: "rollback",
-              label: "rollback-latest-turn",
-              numTurns: 1,
-            },
-            {
-              type: "turn",
-              label: "post-rollback",
-              prompt: THREAD_ROLLBACK_AFTER_PROMPT,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "thread_rollback_after_restart",
-      fileName: "thread_rollback_after_restart.ndjson",
-      description:
-        "One thread completes two turns, the app-server restarts, then the thread rolls back its latest turn and starts another turn.",
-      runs: [
-        {
-          name: "rollback-after-restart",
-          description:
-            "Two completed turns, a fresh app-server that has not loaded the thread, thread/revert before the second turn, then a post-rollback turn.",
-          steps: [
-            {
-              type: "turn",
-              label: "first-before-rollback",
-              prompt: THREAD_ROLLBACK_FIRST_PROMPT,
-            },
-            {
-              type: "turn",
-              label: "second-before-rollback",
-              prompt: THREAD_ROLLBACK_SECOND_PROMPT,
-            },
-            {
-              type: "rollback",
-              label: "rollback-latest-turn",
-              numTurns: 1,
-            },
-            {
-              type: "turn",
-              label: "post-rollback",
-              prompt: THREAD_ROLLBACK_AFTER_PROMPT,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "thread_rollback_to_stopped_turn",
-      fileName: "thread_rollback_to_stopped_turn.ndjson",
-      description:
-        "One completed turn, one turn stopped mid-tool, one completed turn, thread/revert back to the stopped turn, then a post-rollback turn.",
-      runs: [
-        {
-          name: "rollback-to-stopped-turn",
-          description:
-            "Edit the message after a stopped turn: revert the turn after it and keep the stopped turn.",
-          turnDefaults: {
-            approvalPolicy: "never",
-            sandboxPolicy: workspaceWriteSandbox(),
-          },
-          steps: [
-            {
-              type: "turn",
-              label: "first-before-rollback",
-              prompt: THREAD_ROLLBACK_FIRST_PROMPT,
-            },
-            {
-              type: "interruptedTurn",
-              label: "stopped-mid-tool",
-              prompt: TURN_INTERRUPT_MID_TOOL_PROMPT,
-              interruptAfterCommandExecutionStarted: true,
-            },
-            {
-              type: "turn",
-              label: "second-before-rollback",
-              prompt: THREAD_ROLLBACK_SECOND_PROMPT,
-            },
-            {
-              type: "rollback",
-              label: "rollback-to-stopped-turn",
-              numTurns: 1,
-            },
-            {
-              type: "turn",
-              label: "post-rollback",
-              prompt: THREAD_ROLLBACK_AFTER_PROMPT,
-            },
-          ],
-        },
-      ],
-    },
-    {
       name: "thread_fork_native_continue",
       fileName: "thread_fork_native_continue.ndjson",
       description:
@@ -1456,14 +1326,7 @@ const runReplaySession = Effect.fn("record-codex-app-server-replay-fixture.runRe
     if (scenario.name === "provider_thread_resume") {
       const firstStep = run.steps[0];
       const secondStep = run.steps[1];
-      if (
-        !firstStep ||
-        !secondStep ||
-        firstStep.type === "rollback" ||
-        firstStep.type === "fork" ||
-        secondStep.type === "rollback" ||
-        secondStep.type === "fork"
-      ) {
+      if (!firstStep || !secondStep || firstStep.type === "fork" || secondStep.type === "fork") {
         throw new Error("provider_thread_resume replay recording requires two turn steps.");
       }
 
@@ -1503,51 +1366,6 @@ const runReplaySession = Effect.fn("record-codex-app-server-replay-fixture.runRe
       return;
     }
 
-    if (scenario.name === "thread_rollback_after_restart") {
-      const [first, second, rollback, after] = run.steps;
-      if (
-        first === undefined ||
-        second === undefined ||
-        rollback?.type !== "rollback" ||
-        after === undefined ||
-        first.type === "rollback" ||
-        first.type === "fork" ||
-        second.type === "rollback" ||
-        second.type === "fork" ||
-        after.type === "rollback" ||
-        after.type === "fork"
-      ) {
-        throw new Error(
-          "thread_rollback_after_restart replay recording requires turn, turn, rollback, turn.",
-        );
-      }
-
-      const threadId = yield* Effect.gen(function* () {
-        const client = yield* initializeClient;
-        const thread = yield* client.request("thread/start", threadRuntimeParams);
-        yield* runTurnStep(client, thread.thread.id, first);
-        yield* runTurnStep(client, thread.thread.id, second);
-        return thread.thread.id;
-      }).pipe(Effect.provide(layerCodex({ recorder })));
-
-      yield* recorder.writeRecord({
-        type: "runtime_exit",
-        status: "success",
-      });
-
-      yield* Effect.gen(function* () {
-        const client = yield* initializeClient;
-        const resumeParams = { threadId, excludeTurns: true, ...threadRuntimeParams };
-        // Fresh app-servers report notLoaded; resume before thread/revert and again on the next turn.
-        yield* client.request("thread/read", { threadId, includeTurns: false });
-        yield* client.request("thread/resume", resumeParams);
-        yield* revertCodexThread(client, threadId, rollback.numTurns);
-        yield* client.request("thread/resume", resumeParams);
-        yield* runTurnStep(client, threadId, after);
-      }).pipe(Effect.provide(layerCodex({ recorder })));
-      return;
-    }
-
     yield* Effect.gen(function* () {
       const client = yield* initializeClient;
       const thread = yield* client.request("thread/start", {
@@ -1558,11 +1376,6 @@ const runReplaySession = Effect.fn("record-codex-app-server-replay-fixture.runRe
       const threadIds = new Map<string, string>([["source", thread.thread.id]]);
 
       for (const [stepIndex, step] of run.steps.entries()) {
-        if (step.type === "rollback") {
-          yield* client.request("thread/read", { threadId: activeThreadId, includeTurns: false });
-          yield* revertCodexThread(client, activeThreadId, step.numTurns);
-          continue;
-        }
         if (step.type === "fork") {
           const sourceThreadId =
             step.from === undefined ? activeThreadId : threadIds.get(step.from);

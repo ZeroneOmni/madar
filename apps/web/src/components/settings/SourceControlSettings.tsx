@@ -1,3 +1,4 @@
+import { GitMergeIcon } from "lucide-react";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { ChevronDownIcon } from "lucide-react";
 import * as Duration from "effect/Duration";
@@ -16,7 +17,6 @@ import {
   getBackgroundActivityPresetSettings,
   resolveServerBackgroundActivitySettings,
 } from "@t3tools/shared/backgroundActivitySettings";
-
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
 import { useSettingsScope } from "./SettingsScopeContext";
 import { ProjectDefaultsSettings } from "./ProjectDefaultsSettings";
@@ -44,7 +44,6 @@ import {
 } from "../ui/number-field";
 import { Switch } from "../ui/switch";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-
 import { GitIcon, JujutsuIcon, type Icon } from "../Icons";
 import { SourceControlHostSettings } from "./SourceControlHostSettings";
 import { SourceControlAccountSettings } from "./SourceControlAccountSettings";
@@ -60,20 +59,16 @@ import {
   useSettingsSearchTargetId,
 } from "./settingsLayout";
 import { searchableSetting, sourceControlHostSettingsSearchId } from "./settingsSearch";
-import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
 import { sourceControlIcon } from "~/sourceControlPresentation";
-
 const EMPTY_DISCOVERY_RESULT: SourceControlDiscoveryResult = {
   versionControlSystems: [],
   sourceControlProviders: [],
 };
-
 const VCS_ICONS: Partial<Record<VcsDriverKind, Icon>> = {
   git: GitIcon,
   jj: JujutsuIcon,
 };
-
 const SOURCE_CONTROL_SKELETON_ROWS = ["primary", "secondary"] as const;
 const GIT_FETCH_INTERVAL_STEP_SECONDS = 5;
 type BackgroundActivityOverridePatch = Partial<{
@@ -81,18 +76,15 @@ type BackgroundActivityOverridePatch = Partial<{
     | BackgroundActivitySettings["overrides"][K]
     | undefined;
 }>;
-
 function durationToSeconds(duration: Duration.Duration): number {
   return Math.round(Duration.toMillis(duration) / 1_000);
 }
-
 function normalizeFetchIntervalSeconds(value: number | null): number {
   if (value === null || !Number.isFinite(value)) {
     return 0;
   }
   return Math.max(0, Math.round(value));
 }
-
 function backgroundActivityOverrideSettings(
   current: BackgroundActivitySettings,
   overrides: BackgroundActivityOverridePatch,
@@ -115,34 +107,38 @@ function backgroundActivityOverrideSettings(
     },
   };
 }
-
 function optionLabel(value: Option.Option<string>): string | null {
   return Option.getOrNull(value);
 }
-
 function isProviderDiscoveryItem(
   item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem,
 ): item is SourceControlProviderDiscoveryItem {
   return "auth" in item;
 }
-
 function isVcsNotReady(item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem): boolean {
   return !isProviderDiscoveryItem(item) && !item.implemented;
 }
-
 function authPresentation(auth: SourceControlProviderAuth): {
   readonly label: string;
   readonly badge: "warning" | null;
 } {
   if (auth.status === "authenticated") {
-    return { label: "Authenticated", badge: null };
+    return {
+      label: "Authenticated",
+      badge: null,
+    };
   }
   if (auth.status === "unauthenticated") {
-    return { label: "Not authenticated", badge: "warning" };
+    return {
+      label: "Not authenticated",
+      badge: "warning",
+    };
   }
-  return { label: "Status unknown", badge: null };
+  return {
+    label: "Status unknown",
+    badge: null,
+  };
 }
-
 function RedactedAccount(props: { readonly account: string | null }) {
   return (
     <RedactedSensitiveText
@@ -153,14 +149,12 @@ function RedactedAccount(props: { readonly account: string | null }) {
     />
   );
 }
-
 function itemStatusDot(item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem): string {
   if (isVcsNotReady(item)) return "bg-muted-foreground/35";
   if (item.status !== "available") return "bg-warning";
   if (isProviderDiscoveryItem(item) && item.auth.status !== "authenticated") return "bg-warning";
   return "bg-success";
 }
-
 function sourceControlItemIcon(
   item: VcsDiscoveryItem | SourceControlProviderDiscoveryItem,
 ): ReactNode {
@@ -170,7 +164,6 @@ function sourceControlItemIcon(
     : VCS_ICONS[item.kind];
   return Icon ? <Icon className="size-4.5 text-foreground/80" aria-hidden /> : null;
 }
-
 function SourceControlItemMark({
   item,
 }: {
@@ -178,11 +171,9 @@ function SourceControlItemMark({
 }) {
   const dotClassName = itemStatusDot(item);
   const icon = sourceControlItemIcon(item);
-
   if (!icon) {
     return <span className={cn("size-2 shrink-0 rounded-full", dotClassName)} aria-hidden />;
   }
-
   return (
     <span className="relative inline-flex size-5 shrink-0 items-center justify-center">
       {icon}
@@ -196,7 +187,6 @@ function SourceControlItemMark({
     </span>
   );
 }
-
 function itemSummary({
   item,
   auth,
@@ -209,11 +199,9 @@ function itemSummary({
   if (isVcsNotReady(item)) {
     return <span>Support for {item.label} is coming soon.</span>;
   }
-
   if (item.status !== "available") {
     return <span>Not available on this server: {item.installHint}</span>;
   }
-
   if (auth) {
     if (auth.status === "authenticated") {
       const authDetail = optionLabel(auth.detail);
@@ -230,15 +218,12 @@ function itemSummary({
         </>
       );
     }
-
     if (!item.executable && auth.status === "unauthenticated") {
       return <span>Available. {item.installHint}</span>;
     }
-
     if (auth.status === "unauthenticated" && auth.accounts?.some((entry) => entry.authenticated)) {
       return <span>{optionLabel(auth.detail) ?? `Every ${item.label} host is turned off.`}</span>;
     }
-
     if (auth.status === "unauthenticated") {
       return (
         <span>
@@ -255,10 +240,8 @@ function itemSummary({
       </span>
     );
   }
-
   return <span>Available</span>;
 }
-
 function DiscoveryItemRow({
   item,
   children,
@@ -284,7 +267,6 @@ function DiscoveryItemRow({
     setIsExpanded(true);
   }
   if (seenSearchTargetId !== searchTargetId) setSeenSearchTargetId(searchTargetId);
-
   return (
     <div
       className={cn(
@@ -311,7 +293,11 @@ function DiscoveryItemRow({
               ) : null}
             </div>
             <p className="flex min-w-0 flex-wrap items-center gap-x-1 text-xs leading-normal text-muted-foreground/80">
-              {itemSummary({ item, auth, authAccount })}
+              {itemSummary({
+                item,
+                auth,
+                authAccount,
+              })}
             </p>
           </div>
           <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto sm:justify-end">
@@ -345,7 +331,6 @@ function DiscoveryItemRow({
     </div>
   );
 }
-
 function GitFetchIntervalSettings() {
   const settings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
@@ -361,7 +346,6 @@ function GitFetchIntervalSettings() {
   const canResetFetchInterval =
     automaticGitFetchIntervalSeconds !== defaultAutomaticGitFetchIntervalSeconds;
   const setting = searchableSetting("git-fetch-interval");
-
   return (
     <SettingsSearchTarget id={setting.id} className="grid gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -425,7 +409,6 @@ function GitFetchIntervalSettings() {
     </SettingsSearchTarget>
   );
 }
-
 function SourceControlSectionSkeleton({
   title,
   headerAction,
@@ -463,7 +446,6 @@ function SourceControlSectionSkeleton({
     </SettingsSection>
   );
 }
-
 function EmptySourceControlDiscovery({
   error,
   isPending,
@@ -474,12 +456,11 @@ function EmptySourceControlDiscovery({
   readonly onScan: () => void;
 }) {
   const hasError = error !== null;
-
   return (
     <SettingsSection id={searchableSetting("source-control").id} title="Server environment">
       <Empty>
         <EmptyMedia variant="icon">
-          <PullRequestGlyph.pullRequest />
+          <GitMergeIcon />
         </EmptyMedia>
         <EmptyHeader>
           <EmptyTitle>
@@ -501,10 +482,8 @@ function EmptySourceControlDiscovery({
     </SettingsSection>
   );
 }
-
 export function SourceControlSettingsPanel() {
   const { scope, environment, connectedEnvironments } = useSettingsScope();
-
   const environmentId =
     environment?.connection.phase === "connected" ? environment.environmentId : null;
   const aggregate = scope.environmentIds.length !== 1 && connectedEnvironments.length > 1;
@@ -558,7 +537,10 @@ export function SourceControlSettingsPanel() {
         <SourceControlHostSettings
           key={environmentId}
           environmentId={environmentId}
-          definition={{ ...definition, settings: definition.settings }}
+          definition={{
+            ...definition,
+            settings: definition.settings,
+          }}
           onSaved={handleScan}
         />
       </SettingsSearchTarget>
@@ -582,7 +564,6 @@ export function SourceControlSettingsPanel() {
       <TooltipPopup side="top">Rescan Git and hosting integrations</TooltipPopup>
     </Tooltip>
   );
-
   return (
     <SettingsPageContainer>
       <ProjectDefaultsSettings category="source-control" />

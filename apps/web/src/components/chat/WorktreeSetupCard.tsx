@@ -4,18 +4,9 @@ import {
   type WorktreeSetupStage,
 } from "@t3tools/contracts";
 import { formatDuration } from "@t3tools/shared/orchestrationTiming";
-import {
-  CheckIcon,
-  CircleAlertIcon,
-  CircleIcon,
-  LaptopIcon,
-  MinusIcon,
-  TerminalIcon,
-  XIcon,
-} from "lucide-react";
+import { CheckIcon, CircleAlertIcon, CircleIcon, LaptopIcon, MinusIcon, XIcon } from "lucide-react";
 import { ChevronDown, ChevronRight } from "lucide";
 import { useEffect, useState, type ReactNode } from "react";
-
 import { Button } from "~/components/ui/button";
 import { MorphIcon } from "~/components/MorphIcon";
 import { Spinner } from "~/components/ui/spinner";
@@ -23,14 +14,11 @@ import { MiddleTruncate } from "../ui/middle-truncate";
 import { observeVisibleAnimation } from "~/lib/visibleAnimation";
 import { cn } from "~/lib/utils";
 import { WorkLogRow } from "./WorkLog";
-
 interface WorktreeSetupCardProps {
   snapshot: WorktreeSetupSnapshot;
   onCancel: (() => void) | null;
   onWorkLocally: (() => void) | null;
-  onOpenTerminal: (() => void) | null;
 }
-
 function stageElapsedMs(stage: WorktreeSetupStage, nowMs: number): number | null {
   if (!stage.startedAt) return null;
   const start = Date.parse(stage.startedAt);
@@ -38,7 +26,6 @@ function stageElapsedMs(stage: WorktreeSetupStage, nowMs: number): number | null
   if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
   return Math.max(0, end - start);
 }
-
 function useNowWhile(active: boolean): number {
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
@@ -48,7 +35,6 @@ function useNowWhile(active: boolean): number {
   }, [active]);
   return nowMs;
 }
-
 function StageIcon({ status }: { status: WorktreeSetupStage["status"] }) {
   const className = "size-4 shrink-0 stroke-2";
   switch (status) {
@@ -66,7 +52,6 @@ function StageIcon({ status }: { status: WorktreeSetupStage["status"] }) {
       return <CircleIcon aria-hidden className={className} />;
   }
 }
-
 function stageRowClassName(status: WorktreeSetupStage["status"]): string {
   switch (status) {
     case "failed":
@@ -81,7 +66,6 @@ function stageRowClassName(status: WorktreeSetupStage["status"]): string {
       return "text-secondary-label";
   }
 }
-
 function ShimmerOverlay({ children }: { children: ReactNode }) {
   return (
     <span
@@ -94,7 +78,6 @@ function ShimmerOverlay({ children }: { children: ReactNode }) {
     </span>
   );
 }
-
 function headerLabel(snapshot: WorktreeSetupSnapshot): string {
   switch (snapshot.phase) {
     case "running":
@@ -109,7 +92,6 @@ function headerLabel(snapshot: WorktreeSetupSnapshot): string {
       return "Worktree setup cancelled";
   }
 }
-
 function SetupHeaderRow({
   snapshot,
   totalElapsed,
@@ -151,7 +133,6 @@ function SetupHeaderRow({
     </div>
   );
 }
-
 function StageRow({
   stage,
   nowMs,
@@ -208,10 +189,13 @@ function StageRow({
     />
   );
 }
-
 const OUTPUT_TAIL_LINES = 4;
-const OUTPUT_TAIL_SLOTS = Array.from({ length: OUTPUT_TAIL_LINES }, (_, slot) => slot);
-
+const OUTPUT_TAIL_SLOTS = Array.from(
+  {
+    length: OUTPUT_TAIL_LINES,
+  },
+  (_, slot) => slot,
+);
 function OutputTail({ lines, failed }: { lines: ReadonlyArray<string>; failed: boolean }) {
   const rows = OUTPUT_TAIL_SLOTS.map((slot) => ({
     slot,
@@ -234,7 +218,6 @@ function OutputTail({ lines, failed }: { lines: ReadonlyArray<string>; failed: b
     </pre>
   );
 }
-
 function SetupDetails({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
   return (
     <dl className="mt-1 mb-1.5 ml-8 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
@@ -271,7 +254,6 @@ function SetupDetails({ snapshot }: { snapshot: WorktreeSetupSnapshot }) {
     </dl>
   );
 }
-
 function CollapsedSummaryRow({
   snapshot,
   totalElapsed,
@@ -306,12 +288,10 @@ function CollapsedSummaryRow({
     />
   );
 }
-
 export function WorktreeSetupCard({
   snapshot,
   onCancel,
   onWorkLocally,
-  onOpenTerminal,
   embedded = false,
 }: WorktreeSetupCardProps & {
   embedded?: boolean;
@@ -325,14 +305,12 @@ export function WorktreeSetupCard({
     return Number.isFinite(start) && Number.isFinite(end) ? Math.max(0, end - start) : null;
   })();
   const setupStage = snapshot.stages.find((stage) => stage.id === "setup-script");
-  const showTerminal = onOpenTerminal && setupStage && setupStage.status !== "pending";
   const collapsed = embedded && !running;
   const showHeader = !embedded && !running && snapshot.phase !== "done";
   const showTail =
     setupStage !== undefined &&
     (setupStage.status === "failed" ||
       (setupStage.status === "running" && setupStage.tail.length > 0));
-
   return (
     <section aria-label="Worktree setup" data-worktree-setup-phase={snapshot.phase}>
       {showHeader ? <SetupHeaderRow snapshot={snapshot} totalElapsed={totalElapsed} /> : null}
@@ -370,12 +348,7 @@ export function WorktreeSetupCard({
           <MorphIcon aria-hidden icon={detailsOpen ? ChevronDown : ChevronRight} />
           Details
         </Button>
-        {showTerminal ? (
-          <Button type="button" size="xs" variant="ghost-muted" onClick={onOpenTerminal}>
-            <TerminalIcon aria-hidden />
-            Open terminal
-          </Button>
-        ) : null}
+
         {onWorkLocally ? (
           <Button type="button" size="xs" variant="ghost-muted" onClick={onWorkLocally}>
             <LaptopIcon aria-hidden />

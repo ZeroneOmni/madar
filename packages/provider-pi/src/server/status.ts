@@ -17,7 +17,7 @@ import * as HttpClient from "effect/http/HttpClient";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
-import { buildPiRpcLaunch, resolvePiLaunchArgs } from "./mcpInjection.ts";
+import { buildPiRpcLaunch, resolvePiLaunchArgs } from "./rpcLaunch.ts";
 import {
   makePiRpcConnection,
   PiRpcError,
@@ -138,7 +138,7 @@ const makePiDiscoveryConnection = Effect.fnUntraced(function* (
   const launch = buildPiRpcLaunch({
     launchArgs,
     environment,
-    mcpSession: undefined,
+
     extensionPath: undefined,
     ephemeral: true,
   });

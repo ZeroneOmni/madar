@@ -19,7 +19,6 @@ interface AttachmentPreviewHandoffInput {
  */
 export function useAttachmentPreviewHandoff(input: AttachmentPreviewHandoffInput) {
   const { environmentId, serverVisibleTurnItems, optimisticUserMessages } = input;
-
   const optimisticUserMessagesRef = useRef(optimisticUserMessages);
   useLayoutEffect(() => {
     optimisticUserMessagesRef.current = optimisticUserMessages;
@@ -43,7 +42,9 @@ export function useAttachmentPreviewHandoff(input: AttachmentPreviewHandoffInput
       if (!(messageId in existing)) {
         return existing;
       }
-      const next = { ...existing };
+      const next = {
+        ...existing,
+      };
       delete next[messageId];
       attachmentPreviewHandoffByMessageIdRef.current = next;
       return next;
@@ -74,7 +75,6 @@ export function useAttachmentPreviewHandoff(input: AttachmentPreviewHandoffInput
   }, [clearAttachmentPreviewHandoffsStable]);
   const handoffAttachmentPreviews = (messageId: MessageId, previewUrls: string[]) => {
     if (previewUrls.length === 0) return;
-
     const previousPreviewUrls = attachmentPreviewHandoffByMessageIdRef.current[messageId] ?? [];
     const nextPreviewUrlSet = new Set(previewUrls);
     for (const previewUrl of previousPreviewUrls) {
@@ -97,7 +97,13 @@ export function useAttachmentPreviewHandoff(input: AttachmentPreviewHandoffInput
       ? undefined
       : serverVisibleTurnItems.flatMap(({ item }) =>
           item.type === "user_message"
-            ? [{ id: item.messageId, role: "user" as const, attachments: item.attachments }]
+            ? [
+                {
+                  id: item.messageId,
+                  role: "user" as const,
+                  attachments: item.attachments,
+                },
+              ]
             : [],
         ),
     attachmentPreviewHandoffByMessageId,
@@ -113,26 +119,22 @@ export function useAttachmentPreviewHandoff(input: AttachmentPreviewHandoffInput
     if (typeof Image === "undefined" || serverVisibleTurnItems.length === 0) {
       return;
     }
-
     const cleanups: Array<() => void> = [];
     const userMessagesById = new Map(
       serverVisibleTurnItems.flatMap((row) =>
         row.item.type === "user_message" ? [[String(row.item.messageId), row.item] as const] : [],
       ),
     );
-
     for (const [messageId, handoffPreviewUrls] of Object.entries(
       attachmentPreviewHandoffByMessageId,
     )) {
       if (attachmentPreviewPromotionInFlightByMessageIdRef.current[messageId]) {
         continue;
       }
-
       const serverMessage = userMessagesById.get(messageId);
       if (serverMessage === undefined || serverMessage.attachments.length === 0) {
         continue;
       }
-
       const serverPreviewUrls = serverMessage.attachments.flatMap((attachment) =>
         attachment.type === "image"
           ? [serverAttachmentUrlById.get(attachment.id)].filter(
@@ -147,12 +149,9 @@ export function useAttachmentPreviewHandoff(input: AttachmentPreviewHandoffInput
       ) {
         continue;
       }
-
       attachmentPreviewPromotionInFlightByMessageIdRef.current[messageId] = true;
-
       let cancelled = false;
       const imageInstances: HTMLImageElement[] = [];
-
       const preloadServerPreviews = Promise.all(
         serverPreviewUrls.map(
           (previewUrl) =>
@@ -162,13 +161,16 @@ export function useAttachmentPreviewHandoff(input: AttachmentPreviewHandoffInput
               const handleLoad = () => resolve();
               const handleError = () =>
                 reject(new Error(`Failed to load server preview for ${messageId}.`));
-              image.addEventListener("load", handleLoad, { once: true });
-              image.addEventListener("error", handleError, { once: true });
+              image.addEventListener("load", handleLoad, {
+                once: true,
+              });
+              image.addEventListener("error", handleError, {
+                once: true,
+              });
               image.src = previewUrl;
             }),
         ),
       );
-
       void preloadServerPreviews
         .then(() => {
           if (cancelled) {
@@ -181,7 +183,6 @@ export function useAttachmentPreviewHandoff(input: AttachmentPreviewHandoffInput
             delete attachmentPreviewPromotionInFlightByMessageIdRef.current[messageId];
           }
         });
-
       cleanups.push(() => {
         cancelled = true;
         delete attachmentPreviewPromotionInFlightByMessageIdRef.current[messageId];
@@ -190,7 +191,6 @@ export function useAttachmentPreviewHandoff(input: AttachmentPreviewHandoffInput
         }
       });
     }
-
     return () => {
       for (const cleanup of cleanups) {
         cleanup();

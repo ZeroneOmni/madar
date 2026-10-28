@@ -16,18 +16,14 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { MiddleTruncate } from "../ui/middle-truncate";
 import { MorphIcon } from "~/components/MorphIcon";
 import { observeResize } from "~/lib/observeResize";
-
 const EMPTY_DIRECTORY_OVERRIDES: Record<string, boolean> = {};
 const VIRTUALIZE_AFTER_ROWS = 250;
 const ROW_OVERSCAN = 8;
-
 interface ChangedFileRow {
   node: TurnDiffTreeNode;
   depth: number;
 }
-
 export type ChangedFileContextMenuHandler = (filePath: string, event: MouseEvent) => void;
-
 export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
   runId: RunId;
   files: ReadonlyArray<TurnDiffFileChange>;
@@ -48,7 +44,6 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
   } = props;
   const summaryStat = summarizeTurnDiffStats(files);
   const hasDirectories = files.some((file) => /[/\\]/.test(file.path));
-
   return (
     <div
       className="@container/changed-files mt-4 rounded-lg bg-secondary dark:bg-input/20"
@@ -129,7 +124,6 @@ export const ChangedFilesCard = memo(function ChangedFilesCard(props: {
     </div>
   );
 });
-
 const ChangedFilesTree = memo(function ChangedFilesTree(props: {
   runId: RunId;
   files: ReadonlyArray<TurnDiffFileChange>;
@@ -144,7 +138,10 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
   const [directoryExpansionState, setDirectoryExpansionState] = useState<{
     key: string | null;
     overrides: Record<string, boolean>;
-  }>({ key: null, overrides: {} });
+  }>({
+    key: null,
+    overrides: {},
+  });
   const treeNodes = buildTurnDiffTree(files);
   const directoryPathsKey = collectDirectoryPaths(treeNodes).join("\u0000");
   const hasDirectoryNodes = directoryPathsKey.length > 0;
@@ -153,7 +150,6 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
     directoryExpansionState.key === expansionStateKey
       ? directoryExpansionState.overrides
       : EMPTY_DIRECTORY_OVERRIDES;
-
   const toggleDirectory = (pathValue: string) => {
     setDirectoryExpansionState((current) => {
       const nextOverrides = current.key === expansionStateKey ? current.overrides : {};
@@ -166,10 +162,8 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
       };
     });
   };
-
   const rows = collectExpandedRows(treeNodes, expandedDirectories, allDirectoriesExpanded);
   const virtualized = rows.length > VIRTUALIZE_AFTER_ROWS;
-
   const renderRow = ({ node, depth }: ChangedFileRow) => {
     const leftPadding = 8 + depth * 14;
     if (node.kind === "directory") {
@@ -181,7 +175,9 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
           data-scroll-anchor-ignore
           aria-expanded={isExpanded}
           className="group flex h-7 w-full cursor-pointer items-center gap-2 rounded-md py-1.5 pr-2 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-          style={{ paddingLeft: `${leftPadding}px` }}
+          style={{
+            paddingLeft: `${leftPadding}px`,
+          }}
           onClick={() => toggleDirectory(node.path)}
         >
           <ChevronRightIcon
@@ -206,13 +202,14 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
         </button>
       );
     }
-
     return (
       <button
         key={`file:${node.path}`}
         type="button"
         className="group flex h-7 w-full cursor-pointer items-center gap-2 rounded-md py-1.5 pr-2 text-left transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
-        style={{ paddingLeft: `${leftPadding}px` }}
+        style={{
+          paddingLeft: `${leftPadding}px`,
+        }}
         onClick={() => onOpenTurnDiff(runId, node.path)}
         onContextMenu={
           onFileContextMenu
@@ -243,10 +240,8 @@ const ChangedFilesTree = memo(function ChangedFilesTree(props: {
       </button>
     );
   };
-
   return <ChangedFilesRows rows={rows} renderRow={renderRow} virtualized={virtualized} />;
 });
-
 function ChangedFilesRows({
   rows,
   renderRow,
@@ -258,9 +253,12 @@ function ChangedFilesRows({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rowSizeRef = useRef<HTMLDivElement>(null);
-  const [range, setRange] = useState({ start: 0, end: 40, rowHeight: 28 });
+  const [range, setRange] = useState({
+    start: 0,
+    end: 40,
+    rowHeight: 28,
+  });
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
-
   useLayoutEffect(() => {
     const container = containerRef.current;
     const rowSize = rowSizeRef.current;
@@ -277,7 +275,6 @@ function ChangedFilesRows({
         break;
       }
     }
-
     const measure = () => {
       const rowHeight = rowSize.getBoundingClientRect().height;
       if (rowHeight <= 0) return;
@@ -300,7 +297,11 @@ function ChangedFilesRows({
       setRange((current) =>
         current.start === start && current.end === end && current.rowHeight === rowHeight
           ? current
-          : { start, end, rowHeight },
+          : {
+              start,
+              end,
+              rowHeight,
+            },
       );
     };
     measure();
@@ -313,7 +314,9 @@ function ChangedFilesRows({
         measure();
       });
     };
-    scrollTarget.addEventListener("scroll", onScroll, { passive: true });
+    scrollTarget.addEventListener("scroll", onScroll, {
+      passive: true,
+    });
     globalThis.window.addEventListener("resize", onScroll);
     const stopObserving = observeResize(ancestors, measure);
     return () => {
@@ -323,12 +326,16 @@ function ChangedFilesRows({
       stopObserving();
     };
   }, [virtualized, rows.length]);
-
   const focusedIndex =
     focusedPath === null ? -1 : rows.findIndex((row) => row.node.path === focusedPath);
   const start = virtualized ? range.start : 0;
   const end = virtualized ? Math.min(rows.length, range.end) : rows.length;
-  const indices = Array.from({ length: Math.max(0, end - start) }, (_, index) => start + index);
+  const indices = Array.from(
+    {
+      length: Math.max(0, end - start),
+    },
+    (_, index) => start + index,
+  );
   // Keep keyboard focus on its row when mouse scrolling moves it outside the render window.
   if (focusedIndex >= 0 && focusedIndex < start) indices.unshift(focusedIndex);
   if (focusedIndex >= end) indices.push(focusedIndex);
@@ -337,7 +344,13 @@ function ChangedFilesRows({
       <div
         ref={containerRef}
         className="relative"
-        style={virtualized ? { height: rows.length * range.rowHeight } : undefined}
+        style={
+          virtualized
+            ? {
+                height: rows.length * range.rowHeight,
+              }
+            : undefined
+        }
         onFocusCapture={(event) => {
           const row = event.target.closest<HTMLElement>("[data-changed-file-row]");
           setFocusedPath(row?.dataset.changedFileRow ?? null);
@@ -360,7 +373,13 @@ function ChangedFilesRows({
               key={`${row.node.kind}:${row.node.path}`}
               data-changed-file-row={row.node.path}
               className={virtualized ? "absolute inset-x-0" : undefined}
-              style={virtualized ? { top: index * range.rowHeight } : undefined}
+              style={
+                virtualized
+                  ? {
+                      top: index * range.rowHeight,
+                    }
+                  : undefined
+              }
             >
               {renderRow(row)}
             </div>
@@ -370,7 +389,6 @@ function ChangedFilesRows({
     </div>
   );
 }
-
 function collectExpandedRows(
   nodes: ReadonlyArray<TurnDiffTreeNode>,
   overrides: Readonly<Record<string, boolean>>,
@@ -379,14 +397,16 @@ function collectExpandedRows(
   rows: ChangedFileRow[] = [],
 ): ChangedFileRow[] {
   for (const node of nodes) {
-    rows.push({ node, depth });
+    rows.push({
+      node,
+      depth,
+    });
     if (node.kind === "directory" && (overrides[node.path] ?? allDirectoriesExpanded)) {
       collectExpandedRows(node.children, overrides, allDirectoriesExpanded, depth + 1, rows);
     }
   }
   return rows;
 }
-
 function collectDirectoryPaths(nodes: ReadonlyArray<TurnDiffTreeNode>): string[] {
   const paths: string[] = [];
   for (const node of nodes) {

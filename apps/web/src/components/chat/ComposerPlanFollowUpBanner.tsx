@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { ComposerBanner } from "./ComposerBanner";
-
 export const ComposerPlanFollowUpBanner = memo(function ComposerPlanFollowUpBanner({
   planTitle,
 }: {

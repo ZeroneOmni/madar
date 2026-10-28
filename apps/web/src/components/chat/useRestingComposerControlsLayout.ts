@@ -2,7 +2,6 @@ import { measureRestingComposerControls } from "./restingComposerControlsMeasure
 import { observeResize } from "~/lib/observeResize";
 import { resolveRestingComposerControlsLayout } from "../composerFooterLayout";
 import { useLayoutEffect, useRef, useState } from "react";
-
 export function useRestingComposerControlsLayout(
   host: HTMLDivElement | null,
   useControlsAsHost = false,
@@ -17,12 +16,13 @@ export function useRestingComposerControlsLayout(
     hiddenCount: number;
     iconOnlyCount?: number;
     visible: boolean;
-  }>({ hiddenCount: 0, visible: true });
-
+  }>({
+    hiddenCount: 0,
+    visible: true,
+  });
   const measure = () => {
     const currentHost = useControlsAsHost ? controls : host;
     if (currentHost === null || !controls) return;
-
     const measurement = measureRestingComposerControls(controls);
     if (!measurement) return;
     const style = getComputedStyle(currentHost);
@@ -30,7 +30,6 @@ export function useRestingComposerControlsLayout(
       currentHost.clientWidth -
       (Number.parseFloat(style.paddingInlineStart) || 0) -
       (Number.parseFloat(style.paddingInlineEnd) || 0);
-
     setLayout((current) => {
       const next = resolveRestingComposerControlsLayout({
         ...measurement,
@@ -44,7 +43,6 @@ export function useRestingComposerControlsLayout(
         : next;
     });
   };
-
   useLayoutEffect(() => {
     const currentHost = useControlsAsHost ? controls : host;
     if (!currentHost || !controls) return;
@@ -65,7 +63,11 @@ export function useRestingComposerControlsLayout(
     };
     observeControls();
     const mutations = new MutationObserver(observeControls);
-    mutations.observe(controls, { childList: true, subtree: true, characterData: true });
+    mutations.observe(controls, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
     document.fonts.addEventListener("loadingdone", measure);
     return () => {
       stopObserving();
@@ -73,7 +75,6 @@ export function useRestingComposerControlsLayout(
       document.fonts.removeEventListener("loadingdone", measure);
     };
   }, [host, controls, useControlsAsHost, measure]);
-
   return {
     controlsRef,
     attachControls,

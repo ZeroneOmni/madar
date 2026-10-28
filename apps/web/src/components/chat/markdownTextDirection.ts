@@ -1,5 +1,4 @@
 import { textDirection } from "~/textDirection";
-
 type HastNode = {
   type?: string;
   tagName?: string;
@@ -32,18 +31,19 @@ const BLOCK_TAGS = new Set([
   "tr",
   "ul",
 ]);
-
 function proseText(node: HastNode): string {
   if (node.type === "text") return node.value ?? "";
   if (node.tagName === "code") return " ";
   const text = (node.children ?? []).map(proseText).join("");
   return node.tagName && BLOCK_TAGS.has(node.tagName) ? ` ${text} ` : text;
 }
-
 function isolateInlineCode(node: HastNode): void {
   if (node.tagName === "pre") return;
   if (node.tagName === "code") {
-    node.properties = { ...node.properties, dir: "ltr" };
+    node.properties = {
+      ...node.properties,
+      dir: "ltr",
+    };
     return;
   }
   node.children?.forEach(isolateInlineCode);
@@ -60,7 +60,11 @@ export function rehypeTextDirection() {
     for (const block of tree.children ?? []) {
       if (block.type !== "element" || block.tagName === "pre") continue;
       const dir = textDirection(proseText(block));
-      if (dir) block.properties = { ...block.properties, dir };
+      if (dir)
+        block.properties = {
+          ...block.properties,
+          dir,
+        };
     }
     isolateInlineCode(tree);
   };

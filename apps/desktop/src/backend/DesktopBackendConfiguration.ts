@@ -247,7 +247,7 @@ type WslPreflightRuntime =
     }
   | {
       readonly kind: "node-script";
-      // Launch the exact Node path probed with node-pty, even if later PATH lookup would resolve another version.
+      // Launch the exact Node path resolved in WSL, even if later PATH lookup would resolve another version.
       readonly nodePath: string;
       readonly linuxEntryPath: string;
     };
@@ -278,10 +278,7 @@ const parseWslRuntimeArchiveHash = (value: string): string | null => {
   return SHA256_HEX_PATTERN.test(trimmed) ? trimmed.toLowerCase() : null;
 };
 
-type FailedNodePtyResult = Extract<
-  DesktopWslEnvironment.EnsureWslNodePtyResult,
-  { readonly ok: false }
->;
+type FailedNodeResult = Extract<DesktopWslEnvironment.EnsureWslNodeResult, { readonly ok: false }>;
 
 const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(function* (input: {
   readonly distro: string | null;
@@ -339,14 +336,13 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
     } as const;
   }
 
-  const nodePtyOptions = {
-    allowBuild: input.allowBuild,
+  const nodeOptions = {
     nodeEngineRange: serverPackageJson.engines.node,
   };
-  const failedNodePty = (result: FailedNodePtyResult) =>
+  const failedNode = (result: FailedNodeResult) =>
     ({
       _tag: "Failed",
-      reason: `WSL node-pty unavailable: ${result.reason}`,
+      reason: `WSL Node.js unavailable: ${result.reason}`,
       fatal: result.fatal,
       ...(result.retryLimit === undefined ? {} : { retryLimit: result.retryLimit }),
     }) as const;
@@ -388,7 +384,7 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
   if (input.runtimeArchive !== null) {
     const runtime = yield* wslEnv.prepareRuntime(runningDistro, input.runtimeArchive);
     if (runtime.ok) {
-      // Staged runtimes bundle Node and node-pty; provider PATH discovery must not require them.
+      // Staged runtimes bundle Node; provider PATH discovery must not require them.
       const stagedProbe = yield* wslEnv.probeRuntime(runningDistro, runtime.linuxAppRoot);
       if (stagedProbe.ok) {
         yield* wslServerTree.cleanupLegacy;
@@ -422,16 +418,10 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
       : ({ _tag: "Failed", reason: mounted.reason, fatal: mounted.fatal } as const);
   }
 
-  const nodePtyResult = yield* wslEnv.ensureNodePty(
-    runningDistro,
-    mounted.linuxAppRoot,
-    nodePtyOptions,
-  );
-  if (!nodePtyResult.ok) {
+  const nodeResult = yield* wslEnv.ensureNode(runningDistro, mounted.linuxAppRoot, nodeOptions);
+  if (!nodeResult.ok) {
     // Only substitute a staged failure for a fatal mounted failure; transient /mnt failures must remain retryable.
-    return stagedFailure && nodePtyResult.fatal
-      ? failedStaged(stagedFailure)
-      : failedNodePty(nodePtyResult);
+    return stagedFailure && nodeResult.fatal ? failedStaged(stagedFailure) : failedNode(nodeResult);
   }
 
   if (stagedFailure?.runtimeId) {
@@ -444,10 +434,10 @@ const runWslPreflight = Effect.fn("desktop.backendConfiguration.wslPreflight")(f
     windowsEntryPath: mounted.windowsEntryPath,
     runtime: {
       kind: "node-script",
-      nodePath: nodePtyResult.nodePath,
+      nodePath: nodeResult.nodePath,
       linuxEntryPath: `${mounted.linuxAppRoot}/apps/server/dist/bin.mjs`,
     },
-    resolvedPath: nodePtyResult.resolvedPath,
+    resolvedPath: nodeResult.resolvedPath,
   } as const;
 });
 
@@ -508,8 +498,7 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
       tailscaleServePort: backendExposure.tailscaleServePort,
       desktopTelemetryFd: 4,
       desktopTelemetryControlFd: 5,
-      desktopBrowserFd: 6,
-      desktopBrowserControlFd: 7,
+
       ...Option.match(input.resourceMonitorPath, {
         onNone: () => ({}),
         onSome: (resourceMonitorPath) => ({ resourceMonitorPath }),

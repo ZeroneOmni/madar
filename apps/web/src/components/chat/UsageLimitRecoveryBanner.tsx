@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
-
 type RecoveryProps = {
   runId: RunId;
   resetAt: string | null;
@@ -17,7 +16,6 @@ type RecoveryProps = {
   recovery: OrchestrationV2LimitRecovery | null;
   onChange: (recovery: OrchestrationV2LimitRecoveryUpdate) => Promise<void>;
 };
-
 export function usageLimitRecoveryBannerItem(props: RecoveryProps): ComposerBannerStackItem {
   const { runId, resetAt, stoppedAt } = props;
   const canSchedule = resetAt !== null && Date.parse(resetAt) > Date.parse(stoppedAt);
@@ -33,7 +31,6 @@ export function usageLimitRecoveryBannerItem(props: RecoveryProps): ComposerBann
     actions: canSchedule ? <RecoveryActions key={`${runId}:${resetAt}`} {...props} /> : null,
   };
 }
-
 function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: RecoveryProps) {
   const [pending, setPending] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -43,7 +40,6 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
     const timer = window.setTimeout(() => setNowMs(Date.now()), Math.min(delay + 1, 2_147_483_647));
     return () => window.clearTimeout(timer);
   }, [resetAt, nowMs]);
-
   const scheduled =
     recovery?.runId === runId && recovery.resetAt === resetAt && recovery.autoResume;
   // The server leaves snoozedUntil in place after the timer wakes the thread,
@@ -73,7 +69,13 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
       await onChange({
         runId,
         resetAt,
-        ...(action === "resume" ? { autoResume: !scheduled } : { snooze: !snoozed }),
+        ...(action === "resume"
+          ? {
+              autoResume: !scheduled,
+            }
+          : {
+              snooze: !snoozed,
+            }),
       });
     } catch (cause) {
       toastManager.add({

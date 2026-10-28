@@ -41,15 +41,18 @@ import {
   startFanoutThread,
 } from "./chatViewSend";
 import type { useLocalDispatchState } from "./useLocalDispatchState";
-
 interface MultipleModelSendInput {
   readonly environmentId: EnvironmentId;
   readonly routeThreadKey: string;
-  readonly currentRouteThreadKeyRef: { readonly current: string | null };
+  readonly currentRouteThreadKeyRef: {
+    readonly current: string | null;
+  };
   readonly draftId: DraftId | null;
   readonly composerDraftTarget: ComposerThreadTarget;
   readonly composerRef: ComposerHandleRef;
-  readonly promptRef: { current: string };
+  readonly promptRef: {
+    current: string;
+  };
   readonly runtimeMode: RuntimeMode;
   readonly startFromOrigin: boolean;
   readonly resetLocalDispatch: ReturnType<typeof useLocalDispatchState>["resetLocalDispatch"];
@@ -83,7 +86,6 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
   const fanoutSelectionsAtom = draftFanoutSelectionsAtom(routeThreadKey);
   const { sendInFlight: sendInFlightRef, uncertainSubmissions: uncertainSubmissionsRef } =
     draftSendState(routeThreadKey);
-
   return async ({
     threadId,
     project,
@@ -195,7 +197,11 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
                       projectCwd: project.workspaceRoot,
                       baseBranch: branch,
                       requireWorktree: true,
-                      ...(startFromOrigin ? { startFromOrigin: true } : {}),
+                      ...(startFromOrigin
+                        ? {
+                            startFromOrigin: true,
+                          }
+                        : {}),
                     },
                     runSetupScript: true,
                   },
@@ -277,7 +283,12 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
                   return;
                 }
                 restoreFailedDraft();
-                void navigate({ to: "/draft/$draftId", params: { draftId } });
+                void navigate({
+                  to: "/draft/$draftId",
+                  params: {
+                    draftId,
+                  },
+                });
                 toastManager.close(recoveryToastId);
               },
             },

@@ -1,5 +1,7 @@
 export function resolveComposerMenuActiveItemId(input: {
-  items: ReadonlyArray<{ id: string }>;
+  items: ReadonlyArray<{
+    id: string;
+  }>;
   highlightedItemId: string | null;
   currentSearchKey: string | null;
   highlightedSearchKey: string | null;
@@ -7,7 +9,6 @@ export function resolveComposerMenuActiveItemId(input: {
   if (input.items.length === 0) {
     return null;
   }
-
   if (
     input.currentSearchKey === input.highlightedSearchKey &&
     input.highlightedItemId &&
@@ -15,6 +16,5 @@ export function resolveComposerMenuActiveItemId(input: {
   ) {
     return input.highlightedItemId;
   }
-
   return input.items[0]?.id ?? null;
 }

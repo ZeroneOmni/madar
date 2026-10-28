@@ -28,7 +28,6 @@ const decodeManifest = Schema.decodeUnknownSync(Schema.fromJsonString(PackageMan
 describe("shouldBundleCliDependency", () => {
   it("leaves native addons and their dlopen wrappers external", () => {
     for (const id of [
-      "node-pty",
       "ffi-rs",
       "@yuuang/ffi-rs-win32-x64-msvc",
       "@ff-labs/fff-node",
@@ -101,9 +100,9 @@ it.layer(NodeServices.layer)("external package dependency closure", (it) => {
         if (!manifest) continue;
 
         const declared = {
-          ...(manifest.dependencies ?? {}),
-          ...(manifest.optionalDependencies ?? {}),
-          ...(manifest.peerDependencies ?? {}),
+          ...manifest.dependencies,
+          ...manifest.optionalDependencies,
+          ...manifest.peerDependencies,
         };
         for (const dependency of Object.keys(declared)) {
           if (!isRuntimeExternal(dependency)) {
@@ -173,7 +172,7 @@ describe("findEsmImportsOfExternalPackages", () => {
       'import { FileFinder } from "@ff-labs/fff-node";',
       'import * as fs from "fs";',
       'import { createRequire } from "node:module";',
-      'const pty = () => import("node-pty");',
+      'const keyring = () => import("@napi-rs/keyring");',
       'const data = () => import("@ff-labs/fff-bin-linux-x64-gnu", { with: { type: "json" } });',
       'const lazy = () => import(/* @vite-ignore */ "ffi-rs");',
       'const local = () => import("./chunk-abc.mjs");',
@@ -182,8 +181,8 @@ describe("findEsmImportsOfExternalPackages", () => {
     assert.deepStrictEqual(findEsmImportsOfExternalPackages(source), [
       "@ff-labs/fff-bin-linux-x64-gnu",
       "@ff-labs/fff-node",
+      "@napi-rs/keyring",
       "ffi-rs",
-      "node-pty",
     ]);
   });
 

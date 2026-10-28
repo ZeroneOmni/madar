@@ -65,20 +65,28 @@ import {
   workEntryIconName,
   remarkThoughtPreview,
 } from "./TimelineWorkEntryRow.logic";
-
 export function useThreadReadTarget(entry: TimelineWorkEntry, environmentId: EnvironmentId) {
   const rawThreadId = threadReadTargetId(entry);
   const threadId = rawThreadId === null ? null : ThreadId.make(rawThreadId);
   const shell = useThreadShell(threadId ? scopeThreadRef(environmentId, threadId) : null);
   const title = threadReadTargetTitle(shell);
-  return threadId && title ? { threadId, title } : null;
+  return threadId && title
+    ? {
+        threadId,
+        title,
+      }
+    : null;
 }
-
 export function threadReadLabel(label: string, target: ReturnType<typeof useThreadReadTarget>) {
   const prefix = target && threadReadLabelPrefix(label);
-  return prefix ? { ...target, prefix, text: `${prefix} “${target.title}”` } : null;
+  return prefix
+    ? {
+        ...target,
+        prefix,
+        text: `${prefix} “${target.title}”`,
+      }
+    : null;
 }
-
 export function ThreadReadLabel({
   label,
   environmentId,
@@ -94,7 +102,10 @@ export function ThreadReadLabel({
       {linked ? (
         <Link
           to="/$environmentId/$threadId"
-          params={{ environmentId, threadId: label.threadId }}
+          params={{
+            environmentId,
+            threadId: label.threadId,
+          }}
           className="min-w-0 truncate rounded-sm text-foreground underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
           onClick={stopRowToggle}
           onKeyDown={stopRowToggle}
@@ -108,12 +119,9 @@ export function ThreadReadLabel({
     </span>
   );
 }
-
 const toolCallExpandedBodyClassName =
   "max-h-64 cursor-text overflow-auto whitespace-pre-wrap break-words font-mono text-secondary-label text-(length:--font-size-code,var(--text-2xs)) leading-relaxed select-text";
-
 const stopRowToggle = (e: { stopPropagation: () => void }) => e.stopPropagation();
-
 export function ReasoningTraceContent({ entries }: { entries: ReadonlyArray<TimelineWorkEntry> }) {
   const ctx = use(TimelineRowCtx);
   const { isWorking, latestRunId } = use(TimelineRowActivityCtx);
@@ -139,14 +147,12 @@ export function ReasoningTraceContent({ entries }: { entries: ReadonlyArray<Time
     </WorkLogDetails>
   );
 }
-
 type WorkEntryRowProps = {
   workEntry: TimelineWorkEntry;
   workspaceRoot: string | undefined;
   displayLabel?: string | undefined;
   onToggleEntry?: ((collapsed: boolean) => void) | undefined;
 };
-
 export const SimpleWorkEntryRow = memo(function SimpleWorkEntryRow(props: WorkEntryRowProps) {
   const ctx = use(TimelineRowCtx);
   const item = props.workEntry.projectedItem?.item;
@@ -167,7 +173,6 @@ export const SimpleWorkEntryRow = memo(function SimpleWorkEntryRow(props: WorkEn
     />
   );
 });
-
 function WorkEntryLogRow(props: WorkEntryRowProps) {
   const { workEntry, workspaceRoot, displayLabel } = props;
   const ctx = use(TimelineRowCtx);
@@ -382,7 +387,6 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
         },
       }
     : {};
-
   return (
     <WorkLogRow
       data-v2-item-type={workEntry.projectedItem?.item.type}
@@ -532,7 +536,6 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
               workspaceRoot={workspaceRoot}
               onOpenThread={ctx.onOpenThread}
               onOpenTurnDiff={ctx.onOpenTurnDiff}
-              onRollbackCheckpoint={ctx.onRollbackCheckpoint}
               onImageExpand={ctx.onImageExpand}
               source={ctx.turnItemSource}
             />
@@ -556,7 +559,6 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
     </WorkLogRow>
   );
 }
-
 function QuestionAnswerHistory({
   answer,
 }: {

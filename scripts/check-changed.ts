@@ -20,6 +20,7 @@ import * as NodePath from "node:path";
 import { decide, readWorkspace } from "../.github/scripts/ci-changes.cjs";
 
 const root = NodePath.resolve(import.meta.dirname, "..");
+const vitePlusEntry = NodePath.join(root, "node_modules/vite-plus/bin/vp");
 const CODE = /\.[cm]?[jt]sx?$/;
 
 // quotePath=false keeps non-ASCII paths as real paths instead of quoted escapes.
@@ -70,18 +71,38 @@ const inputKey = () => {
       { cwd: root, maxBuffer: 1024 * 1024 * 1024 },
     ),
   );
-  const ignored = git(
-    "ls-files",
-    "--others",
-    "--ignored",
-    "--exclude-standard",
-    "--",
-    ":(glob)**/.generated/**",
-    ":(glob)**/.astro/**",
-    ":(glob)**/*.d.ts",
-    ":(glob)**/.env*",
-    ":(exclude,glob)**/node_modules/**",
-  );
+  const ignored: string[] = [];
+  const pending = [root];
+  const excluded = new Set([
+    "node_modules",
+    ".git",
+    ".repos",
+    ".t3",
+    ".vite-plus",
+    "dist",
+    "dist-electron",
+    "target",
+    "release",
+  ]);
+  while (pending.length > 0) {
+    const directory = pending.pop()!;
+    for (const entry of NodeFS.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) continue;
+      const path = NodePath.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        if (!excluded.has(entry.name)) pending.push(path);
+      } else if (entry.isFile()) {
+        const relative = NodePath.relative(root, path);
+        if (
+          relative.split(NodePath.sep).some((part) => part === ".generated" || part === ".astro") ||
+          entry.name.endsWith(".d.ts") ||
+          entry.name.startsWith(".env")
+        )
+          ignored.push(relative);
+      }
+    }
+  }
+  ignored.sort();
   for (const file of [
     // Raw bytes of changed files too: .gitattributes normalizes line endings in
     // the diff, but the formatter reads the file as it is on disk.
@@ -186,8 +207,8 @@ const checkPatches = (): boolean => {
       if (NodeFS.existsSync(NodePath.join(root, extra))) copy(extra);
     }
     const { status, stdout, stderr, error } = NodeChildProcess.spawnSync(
-      "vp",
-      ["install", "--lockfile-only", "--ignore-scripts"],
+      process.execPath,
+      [vitePlusEntry, "install", "--lockfile-only", "--ignore-scripts"],
       { cwd: temp, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
     );
     if (status === 0) return true;
@@ -214,14 +235,29 @@ const graphql = ["apps/server", "packages/source-control-github"].filter((dir) =
 );
 
 const filters = (names: ReadonlyArray<string>) => names.flatMap((name) => ["--filter", name]);
+const fileSteps = (name: string, prefix: string[], paths: string[]) => {
+  if (paths.length === 0) return [];
+  const batches: string[][] = [[]];
+  let length = 0;
+  for (const path of paths) {
+    // Leave room for executable paths and Windows argument quoting below its 32K limit.
+    if (length + path.length > 24_000) {
+      batches.push([]);
+      length = 0;
+    }
+    batches.at(-1)!.push(path);
+    length += path.length + 3;
+  }
+  return batches.map((batch, index) => ({
+    name: batches.length === 1 ? name : `${name} (${index + 1}/${batches.length})`,
+    args: [...prefix, ...batch],
+  }));
+};
 const steps = [
   // Runs first; it takes about a second.
   runPatchCheck && { name: "unused patches", run: checkPatches },
-  present.length > 0 && {
-    name: "format",
-    args: ["fmt", "--check", "--no-error-on-unmatched-pattern", ...present],
-  },
-  code.length > 0 && { name: "lint", args: ["lint", ...code] },
+  ...fileSteps("format", ["fmt", "--check", "--no-error-on-unmatched-pattern"], present),
+  ...fileSteps("lint", ["lint"], code),
   ...(runKnip ? knipPasses : []),
   ...graphql.map((dir) => ({
     name: `graphql (${dir})`,
@@ -242,10 +278,7 @@ const steps = [
     ],
   },
   // From the repo root, the root vite.config.ts hands each file to its package's config.
-  tests.size > 0 && {
-    name: `test (${tests.size} files)`,
-    args: ["test", "run", "--passWithNoTests", ...tests],
-  },
+  ...fileSteps(`test (${tests.size} files)`, ["test", "run", "--passWithNoTests"], [...tests]),
 ].filter((step) => step !== false);
 
 // Output is piped, so keep the colors a terminal would get.
@@ -265,7 +298,10 @@ const results = await Promise.all(
         // takes about a second, so the commands start right after it.
         if ("run" in step) return finish(step.run());
         const output: Array<Buffer> = [];
-        const child = NodeChildProcess.spawn("vp", step.args, { cwd: root, env });
+        const child = NodeChildProcess.spawn(process.execPath, [vitePlusEntry, ...step.args], {
+          cwd: root,
+          env,
+        });
         child.stdout.on("data", (chunk: Buffer) => output.push(chunk));
         child.stderr.on("data", (chunk: Buffer) => output.push(chunk));
         // A failed spawn emits "error", then "close" with a nonzero code.

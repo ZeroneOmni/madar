@@ -13,7 +13,6 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-
 import { useAssetUrlRefresh, useAssetUrlState } from "../../assets/assetUrls";
 import { cn } from "../../lib/utils";
 import { useRightPanelStore } from "../../rightPanelStore";
@@ -22,7 +21,6 @@ import { MediaActions, type MediaActionSource } from "../media/MediaActions";
 import { MediaVideoPlayer } from "../media/MediaVideoPlayer";
 import type { ExpandedImagePreview } from "./ExpandedImagePreview";
 import { markdownImageGallery, markdownImageItems } from "./markdownImageGallery";
-
 const CHAT_MARKDOWN_MEDIA_MAX_WIDTH_CLASS_NAME = "max-w-[min(100%,30rem)]";
 const CHAT_MARKDOWN_MEDIA_BOUNDS_CLASS_NAME = cn(
   "max-h-[30rem]",
@@ -34,7 +32,6 @@ const CHAT_MARKDOWN_IMAGE_SIZE_CLASS_NAME = cn(
   "h-auto w-auto object-contain",
   CHAT_MARKDOWN_MEDIA_BOUNDS_CLASS_NAME,
 );
-
 export function markdownImageCopy(alt: string, src: string, title: string | undefined): string {
   const escapedAlt = alt.replaceAll("\\", "\\\\").replaceAll("[", "\\[").replaceAll("]", "\\]");
   const titleSuffix =
@@ -64,17 +61,21 @@ export function authoredImageSizeStyle(
       maxWidth: `min(100%, 30rem, ${(maxHeightRem * parsedWidth) / parsedHeight}rem)`,
     };
   }
-  if (hasWidth) return { maxWidth: `min(100%, 30rem, ${parsedWidth}px)` };
-  if (hasHeight) return { maxHeight: `min(30rem, ${parsedHeight}px)` };
+  if (hasWidth)
+    return {
+      maxWidth: `min(100%, 30rem, ${parsedWidth}px)`,
+    };
+  if (hasHeight)
+    return {
+      maxHeight: `min(30rem, ${parsedHeight}px)`,
+    };
   return undefined;
 }
-
 const CHAT_MARKDOWN_WORKSPACE_IMAGE_CLASS_NAME = cn(
   CHAT_MARKDOWN_MEDIA_LAYOUT_CLASS_NAME,
   CHAT_MARKDOWN_MEDIA_FRAME_CLASS_NAME,
 );
 export const MarkdownLinkContext = createContext(false);
-
 function expandableMarkdownImageProps(
   onImageExpand: ((preview: ExpandedImagePreview) => void) | undefined,
   alt: string,
@@ -98,7 +99,6 @@ function expandableMarkdownImageProps(
     },
   };
 }
-
 function ChatMarkdownMediaUnavailableLabel(props: {
   readonly alt: string;
   readonly kind?: "image" | "video" | undefined;
@@ -112,7 +112,6 @@ function ChatMarkdownMediaUnavailableLabel(props: {
     </span>
   );
 }
-
 export function ChatMarkdownImageFallback(props: {
   readonly alt: string;
   readonly copyMarkdown?: string | undefined;
@@ -137,7 +136,6 @@ export function ChatMarkdownImageFallback(props: {
     content
   );
 }
-
 const CHAT_MARKDOWN_IMAGE_FRAME_CLASS_NAME = cn(
   "aspect-video w-full overflow-hidden bg-muted/60",
   CHAT_MARKDOWN_MEDIA_MAX_WIDTH_CLASS_NAME,
@@ -178,7 +176,11 @@ export function ChatMarkdownImage(props: {
       src,
       name: props.alt.trim() || "image",
       actionsSource: props.actionsSource,
-      ...(props.originalUrl ? { originalUrl: props.originalUrl } : {}),
+      ...(props.originalUrl
+        ? {
+            originalUrl: props.originalUrl,
+          }
+        : {}),
     });
   };
   const imageEvents = (loadingSrc: string) => ({
@@ -191,7 +193,6 @@ export function ChatMarkdownImage(props: {
       setLoadedSrc(null);
     },
   });
-
   if (settled) {
     return (
       <MediaActions source={props.actionsSource}>
@@ -245,8 +246,13 @@ export function ChatMarkdownImage(props: {
         )}
         style={props.style}
         {...(failed
-          ? { role: "alert" as const }
-          : { role: "status" as const, "aria-label": "Loading image" })}
+          ? {
+              role: "alert" as const,
+            }
+          : {
+              role: "status" as const,
+              "aria-label": "Loading image",
+            })}
       >
         {failed ? (
           <span className="flex size-full items-center justify-center p-2 text-center text-xs text-muted-foreground">
@@ -267,7 +273,6 @@ export function ChatMarkdownImage(props: {
     </MediaActions>
   );
 }
-
 export function ChatMarkdownVideo(props: {
   readonly src: string | null;
   readonly alt: string;
@@ -302,7 +307,6 @@ export function ChatMarkdownVideo(props: {
     />
   );
 }
-
 export const ChatMarkdownAssetImage = memo(function ChatMarkdownAssetImage(props: {
   readonly environmentId: EnvironmentId;
   readonly resource: Extract<
@@ -398,29 +402,40 @@ export const ChatMarkdownAssetImage = memo(function ChatMarkdownAssetImage(props
     (knownSize
       ? authoredImageSizeStyle(knownSize.width, knownSize.height, maxHeightRem)
       : maxHeightRem !== 30
-        ? { maxHeight: `${maxHeightRem}rem` }
+        ? {
+            maxHeight: `${maxHeightRem}rem`,
+          }
         : undefined);
   const actionsSource: MediaActionSource = {
     kind: props.kind ?? "image",
     name: props.alt || (props.kind ?? "image"),
     src,
     ...(fallbackSrc === undefined
-      ? { asset: { environmentId: props.environmentId, resource } }
+      ? {
+          asset: {
+            environmentId: props.environmentId,
+            resource,
+          },
+        }
       : {}),
-    ...(reference ? { reference } : {}),
+    ...(reference
+      ? {
+          reference,
+        }
+      : {}),
     ...(relativePath && (resource._tag === "media-file" || resource._tag === "workspace-file")
       ? {
           onOpenFile: () =>
-            useRightPanelStore
-              .getState()
-              .openFile(
-                { environmentId: props.environmentId, threadId: resource.threadId },
-                relativePath,
-              ),
+            useRightPanelStore.getState().openFile(
+              {
+                environmentId: props.environmentId,
+                threadId: resource.threadId,
+              },
+              relativePath,
+            ),
         }
       : {}),
   };
-
   if (props.kind === "video") {
     return (
       <ChatMarkdownVideo
@@ -436,7 +451,6 @@ export const ChatMarkdownAssetImage = memo(function ChatMarkdownAssetImage(props
       />
     );
   }
-
   return (
     <ChatMarkdownImage
       key={JSON.stringify([props.environmentId, props.resource, props.srcFragment])}

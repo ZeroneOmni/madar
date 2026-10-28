@@ -1,5 +1,5 @@
 import type { SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
-import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
+
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import {
@@ -10,7 +10,6 @@ import {
   NodeId,
   ProjectId,
   ProviderInstanceId,
-  ScheduledTaskUpsertInput,
   ThreadId,
   type OrchestrationV2DomainEvent,
 } from "@t3tools/contracts";
@@ -24,29 +23,22 @@ import * as Path from "effect/Path";
 import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
-import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
-import * as SecretRequests from "../secrets/SecretRequests.ts";
-import * as ManagedProjectFolders from "../project/ManagedProjectFolders.ts";
-import * as Scheduler from "../scheduling/Scheduler.ts";
-import * as SqlitePersistence from "../persistence/Sqlite.ts";
+
 import * as ClaudeAdapterV2 from "./Adapters/ClaudeAdapterV2.ts";
-import * as CommandReceiptStore from "./CommandReceiptStore.ts";
+
 import * as EffectWorker from "./EffectWorker.ts";
 import * as EventSink from "./EventSink.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
-import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
-import * as LegacyV1ThreadImporter from "./legacy/LegacyV1ThreadImporter.ts";
+
 import * as Orchestrator from "./Orchestrator.ts";
 import * as ProviderAdapterRegistry from "./ProviderAdapterRegistry.ts";
-import * as ThreadLaunchService from "./ThreadLaunchService.ts";
-import * as ThreadManagementService from "./ThreadManagementService.ts";
-import * as ServerSettings from "../serverSettings.ts";
+
 import * as ProviderReplayHarness from "./testkit/ProviderReplayHarness.ts";
 import { checkpointWorkspace } from "@t3tools/provider-testing/replayWorkspace";
 
 const sessionId = "automatic-delivery-session";
 const settings = Schema.decodeSync(ClaudeSettings)({});
-const decodeScheduledTask = Schema.decodeEffect(ScheduledTaskUpsertInput);
+
 const refusal =
   "The user doesn't want to take this action right now. STOP what you are doing and wait for the user to tell you how to proceed.";
 const statusIds = ["status-1", "status-2", "status-3", "status-4"];
@@ -125,7 +117,7 @@ const result = (uuid: string, aborted: boolean) =>
 
 const deliveries = [
   "child completion",
-  "scheduled message",
+
   "user steering",
   "promoted queued message",
 ] as const;
@@ -299,57 +291,6 @@ it.effect.each(deliveries)(
             yield* orchestrator.dispatch(command);
             yield* orchestrator.dispatch(command);
             yield* orchestrator.recoverDelegatedTasks;
-          } else if (delivery === "scheduled message") {
-            yield* Effect.gen(function* () {
-              const service = yield* ScheduledTaskService.ScheduledTaskService;
-              const { task } = yield* service.upsert(
-                yield* decodeScheduledTask({
-                  title: "Status check",
-                  prompt: "Check the four tasks.",
-                  enabled: true,
-                  schedule: { type: "interval", everyMs: 60_000 },
-                  projectId,
-                  threadId,
-                  workspaceStrategy: { type: "root" },
-                  modelSelection,
-                  runtimeMode: "full-access",
-                  interactionMode: "default",
-                }),
-              );
-              const ran = yield* service.runNow({ id: task.id });
-              assert.equal(ran.task.lastRunStatus, "succeeded");
-            }).pipe(
-              Effect.provide(
-                ScheduledTaskService.layer.pipe(
-                  Layer.provide(ThreadManagementService.layer),
-                  Layer.provide(ServerSettings.layerTest()),
-                  Layer.provide(
-                    Layer.mock(LegacyV1ThreadImporter.LegacyV1ThreadImporter)({
-                      ensureTranscript: () =>
-                        Effect.succeed({ importedThreadCount: 0, importedMessageCount: 0 }),
-                    }),
-                  ),
-                  Layer.provide(Layer.mock(ThreadLaunchService.ThreadLaunchService)({})),
-                  Layer.provide(
-                    Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
-                      namedProjectsRoot: "/projects",
-                      isScratchProject: () => Effect.succeed(false),
-                    }),
-                  ),
-                  Layer.provide(Layer.mock(SecretRequests.SecretRequests)({})),
-                  Layer.provide(
-                    CommandReceiptStore.layer.pipe(Layer.provide(SqlitePersistence.layerMemory)),
-                  ),
-                  Layer.provide(
-                    Layer.mergeAll(
-                      NodeCrypto.layer,
-                      Scheduler.layer,
-                      SqlitePersistence.layerMemory,
-                    ),
-                  ),
-                ),
-              ),
-            );
           } else if (delivery === "user steering") {
             yield* orchestrator.dispatch({
               type: "message.dispatch",
@@ -403,7 +344,7 @@ it.effect.each(deliveries)(
             (event) =>
               event.type === "run.updated" &&
               event.payload.id === parent.id &&
-              event.payload.status === "waiting",
+              event.payload.status === "completed",
           );
           yield* Queue.offer(sdkMessages, toolResult("build", false));
           for (const id of statusIds)
@@ -420,7 +361,7 @@ it.effect.each(deliveries)(
               (event) =>
                 event.type === "run.updated" &&
                 event.payload.id === queued.id &&
-                event.payload.status === "waiting",
+                event.payload.status === "completed",
             );
             const delivered =
               delivery === "child completion"
@@ -455,11 +396,6 @@ it.effect.each(deliveries)(
             if (delivery === "child completion") {
               assert.equal(after.messages.filter((message) => message.id === messageId).length, 1);
               assert.equal(after.subagents[0]?.completionDelivery?.state, "delivered");
-            } else {
-              assert.equal(
-                after.messages.filter((message) => message.scheduledTaskId !== undefined).length,
-                1,
-              );
             }
           }
           yield* orchestrator.recoverDelegatedTasks;
@@ -475,10 +411,6 @@ it.effect.each(deliveries)(
             ),
           ),
         );
-      }).pipe(
-        Effect.provide(
-          Layer.mergeAll(IdAllocator.layer, McpProviderSessions.layer, NodeServices.layer),
-        ),
-      ),
+      }).pipe(Effect.provide(Layer.mergeAll(IdAllocator.layer, NodeServices.layer))),
     ),
 );

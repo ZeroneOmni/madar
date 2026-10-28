@@ -1,7 +1,6 @@
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
 import {
   AuthProvidersManageScope,
-  type AuthSessionState,
   type EnvironmentId,
   type ProjectId,
   type ProjectSettingsOverrides,
@@ -10,19 +9,16 @@ import {
   type ServerSettings,
   type SessionGrantInput,
 } from "@t3tools/contracts";
-
 export interface ProviderEnvironmentOptionLike {
   readonly environmentId: EnvironmentId;
   readonly label: string;
 }
-
 export function isProviderSettingsEnvironmentAvailable(input: {
   readonly connectionPhase: EnvironmentConnectionPhase;
   readonly hasServerConfig: boolean;
 }): boolean {
   return input.connectionPhase === "connected" && input.hasServerConfig;
 }
-
 export function buildProviderEnvironmentOptions<T extends ProviderEnvironmentOptionLike>(
   environments: ReadonlyArray<T>,
   primaryEnvironmentId: EnvironmentId | null,
@@ -43,7 +39,6 @@ export function buildProviderEnvironmentOptions<T extends ProviderEnvironmentOpt
       );
     });
 }
-
 export function resolveSelectedProviderEnvironmentId(
   environments: ReadonlyArray<ProviderEnvironmentOptionLike>,
   selectedEnvironmentId: EnvironmentId | null,
@@ -63,16 +58,24 @@ export function resolveSelectedProviderEnvironmentId(
   }
   return environments[0]?.environmentId ?? null;
 }
-
 export type ProviderEnvironmentAccess =
-  | { readonly kind: "editable" }
-  | { readonly kind: "loading"; readonly reason: "config" | "permissions" }
-  | { readonly kind: "read-only" }
-  | { readonly kind: "unavailable" }
-  | { readonly kind: "error" };
-
+  | {
+      readonly kind: "editable";
+    }
+  | {
+      readonly kind: "loading";
+      readonly reason: "config" | "permissions";
+    }
+  | {
+      readonly kind: "read-only";
+    }
+  | {
+      readonly kind: "unavailable";
+    }
+  | {
+      readonly kind: "error";
+    };
 export type ProviderOperateAccess = "granted" | "denied" | "pending";
-
 function resolveSessionOperateAccess(input: {
   readonly session: SessionGrantInput | null;
   readonly isPending: boolean;
@@ -82,7 +85,6 @@ function resolveSessionOperateAccess(input: {
   if (input.session === null) return input.isPending ? "pending" : "denied";
   return sessionGrantsScope(input.session, AuthProvidersManageScope) ? "granted" : "denied";
 }
-
 export function resolvePrimaryOperateAccess(input: {
   readonly isPrimary: boolean;
   readonly hasDesktopBridge: boolean;
@@ -92,7 +94,6 @@ export function resolvePrimaryOperateAccess(input: {
 }): ProviderOperateAccess {
   return resolveSessionOperateAccess(input);
 }
-
 export function resolveRemoteOperateAccess(input: {
   readonly session: SessionGrantInput | null;
   readonly isPending: boolean;
@@ -112,40 +113,59 @@ export function buildProviderInstanceOverridePatch(
   const patch: Record<ProjectId, ProjectSettingsOverrides | null> = {};
   for (const projectId of projectIds) {
     const current = settings.projectSettingsOverrides[projectId];
-    const instances = { ...current?.providerInstances };
-    const instance = { ...instances[instanceId] };
+    const instances = {
+      ...current?.providerInstances,
+    };
+    const instance = {
+      ...instances[instanceId],
+    };
     if (value === undefined) delete instance.enabled;
     else instance.enabled = value;
     if (Object.keys(instance).length > 0) instances[instanceId] = instance;
     else delete instances[instanceId];
-
     const { providerInstances: _omit, ...rest } = current ?? {};
-    const nextEntry: ProjectSettingsOverrides = { ...rest, providerInstances: instances };
+    const nextEntry: ProjectSettingsOverrides = {
+      ...rest,
+      providerInstances: instances,
+    };
     patch[projectId] =
       Object.keys(rest).length === 0 && Object.keys(instances).length === 0 ? null : nextEntry;
   }
   return patch;
 }
-
 export function classifyProviderEnvironmentAccess(input: {
   readonly connectionPhase: EnvironmentConnectionPhase;
   readonly hasServerConfig: boolean;
   readonly operateAccess: ProviderOperateAccess;
 }): ProviderEnvironmentAccess {
   if (input.connectionPhase === "error") {
-    return { kind: "error" };
+    return {
+      kind: "error",
+    };
   }
   if (input.connectionPhase !== "connected") {
-    return { kind: "unavailable" };
+    return {
+      kind: "unavailable",
+    };
   }
   if (!input.hasServerConfig) {
-    return { kind: "loading", reason: "config" };
+    return {
+      kind: "loading",
+      reason: "config",
+    };
   }
   if (input.operateAccess === "pending") {
-    return { kind: "loading", reason: "permissions" };
+    return {
+      kind: "loading",
+      reason: "permissions",
+    };
   }
   if (input.operateAccess === "denied") {
-    return { kind: "read-only" };
+    return {
+      kind: "read-only",
+    };
   }
-  return { kind: "editable" };
+  return {
+    kind: "editable",
+  };
 }

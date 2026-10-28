@@ -33,7 +33,6 @@ export const TYPE_TO_FOCUS_FLOATING_LAYER_SELECTOR = [
   '[data-slot="combobox-popup"]:is([data-open],[data-ending-style])',
   '[data-slot="autocomplete-popup"]:is([data-open],[data-ending-style])',
 ].join(",");
-
 export function eventPathContainsSelector(event: Event, selector: string): boolean {
   const path = event.composedPath();
   if (path.length === 0 && event.target) {
@@ -41,7 +40,6 @@ export function eventPathContainsSelector(event: Event, selector: string): boole
   }
   return path.some((target) => target instanceof Element && target.closest(selector));
 }
-
 const SECRET_REQUEST_SELECTOR = '[data-v2-item-type="secret_request"]';
 const SURFACE_LAUNCHER_KEYS_ATTRIBUTE = "data-surface-launcher-keys";
 
@@ -54,7 +52,6 @@ function isSurfaceLauncherKey(key: string): boolean {
     ?.getAttribute(SURFACE_LAUNCHER_KEYS_ATTRIBUTE);
   return launcherKeys?.toLowerCase().includes(key.toLowerCase()) ?? false;
 }
-
 export function shouldRedirectInputToComposer(event: Event): boolean {
   if (event.defaultPrevented) return false;
   // Never persist or send secret-request typing through the composer.
@@ -64,17 +61,14 @@ export function shouldRedirectInputToComposer(event: Event): boolean {
   if (document.querySelector(TYPE_TO_FOCUS_FLOATING_LAYER_SELECTOR)) return false;
   return true;
 }
-
 export function shouldTypeToFocusComposer(event: KeyboardEvent): boolean {
   if (event.isComposing) return false;
   if (event.metaKey || event.ctrlKey || event.altKey) return false;
   if (event.key.length !== 1) return false;
   if (!shouldRedirectInputToComposer(event)) return false;
   if (isSurfaceLauncherKey(event.key)) return false;
-
   return true;
 }
-
 export function pasteTextToFocusComposer(event: ClipboardEvent): string | null {
   if (!event.clipboardData || event.clipboardData.files.length > 0) return null;
   if (!shouldRedirectInputToComposer(event)) return null;

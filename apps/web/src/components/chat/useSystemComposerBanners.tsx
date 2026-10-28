@@ -39,13 +39,11 @@ import {
   supportsDesktopAppUpdate,
   supportsServerUpdateThreadContinuation,
 } from "../../versionSkew";
-
 export type EnvironmentUnavailableState = {
   readonly environmentId: EnvironmentId;
   readonly label: string;
   readonly connection: EnvironmentConnectionPresentation;
 };
-
 interface SystemComposerBannersInput {
   readonly activeEnvironment: EnvironmentPresentation | null;
   readonly activeEnvironmentUnavailable: boolean;
@@ -73,7 +71,9 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
     autoUpdateEnvironments,
   } = input;
   const navigate = useNavigate();
-  const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, { reportFailure: false });
+  const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, {
+    reportFailure: false,
+  });
   const setEnvironmentEnabled = useAtomCommand(environmentCatalog.setEnabled, {
     reportFailure: false,
   });
@@ -131,7 +131,10 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
   const [disconnectingEnvironment, setDisconnectingEnvironment] = useState(false);
   const handleDisconnectActiveEnvironment = async (environmentId: EnvironmentId) => {
     setDisconnectingEnvironment(true);
-    const result = await setEnvironmentEnabled({ environmentId, enabled: false });
+    const result = await setEnvironmentEnabled({
+      environmentId,
+      enabled: false,
+    });
     setDisconnectingEnvironment(false);
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
@@ -146,7 +149,10 @@ export function useSystemComposerBanners(input: SystemComposerBannersInput) {
       }
       return;
     }
-    void navigate({ to: "/", replace: true });
+    void navigate({
+      to: "/",
+      replace: true,
+    });
   };
   const handleDisconnectActiveEnvironmentStable = useStableCallback(
     handleDisconnectActiveEnvironment,

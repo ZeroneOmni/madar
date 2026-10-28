@@ -23,7 +23,6 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import * as Cause from "effect/Cause";
-
 import { isLocalEnvironmentDisabled } from "../../localEnvironment";
 import {
   applyWslEnableSelection,
@@ -37,7 +36,6 @@ import { searchableSetting } from "./settingsSearch";
 import { EnvironmentIconMenu } from "./EnvironmentIconPicker";
 import { FoldedSettingsSection } from "./FoldedSettingsSection";
 import { LoadBalancingSettings } from "./LoadBalancingSettings";
-import { PullRequestRoutingSettings } from "./PullRequestRoutingSettings";
 import { Input } from "../ui/input";
 import {
   Dialog,
@@ -133,7 +131,6 @@ import {
   SavedBackendListRow,
 } from "./SavedEnvironmentRows";
 import { AddEnvironmentDialog } from "./AddEnvironmentDialog";
-
 const DEFAULT_TAILSCALE_SERVE_PORT = 443;
 const EMPTY_ADVERTISED_ENDPOINTS: ReadonlyArray<AdvertisedEndpoint> = [];
 
@@ -150,12 +147,13 @@ function LocalVersionStatusLabel() {
     </span>
   );
 }
-
 export function ConnectionsSettings() {
   const desktopBridge = window.desktopBridge;
   const { environments } = useEnvironments();
   const primaryEnvironment = usePrimaryEnvironment();
-  const removeEnvironment = useAtomCommand(environmentCatalog.remove, { reportFailure: false });
+  const removeEnvironment = useAtomCommand(environmentCatalog.remove, {
+    reportFailure: false,
+  });
   const setEnvironmentEnabled = useAtomCommand(environmentCatalog.setEnabled, {
     reportFailure: false,
   });
@@ -252,10 +250,22 @@ export function ConnectionsSettings() {
   const [isUpdatingWslBackend, setIsUpdatingWslBackend] = useState(false);
   const [desktopWslMutationError, setDesktopWslMutationError] = useState<string | null>(null);
   type PendingWslChange =
-    | { readonly kind: "disable"; readonly wasWslOnly: boolean }
-    | { readonly kind: "distro"; readonly nextDistro: string | null }
-    | { readonly kind: "enable"; readonly nextDistro: string | null }
-    | { readonly kind: "wsl-only"; readonly nextValue: boolean };
+    | {
+        readonly kind: "disable";
+        readonly wasWslOnly: boolean;
+      }
+    | {
+        readonly kind: "distro";
+        readonly nextDistro: string | null;
+      }
+    | {
+        readonly kind: "enable";
+        readonly nextDistro: string | null;
+      }
+    | {
+        readonly kind: "wsl-only";
+        readonly nextValue: boolean;
+      };
   const [pendingWslChange, setPendingWslChange] = useState<PendingWslChange | null>(null);
   const isWslConfirmDialogOpen = pendingWslChange !== null;
   const [pendingTailscaleServeEndpoint, setPendingTailscaleServeEndpoint] =
@@ -339,7 +349,6 @@ export function ConnectionsSettings() {
     Number.isInteger(parsedTailscaleServePort) &&
     parsedTailscaleServePort >= 1 &&
     parsedTailscaleServePort <= 65_535;
-
   const pendingTailscaleServeBaseUrl = (() => {
     if (!pendingTailscaleServeEndpoint) return null;
     if (!isTailscaleServePortValid) return pendingTailscaleServeEndpoint.httpBaseUrl;
@@ -354,7 +363,6 @@ export function ConnectionsSettings() {
       return pendingTailscaleServeEndpoint.httpBaseUrl;
     }
   })();
-
   const handleDesktopServerExposureChange = async (checked: boolean) => {
     if (
       !desktopBridge ||
@@ -383,13 +391,11 @@ export function ConnectionsSettings() {
       setIsUpdatingDesktopServerExposure(false);
     }
   };
-
   const handleConfirmDesktopServerExposureChange = () => {
     if (pendingDesktopServerExposureMode === null) return;
     const checked = pendingDesktopServerExposureMode === "network-accessible";
     void handleDesktopServerExposureChange(checked);
   };
-
   const handleConfirmTailscaleServeSetup = async () => {
     if (
       !desktopBridge ||
@@ -423,14 +429,12 @@ export function ConnectionsSettings() {
     }
     setIsUpdatingTailscaleServe(false);
   };
-
   const handleStartTailscaleServeSetup = (endpoint: AdvertisedEndpoint) => {
     setTailscaleServePortInput(
       String(desktopServerExposureState?.tailscaleServePort ?? DEFAULT_TAILSCALE_SERVE_PORT),
     );
     setPendingTailscaleServeEndpoint(endpoint);
   };
-
   const handleConfirmTailscaleServeDisable = async () => {
     if (
       !desktopBridge ||
@@ -462,11 +466,9 @@ export function ConnectionsSettings() {
     }
     setIsUpdatingTailscaleServe(false);
   };
-
   const handleStartTailscaleServeDisable = (_endpoint: AdvertisedEndpoint) => {
     setDisableTailscaleServeDialogOpen(true);
   };
-
   const handleRevokeDesktopPairingLink = async (id: string) => {
     if (
       primaryEnvironmentId === null ||
@@ -492,7 +494,6 @@ export function ConnectionsSettings() {
     }
     setRevokingDesktopPairingLinkId(null);
   };
-
   const handleRevokeDesktopClientSession = async (
     sessionId: ServerClientSessionRecord["sessionId"],
   ) => {
@@ -520,7 +521,6 @@ export function ConnectionsSettings() {
     }
     setRevokingDesktopClientSessionId(null);
   };
-
   const handleRevokeOtherDesktopClients = async () => {
     if (
       primaryEnvironmentId === null ||
@@ -551,10 +551,12 @@ export function ConnectionsSettings() {
     }
     setIsRevokingOtherDesktopClients(false);
   };
-
   const handleSetSavedBackendEnabled = async (environmentId: EnvironmentId, enabled: boolean) => {
     setSavedBackendError(null);
-    const result = await setEnvironmentEnabled({ environmentId, enabled });
+    const result = await setEnvironmentEnabled({
+      environmentId,
+      enabled,
+    });
     if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
       const error = squashAtomCommandFailure(result);
       const message =
@@ -571,7 +573,6 @@ export function ConnectionsSettings() {
       );
     }
   };
-
   const removeSavedBackend = async (environment: EnvironmentPresentation) => {
     const environmentId = environment.environmentId;
     setRemovingSavedEnvironmentId(environmentId);
@@ -603,11 +604,12 @@ export function ConnectionsSettings() {
     }
     const confirmed = await requestConfirmDialog(
       `Remove ${environment.label} from this device?\nThis forgets its pairing, credentials, and cached threads here. Switch it off instead to keep it saved.`,
-      { variant: "destructive" },
+      {
+        variant: "destructive",
+      },
     );
     if (confirmed === true) await removeSavedBackend(environment);
   };
-
   const visibleDesktopPairingLinks = desktopPairingLinks;
   const tailscaleHttpsEndpoint = desktopAdvertisedEndpoints.find(isTailscaleHttpsEndpoint) ?? null;
   const visibleDesktopNetworkAdvertisedEndpoints = isLocalBackendNetworkAccessible
@@ -632,7 +634,6 @@ export function ConnectionsSettings() {
   const handleSetDefaultAdvertisedEndpoint = (endpoint: AdvertisedEndpoint) => {
     setDefaultAdvertisedEndpointKey(endpointDefaultPreferenceKey(endpoint));
   };
-
   const renderNetworkAccessToggle = () => (
     <Switch
       checked={desktopServerExposureState?.mode === "network-accessible"}
@@ -689,16 +690,13 @@ export function ConnectionsSettings() {
     }
     setIsUpdatingWslBackend(false);
   };
-
   const loadWslState = () => {
     setDesktopWslMutationError(null);
     refreshDesktopWslState();
   };
-
   const hasWslRegistrationToLose = environments.some((environment) =>
     isDesktopLocalConnectionTarget(environment.entry.target),
   );
-
   const handleSelectWslMode = (value: string) => {
     if (!desktopBridge || !desktopWslState) return;
     const defaultDistroName =
@@ -708,7 +706,10 @@ export function ConnectionsSettings() {
       if (!desktopWslState.enabled && !desktopWslState.wslOnly) return;
       const wasWslOnly = desktopWslState.wslOnly;
       if (hasWslRegistrationToLose || wasWslOnly) {
-        setPendingWslChange({ kind: "disable", wasWslOnly });
+        setPendingWslChange({
+          kind: "disable",
+          wasWslOnly,
+        });
         return;
       }
       void applyWslSettingChange(() => desktopBridge.setWslBackendEnabled(false));
@@ -717,18 +718,23 @@ export function ConnectionsSettings() {
     const nextDistro = value === BACKEND_VALUE_DEFAULT_WSL ? null : value;
     const resolvedNext = nextDistro ?? defaultDistroName;
     if (!desktopWslState.enabled) {
-      setPendingWslChange({ kind: "enable", nextDistro });
+      setPendingWslChange({
+        kind: "enable",
+        nextDistro,
+      });
       return;
     }
     const resolvedCurrent = desktopWslState.distro ?? defaultDistroName;
     if (resolvedCurrent === resolvedNext) return;
     if (hasWslRegistrationToLose || desktopWslState.wslOnly) {
-      setPendingWslChange({ kind: "distro", nextDistro });
+      setPendingWslChange({
+        kind: "distro",
+        nextDistro,
+      });
       return;
     }
     void applyWslSettingChange(() => desktopBridge.setWslDistro(nextDistro));
   };
-
   const handleConfirmEnableWsl = (mode: "both" | "wsl-only") => {
     if (!desktopBridge || !pendingWslChange || pendingWslChange.kind !== "enable") return;
     const nextDistro = pendingWslChange.nextDistro;
@@ -743,12 +749,13 @@ export function ConnectionsSettings() {
       }),
     );
   };
-
   const handleToggleWslOnly = (enabled: boolean) => {
     if (!desktopBridge || !desktopWslState || desktopWslState.wslOnly === enabled) return;
-    setPendingWslChange({ kind: "wsl-only", nextValue: enabled });
+    setPendingWslChange({
+      kind: "wsl-only",
+      nextValue: enabled,
+    });
   };
-
   const handleConfirmWslChange = () => {
     if (!desktopBridge || !pendingWslChange) return;
     const change = pendingWslChange;
@@ -770,11 +777,13 @@ export function ConnectionsSettings() {
     }
     void applyWslSettingChange(() => desktopBridge.setWslOnly(change.nextValue));
   };
-
   const renderWslRow = () => {
     if (!desktopWslState) {
       if (
-        isWslSettingsRowVisible({ state: null, error: desktopWslError }) &&
+        isWslSettingsRowVisible({
+          state: null,
+          error: desktopWslError,
+        }) &&
         canManageLocalBackend
       ) {
         return (
@@ -797,7 +806,12 @@ export function ConnectionsSettings() {
       }
       return null;
     }
-    if (!isWslSettingsRowVisible({ state: desktopWslState, error: desktopWslError })) {
+    if (
+      !isWslSettingsRowVisible({
+        state: desktopWslState,
+        error: desktopWslError,
+      })
+    ) {
       return null;
     }
     if (!desktopWslState.available) {
@@ -902,7 +916,6 @@ export function ConnectionsSettings() {
       </>
     );
   };
-
   const renderTailscaleRow = () => (
     <SettingsRow
       title={searchableSetting("tailscale-https").title}
@@ -1023,7 +1036,6 @@ export function ConnectionsSettings() {
       }
     />
   );
-
   const primarySettings = (
     <>
       {primaryEnvironmentId !== null ? (
@@ -1474,7 +1486,6 @@ export function ConnectionsSettings() {
       )}
     </>
   );
-
   return (
     <SettingsPageContainer>
       {primarySettings}
@@ -1528,7 +1539,6 @@ export function ConnectionsSettings() {
         />
       ) : null}
       <LoadBalancingSettings environments={loadBalancingEnvironments} />
-      <PullRequestRoutingSettings environments={loadBalancingEnvironments} />
     </SettingsPageContainer>
   );
 }

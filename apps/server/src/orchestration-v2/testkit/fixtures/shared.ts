@@ -77,18 +77,10 @@ export const OPENCODE2_STEER_PROMPT =
 export const OPENCODE2_STEER_TEXT = "Also mention the word STEERED in your final reply.";
 export const OPENCODE2_QUEUED_PROMPT = "Reply exactly QUEUED_B.";
 export const OPENCODE2_CANCELLED_PROMPT = "Reply exactly QUEUED_C.";
-export const OPENCODE2_REVERT_FIRST_PROMPT =
-  "Create a file named reverted.txt containing the word ALPHA using the write tool, then reply DONE.";
-export const OPENCODE2_REVERT_SECOND_PROMPT =
-  "Overwrite reverted.txt so it contains the word BETA using the write tool, then reply DONE.";
 export const OPENCODE2_QUESTION_PROMPT =
   "Before doing anything, use the question tool to ask me which color I prefer, offering the options red and blue. After I answer, reply with only the chosen color.";
 export const OPENCODE2_SUBAGENT_PROMPT =
   "Use the subagent tool to delegate to the explore subagent with the prompt: 'List the files in the current directory and report their names.' Wait for it, then summarize its answer in one line.";
-export const OPENCODE2_NESTED_BACKGROUND_PROMPT =
-  "Use the subagent tool (foreground, do not set background) to delegate to the general subagent with this exact prompt: 'Use the subagent tool with background set to true to delegate to the general subagent with the prompt: Run the shell command `sleep 25` with the shell tool, then reply exactly GRANDCHILD_OK. As soon as it is launched, reply exactly MIDDLE_OK and end your turn without waiting for it.' Wait for that subagent to return, then reply exactly ROOT_OK.";
-export const OPENCODE2_BACKGROUND_PROMPT =
-  "Use the subagent tool with background enabled to delegate to the general subagent with the prompt: 'Run the shell command `sleep 20` with the bash tool and then reply exactly CHILD_OK.' As soon as it is launched, reply exactly PARENT_OK and end your turn without waiting for it.";
 export const OPENCODE2_COMPACTION_FIRST_PROMPT = "Remember the codeword PAPAYA. Reply OK.";
 export const OPENCODE2_COMPACTION_RECALL_PROMPT = "What was the codeword? One word.";
 export const OPENCODE2_RESTART_PROMPT =
@@ -108,11 +100,6 @@ export const TURN_INTERRUPT_RECOVERY_PROMPT =
   "Respond with exactly: interrupt recovery fixture complete";
 export const MESSAGE_STEERING_STEER_PROMPT =
   "Actually, respond with exactly: steering fixture observed";
-export const THREAD_ROLLBACK_FIRST_PROMPT =
-  "Respond with exactly: rollback fixture first turn complete";
-export const THREAD_ROLLBACK_SECOND_PROMPT =
-  "Respond with exactly: rollback fixture second turn complete";
-export const THREAD_ROLLBACK_AFTER_PROMPT = "Repeat the conversation verbatim.";
 export const THREAD_FORK_NATIVE_SOURCE_PROMPT =
   "Respond with the following text: source fork seed ok";
 export const THREAD_FORK_NATIVE_TARGET_PROMPT = "Respond with the following text: fork native ok";
@@ -173,11 +160,6 @@ export const THREAD_MERGE_BACK_SIBLINGS_SECOND_HANDOFF_PROMPT = [
   "User message:",
   "Retain the second transferred marker for later. Respond with exactly: second merge delta stored",
 ].join("\n");
-export const THREAD_MERGE_BACK_SIBLINGS_RECALL = [
-  THREAD_MERGE_BACK_SIBLINGS_SOURCE_MARKER,
-  THREAD_MERGE_BACK_SIBLINGS_FIRST_MARKER,
-  THREAD_MERGE_BACK_SIBLINGS_SECOND_MARKER,
-].join("|");
 export const THREAD_MERGE_BACK_SIBLINGS_RECALL_PROMPT =
   "Return the source marker followed by both transferred fork markers in merge order, separated by single | characters. Respond with only the markers and separators.";
 export const THREAD_FORK_NATIVE_PRIOR_TURN_ALPHA_PROMPT =
@@ -277,11 +259,6 @@ export type OrchestratorFixtureInputStep =
   | {
       readonly type: "answer_next_user_input_request";
       readonly answers: ProviderUserInputAnswers;
-    }
-  | {
-      readonly type: "rollback";
-      readonly checkpointScopeSuffix: string;
-      readonly checkpointSuffix: string;
     }
   | {
       readonly type: "advance_clock";
@@ -879,28 +856,6 @@ export function materializeFixtureInput(input: {
         case "advance_clock":
           steps.push({ type: "advance_clock", duration: step.duration });
           break;
-        case "rollback":
-          {
-            const scopeId = yield* idAllocator.allocate.checkpointScope({
-              threadId: ids.threadId,
-              name: step.checkpointScopeSuffix,
-            });
-            pushDispatch({
-              type: "checkpoint.rollback",
-              restoreFiles: false,
-              commandId: yield* idAllocator.allocate.command({
-                fixtureName: input.scenario,
-                commandName: `rollback-${step.checkpointSuffix}`,
-              }),
-              threadId: ids.threadId,
-              scopeId,
-              checkpointId: yield* idAllocator.allocate.checkpoint({
-                checkpointScopeId: scopeId,
-                name: step.checkpointSuffix,
-              }),
-            });
-          }
-          break;
       }
     }
 
@@ -1262,26 +1217,6 @@ export function assertTurnItemTypes(
   }
 }
 
-export function assertTurnItemTypeSequence(
-  projection: OrchestrationV2ThreadProjection,
-  expectedTypes: ReadonlyArray<OrchestrationV2TurnItem["type"]>,
-) {
-  assert.deepEqual(
-    projection.turnItems.map((item) => item.type),
-    expectedTypes,
-  );
-}
-
-export function assertVisibleTurnItemTypeSequence(
-  projection: OrchestrationV2ThreadProjection,
-  expectedTypes: ReadonlyArray<OrchestrationV2TurnItem["type"]>,
-) {
-  assert.deepEqual(
-    projection.visibleTurnItems.map((row) => row.item.type),
-    expectedTypes,
-  );
-}
-
 export function assertAssistantTextIncludes(
   projection: OrchestrationV2ThreadProjection,
   expectedText: string,
@@ -1380,48 +1315,6 @@ export function assertUserMessagesInclude(
         (item) => item.type === "user_message" && item.text.includes(expectedText),
       ),
       `expected user input to include ${JSON.stringify(expectedText)}`,
-    );
-  }
-}
-
-function assertUserMessagesExclude(
-  projection: OrchestrationV2ThreadProjection,
-  rejectedTexts: ReadonlyArray<string>,
-) {
-  for (const rejectedText of rejectedTexts) {
-    assert.isFalse(
-      projection.turnItems.some(
-        (item) => item.type === "user_message" && item.text.includes(rejectedText),
-      ),
-      `expected user input to exclude ${JSON.stringify(rejectedText)}`,
-    );
-  }
-}
-
-export function assertVisibleUserMessagesInclude(
-  projection: OrchestrationV2ThreadProjection,
-  expectedTexts: ReadonlyArray<string>,
-) {
-  for (const expectedText of expectedTexts) {
-    assert.isTrue(
-      projection.visibleTurnItems.some(
-        (row) => row.item.type === "user_message" && row.item.text.includes(expectedText),
-      ),
-      `expected visible user input to include ${JSON.stringify(expectedText)}`,
-    );
-  }
-}
-
-export function assertVisibleUserMessagesExclude(
-  projection: OrchestrationV2ThreadProjection,
-  rejectedTexts: ReadonlyArray<string>,
-) {
-  for (const rejectedText of rejectedTexts) {
-    assert.isFalse(
-      projection.visibleTurnItems.some(
-        (row) => row.item.type === "user_message" && row.item.text.includes(rejectedText),
-      ),
-      `expected visible user input to exclude ${JSON.stringify(rejectedText)}`,
     );
   }
 }

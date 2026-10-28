@@ -19,22 +19,24 @@ import type { makeThreadErrorSetter } from "../ChatView.logic";
 import { draftSendState } from "./chatViewSend";
 import type { useTimelineFollow } from "./useTimelineFollow";
 import type { useUsageLimitsPanel } from "./useUsageLimitsPanel";
-
 interface ComposerResumeInput {
   readonly environmentId: EnvironmentId;
   readonly routeThreadKey: string;
-  readonly currentRouteThreadKeyRef: { readonly current: string | null };
+  readonly currentRouteThreadKeyRef: {
+    readonly current: string | null;
+  };
   readonly activeThread: EnvironmentThreadShell | undefined;
   readonly resumableRunId: RunId | null;
   readonly hasHeldQueuedRuns: boolean;
   readonly isSendBusy: boolean;
   readonly isConnecting: boolean;
-  readonly isRevertingCheckpoint: boolean;
   readonly threadDetailLoading: boolean;
   readonly activeEnvironmentUnavailable: boolean;
   readonly runtimeMode: RuntimeMode;
   readonly interactionMode: ProviderInteractionMode;
-  readonly localCheckoutBranchMismatch: { readonly currentBranch: string } | null;
+  readonly localCheckoutBranchMismatch: {
+    readonly currentBranch: string;
+  } | null;
   readonly composerRef: ComposerHandleRef;
   readonly persistThreadSettingsForNextTurn: (input: {
     threadId: EnvironmentThreadShell["id"];
@@ -62,7 +64,6 @@ export function useComposerResume(input: ComposerResumeInput) {
     hasHeldQueuedRuns,
     isSendBusy,
     isConnecting,
-    isRevertingCheckpoint,
     threadDetailLoading,
     activeEnvironmentUnavailable,
     runtimeMode,
@@ -85,7 +86,6 @@ export function useComposerResume(input: ComposerResumeInput) {
   );
   const isResuming = resumingThreadKeys.has(routeThreadKey);
   const { sendInFlight: sendInFlightRef } = draftSendState(routeThreadKey);
-
   const onResume = async () => {
     if (
       !activeThread ||
@@ -93,7 +93,6 @@ export function useComposerResume(input: ComposerResumeInput) {
       isSendBusy ||
       isResuming ||
       isConnecting ||
-      isRevertingCheckpoint ||
       threadDetailLoading ||
       activeEnvironmentUnavailable ||
       sendInFlightRef.current
@@ -107,14 +106,21 @@ export function useComposerResume(input: ComposerResumeInput) {
     // Commands settle into a result, so this always runs.
     const resume = async () => {
       if (resumableRunId === null) {
-        return resumeThreadQueue({ environmentId, input: { threadId } });
+        return resumeThreadQueue({
+          environmentId,
+          input: {
+            threadId,
+          },
+        });
       }
       const createdAt = new Date().toISOString();
       const settingsResult = await persistThreadSettingsForNextTurn({
         threadId,
         createdAt,
         ...(localCheckoutBranchMismatch
-          ? { branch: localCheckoutBranchMismatch.currentBranch }
+          ? {
+              branch: localCheckoutBranchMismatch.currentBranch,
+            }
           : {}),
         runtimeMode,
         interactionMode,
@@ -126,7 +132,11 @@ export function useComposerResume(input: ComposerResumeInput) {
         input: {
           threadId,
           manualContinuationOfRunId: resumableRunId,
-          ...(modelSelection ? { modelSelection } : {}),
+          ...(modelSelection
+            ? {
+                modelSelection,
+              }
+            : {}),
           message: {
             messageId: newMessageId(),
             role: "user",
@@ -140,7 +150,12 @@ export function useComposerResume(input: ComposerResumeInput) {
       });
       if (turnResult._tag === "Failure" || !hasHeldQueuedRuns) return turnResult;
       clearUsageLimitsFor(routeThreadKey);
-      return resumeThreadQueue({ environmentId, input: { threadId } });
+      return resumeThreadQueue({
+        environmentId,
+        input: {
+          threadId,
+        },
+      });
     };
     const result = await resume();
     if (result._tag === "Failure") {
@@ -162,6 +177,8 @@ export function useComposerResume(input: ComposerResumeInput) {
       return next;
     });
   };
-
-  return { onResume, isResuming };
+  return {
+    onResume,
+    isResuming,
+  };
 }

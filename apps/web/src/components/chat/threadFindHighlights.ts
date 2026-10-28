@@ -1,32 +1,29 @@
 import { findThreadSearchOccurrences } from "@t3tools/shared/threadSearch";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { THREAD_FIND_BLOCK_TAGS } from "@t3tools/shared/threadFindText";
-
 const THREAD_FIND_HIGHLIGHT_NAME = "t3-thread-find";
 const THREAD_FIND_ACTIVE_HIGHLIGHT_NAME = "t3-thread-find-active";
-
 const THREAD_FIND_TEXT_SELECTOR = "[data-thread-find-text]";
 const THREAD_FIND_IGNORE_SELECTOR = "[data-thread-find-ignore]";
-
 interface ThreadFindRange {
   readonly rowId: string;
   readonly occurrence: number;
   readonly range: Range;
 }
-
 export function collectThreadFindRanges(container: HTMLElement, query: string): ThreadFindRange[] {
   if (query.length === 0) return [];
-
   const ranges: ThreadFindRange[] = [];
   const occurrenceByRowId = new Map<string, number>();
-
   for (const scope of container.querySelectorAll(THREAD_FIND_TEXT_SELECTOR)) {
     if (scope.parentElement?.closest(THREAD_FIND_TEXT_SELECTOR)) continue;
     const rowId = scope.closest("[data-timeline-row-id]")?.getAttribute("data-timeline-row-id");
     if (!rowId) continue;
-
     let text = "";
-    let nodes: { node: Node; start: number; end: number }[] = [];
+    let nodes: {
+      node: Node;
+      start: number;
+      end: number;
+    }[] = [];
     const flush = () => {
       let startIndex = 0;
       let endIndex = 0;
@@ -41,7 +38,11 @@ export function collectThreadFindRanges(container: HTMLElement, query: string): 
         range.setStart(start.node, offset - start.start);
         range.setEnd(end.node, offset + query.length - end.start);
         const occurrence = occurrenceByRowId.get(rowId) ?? 0;
-        ranges.push({ rowId, occurrence, range });
+        ranges.push({
+          rowId,
+          occurrence,
+          range,
+        });
         occurrenceByRowId.set(rowId, occurrence + 1);
       }
       text = "";
@@ -61,7 +62,11 @@ export function collectThreadFindRanges(container: HTMLElement, query: string): 
         const value = node.nodeValue ?? "";
         const start = text.length;
         text += inPre ? value : value.replace(/\r?\n/g, " ");
-        nodes.push({ node, start, end: text.length });
+        nodes.push({
+          node,
+          start,
+          end: text.length,
+        });
       }
       for (const child of node.childNodes) visit(child, inPre || tag === "pre");
       if (block) flush();
@@ -71,9 +76,7 @@ export function collectThreadFindRanges(container: HTMLElement, query: string): 
   }
   return ranges;
 }
-
 const FOLD_SELECTOR = "[hidden], [data-thread-find-fold]";
-
 function foldsHiding(range: Range, container: HTMLElement): Element[] {
   const folds: Element[] = [];
   for (
@@ -89,13 +92,11 @@ function foldsHiding(range: Range, container: HTMLElement): Element[] {
   }
   return folds;
 }
-
 function revealFolded(range: Range, container: HTMLElement): boolean {
   const folds = foldsHiding(range, container);
   for (const fold of folds) fold.dispatchEvent(new Event("beforematch"));
   return folds.length > 0;
 }
-
 function affectsSearchableText(record: MutationRecord): boolean {
   if (record.type === "attributes") return true;
   const target =
@@ -107,7 +108,6 @@ function affectsSearchableText(record: MutationRecord): boolean {
       (node as Element).querySelector(THREAD_FIND_TEXT_SELECTOR) !== null);
   return [...record.addedNodes, ...record.removedNodes].some(touchesScope);
 }
-
 export function useThreadFindHighlights(input: {
   readonly container: HTMLElement | null;
   readonly query: string;
@@ -116,14 +116,20 @@ export function useThreadFindHighlights(input: {
   readonly onActiveRange: (range: Range | null) => void;
 }): void {
   const { container, query, activeRowId, activeOccurrence, onActiveRange } = input;
-
   const rangesRef = useRef<readonly ThreadFindRange[]>([]);
   const paintRef = useRef<ReturnType<typeof makeThreadFindHighlightPainter> | null>(null);
-  const selectionRef = useRef({ activeRowId, activeOccurrence, onActiveRange });
+  const selectionRef = useRef({
+    activeRowId,
+    activeOccurrence,
+    onActiveRange,
+  });
   useLayoutEffect(() => {
-    selectionRef.current = { activeRowId, activeOccurrence, onActiveRange };
+    selectionRef.current = {
+      activeRowId,
+      activeOccurrence,
+      onActiveRange,
+    };
   }, [activeRowId, activeOccurrence, onActiveRange]);
-
   useEffect(() => {
     if (typeof CSS === "undefined" || !CSS.highlights || typeof Highlight === "undefined") {
       selectionRef.current.onActiveRange(null);
@@ -139,7 +145,6 @@ export function useThreadFindHighlights(input: {
       clearHighlights();
       return;
     }
-
     const cache = new Map<Element, readonly ThreadFindRange[]>();
     const paint = makeThreadFindHighlightPainter(container);
     paintRef.current = paint;
@@ -207,12 +212,14 @@ export function useThreadFindHighlights(input: {
       clearHighlights();
     };
   }, [container, query]);
-
   useEffect(() => {
-    paintRef.current?.(rangesRef.current, { activeRowId, activeOccurrence, onActiveRange });
+    paintRef.current?.(rangesRef.current, {
+      activeRowId,
+      activeOccurrence,
+      onActiveRange,
+    });
   }, [activeOccurrence, activeRowId, onActiveRange]);
 }
-
 function makeThreadFindHighlightPainter(container: HTMLElement) {
   let previousRanges: readonly ThreadFindRange[] | null = null;
   const rangesByRow = new Map<string, Range[]>();

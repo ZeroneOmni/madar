@@ -1,7 +1,5 @@
 import { memo, useEffect, useRef } from "react";
-
 import { useLiveRegion } from "../../hooks/useLiveRegion";
-
 import {
   nextThreadAnnouncement,
   type ThreadActivitySnapshot,
@@ -23,8 +21,10 @@ export const ThreadActivityAnnouncer = memo(function ThreadActivityAnnouncer({
   readonly detailBehind: boolean;
 }) {
   const { regionRef, announce, clear } = useLiveRegion();
-  const memoryRef = useRef<{ threadKey: string; memory: ThreadAnnouncementMemory } | null>(null);
-
+  const memoryRef = useRef<{
+    threadKey: string;
+    memory: ThreadAnnouncementMemory;
+  } | null>(null);
   useEffect(() => {
     if (threadKey === null) {
       memoryRef.current = null;
@@ -39,7 +39,10 @@ export const ThreadActivityAnnouncer = memo(function ThreadActivityAnnouncer({
       runId,
       runStatus,
     });
-    memoryRef.current = { threadKey, memory };
+    memoryRef.current = {
+      threadKey,
+      memory,
+    };
     if (previous === null) clear();
     else if (announcement !== null) announce(announcement);
   }, [threadKey, status, requestId, runId, runStatus, detailBehind, announce, clear]);

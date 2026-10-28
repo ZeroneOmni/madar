@@ -10,8 +10,6 @@ export type DiffPanelSelection =
   | { kind: "unstaged" }
   | { kind: "turn"; turnId: RunId; filePath: string | null; revealRequestId: number };
 
-const DEFAULT_SELECTION: DiffPanelSelection = { kind: "branch", baseRef: null };
-
 interface DiffPanelStoreState {
   byThreadKey: Record<string, DiffPanelSelection>;
   branchBaseRefByThreadKey: Record<string, string | null>;
@@ -152,11 +150,3 @@ export const useDiffPanelSessionStore = create<DiffPanelSessionStoreState>()((se
       };
     }),
 }));
-
-export function selectThreadDiffPanelSelection(
-  byThreadKey: Record<string, DiffPanelSelection>,
-  ref: ScopedThreadRef | null | undefined,
-): DiffPanelSelection {
-  if (!ref) return DEFAULT_SELECTION;
-  return byThreadKey[scopedThreadKey(ref)] ?? DEFAULT_SELECTION;
-}

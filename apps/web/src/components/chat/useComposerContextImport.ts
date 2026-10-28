@@ -48,10 +48,11 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { useAtomQueryRunner } from "~/state/use-atom-query-runner";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { countPreparingComposerImages } from "./preparingComposerImages";
-
 async function downloadAttachmentBlob(url: string): Promise<Blob | null> {
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(60_000),
+    });
     return response.ok ? await response.blob() : null;
   } catch {
     return null;
@@ -96,15 +97,14 @@ export function useComposerContextImport(input: {
   } = input;
   const getComposerDraft = useComposerDraftStore((store) => store.getComposerDraft);
   const addComposerDraftImages = useComposerDraftStore((store) => store.addImages);
-  const addComposerDraftTerminalContexts = useComposerDraftStore(
-    (store) => store.addTerminalContexts,
-  );
   const addComposerDraftReviewComment = useComposerDraftStore((store) => store.addReviewComment);
   const addComposerDraftPreviewAnnotation = useComposerDraftStore(
     (store) => store.addPreviewAnnotation,
   );
   const addComposerDraftThreadContexts = useComposerDraftStore((store) => store.addThreadContexts);
-  const createAssetUrl = useAtomQueryRunner(assetEnvironment.createUrl, { reportFailure: false });
+  const createAssetUrl = useAtomQueryRunner(assetEnvironment.createUrl, {
+    reportFailure: false,
+  });
   const loadThreadTranscript = useAtomCommand(orchestrationEnvironment.threadTranscript, {
     reportFailure: false,
   });
@@ -134,7 +134,12 @@ export function useComposerContextImport(input: {
   };
   const countReservedAttachmentsStable = useStableCallback(countReservedAttachments);
   const runAttachmentImport = async (
-    record: Extract<ComposerContextRecord, { kind: "image" | "file" }>,
+    record: Extract<
+      ComposerContextRecord,
+      {
+        kind: "image" | "file";
+      }
+    >,
     localId: string,
     sourceEnvironmentId: EnvironmentId,
     importTargetKey: string,
@@ -155,7 +160,12 @@ export function useComposerContextImport(input: {
       }
       const result = await createAssetUrl({
         environmentId: sourceEnvironmentId,
-        input: { resource: { _tag: "attachment", attachmentId: record.attachmentId } },
+        input: {
+          resource: {
+            _tag: "attachment",
+            attachmentId: record.attachmentId,
+          },
+        },
       });
       const url =
         result._tag === "Success"
@@ -170,7 +180,9 @@ export function useComposerContextImport(input: {
         fail("Downloading it from the source failed.");
         return;
       }
-      file = new File([blob], record.name, { type: record.mimeType || blob.type });
+      file = new File([blob], record.name, {
+        type: record.mimeType || blob.type,
+      });
     }
     // The draft these bytes belong to may have been sent or switched away from while they
     // downloaded. Dropping them here keeps them out of whatever draft is open now.
@@ -233,7 +245,12 @@ export function useComposerContextImport(input: {
     }
   };
   const importAttachmentRecord = async (
-    record: Extract<ComposerContextRecord, { kind: "image" | "file" }>,
+    record: Extract<
+      ComposerContextRecord,
+      {
+        kind: "image" | "file";
+      }
+    >,
     localId: string,
     sourceEnvironmentId: EnvironmentId,
   ) => {
@@ -320,8 +337,13 @@ export function useComposerContextImport(input: {
           const threadId = activeThread?.id ?? activeThreadId;
           if (!threadId) break;
           const imported = terminalContextDraftFromRecord(record, threadId);
-          const draft = conflicts ? { ...imported, id: randomUUID() } : imported;
-          addComposerDraftTerminalContexts(composerDraftTarget, [draft], {
+          const draft = conflicts
+            ? {
+                ...imported,
+                id: randomUUID(),
+              }
+            : imported;
+          useComposerDraftStore.getState().addTerminalContexts(attachmentDraftTarget, [draft], {
             appendReference: false,
           });
           rewritten.set(record.contextId, terminalContextReference(draft).contextId);
@@ -329,7 +351,12 @@ export function useComposerContextImport(input: {
         }
         case "review-comment": {
           const imported = reviewCommentFromRecord(record);
-          const comment = conflicts ? { ...imported, id: randomUUID() } : imported;
+          const comment = conflicts
+            ? {
+                ...imported,
+                id: randomUUID(),
+              }
+            : imported;
           addComposerDraftReviewComment(composerDraftTarget, comment, {
             appendReference: false,
           });
@@ -342,7 +369,12 @@ export function useComposerContextImport(input: {
             record.kind === "element"
               ? elementContextToPreviewAnnotation(record, randomUUID(), new Date().toISOString())
               : previewAnnotationFromRecord(record);
-          const annotation = conflicts ? { ...imported, id: randomUUID() } : imported;
+          const annotation = conflicts
+            ? {
+                ...imported,
+                id: randomUUID(),
+              }
+            : imported;
           if (record.kind === "preview-annotation" && record.screenshotContextId) {
             dependentAttachmentLocalIds.set(record.screenshotContextId, annotation.id);
           }
@@ -385,7 +417,6 @@ export function useComposerContextImport(input: {
   ): ReadonlyMap<string, string> =>
     importContextRecords(fragment.records, fragment.source.environmentId);
   const importContextFragmentStable = useStableCallback(importContextFragment);
-
   return {
     loadThreadTranscript,
     countReservedAttachments,

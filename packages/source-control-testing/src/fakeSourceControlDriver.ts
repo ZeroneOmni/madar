@@ -27,7 +27,7 @@ const kindOf = (kind: string) => SourceControlProviderKind.make(kind);
  * A pull request provider that can do everything and holds nothing: lists are empty, writes
  * succeed, and reads a test did not supply die.
  */
-export function fakePullRequestProvider(
+function fakePullRequestProvider(
   kind: string,
   overrides: Partial<PullRequestProviderApi> = {},
 ): PullRequestProviderApi {

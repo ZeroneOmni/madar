@@ -1,13 +1,11 @@
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import type { ReactNode } from "react";
-
 import { LRUCache } from "../../lib/lruCache";
 
 // Virtualized threads remount messages while scrolling; cached markup keeps
 // that from typesetting the same formulas again. "" records a parse error.
 const typesetCache = new LRUCache<string>(1000, 4 * 1024 * 1024);
-
 function typeset(tex: string, display: boolean): string {
   const key = `${display ? "display" : "inline"}:${tex}`;
   const cached = typesetCache.get(key);
@@ -36,5 +34,11 @@ export default function MathTypeset(props: { tex: string; display: boolean; fall
   const html = typeset(props.tex, props.display);
   if (!html) return props.fallback;
   // KaTeX escapes the TeX it renders, and `trust: false` keeps it from emitting links or attributes.
-  return <span dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <span
+      dangerouslySetInnerHTML={{
+        __html: html,
+      }}
+    />
+  );
 }

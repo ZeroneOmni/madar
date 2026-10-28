@@ -3,9 +3,7 @@ import { mediaUrlReference } from "@t3tools/client-runtime/media-reference";
 import type { ExpandedImageItem, ExpandedImagePreview } from "./ExpandedImagePreview";
 import { resolveExternalWebLinkHost } from "./externalLinkContextMenu";
 import { resolveProtocolRelativeMediaUrl } from "../media/mediaContent";
-
 export const markdownImageItems = new WeakMap<Element, ExpandedImageItem>();
-
 export function markdownImageGallery(
   element: Element,
   selected: ExpandedImageItem,
@@ -31,7 +29,11 @@ export function markdownImageGallery(
             kind: "image" as const,
             name: registered.name,
             src: linkedSource,
-            ...(reference ? { reference } : {}),
+            ...(reference
+              ? {
+                  reference,
+                }
+              : {}),
           },
         }
       : registered;
@@ -45,5 +47,13 @@ export function markdownImageGallery(
       images.push(item);
     }
   }
-  return index < 0 ? { images: [selected], index: 0 } : { images, index };
+  return index < 0
+    ? {
+        images: [selected],
+        index: 0,
+      }
+    : {
+        images,
+        index,
+      };
 }

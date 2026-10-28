@@ -37,7 +37,6 @@ import { projectEnvironment } from "~/state/projects";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { useAtomCommand } from "~/state/use-atom-command";
 import { readEnvironmentScope, useEnvironmentScope } from "~/state/session";
-
 export const ProposedPlanCard = memo(function ProposedPlanCard({
   planMarkdown,
   environmentId,
@@ -78,7 +77,9 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
   const canCollapse = planMarkdown.length > 900 || lineCount > 20;
   const displayedPlanMarkdown = stripDisplayedPlanMarkdown(planMarkdown);
   const collapsedPreview = canCollapse
-    ? buildCollapsedProposedPlanPreviewMarkdown(planMarkdown, { maxLines: 10 })
+    ? buildCollapsedProposedPlanPreviewMarkdown(planMarkdown, {
+        maxLines: 10,
+      })
     : null;
   const isCollapsed = canCollapse && !expanded;
   // Mount clipped plans during find to count hidden matches without revealing them.
@@ -86,15 +87,12 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
   const revealRef = findRevealRef(() => setExpanded(true));
   const downloadFilename = buildProposedPlanMarkdownFilename(planMarkdown);
   const saveContents = normalizePlanMarkdownForExport(planMarkdown);
-
   const handleDownload = () => {
     downloadPlanAsTextFile(downloadFilename, saveContents);
   };
-
   const handleCopyPlan = () => {
     copyToClipboard(saveContents);
   };
-
   const openSaveDialog = () => {
     if (!canWriteFiles) return;
     if (!workspaceRoot) {
@@ -109,7 +107,6 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
     }
     setIsSaveDialogOpen(true);
   };
-
   const handleSaveToWorkspace = (savePath: string) => {
     const relativePath = savePath.trim();
     if (!workspaceRoot || !readEnvironmentScope(environmentId, AuthFilesystemWriteScope)) {
@@ -122,7 +119,6 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
       });
       return;
     }
-
     setLastSavePath(savePath);
     setIsSavingToWorkspace(true);
     void (async () => {
@@ -156,7 +152,6 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
       }
     })();
   };
-
   return (
     <div className="rounded-3xl border border-border/80 bg-card/70 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -254,7 +249,6 @@ export const ProposedPlanCard = memo(function ProposedPlanCard({
     </div>
   );
 });
-
 function SavePlanToWorkspaceForm({
   initialPath,
   placeholder,

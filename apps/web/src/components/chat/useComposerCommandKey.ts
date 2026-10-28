@@ -1,3 +1,4 @@
+import type { TerminalContextDraft } from "../../lib/terminalContext";
 import type { ChatComposerProps } from "./ChatComposer";
 import { type ComposerCommandItem } from "./ComposerCommandMenu";
 import {
@@ -17,7 +18,8 @@ import {
   composerSubmissionIntentForKey,
 } from "../../composer-logic";
 import { type PendingUserInput } from "../../session-logic";
-import { type PreviewAnnotationPayload } from "@t3tools/contracts";
+import "@t3tools/contracts";
+import { type PreviewAnnotationPayload } from "../../lib/legacyPreviewAnnotation";
 import { type ReviewCommentContext } from "../../reviewCommentContext";
 import { composerTargetKey } from "../../composerDraftStore";
 import { listContinuationForEnter, listIndentForTab } from "../../composer-list-continuation";
@@ -47,7 +49,7 @@ export function useComposerCommandKey(input: {
   readonly promptRef: ChatComposerProps["promptRef"];
   readonly composerImagesRef: ChatComposerProps["composerImagesRef"];
   readonly composerFilesRef: ChatComposerProps["composerFilesRef"];
-  readonly composerTerminalContextsRef: ChatComposerProps["composerTerminalContextsRef"];
+  readonly composerTerminalContextsRef: RefObject<TerminalContextDraft[]>;
   readonly composerPreviewAnnotations: ReadonlyArray<PreviewAnnotationPayload>;
   readonly composerReviewComments: ReadonlyArray<ReviewCommentContext>;
   readonly composerEditorRef: RefObject<ComposerPromptEditorHandle | null>;
@@ -65,13 +67,19 @@ export function useComposerCommandKey(input: {
   readonly toggleInteractionMode: () => void;
   readonly nudgeComposerMenuHighlight: (key: "ArrowDown" | "ArrowUp") => void;
   readonly onSelectComposerItem: (item: ComposerCommandItem) => void;
-  readonly resolveActiveComposerTrigger: () => { trigger: ComposerTrigger | null };
-  readonly readComposerSnapshot: () => { value: string };
+  readonly resolveActiveComposerTrigger: () => {
+    trigger: ComposerTrigger | null;
+  };
+  readonly readComposerSnapshot: () => {
+    value: string;
+  };
   readonly applyPromptReplacement: (
     rangeStart: number,
     rangeEnd: number,
     replacement: string,
-    options?: { expandedCursorAfterReplace?: number },
+    options?: {
+      expandedCursorAfterReplace?: number;
+    },
   ) => boolean;
   readonly submitComposer: (
     event: undefined,
@@ -127,7 +135,6 @@ export function useComposerCommandKey(input: {
   // be treated as active in thread B, where the text-match fallback could
   // otherwise turn B's own draft into a browsing position.
   const promptHistoryTargetKey = composerTargetKey(composerDraftTarget);
-
   const replacePromptFromHistory = (nextPrompt: string) => {
     promptRef.current = nextPrompt;
     setComposerDraftPrompt(composerDraftTarget, nextPrompt);
@@ -135,7 +142,6 @@ export function useComposerCommandKey(input: {
     setComposerTrigger(null);
     setComposerHighlightedItemId(null);
   };
-
   const navigatePromptHistory = (
     direction: "backward" | "forward",
     event: KeyboardEvent,
@@ -170,12 +176,14 @@ export function useComposerCommandKey(input: {
     });
     if (!step) return false;
     promptHistoryPositionRef.current = step.position
-      ? { targetKey: promptHistoryTargetKey, position: step.position }
+      ? {
+          targetKey: promptHistoryTargetKey,
+          position: step.position,
+        }
       : null;
     replacePromptFromHistory(step.prompt);
     return true;
   };
-
   const onComposerCommandKey = (key: string, event: KeyboardEvent, isTaskItem = false) => {
     const submissionIntent = composerSubmissionIntentForKey({
       event,
@@ -257,7 +265,6 @@ export function useComposerCommandKey(input: {
     }
     return false;
   };
-
   return {
     onComposerCommandKey,
   };

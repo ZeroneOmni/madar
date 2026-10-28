@@ -1,6 +1,6 @@
 export type SelectionActionPoint = { x: number; y: number };
 
-export const SELECTION_MULTI_CLICK_INTERVAL_MS = 500;
+const SELECTION_MULTI_CLICK_INTERVAL_MS = 500;
 const SELECTION_SCROLL_SETTLE_MS = 150;
 
 export function resolveSelectionActionPosition(options: {

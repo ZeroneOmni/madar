@@ -2,25 +2,43 @@ import { toHtml } from "hast-util-to-html";
 import { toJsxRuntime } from "hast-util-to-jsx-runtime";
 import { cloneElement, isValidElement, memo, type DOMAttributes } from "react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
-
 import type { highlightCodeToHast } from "../../lib/incrementalHighlighting";
-
 type HighlightedRoot = ReturnType<typeof highlightCodeToHast>;
 type HighlightedNode = HighlightedRoot["children"][number];
-const runtime = { Fragment, jsx, jsxs };
-
-function elementShell(node: Extract<HighlightedNode, { type: "element" }>) {
-  const element = toJsxRuntime({ ...node, children: [] }, runtime);
+const runtime = {
+  Fragment,
+  jsx,
+  jsxs,
+};
+function elementShell(
+  node: Extract<
+    HighlightedNode,
+    {
+      type: "element";
+    }
+  >,
+) {
+  const element = toJsxRuntime(
+    {
+      ...node,
+      children: [],
+    },
+    runtime,
+  );
   if (!isValidElement<DOMAttributes<HTMLElement>>(element)) {
     throw new Error("Expected a highlighted code element");
   }
   return element;
 }
-
 const HighlightedLine = memo(function HighlightedLine({ node }: { node: HighlightedNode }) {
   if (node.type !== "element") return toJsxRuntime(node, runtime);
   return cloneElement(elementShell(node), {
-    dangerouslySetInnerHTML: { __html: toHtml({ type: "root", children: node.children }) },
+    dangerouslySetInnerHTML: {
+      __html: toHtml({
+        type: "root",
+        children: node.children,
+      }),
+    },
   });
 });
 

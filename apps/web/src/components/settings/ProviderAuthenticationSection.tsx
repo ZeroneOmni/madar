@@ -5,14 +5,12 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import type {
   EnvironmentId,
-  ProviderAuthRespondInput,
   ProviderAuthResponse,
   ProviderInstanceId,
   ServerProvider,
 } from "@t3tools/contracts";
-import { lazy, Suspense, useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { CopyIcon } from "lucide-react";
-
 import { writeTextToClipboard } from "../../hooks/useCopyToClipboard";
 import { ensureLocalApi } from "../../localApi";
 import { useEnvironmentQuery } from "../../state/query";
@@ -24,9 +22,6 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { SettingsRow } from "./settingsLayout";
 import { RedactedSensitiveText } from "./RedactedSensitiveText";
-
-const ProviderAuthTerminal = lazy(() => import("./ProviderAuthTerminal"));
-
 export function ProviderAuthenticationSection({
   environmentId,
   environmentLabel,
@@ -40,21 +35,31 @@ export function ProviderAuthenticationSection({
   readonly provider: ServerProvider;
   readonly readOnly: boolean;
 }) {
-  const target = { environmentId, input: { instanceId } };
+  const target = {
+    environmentId,
+    input: {
+      instanceId,
+    },
+  };
   const query = useEnvironmentQuery(serverEnvironment.providerAuthState(target));
-  const commands = { reportFailure: false, reportDefect: false };
+  const commands = {
+    reportFailure: false,
+    reportDefect: false,
+  };
   const start = useAtomCommand(serverEnvironment.startProviderAuth, commands);
   const respond = useAtomCommand(serverEnvironment.respondProviderAuth, commands);
   const complete = useAtomCommand(serverEnvironment.completeProviderAuth, commands);
   const cancel = useAtomCommand(serverEnvironment.cancelProviderAuth, commands);
   const logout = useAtomCommand(serverEnvironment.logoutProviderAuth, commands);
   const [methodId, setMethodId] = useState("");
-  const [draft, setDraft] = useState({ id: "", values: {} as Record<string, string> });
+  const [draft, setDraft] = useState({
+    id: "",
+    values: {} as Record<string, string>,
+  });
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const pendingRef = useRef(false);
-  const terminalQueue = useRef<ProviderAuthRespondInput[]>([]);
-  const terminalSending = useRef(false);
+
   const auth = query.data;
   const interaction = auth?.interaction;
   const active =
@@ -98,7 +103,6 @@ export function ProviderAuthenticationSection({
     interaction?.type === "browser" || interaction?.type === "deviceCode"
       ? interaction.url
       : auth?.authorizationUrl;
-
   async function run(command: () => Promise<AtomCommandResult<unknown, unknown>>) {
     if (pendingRef.current) return false;
     pendingRef.current = true;
@@ -121,17 +125,20 @@ export function ProviderAuthenticationSection({
     setPending(false);
     return succeeded;
   }
-
   async function send(response: ProviderAuthResponse) {
     if (!auth?.flowId || !interaction) return false;
     return run(() =>
       respond({
         environmentId,
-        input: { instanceId, flowId: auth.flowId!, interactionId: interaction.id, response },
+        input: {
+          instanceId,
+          flowId: auth.flowId!,
+          interactionId: interaction.id,
+          response,
+        },
       }),
     );
   }
-
   async function openBrowser() {
     if (!url || readOnly) return;
     const requiresConsent = interaction?.type === "browser" && interaction.requiresConsent;
@@ -139,7 +146,13 @@ export function ProviderAuthenticationSection({
     const pending = requiresConsent && !window.desktopBridge ? window.open("", "_blank") : null;
     if (pending) pending.opener = null;
     try {
-      if (requiresConsent && !(await send({ type: "browser", action: "accept" }))) {
+      if (
+        requiresConsent &&
+        !(await send({
+          type: "browser",
+          action: "accept",
+        }))
+      ) {
         pending?.close();
         return;
       }
@@ -151,11 +164,15 @@ export function ProviderAuthenticationSection({
       setError("Could not open the sign-in page. Copy the link and open it in your browser.");
     }
   }
-
   function updateDraft(name: string, value: string) {
-    setDraft({ id: draftId, values: { ...values, [name]: value } });
+    setDraft({
+      id: draftId,
+      values: {
+        ...values,
+        [name]: value,
+      },
+    });
   }
-
   return (
     <SettingsRow
       title="Account"
@@ -232,7 +249,10 @@ export function ProviderAuthenticationSection({
                         void (async () => {
                           await copied;
                           if (interaction?.type === "browser" && interaction.requiresConsent)
-                            await send({ type: "browser", action: "accept" });
+                            await send({
+                              type: "browser",
+                              action: "accept",
+                            });
                         })().catch(() => setError("Could not copy the sign-in link."));
                       }}
                     >
@@ -263,7 +283,13 @@ export function ProviderAuthenticationSection({
                 disabled={disabled}
                 onClick={() =>
                   void run(() =>
-                    cancel({ environmentId, input: { instanceId, flowId: auth.flowId! } }),
+                    cancel({
+                      environmentId,
+                      input: {
+                        instanceId,
+                        flowId: auth.flowId!,
+                      },
+                    }),
                   )
                 }
               >
@@ -281,7 +307,9 @@ export function ProviderAuthenticationSection({
                       input: {
                         instanceId,
                         ...(methodId && auth?.methods?.some((method) => method.id === methodId)
-                          ? { methodId }
+                          ? {
+                              methodId,
+                            }
                           : {}),
                       },
                     }),
@@ -337,52 +365,7 @@ export function ProviderAuthenticationSection({
                 fallback={
                   <p className="text-xs text-muted-foreground">Loading sign-in terminal…</p>
                 }
-              >
-                <ProviderAuthTerminal
-                  key={`${auth?.flowId}:${interaction.id}`}
-                  output={interaction.output}
-                  outputOffset={interaction.outputOffset}
-                  onResponse={(response) => {
-                    if (readOnly || !auth?.flowId) return;
-                    for (
-                      let offset = 0;
-                      offset < Math.max(1, response.data.length);
-                      offset += 4_096
-                    ) {
-                      terminalQueue.current.push({
-                        instanceId,
-                        flowId: auth.flowId,
-                        interactionId: interaction.id,
-                        response: {
-                          ...response,
-                          data: response.data.slice(offset, offset + 4_096),
-                        },
-                      });
-                    }
-                    if (terminalSending.current) return;
-                    terminalSending.current = true;
-                    void (async () => {
-                      while (terminalQueue.current.length > 0) {
-                        const input = terminalQueue.current.shift()!;
-                        const result = await respond({ environmentId, input });
-                        if (result._tag !== "Success") {
-                          terminalQueue.current = [];
-                          if (!isAtomCommandInterrupted(result))
-                            setError("The provider sign-in terminal is no longer available.");
-                          break;
-                        }
-                      }
-                    })()
-                      .catch(() => {
-                        terminalQueue.current = [];
-                        setError("Could not send input to the provider sign-in terminal.");
-                      })
-                      .finally(() => {
-                        terminalSending.current = false;
-                      });
-                  }}
-                />
-              </Suspense>
+              ></Suspense>
             </div>
           ) : null}
           {interaction?.type === "credentials" ? (
@@ -390,8 +373,15 @@ export function ProviderAuthenticationSection({
               className="grid gap-2 py-2 text-sm leading-normal"
               onSubmit={(event) => {
                 event.preventDefault();
-                void send({ type: "credentials", values }).then((sent) => {
-                  if (sent) setDraft({ id: "", values: {} });
+                void send({
+                  type: "credentials",
+                  values,
+                }).then((sent) => {
+                  if (sent)
+                    setDraft({
+                      id: "",
+                      values: {},
+                    });
                 });
               }}
             >
@@ -429,10 +419,18 @@ export function ProviderAuthenticationSection({
                 void run(() =>
                   complete({
                     environmentId,
-                    input: { instanceId, flowId: auth.flowId!, callbackUrl: values.callback! },
+                    input: {
+                      instanceId,
+                      flowId: auth.flowId!,
+                      callbackUrl: values.callback!,
+                    },
                   }),
                 ).then((sent) => {
-                  if (sent) setDraft({ id: "", values: {} });
+                  if (sent)
+                    setDraft({
+                      id: "",
+                      values: {},
+                    });
                 });
               }}
             >

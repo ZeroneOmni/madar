@@ -17,7 +17,6 @@ export function plainHastText(node: unknown): string | null {
   });
   return parts.every((part) => part !== null) ? parts.join("") : null;
 }
-
 export function hastPlainTextDeep(node: unknown): string {
   if (!node || typeof node !== "object") return "";
   if ("type" in node && node.type === "text" && "value" in node && typeof node.value === "string") {
@@ -26,7 +25,6 @@ export function hastPlainTextDeep(node: unknown): string {
   if (!("children" in node) || !Array.isArray(node.children)) return "";
   return node.children.map(hastPlainTextDeep).join("");
 }
-
 export function hastHasText(node: unknown): boolean {
   if (!node || typeof node !== "object") return false;
   if (

@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
-
 import { collectThreadFindRanges } from "./threadFindHighlights";
-
 function row(html: string) {
   const container = document.createElement("div");
   container.innerHTML = `<div data-timeline-row-id="row"><div data-thread-find-text>${html}</div></div>`;
   return container;
 }
-
 describe("collectThreadFindRanges", () => {
   it("finds matches split across inline token spans, in order", () => {
     const container = row(

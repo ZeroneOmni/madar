@@ -1,9 +1,7 @@
 import type { EnvironmentId } from "@t3tools/contracts";
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
-
 import { useFileMetadata } from "../../hooks/useFileMetadata";
 import { PierreEntryIcon } from "./PierreEntryIcon";
-
 export function WorkspaceEntryIcon(props: {
   path: string;
   environmentId?: EnvironmentId | null | undefined;
@@ -20,7 +18,6 @@ export function WorkspaceEntryIcon(props: {
     />
   );
 }
-
 export function WorkspaceEntryTooltip(props: {
   path: string;
   label?: string;

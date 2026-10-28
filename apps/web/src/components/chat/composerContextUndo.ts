@@ -1,27 +1,23 @@
-import type { PreviewAnnotationPayload, ThreadContextRecord } from "@t3tools/contracts";
+import type { ThreadContextRecord } from "@t3tools/contracts";
+import { PreviewAnnotationPayload } from "../../lib/legacyPreviewAnnotation";
 import { useEffect, useState } from "react";
-
 import type { ComposerFileAttachment, ComposerImageAttachment } from "../../composerDraftStore";
 import { fileContextReference, previewAnnotationContextId } from "../../lib/composerContextRecords";
 import type { TerminalContextDraft } from "../../lib/terminalContext";
 import type { ReviewCommentContext } from "../../reviewCommentContext";
-
 interface RetainedPreviewAnnotation {
   annotation: PreviewAnnotationPayload;
   image: ComposerImageAttachment | undefined;
 }
-
 export interface RetainedAttachmentContextPayloads {
   files: Map<string, ComposerFileAttachment>;
   previewAnnotations: Map<string, RetainedPreviewAnnotation>;
 }
-
 export interface RetainedContextPayloads extends RetainedAttachmentContextPayloads {
   terminals: Map<string, TerminalContextDraft>;
   reviewComments: Map<string, ReviewCommentContext>;
   threads: Map<string, ThreadContextRecord>;
 }
-
 function createRetainedContextPayloads(): RetainedContextPayloads {
   return {
     terminals: new Map(),
@@ -39,7 +35,10 @@ export function useRetainedContextPayloads(draftTargetKey: string): RetainedCont
     payloads: createRetainedContextPayloads(),
   }));
   if (draft.targetKey !== draftTargetKey) {
-    setDraft({ targetKey: draftTargetKey, payloads: createRetainedContextPayloads() });
+    setDraft({
+      targetKey: draftTargetKey,
+      payloads: createRetainedContextPayloads(),
+    });
   }
   const retained = draft.payloads;
   useEffect(
@@ -50,7 +49,6 @@ export function useRetainedContextPayloads(draftTargetKey: string): RetainedCont
   );
   return retained;
 }
-
 export function reconcileAttachmentContextReferences(input: {
   referencedContextIds: ReadonlySet<string>;
   files: ReadonlyArray<ComposerFileAttachment>;
@@ -78,7 +76,6 @@ export function reconcileAttachmentContextReferences(input: {
     const file = input.retained.files.get(contextId);
     return file ? [file] : [];
   });
-
   const imagesById = new Map(input.images.map((image) => [image.id, image]));
   const liveAnnotationContextIds = new Set<string>(
     input.previewAnnotations.map((annotation) => previewAnnotationContextId(annotation.id)),
@@ -98,6 +95,10 @@ export function reconcileAttachmentContextReferences(input: {
     const retained = input.retained.previewAnnotations.get(contextId);
     return retained ? [retained] : [];
   });
-
-  return { filesToRemove, filesToRestore, annotationIdsToRemove, annotationsToRestore };
+  return {
+    filesToRemove,
+    filesToRestore,
+    annotationIdsToRemove,
+    annotationsToRestore,
+  };
 }

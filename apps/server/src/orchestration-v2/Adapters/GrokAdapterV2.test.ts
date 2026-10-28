@@ -14,7 +14,7 @@ import {
 } from "@t3tools/contracts";
 import { GrokSettings } from "@t3tools/provider-grok/settings";
 import * as HostProcess from "@t3tools/shared/HostProcess";
-import { resolveSelfInvocation } from "@t3tools/shared/nodeRuntime";
+
 import * as EffectAcpErrors from "effect-acp/errors";
 import { xAiRateLimitedErrorCode } from "@t3tools/provider-grok/testing";
 import { assert, describe, it } from "@effect/vitest";
@@ -36,7 +36,7 @@ import { buildInitialGrokProviderSnapshot } from "@t3tools/provider-grok/testing
 import type { ProviderInstance } from "@t3tools/provider-core/server/driver";
 import * as ProviderInstanceRegistry from "../../provider/ProviderInstanceRegistry.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
-import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
+
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import * as RuntimePolicy from "../RuntimePolicy.ts";
 import { acpPermissionDisposition } from "@t3tools/provider-acp/server/clientPolicy";
@@ -237,7 +237,7 @@ describe("Grok launch permission mode", () => {
   const layerTest = Layer.mergeAll(
     NodeServices.layer,
     IdAllocator.layer,
-    McpProviderSessions.layer,
+
     layerHost,
   );
 
@@ -260,7 +260,6 @@ describe("Grok launch permission mode", () => {
         settings: LAUNCH_TEST_GROK_SETTINGS,
         environment: {},
         hostPlatform: "darwin",
-        selfInvocation: yield* resolveSelfInvocation(),
       }).pipe(Effect.provideService(ChildProcessSpawner.ChildProcessSpawner, childProcessSpawner));
       yield* adapter
         .openSession({
@@ -365,7 +364,7 @@ describe("Grok native questions", () => {
   const layerTest = Layer.mergeAll(
     NodeServices.layer,
     IdAllocator.layer,
-    McpProviderSessions.layer,
+
     layerHost,
   );
 
@@ -483,7 +482,7 @@ describe("Grok native questions", () => {
         settings: LAUNCH_TEST_GROK_SETTINGS,
         environment: {},
         hostPlatform: "darwin",
-        selfInvocation: yield* resolveSelfInvocation(),
+
         makeRuntime: makeAcpReplayRuntime({
           transcript,
           statusPath,

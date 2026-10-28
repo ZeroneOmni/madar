@@ -1,8 +1,6 @@
-import type { PreviewAnnotationPayload } from "@t3tools/contracts";
+import { PreviewAnnotationPayload } from "./legacyPreviewAnnotation";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-
 import { capturePreviewAnnotationScreenshot } from "./previewAnnotation";
-
 const annotation: PreviewAnnotationPayload = {
   id: "annotation_1",
   pageUrl: "http://localhost:3000",
@@ -17,16 +15,19 @@ const annotation: PreviewAnnotationPayload = {
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=",
     width: 1,
     height: 1,
-    cropRect: { x: 0, y: 0, width: 1, height: 1 },
+    cropRect: {
+      x: 0,
+      y: 0,
+      width: 1,
+      height: 1,
+    },
   },
   createdAt: "2026-06-11T00:00:00.000Z",
 };
-
 describe("preview annotation capture", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
-
   it("preserves the PNG bytes, MIME type, and filename without fetching", async () => {
     const fetch = vi.fn().mockRejectedValue(new TypeError("Blocked by connect-src"));
     vi.stubGlobal("fetch", fetch);
@@ -45,8 +46,16 @@ describe("preview annotation capture", () => {
   it.each(["data:image/jpeg;base64,AA==", "data:image/png;base64,", "data:image/png;base64,%%%"])(
     "reports a malformed screenshot as failed: %s",
     (dataUrl) => {
-      const picked = { ...annotation, screenshot: { ...annotation.screenshot!, dataUrl } };
-      expect(capturePreviewAnnotationScreenshot(picked)).toEqual({ status: "failed" });
+      const picked = {
+        ...annotation,
+        screenshot: {
+          ...annotation.screenshot!,
+          dataUrl,
+        },
+      };
+      expect(capturePreviewAnnotationScreenshot(picked)).toEqual({
+        status: "failed",
+      });
     },
   );
 });

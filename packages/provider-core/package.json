@@ -87,10 +87,6 @@
       "types": "./src/server/notification.ts",
       "import": "./src/server/notification.ts"
     },
-    "./server/orchestrationInstructions": {
-      "types": "./src/server/orchestrationInstructions.ts",
-      "import": "./src/server/orchestrationInstructions.ts"
-    },
     "./server/pathExpansion": {
       "types": "./src/server/pathExpansion.ts",
       "import": "./src/server/pathExpansion.ts"
@@ -182,6 +178,10 @@
     "./server/usageLimits": {
       "types": "./src/server/usageLimits.ts",
       "import": "./src/server/usageLimits.ts"
+    },
+    "./server/acpInstructions": {
+      "types": "./src/server/acpInstructions.ts",
+      "import": "./src/server/acpInstructions.ts"
     }
   },
   "scripts": {

@@ -1,14 +1,13 @@
 import { useId, type CSSProperties, type SVGProps } from "react";
-
 import type { ProviderIcon } from "@t3tools/provider-core/client";
-
 import { cn } from "~/lib/utils";
-
 export function ProviderPackageIcon({
   icon,
   className,
   ...props
-}: { readonly icon: ProviderIcon } & SVGProps<SVGSVGElement>) {
+}: {
+  readonly icon: ProviderIcon;
+} & SVGProps<SVGSVGElement>) {
   const gradientId = useId();
   return (
     <svg

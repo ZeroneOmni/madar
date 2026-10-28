@@ -20,7 +20,6 @@ import {
 import { type UnifiedSettings } from "@t3tools/contracts/settings";
 import { getComposerPromptInjectionState, getComposerProviderState } from "./composerProviderState";
 import { resolveComposerProviderSelection } from "../ChatView.logic";
-
 const NO_PROVIDER_MODELS: ServerProvider["models"] = [];
 
 /**

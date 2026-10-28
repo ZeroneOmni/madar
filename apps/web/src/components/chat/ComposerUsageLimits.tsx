@@ -1,7 +1,6 @@
 import type { EnvironmentId, UsageLimitsReport } from "@t3tools/contracts";
 import { limitsNotice } from "@t3tools/shared/usageLimits";
 import { GaugeIcon } from "lucide-react";
-
 import { ensureLocalApi } from "../../localApi";
 import { Button } from "../ui/button";
 import { providerClients } from "../settings/providerDriverMeta";
@@ -9,7 +8,6 @@ import { RedactedSensitiveText } from "../settings/RedactedSensitiveText";
 import { LimitWindows, ResetCredits } from "../usage/UsageLimits";
 import { ComposerBanner } from "./ComposerBanner";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
-
 function accountLabel(account: UsageLimitsReport["accounts"][number]): string {
   if (!account.instanceId) return account.label;
   const driver = providerClients.get(account.driver)?.label ?? String(account.driver);
@@ -20,7 +18,6 @@ function accountLabel(account: UsageLimitsReport["accounts"][number]): string {
     ? `${driver} · ${instance}`
     : driver;
 }
-
 function AccountSummary({ account }: { readonly account: UsageLimitsReport["accounts"][number] }) {
   const label = accountLabel(account);
   return (
@@ -41,7 +38,6 @@ function AccountSummary({ account }: { readonly account: UsageLimitsReport["acco
     </>
   );
 }
-
 export function usageLimitsBannerItem(
   id: string,
   report: UsageLimitsReport,
@@ -67,7 +63,6 @@ export function usageLimitsBannerItem(
     children: <UsageLimitsBannerBody report={report} environmentId={environmentId} />,
   };
 }
-
 function UsageLimitsBannerBody({
   report,
   environmentId,
@@ -82,7 +77,11 @@ function UsageLimitsBannerBody({
         {report.accounts.map((account) => {
           const resetCreditInput =
             account.resetCreditInput ??
-            (account.instanceId ? { instanceId: account.instanceId } : undefined);
+            (account.instanceId
+              ? {
+                  instanceId: account.instanceId,
+                }
+              : undefined);
           const notice = limitsNotice(account.limits);
           const externalUsage = account.limits.externalUsage;
           return (

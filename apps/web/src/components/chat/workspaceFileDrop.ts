@@ -5,7 +5,9 @@ export interface WorkspaceFileDragEvent {
     readonly items?: Iterable<{
       readonly kind: string;
       getAsFile(): File | null;
-      webkitGetAsEntry(): { readonly isDirectory: boolean } | null;
+      webkitGetAsEntry(): {
+        readonly isDirectory: boolean;
+      } | null;
     }>;
     dropEffect: string;
   };
@@ -15,21 +17,17 @@ export interface WorkspaceFileDragEvent {
   };
   preventDefault(): void;
 }
-
 export interface WorkspaceFileDropHost {
   setDragActive(active: boolean): void;
   addFiles(files: File[]): void;
   addFolders(folders: File[]): void;
 }
-
 function isFileDrag(event: WorkspaceFileDragEvent): boolean {
   return event.dataTransfer.types.includes("Files");
 }
-
 function movedWithinDropTarget(event: WorkspaceFileDragEvent): boolean {
   return event.relatedTarget !== null && event.currentTarget.contains(event.relatedTarget as Node);
 }
-
 export function splitTransferredFiles(
   dataTransfer: Pick<WorkspaceFileDragEvent["dataTransfer"], "files" | "items">,
 ): {
@@ -37,8 +35,10 @@ export function splitTransferredFiles(
   folders: File[];
 } {
   if (dataTransfer.items === undefined)
-    return { files: Array.from(dataTransfer.files), folders: [] };
-
+    return {
+      files: Array.from(dataTransfer.files),
+      folders: [],
+    };
   const files: File[] = [];
   const folders: File[] = [];
   for (const item of dataTransfer.items) {
@@ -51,9 +51,11 @@ export function splitTransferredFiles(
       files.push(file);
     }
   }
-  return { files, folders };
+  return {
+    files,
+    folders,
+  };
 }
-
 export function makeWorkspaceFileDropHandlers(host: WorkspaceFileDropHost) {
   return {
     onDragEnter(event: WorkspaceFileDragEvent) {

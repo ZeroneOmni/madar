@@ -13,13 +13,11 @@ import {
 import type { EnvironmentId, OrchestrationV2ProjectedTurnItem } from "@t3tools/contracts";
 import { CheckIcon, LockIcon, MinusIcon, ShieldCheckIcon } from "lucide-react";
 import { useId, useRef, useState, type FormEvent } from "react";
-
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { WorkLogRow } from "./WorkLog";
-
 export function SecretRequestCard(props: {
   readonly environmentId: EnvironmentId;
   readonly item: SecretRequestItem;
@@ -48,7 +46,6 @@ export function SecretRequestCard(props: {
   }
   return <PendingSecretRequestForm environmentId={props.environmentId} item={item} />;
 }
-
 function PendingSecretRequestForm(props: {
   readonly environmentId: EnvironmentId;
   readonly item: SecretRequestItem;
@@ -68,16 +65,25 @@ function PendingSecretRequestForm(props: {
   const [error, setError] = useState<string | null>(null);
   // Enter and click can both submit before a render.
   const inFlight = useRef(false);
-
   const send = async (
-    reply: { readonly type: "save"; readonly secret: string } | { readonly type: "decline" },
+    reply:
+      | {
+          readonly type: "save";
+          readonly secret: string;
+        }
+      | {
+          readonly type: "decline";
+        },
   ) => {
     const input = secretRequestAnswerInput(item, reply);
     if (input === null || inFlight.current) return;
     inFlight.current = true;
     setSubmitting(true);
     setError(null);
-    const result = await answer({ environmentId: props.environmentId, input }).finally(() => {
+    const result = await answer({
+      environmentId: props.environmentId,
+      input,
+    }).finally(() => {
       inFlight.current = false;
       setSubmitting(false);
     });
@@ -89,12 +95,13 @@ function PendingSecretRequestForm(props: {
       setError(secretRequestFailureMessage(squashAtomCommandFailure(result)));
     }
   };
-
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    void send({ type: "save", secret });
+    void send({
+      type: "save",
+      secret,
+    });
   };
-
   return (
     <form
       data-v2-item-type={item.type}
@@ -157,7 +164,11 @@ function PendingSecretRequestForm(props: {
           size="xs"
           variant="ghost-muted"
           disabled={submitting}
-          onClick={() => void send({ type: "decline" })}
+          onClick={() =>
+            void send({
+              type: "decline",
+            })
+          }
         >
           Decline
         </Button>

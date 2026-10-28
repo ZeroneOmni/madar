@@ -3,7 +3,6 @@ import {
   isTerminalSubagentStatus,
   type RuntimeSubagent,
 } from "@t3tools/client-runtime/state/subagentRuntime";
-
 export function deriveAgentSpawnSummary({
   agents,
   agentCount,
@@ -32,7 +31,6 @@ export function deriveAgentSpawnSummary({
     .filter(Boolean)
     .join(" and ");
   const lead = `${batches > 0 ? "Launched" : live ? "Kicked off" : "Ran"} ${subjects || "subagents"}`;
-
   const status = live
     ? working > 0
       ? `${working} working`
@@ -58,5 +56,10 @@ export function deriveAgentSpawnSummary({
       : status === "✓ completed"
         ? "completed"
         : "inactive";
-  return { live, lead, status, tone };
+  return {
+    live,
+    lead,
+    status,
+    tone,
+  };
 }

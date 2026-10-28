@@ -20,20 +20,17 @@ export default defineConfig({
   run: {
     tasks: {
       build: {
-        command:
-          "node scripts/build-browser-secret.mjs && node scripts/build-preview-annotation-css.mjs && vp pack",
+        command: "vp pack",
         dependsOn: ["t3#build"],
         cache: false,
       },
       dev: {
-        command:
-          "node scripts/build-browser-secret.mjs && node scripts/build-preview-annotation-css.mjs && cross-env T3CODE_DESKTOP_DEV=1 vp pack --watch",
+        command: "cross-env T3CODE_DESKTOP_DEV=1 vp pack --watch",
         dependsOn: ["t3#build"],
         cache: false,
       },
       "dev:bundle": {
-        command:
-          "node scripts/build-browser-secret.mjs && node scripts/build-preview-annotation-css.mjs && vp pack --watch",
+        command: "vp pack --watch",
         cache: false,
       },
       "dev:electron": {
@@ -66,26 +63,7 @@ export default defineConfig({
       },
       ...(shouldLaunchElectronAfterPack ? { onSuccess: "node scripts/dev-electron.mjs" } : {}),
     },
-    {
-      format: "cjs",
-      outDir: "dist-electron",
-      dts: false,
-      sourcemap: true,
-      outExtensions: () => ({ js: ".cjs" }),
-      define: publicConfigDefine,
-      entry: [
-        "src/electron/WindowsForegroundFocusWorker.ts",
-        "src/snapShot/GlobalShiftShortcutWorker.ts",
-        "src/snapShot/RegionSnapShotWorker.ts",
-        "src/snapShot/SnapShotAccessibilityWorker.ts",
-      ],
-      clean: false,
-      deps: {
-        alwaysBundle: (id) => !id.startsWith("node:") && !isMainProcessExternal(id),
-        neverBundle: isMainProcessExternal,
-        onlyBundle: false,
-      },
-    },
+
     {
       // boot.cjs requires the other two at runtime, so all three stay separate files.
       format: "cjs",
@@ -112,25 +90,7 @@ export default defineConfig({
         alwaysBundle: (id) => id === "@clerk/electron" || id.startsWith("@clerk/electron/"),
       },
     },
-    {
-      format: "cjs",
-      outDir: "dist-electron",
-      dts: false,
-      sourcemap: true,
-      outExtensions: () => ({ js: ".cjs" }),
-      entry: ["src/preview-pick-preload.ts"],
-      deps: {
-        alwaysBundle: (id) => id === "react-grab" || id.startsWith("react-grab/"),
-      },
-    },
-    {
-      format: "cjs",
-      outDir: "dist-electron",
-      dts: false,
-      sourcemap: true,
-      outExtensions: () => ({ js: ".cjs" }),
-      entry: ["src/preview-pip-preload.ts"],
-    },
+
     {
       // Sandboxed preloads must be self-contained, without shared runtime chunks.
       format: "cjs",
@@ -142,7 +102,7 @@ export default defineConfig({
     },
   ],
   test: {
-    include: [...defaultInclude, "../../native/kde-snap-shot/src/*.test.ts"],
+    include: defaultInclude,
     // The Windows lane runs workspace suites concurrently; filesystem-heavy
     // desktop integration tests can exceed Vitest's 5 second default there.
     testTimeout: 15_000,

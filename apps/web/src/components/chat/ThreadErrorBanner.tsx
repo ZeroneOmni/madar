@@ -13,7 +13,6 @@ import { CircleAlertIcon, XIcon } from "lucide-react";
 import { OpenAI } from "../Icons";
 import { ChatGptUsageButton } from "../settings/ChatGptUsageButton";
 import { ExpandableText } from "../settings/ExpandableText";
-
 function copyAdminRequest() {
   void writeTextToClipboard(CHATGPT_WORKSPACE_ADMIN_REQUEST, "admin request").then(
     () =>
@@ -22,10 +21,13 @@ function copyAdminRequest() {
         title: "Request copied",
         description: "Send it to your workspace admin.",
       }),
-    () => toastManager.add({ type: "error", title: "Could not copy the request" }),
+    () =>
+      toastManager.add({
+        type: "error",
+        title: "Could not copy the request",
+      }),
   );
 }
-
 export function getThreadErrorBannerMessage(error: string): string {
   let payload: unknown;
   try {
@@ -44,11 +46,9 @@ export function getThreadErrorBannerMessage(error: string): string {
     ? nestedError.message
     : error;
 }
-
 export function getThreadErrorBannerKey(threadKey: string, error: string | null): string | null {
   return error === null ? null : `${threadKey}\u0000${error}`;
 }
-
 export function shouldShowThreadErrorBanner(
   threadKey: string,
   error: string | null,
@@ -56,19 +56,15 @@ export function shouldShowThreadErrorBanner(
 ): boolean {
   return getThreadErrorBannerKey(threadKey, error) !== null && !isDismissed;
 }
-
 const sessionDismissedThreadErrorBannerKeys = new Set<string>();
-
 export function dismissThreadErrorBannerForSession(bannerKey: string | null): void {
   if (bannerKey !== null) {
     sessionDismissedThreadErrorBannerKeys.add(bannerKey);
   }
 }
-
 export function isThreadErrorBannerDismissedForSession(bannerKey: string | null): boolean {
   return bannerKey !== null && sessionDismissedThreadErrorBannerKeys.has(bannerKey);
 }
-
 export const ThreadErrorBanner = memo(function ThreadErrorBanner({
   error,
   onDismiss,

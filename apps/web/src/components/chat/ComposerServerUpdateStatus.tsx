@@ -1,7 +1,6 @@
 import { Spinner } from "~/components/ui/spinner";
 import type { ServerUpdateState } from "@t3tools/client-runtime/state/server";
 import { CircleAlertIcon, DownloadIcon } from "lucide-react";
-
 export function ComposerServerUpdateIcon({
   status,
 }: {

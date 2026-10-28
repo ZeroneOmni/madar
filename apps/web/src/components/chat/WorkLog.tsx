@@ -7,7 +7,6 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "../../lib/utils";
-
 const GroupedRows = createContext(false);
 
 /** Groups may span virtualized timeline items. Each part owns its trailing space. */
@@ -34,7 +33,6 @@ export function WorkLogBlock({
     </div>
   );
 }
-
 export function WorkLogList({ children }: { children: ReactNode }) {
   return (
     <GroupedRows value>
@@ -42,14 +40,12 @@ export function WorkLogList({ children }: { children: ReactNode }) {
     </GroupedRows>
   );
 }
-
 type RowContent = {
   icon?: ReactNode;
   label: ReactNode;
   trailing?: ReactNode;
   wrapLabel?: boolean;
 };
-
 function WorkLogLine({ icon, label, trailing, wrapLabel }: RowContent) {
   return (
     <div
@@ -79,10 +75,8 @@ function WorkLogLine({ icon, label, trailing, wrapLabel }: RowContent) {
     </div>
   );
 }
-
 const interactionClassName =
   "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70";
-
 function useRowClassName(interactive: boolean) {
   const grouped = use(GroupedRows);
   return cn(
@@ -91,7 +85,6 @@ function useRowClassName(interactive: boolean) {
     interactive && interactionClassName,
   );
 }
-
 export function WorkLogButton({
   icon,
   label,
@@ -124,9 +117,7 @@ export function WorkLogRow({
     </div>
   );
 }
-
 const LIVE_EDGE_PX = 4;
-
 export function WorkLogDetails({
   children,
   kind = "text",
@@ -134,7 +125,6 @@ export function WorkLogDetails({
 }: {
   children: ReactNode;
   kind?: "text" | "panel" | "media";
-
   followLive?: boolean;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);

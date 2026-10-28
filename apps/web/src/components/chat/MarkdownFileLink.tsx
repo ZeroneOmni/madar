@@ -6,7 +6,6 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import { memo, type MouseEvent as ReactMouseEvent } from "react";
-
 import { readLocalApi } from "../../localApi";
 import { cn } from "../../lib/utils";
 import { shouldOpenMarkdownFileLinkInEditor } from "../../markdown-links";
@@ -22,7 +21,6 @@ import {
 } from "./MarkdownFileLink.logic";
 import { reportMarkdownActionFailure } from "./markdownActionFailure";
 import { WorkspaceEntryTooltip } from "./WorkspaceEntryIcon";
-
 interface MarkdownFileLinkProps {
   environmentId: EnvironmentId | null;
   href: string;
@@ -44,9 +42,7 @@ interface MarkdownFileLinkProps {
   onReveal?: (() => Promise<AtomCommandResult<unknown, unknown>>) | undefined;
   revealLabel?: string | undefined;
 }
-
 const MARKDOWN_FILE_LINK_CLASS_NAME = "chat-markdown-file-link";
-
 export const MarkdownFileLink = memo(function MarkdownFileLink({
   environmentId,
   href,
@@ -79,7 +75,10 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           return;
         }
         reportMarkdownActionFailure(
-          { operation: "open-file-in-editor", target: targetPath },
+          {
+            operation: "open-file-in-editor",
+            target: targetPath,
+          },
           result.cause,
         );
         const error = squashAtomCommandFailure(result);
@@ -92,7 +91,10 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         );
       } catch (cause) {
         reportMarkdownActionFailure(
-          { operation: "open-file-in-editor", target: targetPath },
+          {
+            operation: "open-file-in-editor",
+            target: targetPath,
+          },
           cause,
         );
         toastManager.add(
@@ -105,7 +107,6 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       }
     })();
   };
-
   const handleOpenInFilePreview = () => {
     if (threadRef && panelPath) {
       onOpenInPanel(panelPath, line);
@@ -117,7 +118,6 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
     }
     handleOpenInEditor();
   };
-
   const handleOpenInBrowser = () => {
     if (!onOpenInBrowser) {
       return;
@@ -129,7 +129,10 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           return;
         }
         reportMarkdownActionFailure(
-          { operation: "open-file-in-browser", target: targetPath },
+          {
+            operation: "open-file-in-browser",
+            target: targetPath,
+          },
           result.cause,
         );
         const error = squashAtomCommandFailure(result);
@@ -142,7 +145,10 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         );
       } catch (cause) {
         reportMarkdownActionFailure(
-          { operation: "open-file-in-browser", target: targetPath },
+          {
+            operation: "open-file-in-browser",
+            target: targetPath,
+          },
           cause,
         );
         toastManager.add(
@@ -155,7 +161,6 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       }
     })();
   };
-
   const handleRevealInFileManager = () => {
     if (!onReveal) {
       return;
@@ -167,7 +172,10 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
           return;
         }
         reportMarkdownActionFailure(
-          { operation: "reveal-file-in-file-manager", target: targetPath },
+          {
+            operation: "reveal-file-in-file-manager",
+            target: targetPath,
+          },
           result.cause,
         );
         const error = squashAtomCommandFailure(result);
@@ -180,7 +188,10 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
         );
       } catch (cause) {
         reportMarkdownActionFailure(
-          { operation: "reveal-file-in-file-manager", target: targetPath },
+          {
+            operation: "reveal-file-in-file-manager",
+            target: targetPath,
+          },
           cause,
         );
         toastManager.add(
@@ -193,7 +204,6 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       }
     })();
   };
-
   const handleCopy = (resolveValue: () => Promise<string>, title: string) => {
     if (typeof window === "undefined" || !navigator.clipboard?.writeText) {
       toastManager.add(
@@ -205,14 +215,18 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       );
       return;
     }
-
     const value = resolveValue().then((text) => formatFilePathForClipboard(text, targetPath));
     // Start the write before workspace lookup finishes so Safari retains the user gesture.
     const write =
       typeof navigator.clipboard.write === "function" && typeof ClipboardItem !== "undefined"
         ? navigator.clipboard.write([
             new ClipboardItem({
-              "text/plain": value.then((text) => new Blob([text], { type: "text/plain" })),
+              "text/plain": value.then(
+                (text) =>
+                  new Blob([text], {
+                    type: "text/plain",
+                  }),
+              ),
             }),
           ])
         : value.then((text) => navigator.clipboard.writeText(text));
@@ -226,7 +240,11 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       },
       (error) => {
         reportMarkdownActionFailure(
-          { operation: "copy-file-path", target: targetPath, copyTarget: title },
+          {
+            operation: "copy-file-path",
+            target: targetPath,
+            copyTarget: title,
+          },
           error,
         );
         toastManager.add(
@@ -239,26 +257,55 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       },
     );
   };
-
   const showFileContextMenu = async (position: { x: number; y: number }) => {
     const api = readLocalApi();
     if (!api) return;
-
     try {
-      const copyItems = markdownFileCopyMenuItems({ targetPath, workspaceRelativePath });
+      const copyItems = markdownFileCopyMenuItems({
+        targetPath,
+        workspaceRelativePath,
+      });
       const clicked = await api.contextMenu.show(
         [
-          ...(onOpenMedia ? ([{ id: "preview-media", label: "Preview media" }] as const) : []),
-          ...(onOpen ? ([{ id: "open", label: openInEditorMenuLabel }] as const) : []),
-          ...(onOpenInBrowser
-            ? ([{ id: "open-in-browser", label: "Open in integrated browser" }] as const)
+          ...(onOpenMedia
+            ? ([
+                {
+                  id: "preview-media",
+                  label: "Preview media",
+                },
+              ] as const)
             : []),
-          ...(onReveal && revealLabel ? ([{ id: "reveal", label: revealLabel }] as const) : []),
-          ...copyItems.map(({ id, label }) => ({ id, label })),
+          ...(onOpen
+            ? ([
+                {
+                  id: "open",
+                  label: openInEditorMenuLabel,
+                },
+              ] as const)
+            : []),
+          ...(onOpenInBrowser
+            ? ([
+                {
+                  id: "open-in-browser",
+                  label: "Open in integrated browser",
+                },
+              ] as const)
+            : []),
+          ...(onReveal && revealLabel
+            ? ([
+                {
+                  id: "reveal",
+                  label: revealLabel,
+                },
+              ] as const)
+            : []),
+          ...copyItems.map(({ id, label }) => ({
+            id,
+            label,
+          })),
         ] as const,
         position,
       );
-
       if (clicked === "preview-media") {
         onOpenMedia?.();
         return;
@@ -286,12 +333,14 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       }
     } catch (cause) {
       reportMarkdownActionFailure(
-        { operation: "show-file-context-menu", target: targetPath },
+        {
+          operation: "show-file-context-menu",
+          target: targetPath,
+        },
         cause,
       );
     }
   };
-
   const handleContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -299,12 +348,17 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       event.clientX === 0 && event.clientY === 0
         ? (() => {
             const bounds = event.currentTarget.getBoundingClientRect();
-            return { x: bounds.left, y: bounds.bottom };
+            return {
+              x: bounds.left,
+              y: bounds.bottom,
+            };
           })()
-        : { x: event.clientX, y: event.clientY };
+        : {
+            x: event.clientX,
+            y: event.clientY,
+          };
     void showFileContextMenu(position);
   };
-
   const canOpenInEditor = onOpen !== undefined;
   const canOpenInBrowser = onOpenInBrowser !== undefined;
   const canOpenInPanel = threadRef !== undefined && Boolean(panelPath);
@@ -320,7 +374,6 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
     canOpenInBrowser,
     canOpenInPanel,
   });
-
   return (
     <Tooltip>
       <TooltipTrigger
@@ -384,7 +437,6 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
     </Tooltip>
   );
 }, areMarkdownFileLinkPropsEqual);
-
 function areMarkdownFileLinkPropsEqual(
   previous: Readonly<MarkdownFileLinkProps>,
   next: Readonly<MarkdownFileLinkProps>,

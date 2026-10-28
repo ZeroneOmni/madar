@@ -1,9 +1,7 @@
 import { FileIcon, FolderIcon } from "lucide-react";
 import { memo, useInsertionEffect } from "react";
-
 import { ensurePierreIconSprite, resolvePierreIconForEntry } from "../../pierre-icons";
 import { cn } from "~/lib/utils";
-
 const ICON_COLORS: Record<string, readonly [light: string, dark: string]> = {
   astro: ["#a631be", "#d568ea"],
   babel: ["#d5a910", "#ffd452"],
@@ -58,7 +56,6 @@ const ICON_COLORS: Record<string, readonly [light: string, dark: string]> = {
   zig: ["#d47628", "#ffa359"],
   zip: ["#d47628", "#ffa359"],
 };
-
 export const PierreEntryIcon = memo(function PierreEntryIcon(props: {
   pathValue: string;
   kind: "file" | "directory";
@@ -68,7 +65,6 @@ export const PierreEntryIcon = memo(function PierreEntryIcon(props: {
 }) {
   useInsertionEffect(ensurePierreIconSprite, []);
   const icon = resolvePierreIconForEntry(props.pathValue, props.kind, props.mimeType);
-
   if (!icon) {
     return props.kind === "directory" ? (
       <FolderIcon className={cn("size-4 text-icon-muted", props.className)} />
@@ -76,7 +72,6 @@ export const PierreEntryIcon = memo(function PierreEntryIcon(props: {
       <FileIcon className={cn("size-4 text-icon-muted", props.className)} />
     );
   }
-
   const colors = ICON_COLORS[icon.token ?? "default"] ?? ICON_COLORS.default;
   return (
     <svg
@@ -84,7 +79,9 @@ export const PierreEntryIcon = memo(function PierreEntryIcon(props: {
       data-pierre-icon={icon.name}
       data-icon-token={icon.token}
       className={cn("size-4 shrink-0", props.className)}
-      style={{ color: colors?.[props.theme === "light" ? 0 : 1] }}
+      style={{
+        color: colors?.[props.theme === "light" ? 0 : 1],
+      }}
       viewBox="0 0 16 16"
     >
       <use href={`#${icon.name}`} />

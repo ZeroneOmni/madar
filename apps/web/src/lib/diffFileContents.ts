@@ -12,9 +12,7 @@ import type {
   ReviewDiffFileContentsResult,
   ReviewDiffPreviewSourceKind,
 } from "@t3tools/contracts";
-
 import { resolveFileDiffPath } from "./diffRendering";
-
 interface GitDiffFileContentsSource {
   readonly environmentId: EnvironmentId;
   readonly cwd: string;
@@ -23,45 +21,54 @@ interface GitDiffFileContentsSource {
   readonly headRef: string | null;
   readonly cacheKey: string;
 }
-
 interface PullRequestDiffFileContentsSource {
   readonly environmentId: EnvironmentId;
   readonly reference: PullRequestRef;
   readonly commit: string | null;
   readonly cacheKey: string;
 }
-
 type GetDiffFileContents<E> = (request: {
   readonly environmentId: EnvironmentId;
   readonly input: ReviewDiffFileContentsInput;
 }) => Promise<AtomCommandResult<ReviewDiffFileContentsResult, E>>;
-
 type GetPullRequestDiffFileContents<E> = (request: {
   readonly environmentId: EnvironmentId;
   readonly input: PullRequestDiffFileContentsInput;
 }) => Promise<AtomCommandResult<PullRequestDiffFileContentsResult, E>>;
-
 function createDiffFileContentsLoader(
   load: (input: {
     readonly changeType: PullRequestDiffFileContentsInput["changeType"];
     readonly oldPath: string;
     readonly newPath: string;
-  }) => Promise<{ readonly oldContents: string; readonly newContents: string }>,
+  }) => Promise<{
+    readonly oldContents: string;
+    readonly newContents: string;
+  }>,
   cacheKey: string,
 ): FileDiffContentsLoader {
   return async (fileDiff) => {
     const newPath = resolveFileDiffPath(fileDiff);
     const oldPath = fileDiff.prevName
-      ? resolveFileDiffPath({ ...fileDiff, name: fileDiff.prevName })
+      ? resolveFileDiffPath({
+          ...fileDiff,
+          name: fileDiff.prevName,
+        })
       : newPath;
-    const contents = await load({ changeType: fileDiff.type, oldPath, newPath });
+    const contents = await load({
+      changeType: fileDiff.type,
+      oldPath,
+      newPath,
+    });
     const newFile = {
       name: newPath,
       contents: contents.newContents,
       cacheKey: `${cacheKey}:new:${newPath}`,
     };
     if (fileDiff.type === "rename-pure") {
-      return { oldFile: null, newFile };
+      return {
+        oldFile: null,
+        newFile,
+      };
     }
     return {
       oldFile: {
@@ -73,7 +80,6 @@ function createDiffFileContentsLoader(
     };
   };
 }
-
 export function createGitDiffFileContentsLoader<E>(
   getDiffFileContents: GetDiffFileContents<E>,
   source: GitDiffFileContentsSource,
@@ -87,28 +93,6 @@ export function createGitDiffFileContentsLoader<E>(
         changeType,
         baseRef: source.baseRef,
         headRef: source.headRef,
-        oldPath,
-        newPath,
-      },
-    });
-    if (result._tag !== "Success") {
-      throw squashAtomCommandFailure(result);
-    }
-    return result.value;
-  }, source.cacheKey);
-}
-
-export function createPullRequestDiffFileContentsLoader<E>(
-  getDiffFileContents: GetPullRequestDiffFileContents<E>,
-  source: PullRequestDiffFileContentsSource,
-): FileDiffContentsLoader {
-  return createDiffFileContentsLoader(async ({ changeType, oldPath, newPath }) => {
-    const result = await getDiffFileContents({
-      environmentId: source.environmentId,
-      input: {
-        ...source.reference,
-        ...(source.commit === null ? {} : { commit: source.commit }),
-        changeType,
         oldPath,
         newPath,
       },

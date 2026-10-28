@@ -3,13 +3,13 @@ import {
   normalizeSearchQuery,
   scoreQueryMatch,
 } from "@t3tools/shared/searchRanking";
-
 import type { ComposerCommandItem } from "./ComposerCommandMenu";
 import { scoreProviderSkill } from "../../providerSkillSearch";
-
 type SlashSearchItem = Extract<
   ComposerCommandItem,
-  { type: "slash-command" | "provider-slash-command" | "skill" }
+  {
+    type: "slash-command" | "provider-slash-command" | "skill";
+  }
 >;
 
 /** Providers expand slash commands only at the message start. */
@@ -22,7 +22,6 @@ export function slashCommandItemsForPromptPosition(
   }
   return items.filter((item) => item.type !== "provider-slash-command");
 }
-
 function scoreSlashCommandItem(item: SlashSearchItem, query: string): number | null {
   if (item.type === "skill") {
     if (query === "skill") {
@@ -35,11 +34,9 @@ function scoreSlashCommandItem(item: SlashSearchItem, query: string): number | n
     }
     return "skill".startsWith(query) ? Number.MAX_SAFE_INTEGER : null;
   }
-
   const primaryValue =
     item.type === "slash-command" ? item.command.toLowerCase() : item.command.name.toLowerCase();
   const description = item.description.toLowerCase();
-
   const scores = [
     scoreQueryMatch({
       value: primaryValue,
@@ -60,35 +57,31 @@ function scoreSlashCommandItem(item: SlashSearchItem, query: string): number | n
       includesBase: 26,
     }),
   ].filter((score): score is number => score !== null);
-
   if (scores.length === 0) {
     return null;
   }
-
   return Math.min(...scores);
 }
-
 export function searchSlashCommandItems(
   items: ReadonlyArray<SlashSearchItem>,
   query: string,
 ): SlashSearchItem[] {
-  const normalizedQuery = normalizeSearchQuery(query, { trimLeadingPattern: /^\/+/ });
+  const normalizedQuery = normalizeSearchQuery(query, {
+    trimLeadingPattern: /^\/+/,
+  });
   if (!normalizedQuery) {
     return [...items];
   }
-
   const ranked: Array<{
     item: SlashSearchItem;
     score: number;
     tieBreaker: string;
   }> = [];
-
   for (const item of items) {
     const score = scoreSlashCommandItem(item, normalizedQuery);
     if (score === null) {
       continue;
     }
-
     insertRankedSearchResult(
       ranked,
       {
@@ -104,6 +97,5 @@ export function searchSlashCommandItems(
       Number.POSITIVE_INFINITY,
     );
   }
-
   return ranked.map((entry) => entry.item);
 }

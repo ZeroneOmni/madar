@@ -1,5 +1,4 @@
 import type { EnvironmentId } from "@t3tools/contracts";
-
 export function folderDropTarget(input: {
   localEnvironmentDisabled: boolean;
   environmentId: EnvironmentId;
@@ -14,7 +13,6 @@ export function folderDropTarget(input: {
   }
   return "local";
 }
-
 export function resolveDroppedFolderPath(
   folder: File,
   getPathForFile: ((file: File) => string) | undefined,

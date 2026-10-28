@@ -1,38 +1,49 @@
 import DOMPurify from "dompurify";
 import type { DiagramType, MathResolver } from "pele/lazy";
 import { use, useLayoutEffect, useRef, useState } from "react";
-
 import { serializeCodeBlockToMarkdown } from "../../markdown-clipboard";
 import { Button } from "../ui/button";
-
 type Pele = typeof import("pele/lazy");
-type PeleLoad = { readonly status: "loaded"; readonly pele: Pele } | { readonly status: "failed" };
-
+type PeleLoad =
+  | {
+      readonly status: "loaded";
+      readonly pele: Pele;
+    }
+  | {
+      readonly status: "failed";
+    };
 let coreLoad: Promise<PeleLoad> | null = null;
 // Each diagram type is its own chunk, so a chat with one flowchart loads only
 // the flowchart parser and layout.
 const diagramLoads = new Map<DiagramType, Promise<PeleLoad>>();
-
 function loadCore(): Promise<PeleLoad> {
   coreLoad ??= import("pele/lazy").then(
-    (pele): PeleLoad => ({ status: "loaded", pele }),
-    (): PeleLoad => ({ status: "failed" }),
+    (pele): PeleLoad => ({
+      status: "loaded",
+      pele,
+    }),
+    (): PeleLoad => ({
+      status: "failed",
+    }),
   );
   return coreLoad;
 }
-
 function loadDiagramType(pele: Pele, type: DiagramType): Promise<PeleLoad> {
   let load = diagramLoads.get(type);
   if (!load) {
     load = pele.load(type).then(
-      (): PeleLoad => ({ status: "loaded", pele }),
-      (): PeleLoad => ({ status: "failed" }),
+      (): PeleLoad => ({
+        status: "loaded",
+        pele,
+      }),
+      (): PeleLoad => ({
+        status: "failed",
+      }),
     );
     diagramLoads.set(type, load);
   }
   return load;
 }
-
 function detectDiagramType(pele: Pele, source: string): DiagramType | null {
   try {
     return pele.detectType(source);
@@ -40,7 +51,6 @@ function detectDiagramType(pele: Pele, source: string): DiagramType | null {
     return null;
   }
 }
-
 let mathLoad: Promise<MathResolver | null> | null = null;
 
 // Pele has no typesetter, so $$...$$ labels go through the KaTeX the chat
@@ -78,7 +88,11 @@ function loadMath(): Promise<MathResolver | null> {
           expression?.querySelector("annotation")?.remove();
           if (expression) {
             const { width, height } = expression.getBoundingClientRect();
-            markup = { html: expression.outerHTML, width, height };
+            markup = {
+              html: expression.outerHTML,
+              width,
+              height,
+            };
           }
         } catch {
           // Unsupported TeX stays readable as its source.
@@ -150,7 +164,6 @@ const KATEX_MATHML_ATTRIBUTES = new Set([
   "stretchy",
   "voffset",
 ]);
-
 let purifier: ReturnType<typeof DOMPurify> | null = null;
 
 // Diagrams can come from untrusted PR descriptions. Pele escapes labels and
@@ -161,7 +174,10 @@ function sanitizeDiagramSvg(svg: string): Node {
   return purifier.sanitize(svg, {
     FORBID_ATTR: ["href", "xlink:href", "src", "srcset"],
     FORBID_TAGS: ["a", "image", "foreignObject", "style"],
-    USE_PROFILES: { svg: true, svgFilters: true },
+    USE_PROFILES: {
+      svg: true,
+      svgFilters: true,
+    },
     RETURN_DOM_FRAGMENT: true,
   });
 }
@@ -175,10 +191,16 @@ function sanitizeMathDiagramSvg(svg: string): Node {
     ADD_TAGS: ["foreignObject", ...KATEX_MATHML_TAGS],
     ADD_ATTR: (attribute, tagName) =>
       KATEX_MATHML_TAGS.has(tagName) && KATEX_MATHML_ATTRIBUTES.has(attribute),
-    HTML_INTEGRATION_POINTS: { foreignobject: true },
+    HTML_INTEGRATION_POINTS: {
+      foreignobject: true,
+    },
     FORBID_ATTR: ["href", "xlink:href", "src", "srcset"],
     FORBID_TAGS: ["a", "img", "image", "script", "style"],
-    USE_PROFILES: { svg: true, svgFilters: true, html: true },
+    USE_PROFILES: {
+      svg: true,
+      svgFilters: true,
+      html: true,
+    },
     RETURN_DOM_FRAGMENT: true,
   });
 }
@@ -194,9 +216,13 @@ const PELE_COLOR_VARIABLES = [
   "--pele-border",
   "--pele-accent",
   "--pele-critical",
-  ...Array.from({ length: 8 }, (_, index) => `--pele-series-${index + 1}`),
+  ...Array.from(
+    {
+      length: 8,
+    },
+    (_, index) => `--pele-series-${index + 1}`,
+  ),
 ];
-
 let expandedImageUrl: string | null = null;
 
 /**
@@ -214,11 +240,12 @@ function diagramImageUrl(svg: SVGSVGElement): string {
   element.style.backgroundColor = getComputedStyle(document.body).backgroundColor;
   if (expandedImageUrl) URL.revokeObjectURL(expandedImageUrl);
   expandedImageUrl = URL.createObjectURL(
-    new Blob([new XMLSerializer().serializeToString(element)], { type: "image/svg+xml" }),
+    new Blob([new XMLSerializer().serializeToString(element)], {
+      type: "image/svg+xml",
+    }),
   );
   return expandedImageUrl;
 }
-
 export function MermaidDiagram({
   source,
   onExpand,
@@ -234,7 +261,6 @@ export function MermaidDiagram({
   const type = core.status === "loaded" ? detectDiagramType(core.pele, trimmedSource) : null;
   const load = core.status === "loaded" && type ? use(loadDiagramType(core.pele, type)) : core;
   const math = trimmedSource.includes("$$") ? use(loadMath()) : null;
-
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (load.status !== "loaded" || !container) return;
@@ -244,7 +270,14 @@ export function MermaidDiagram({
       zoom: false,
       // Keep the author's direction; a wide diagram scales down to fit instead of turning vertical.
       autoDirection: false,
-      ...(math ? { math, sanitize: sanitizeMathDiagramSvg } : { sanitize: sanitizeDiagramSvg }),
+      ...(math
+        ? {
+            math,
+            sanitize: sanitizeMathDiagramSvg,
+          }
+        : {
+            sanitize: sanitizeDiagramSvg,
+          }),
       onRender: () => setRenderError(null),
       onError: (error) =>
         setRenderError(
@@ -253,7 +286,6 @@ export function MermaidDiagram({
     });
     return () => mounted.destroy();
   }, [load, math, trimmedSource]);
-
   if (load.status === "failed") {
     return (
       <DiagramError
@@ -267,7 +299,6 @@ export function MermaidDiagram({
       />
     );
   }
-
   return (
     <div
       className="chat-markdown-mermaid overflow-x-auto"
@@ -290,7 +321,6 @@ export function MermaidDiagram({
     </div>
   );
 }
-
 function DiagramError({
   message,
   source,

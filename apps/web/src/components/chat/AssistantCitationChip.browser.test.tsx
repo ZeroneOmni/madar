@@ -7,12 +7,13 @@ import {
 import { useState, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
-
 import type { AssistantCitationSourceAnchor } from "~/lib/assistantTextSelection";
 import "~/index.css";
 import { act, render } from "../../../test/render";
-
-const mocks = vi.hoisted(() => ({ observeSource: vi.fn(), dispose: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  observeSource: vi.fn(),
+  dispose: vi.fn(),
+}));
 vi.mock(import("./AssistantCitationSource"), async (importOriginal) => ({
   ...(await importOriginal()),
   observeAssistantCitationCommentSource: mocks.observeSource,
@@ -22,9 +23,7 @@ vi.mock(import("@tanstack/react-router"), async (importOriginal) => ({
   useNavigate: () => vi.fn(),
   Link: (({ children }: { children: ReactNode }) => <a>{children}</a>) as never,
 }));
-
 import { AssistantCitationChip } from "./AssistantCitationChip";
-
 const citation = {
   version: 1 as const,
   environmentId: EnvironmentId.make("environment"),
@@ -46,10 +45,16 @@ function setup() {
   document.body.append(source);
   const range = document.createRange();
   range.selectNodeContents(source);
-  const sourceAnchor = { source, range, viewport: document.body } as AssistantCitationSourceAnchor;
-  return { sourceAnchor, [Symbol.dispose]: () => source.remove() };
+  const sourceAnchor = {
+    source,
+    range,
+    viewport: document.body,
+  } as AssistantCitationSourceAnchor;
+  return {
+    sourceAnchor,
+    [Symbol.dispose]: () => source.remove(),
+  };
 }
-
 function mount(sourceAnchor: AssistantCitationSourceAnchor, onSave: () => boolean) {
   function Composer() {
     const [open, setOpen] = useState(true);
@@ -57,16 +62,19 @@ function mount(sourceAnchor: AssistantCitationSourceAnchor, onSave: () => boolea
       <AssistantCitationChip
         citation={citation}
         composer
-        commentEditor={{ open, sourceAnchor, onOpenChange: setOpen, onSave }}
+        commentEditor={{
+          open,
+          sourceAnchor,
+          onOpenChange: setOpen,
+          onSave,
+        }}
       />
     );
   }
   return render(<Composer />);
 }
-
 const textarea = () =>
   document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Comment on selected text"]');
-
 async function typeComment(value: string) {
   const input = textarea()!;
   await act(async () => {
@@ -74,15 +82,17 @@ async function typeComment(value: string) {
       input,
       value,
     );
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(
+      new Event("input", {
+        bubbles: true,
+      }),
+    );
   });
 }
-
 async function removeSource() {
   const { onUnavailable } = mocks.observeSource.mock.lastCall![0];
   await act(async () => onUnavailable());
 }
-
 async function clickButton(label: string) {
   const button = [...document.querySelectorAll("button")].find(
     (element) => element.textContent?.trim() === label,
@@ -90,7 +100,6 @@ async function clickButton(label: string) {
   expect(button, `button ${label}`).toBeDefined();
   await act(async () => button!.click());
 }
-
 describe("citation comment source disappearance", () => {
   it("preserves an over-length draft at the composer until it can be shortened and saved", async () => {
     using source = setup();
@@ -99,26 +108,22 @@ describe("citation comment source disappearance", () => {
     const draft = "x".repeat(ASSISTANT_CITATION_MAX_COMMENT_LENGTH + 1);
     await typeComment(draft);
     await removeSource();
-
     expect(textarea()?.value).toBe(draft);
     expect(textarea()?.getAttribute("aria-invalid")).toBe("true");
     expect(onSave).not.toHaveBeenCalled();
     expect(mocks.dispose).toHaveBeenCalled();
     expect(mocks.observeSource).toHaveBeenCalledTimes(1);
-
     await typeComment("shortened comment");
     await clickButton("Save");
     expect(onSave).toHaveBeenCalledWith("shortened comment");
     expect(textarea()).toBeNull();
   });
-
   it("preserves a rejected save and allows a later retry", async () => {
     using source = setup();
     const onSave = vi.fn(() => false);
     await using _screen = await mount(source.sourceAnchor, onSave);
     await typeComment("keep this draft");
     await removeSource();
-
     expect(onSave).toHaveBeenCalledWith("keep this draft");
     expect(textarea()?.value).toBe("keep this draft");
     onSave.mockReturnValue(true);
@@ -127,7 +132,6 @@ describe("citation comment source disappearance", () => {
     expect(textarea()).toBeNull();
   });
 });
-
 describe("citation comment popup position", () => {
   it("stays on screen when the cited text ends in a code block's hidden overflow", async () => {
     using _source = setup();
@@ -146,7 +150,9 @@ describe("citation comment popup position", () => {
     pre.append(code);
     message.append(pre);
     document.body.prepend(message);
-    using _message = { [Symbol.dispose]: () => message.remove() };
+    using _message = {
+      [Symbol.dispose]: () => message.remove(),
+    };
     const range = document.createRange();
     range.selectNodeContents(code);
     const rects = range.getClientRects();
@@ -156,7 +162,6 @@ describe("citation comment popup position", () => {
       range,
       viewport: document.body,
     } as AssistantCitationSourceAnchor;
-
     await using _screen = await mount(
       sourceAnchor,
       vi.fn(() => true),
@@ -166,7 +171,6 @@ describe("citation comment popup position", () => {
     // Typing scrolls ancestors to reveal the caret, which shifts the whole app
     // sideways when the box is off screen.
     await userEvent.keyboard("note");
-
     expect(textarea()?.value).toBe("note");
     expect(document.scrollingElement?.scrollLeft).toBe(0);
     expect(document.body.scrollLeft).toBe(0);

@@ -1,7 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
-
 import { getTimelinePageScrollKey } from "./pageScrollController";
-
 describe("page scroll helpers", () => {
   const composerPageScrollEvent = (
     overrides: Partial<Parameters<typeof getTimelinePageScrollKey>[0]> = {},
@@ -19,15 +17,30 @@ describe("page scroll helpers", () => {
     shiftKey: false,
     ...overrides,
   });
-
   test("leaves page keys to IME composition", () => {
-    expect(getTimelinePageScrollKey(composerPageScrollEvent({ isComposing: true }))).toBeNull();
-    expect(getTimelinePageScrollKey(composerPageScrollEvent({ keyCode: 229 }))).toBeNull();
+    expect(
+      getTimelinePageScrollKey(
+        composerPageScrollEvent({
+          isComposing: true,
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      getTimelinePageScrollKey(
+        composerPageScrollEvent({
+          keyCode: 229,
+        }),
+      ),
+    ).toBeNull();
   });
-
   test("leaves page keys to an overflowing composer until it reaches the boundary", () => {
     expect(
-      getTimelinePageScrollKey(composerPageScrollEvent({ scrollHeight: 600, scrollTop: 0 })),
+      getTimelinePageScrollKey(
+        composerPageScrollEvent({
+          scrollHeight: 600,
+          scrollTop: 0,
+        }),
+      ),
     ).toBeNull();
     expect(
       getTimelinePageScrollKey(
@@ -39,7 +52,6 @@ describe("page scroll helpers", () => {
         }),
       ),
     ).toBeNull();
-
     expect(
       getTimelinePageScrollKey(
         composerPageScrollEvent({
@@ -51,10 +63,14 @@ describe("page scroll helpers", () => {
       ),
     ).toBe("PageUp");
     expect(
-      getTimelinePageScrollKey(composerPageScrollEvent({ scrollHeight: 600, scrollTop: 400 })),
+      getTimelinePageScrollKey(
+        composerPageScrollEvent({
+          scrollHeight: 600,
+          scrollTop: 400,
+        }),
+      ),
     ).toBe("PageDown");
   });
-
   test("hands off page keys within a fractional pixel of the composer boundary", () => {
     expect(
       getTimelinePageScrollKey(
@@ -67,7 +83,12 @@ describe("page scroll helpers", () => {
       ),
     ).toBe("PageUp");
     expect(
-      getTimelinePageScrollKey(composerPageScrollEvent({ scrollHeight: 600, scrollTop: 399.5 })),
+      getTimelinePageScrollKey(
+        composerPageScrollEvent({
+          scrollHeight: 600,
+          scrollTop: 399.5,
+        }),
+      ),
     ).toBe("PageDown");
   });
 });

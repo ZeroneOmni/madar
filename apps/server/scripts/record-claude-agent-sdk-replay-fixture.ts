@@ -45,9 +45,6 @@ import {
   THREAD_MERGE_BACK_SIBLINGS_SECOND_HANDOFF_PROMPT,
   THREAD_MERGE_BACK_SIBLINGS_SOURCE_PROMPT,
   THREAD_MERGE_BACK_SOURCE_PROMPT,
-  THREAD_ROLLBACK_AFTER_PROMPT,
-  THREAD_ROLLBACK_FIRST_PROMPT,
-  THREAD_ROLLBACK_SECOND_PROMPT,
   TOOL_CALL_READ_ONLY_PROMPT,
   TOOL_CALL_READ_ONLY_WORKSPACE_ROOT,
   TOOL_CALL_WRITE_PROMPT,
@@ -58,7 +55,7 @@ import {
   WORKSPACE_NEVER_POLICY,
   WEB_SEARCH_PROMPT,
 } from "../src/orchestration-v2/testkit/fixtures/shared.ts";
-import { CLAUDE_BACKGROUND_SUBAGENT_AFTER_ROOT_PROMPT } from "../src/orchestration-v2/testkit/fixtures/claude_background_subagent_after_root/input.ts";
+
 import {
   CLAUDE_BACKGROUND_SUBAGENT_LIFECYCLE_FINAL_PROMPT,
   CLAUDE_BACKGROUND_SUBAGENT_LIFECYCLE_LAUNCH_PROMPT,
@@ -185,14 +182,7 @@ const CLAUDE_RECORDINGS = {
     queryMode: "streaming",
     enableTools: true,
   },
-  claude_background_subagent_after_root: {
-    prompts: [CLAUDE_BACKGROUND_SUBAGENT_AFTER_ROOT_PROMPT],
-    defaultTranscriptFile:
-      "fixtures/claude_background_subagent_after_root/claude_transcript.ndjson",
-    queryMode: "streaming",
-    enableTools: true,
-    backgroundWakeCounts: [1],
-  },
+
   claude_background_task_wake: {
     prompts: [CLAUDE_BACKGROUND_TASK_WAKE_PROMPT, CLAUDE_BACKGROUND_TASK_WAKE_FOLLOW_UP_PROMPT],
     defaultTranscriptFile: "fixtures/claude_background_task_wake/claude_transcript.ndjson",
@@ -266,16 +256,6 @@ const CLAUDE_RECORDINGS = {
     prompts: [SUBAGENT_PROMPT],
     defaultTranscriptFile: "fixtures/subagent/claude_transcript.ndjson",
     queryMode: "streaming",
-    enableTools: true,
-  },
-  thread_rollback: {
-    prompts: [
-      THREAD_ROLLBACK_FIRST_PROMPT,
-      THREAD_ROLLBACK_SECOND_PROMPT,
-      THREAD_ROLLBACK_AFTER_PROMPT,
-    ],
-    defaultTranscriptFile: "fixtures/thread_rollback/claude_transcript.ndjson",
-    queryMode: "resume_at_cursor",
     enableTools: true,
   },
   thread_fork_native: {

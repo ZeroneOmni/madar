@@ -113,11 +113,9 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
           mode === "web" ? undefined : "desktop-managed",
         );
         expect(descriptor.capabilities).toMatchObject({
-          settledWorktreeCleanup: true,
           storageCleanupRun: true,
-          projectWorktreeCleanup: true,
+
           worktreesDirectory: true,
-          threadAutoSettlementScope: true,
         });
       }
     }),
@@ -215,13 +213,13 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
       expect(second.capabilities.connectionProbe).toBe(true);
       expect(second.capabilities.attachmentUploads).toBe(true);
       expect(second.capabilities.fileAttachments).toEqual({ maxUploadBytes: 50 * 1024 * 1024 });
-      expect(second.capabilities.pullRequests).toBe(true);
+      expect(second.capabilities.pullRequests).toBeUndefined();
       expect(second.capabilities.requiredWorktreeBootstrap).toBe(true);
       expect(second.capabilities.usagePriceOverrides).toBe(true);
       expect(second.capabilities.threadActiveReorder).toBe(true);
       expect(second.capabilities.threadTitleRegeneration).toBe(true);
-      expect(second.capabilities.threadPullRequests).toBe(true);
-      expect(second.capabilities.threadPullRequestLinking).toBe(true);
+      expect(second.capabilities.threadPullRequests).toBeUndefined();
+      expect(second.capabilities.threadPullRequestLinking).toBeUndefined();
       expect(second.capabilities.serverResolvedCommandContext).toBe(true);
       expect(second.capabilities.projectProviderInstanceOverrides).toBe(true);
       expect(second.capabilities.agentActivityPublishing).toBe(false);

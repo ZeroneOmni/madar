@@ -5,8 +5,6 @@
   "name": "T3 Code",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "features": {
-    // nodeGypDependencies (default true) brings python3/make/g++, which Linux
-    // needs for node-pty's node-gyp fallback (its prebuilds are mac/win only).
     "ghcr.io/devcontainers/features/node:2": {
       "version": "26"
     },
