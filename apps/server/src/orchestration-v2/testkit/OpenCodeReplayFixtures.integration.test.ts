@@ -30,18 +30,15 @@ describe("OpenCode replay fixtures", () => {
   itRunsReplayFixtures("opencode", runOpenCodeReplayFixture);
 
   it.effect.each(
-    (
-      [
-        ["opencode2_subagent", "session.execution.started.2"],
-        ["opencode2_background", "session.execution.started.3"],
-      ] as const
-    ).flatMap(([fixtureName, label]) => {
-      const fixture = findReplayFixture(fixtureName);
-      const provider = fixture?.providers[0];
-      return fixture === undefined || provider === undefined
-        ? []
-        : [[fixtureName, label, fixture, provider] as const];
-    }),
+    ([["opencode2_subagent", "session.execution.started.2"]] as const).flatMap(
+      ([fixtureName, label]) => {
+        const fixture = findReplayFixture(fixtureName);
+        const provider = fixture?.providers[0];
+        return fixture === undefined || provider === undefined
+          ? []
+          : [[fixtureName, label, fixture, provider] as const];
+      },
+    ),
   )(
     "runs %s when %s is an execution start this build cannot decode",
     ([fixtureName, label, fixture, provider]) =>

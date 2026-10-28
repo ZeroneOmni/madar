@@ -43,12 +43,7 @@ import {
   parseKeybindingShortcut,
 } from "@t3tools/shared/keybindings";
 
-export {
-  DEFAULT_KEYBINDINGS,
-  compileResolvedKeybindingRule,
-  compileResolvedKeybindingsConfig,
-  parseKeybindingShortcut,
-};
+export { DEFAULT_KEYBINDINGS, compileResolvedKeybindingsConfig, parseKeybindingShortcut };
 
 export const ResolvedKeybindingFromConfig = KeybindingRule.pipe(
   Schema.decodeTo(

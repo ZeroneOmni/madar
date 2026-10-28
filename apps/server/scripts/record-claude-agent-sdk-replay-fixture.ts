@@ -45,9 +45,6 @@ import {
   THREAD_MERGE_BACK_SIBLINGS_SECOND_HANDOFF_PROMPT,
   THREAD_MERGE_BACK_SIBLINGS_SOURCE_PROMPT,
   THREAD_MERGE_BACK_SOURCE_PROMPT,
-  THREAD_ROLLBACK_AFTER_PROMPT,
-  THREAD_ROLLBACK_FIRST_PROMPT,
-  THREAD_ROLLBACK_SECOND_PROMPT,
   TOOL_CALL_READ_ONLY_PROMPT,
   TOOL_CALL_READ_ONLY_WORKSPACE_ROOT,
   TOOL_CALL_WRITE_PROMPT,
@@ -266,16 +263,6 @@ const CLAUDE_RECORDINGS = {
     prompts: [SUBAGENT_PROMPT],
     defaultTranscriptFile: "fixtures/subagent/claude_transcript.ndjson",
     queryMode: "streaming",
-    enableTools: true,
-  },
-  thread_rollback: {
-    prompts: [
-      THREAD_ROLLBACK_FIRST_PROMPT,
-      THREAD_ROLLBACK_SECOND_PROMPT,
-      THREAD_ROLLBACK_AFTER_PROMPT,
-    ],
-    defaultTranscriptFile: "fixtures/thread_rollback/claude_transcript.ndjson",
-    queryMode: "resume_at_cursor",
     enableTools: true,
   },
   thread_fork_native: {

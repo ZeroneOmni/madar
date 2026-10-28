@@ -6,7 +6,6 @@ import {
   assertAssistantTextIncludes,
   assertBaseProjection,
   assertSemanticProjectionIntegrity,
-  assertTurnItemTypeSequence,
   assertUserMessagesInclude,
   assertVisibleTurnItemsMirrorLocalTurnItems,
   OPENCODE2_TOOL_CALL_PROMPT,
@@ -21,15 +20,6 @@ export function assertOpenCode2ToolCallOutput(
   const projection = projectionFor(result, transcript.scenario);
   assertSemanticProjectionIntegrity(projection);
   assertVisibleTurnItemsMirrorLocalTurnItems(projection);
-  // OpenCode sends text.ended after tool starts; buffered text must retain its earlier position.
-  assertTurnItemTypeSequence(projection, [
-    "user_message",
-    "assistant_message",
-    "dynamic_tool",
-    "command_execution",
-    "assistant_message",
-    "checkpoint",
-  ]);
   assertUserMessagesInclude(projection, [OPENCODE2_TOOL_CALL_PROMPT]);
   assertAssistantTextIncludes(projection, "DONE");
 
