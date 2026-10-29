@@ -2753,17 +2753,7 @@ export const OrchestrationV2Command = Schema.Union([
     commandId: CommandId,
     threadId: ThreadId,
   }),
-  Schema.Struct({
-    type: Schema.Literal("thread.guest-share.close"),
-    commandId: CommandId,
-    threadId: ThreadId,
-  }),
-  Schema.Struct({
-    type: Schema.Literal("thread.guest-message.dismiss"),
-    commandId: CommandId,
-    threadId: ThreadId,
-    guestMessageId: GuestMessageId,
-  }),
+
   Schema.Struct({
     type: Schema.Literal("thread.unarchive"),
     commandId: CommandId,
@@ -2998,12 +2988,7 @@ export const OrchestrationV2Command = Schema.Union([
     threadId: ThreadId,
     runId: RunId,
   }),
-  Schema.Struct({
-    type: Schema.Literal("notification.delivery.accept"),
-    commandId: CommandId,
-    threadId: ThreadId,
-    messageId: MessageId,
-  }),
+
   Schema.Struct({
     type: Schema.Literal("prepared-run.progress"),
     commandId: CommandId,
@@ -3123,6 +3108,45 @@ export const OrchestrationV2Command = Schema.Union([
     sourcePoint: OrchestrationV2ThreadForkSourcePoint,
     createdAt: Schema.optional(Schema.DateTimeUtc),
   }),
+
+  Schema.Struct({
+    type: Schema.Literal("thread.created.record"),
+    commandId: CommandId,
+    parentThreadId: ThreadId,
+    parentRunId: RunId,
+    parentNodeId: NodeId,
+    targetThreadId: ThreadId,
+    targetRunId: Schema.NullOr(RunId),
+  }),
+
+  Schema.Struct({
+    type: Schema.Literal("provider.switch"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    modelSelection: ModelSelection,
+  }),
+]);
+export type OrchestrationV2Command = typeof OrchestrationV2Command.Type;
+
+// Excluded from dispatchCommand so only the server can send these.
+const OrchestrationV2InternalCommand = Schema.Union([
+  Schema.Struct({
+    type: Schema.Literal("thread.guest-share.close"),
+    commandId: CommandId,
+    threadId: ThreadId,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("thread.guest-message.dismiss"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    guestMessageId: GuestMessageId,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("notification.delivery.accept"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    messageId: MessageId,
+  }),
   Schema.Struct({
     type: Schema.Literal("delegated_task.request"),
     ...OrchestrationV2CreationFields,
@@ -3160,27 +3184,7 @@ export const OrchestrationV2Command = Schema.Union([
     parentThreadId: ThreadId,
     taskId: NodeId,
   }),
-  Schema.Struct({
-    type: Schema.Literal("thread.created.record"),
-    commandId: CommandId,
-    parentThreadId: ThreadId,
-    parentRunId: RunId,
-    parentNodeId: NodeId,
-    targetThreadId: ThreadId,
-    targetRunId: Schema.NullOr(RunId),
-  }),
 
-  Schema.Struct({
-    type: Schema.Literal("provider.switch"),
-    commandId: CommandId,
-    threadId: ThreadId,
-    modelSelection: ModelSelection,
-  }),
-]);
-export type OrchestrationV2Command = typeof OrchestrationV2Command.Type;
-
-// Excluded from dispatchCommand so only the server can send these.
-const OrchestrationV2InternalCommand = Schema.Union([
   // Guest share commands the server issues after checking T3 Connect and the guest token.
   Schema.Struct({
     type: Schema.Literal("thread.guest-share.open"),

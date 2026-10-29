@@ -308,14 +308,4 @@ export const continueRestartedRun = Effect.fn("RestartContinuation.continueResta
         }),
       );
   },
-  // Declined child continuations still owe parent results; existing continuation runs settle them instead.
-  (effect, input) =>
-    effect.pipe(
-      Effect.andThen(
-        Effect.gen(function* () {
-          const threads = yield* ThreadManagementService.ThreadManagementService;
-          yield* threads.recoverDelegatedTask(input.threadId, input.sourceRunId);
-        }),
-      ),
-    ),
 );

@@ -74,7 +74,6 @@ export function withCreationProvenance(
     case "message.dispatch":
     case "thread.fork":
     case "thread.merge_back":
-    case "delegated_task.request":
       return { ...command, ...provenance };
     default:
       return command;
@@ -451,8 +450,6 @@ export interface ThreadManagementServiceShape {
     Orchestrator.OrchestratorV2Error | ThreadManagementProviderInstanceDisabledError
   >;
   readonly getThreadEventSequence: Orchestrator.OrchestratorV2["Service"]["getThreadEventSequence"];
-  readonly recoverDelegatedTask: Orchestrator.OrchestratorV2["Service"]["recoverDelegatedTask"];
-  readonly delegatedTaskResultPending: Orchestrator.OrchestratorV2["Service"]["delegatedTaskResultPending"];
   readonly streamStoredEvents: Orchestrator.OrchestratorV2["Service"]["streamStoredEvents"];
   readonly streamStoredEventsFrom: Orchestrator.OrchestratorV2["Service"]["streamStoredEventsFrom"];
   readonly streamDomainEvents: Orchestrator.OrchestratorV2["Service"]["streamDomainEvents"];
@@ -673,16 +670,6 @@ const make = Effect.gen(function* () {
               projectId: projection.thread.projectId,
               commandId: command.commandId,
               instanceId: (command.modelSelection ?? projection.thread.modelSelection).instanceId,
-            }),
-          ),
-        );
-      case "delegated_task.request":
-        return orchestrator.getThreadRecords(command.parentThreadId, []).pipe(
-          Effect.flatMap((parent) =>
-            assertProviderInstanceEnabled({
-              projectId: parent.thread.projectId,
-              commandId: command.commandId,
-              instanceId: command.modelSelection.instanceId,
             }),
           ),
         );
@@ -1260,8 +1247,6 @@ const make = Effect.gen(function* () {
     stopWorkflow,
     awaitBackgroundTasks,
     getThreadEventSequence: orchestrator.getThreadEventSequence,
-    recoverDelegatedTask: orchestrator.recoverDelegatedTask,
-    delegatedTaskResultPending: orchestrator.delegatedTaskResultPending,
     streamStoredEvents: orchestrator.streamStoredEvents,
     streamStoredEventsFrom: orchestrator.streamStoredEventsFrom,
     streamDomainEvents: orchestrator.streamDomainEvents,

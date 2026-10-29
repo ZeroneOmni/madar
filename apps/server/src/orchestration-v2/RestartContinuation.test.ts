@@ -212,7 +212,6 @@ it.effect.each(["completed", "waiting", "cancelled"] as const)(
           Layer.merge(
             Layer.mock(ThreadManagementService.ThreadManagementService)({
               getThreadRecords: () => Effect.succeed(projection),
-              recoverDelegatedTask: () => Effect.void,
               dispatch: (command) => {
                 commands.push(command);
                 return Effect.succeed({} as never);
@@ -434,7 +433,6 @@ it.effect("does not duplicate delivery and yields to newer user work or opt-out"
     >[0][] = [];
     const layerThreads = Layer.mock(ThreadManagementService.ThreadManagementService)({
       getThreadRecords: () => Effect.succeed(projection),
-      recoverDelegatedTask: () => Effect.void,
       dispatch: (command) => {
         commands.push(command);
         if (command.type === "message.dispatch")
@@ -825,7 +823,6 @@ it.effect("does not cancel or resume a run that completes while shutdown intent 
           ServerSettings.layerTest({ continueThreadsAfterServerUpdate: true }),
           Layer.mock(ThreadManagementService.ThreadManagementService)({
             getThreadRecords: () => Effect.succeed(projection),
-            recoverDelegatedTask: () => Effect.void,
             dispatch: () =>
               Effect.sync(() => {
                 dispatched = true;
@@ -847,7 +844,6 @@ const continuationDispatches = (projection: OrchestrationV2ThreadProjection) =>
         Layer.merge(
           Layer.mock(ThreadManagementService.ThreadManagementService)({
             getThreadRecords: () => Effect.succeed(projection),
-            recoverDelegatedTask: () => Effect.void,
             dispatch: (command) => {
               if (command.type === "message.dispatch") dispatches.push(command);
               return Effect.succeed({} as never);

@@ -1845,11 +1845,7 @@ export const layerWsRpc = (
             "orchestration_v2.thread_id":
               command.type === "thread.fork" || command.type === "thread.merge_back"
                 ? command.targetThreadId
-                : command.type === "delegated_task.request" ||
-                    command.type === "delegated_task.wake-policy" ||
-                    command.type === "delegated_task.completion-delivery.acknowledge" ||
-                    command.type === "delegated_task.completion-delivery.dispose" ||
-                    command.type === "thread.created.record"
+                : command.type === "thread.created.record"
                   ? command.parentThreadId
                   : command.threadId,
             ...(command.type === "thread.fork" || command.type === "thread.merge_back"
