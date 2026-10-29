@@ -25,6 +25,6 @@ vp run dev:desktop
 
 See [maintainer setup and releases](docs/operations/madar.md) for the PR workflow, GitHub-hosted runners, supported build targets, signing, and draft releases.
 
-The [documentation](docs/) and [architecture overview](docs/internals/overview.md) are inherited from upstream. Those pages describe the retained backend and upstream features, including coding screens no longer available in Madar. Use this README and the Madar maintainer guide for installation and releases.
+The [documentation](docs/) and [architecture overview](docs/internals/overview.md) are inherited from upstream. The internal pages describe the retained backend. Use this README and the Madar maintainer guide for installation and releases.
 
 Original T3 Code attribution and license notices are retained.
