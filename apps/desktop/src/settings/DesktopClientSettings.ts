@@ -221,7 +221,7 @@ export const make = Effect.gen(function* () {
 
 export const layer = Layer.effect(DesktopClientSettings, make);
 
-export const layerTest = (initialSettings: Option.Option<ClientSettings> = Option.none()) =>
+const layerTest = (initialSettings: Option.Option<ClientSettings> = Option.none()) =>
   Layer.effect(
     DesktopClientSettings,
     Effect.gen(function* () {
