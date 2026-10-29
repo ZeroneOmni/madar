@@ -287,11 +287,18 @@ export const make = Effect.gen(function* () {
                     }),
                 ),
               )).messages;
-      const bufferedMessageIds = new Set(
-        queuedMessages.filter(isBufferedProviderNotification).map((message) => message.id),
+      const cancelledQueuedMessageIds = new Set(
+        queuedMessages
+          .filter(
+            (message) =>
+              isBufferedProviderNotification(message) ||
+              message.scheduledTaskId !== undefined ||
+              message.delegatedCompletion !== undefined,
+          )
+          .map((message) => message.id),
       );
       for (const run of queuedRuns) {
-        if (bufferedMessageIds.has(run.userMessageId)) {
+        if (run.delegatedTaskId !== undefined || cancelledQueuedMessageIds.has(run.userMessageId)) {
           runs.push(run);
           continue;
         }

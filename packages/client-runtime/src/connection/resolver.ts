@@ -141,6 +141,12 @@ const makeBearerBroker = Effect.fn("clientRuntime.connection.broker.makeBearer")
         actual: profile.environmentId,
       });
     }
+    if (profile.authorization === "t3-connect") {
+      return yield* new ConnectionBlockedError({
+        reason: "unsupported",
+        detail: "Hosted connections are no longer supported.",
+      });
+    }
     const credential = yield* credentials.get(credentialConnectionId(target.connectionId)).pipe(
       Effect.flatMap(
         Option.match({

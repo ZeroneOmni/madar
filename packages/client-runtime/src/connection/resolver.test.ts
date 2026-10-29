@@ -14,6 +14,7 @@ import * as ClientCapabilities from "../platform/capabilities.ts";
 import * as RemoteEnvironmentAuthorization from "../authorization/service.ts";
 import {
   BearerConnectionCredential,
+  BearerConnectionProfile,
   type ConnectionCatalogEntry,
   SshConnectionProfile,
   type ConnectionCredential,
@@ -22,6 +23,7 @@ import {
 import * as ConnectionCredentialStore from "./credentialStore.ts";
 import {
   PrimaryConnectionTarget,
+  BearerConnectionTarget,
   RelayConnectionTarget,
   SshConnectionTarget,
   type ConnectionTarget,
@@ -236,6 +238,33 @@ it.effect("refuses saved hosted connections without attempting account authoriza
       label: "Retired hosted connection",
     });
     const error = yield* broker.prepare(catalogEntry(target)).pipe(Effect.flip);
+    expect(error).toMatchObject({
+      reason: "unsupported",
+      detail: "Hosted connections are no longer supported.",
+    });
+  }),
+);
+
+it.effect("refuses a saved direct T3 Connect route before paired credential lookup", () =>
+  Effect.gen(function* () {
+    const layerBroker = yield* makeDependencies();
+    const broker = yield* ConnectionResolver.ConnectionResolver.pipe(Effect.provide(layerBroker));
+    const target = new BearerConnectionTarget({
+      environmentId: ENVIRONMENT_ID,
+      label: "Retired direct route",
+      connectionId: "retired",
+    });
+    const profile = new BearerConnectionProfile({
+      environmentId: ENVIRONMENT_ID,
+      label: target.label,
+      connectionId: target.connectionId,
+      httpBaseUrl: "https://retired.example.test",
+      wsBaseUrl: "wss://retired.example.test",
+      authorization: "t3-connect",
+    });
+    const error = yield* broker
+      .prepare(catalogEntry(target, Option.some(profile)))
+      .pipe(Effect.flip);
     expect(error).toMatchObject({
       reason: "unsupported",
       detail: "Hosted connections are no longer supported.",

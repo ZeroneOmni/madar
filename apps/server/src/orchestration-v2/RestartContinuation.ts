@@ -130,7 +130,7 @@ export function restartContinuationRun(
         : latest,
     undefined,
   );
-  if (!run) return;
+  if (!run || run.delegatedTaskId !== undefined) return;
   const preparedContinuation =
     run.status === "starting" && run.restartContinuationOfRunId !== undefined;
   const settled = run.status === "completed" || run.status === "waiting";
@@ -200,6 +200,7 @@ export const continueRestartedRun = Effect.fn("RestartContinuation.continueResta
     const source = projection.runs.find((run) => run.id === input.sourceRunId);
     if (
       !source ||
+      source.delegatedTaskId !== undefined ||
       !isRestartContinuationSource(source, projection.providerTurns) ||
       restartContinuationBlocked(
         projection,
@@ -258,7 +259,13 @@ export const continueRestartedRun = Effect.fn("RestartContinuation.continueResta
     const sourceMessage = sourceRecords.messages.find(
       (message) => message.id === source.userMessageId,
     );
-    if (sourceMessage !== undefined && isNativeMaintenanceCommand(sourceMessage)) return;
+    if (
+      sourceMessage !== undefined &&
+      (sourceMessage.scheduledTaskId !== undefined ||
+        sourceMessage.delegatedCompletion !== undefined ||
+        isNativeMaintenanceCommand(sourceMessage))
+    )
+      return;
     const note = restartContinuationNote(
       source,
       projection.runs,
@@ -296,7 +303,6 @@ export const continueRestartedRun = Effect.fn("RestartContinuation.continueResta
         restartContinuationOfRunId: input.sourceRunId,
       })
       .pipe(
-        // Disabled instances cannot resume; still run success cleanup so delegated children recover without futile retries.
         Effect.catchTags({
           ThreadManagementProviderInstanceDisabledError: (error) =>
             Effect.logInfo("orchestration-v2.restart-continuation.instance-disabled", {

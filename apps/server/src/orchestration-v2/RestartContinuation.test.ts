@@ -1136,3 +1136,63 @@ it.effect.each(["completed", "failed", "interrupted"] as const)(
       );
     }),
 );
+
+it("does not schedule a restart continuation for a retired delegated run", () => {
+  const projection = makeProjection();
+  const delegated = {
+    ...projection,
+    runs: [{ ...projection.runs[0]!, delegatedTaskId: NodeId.make("retired-task") }],
+  };
+  assert.isUndefined(restartContinuationRun(delegated, now));
+});
+
+it.effect.each(["delegated", "scheduled", "completion"] as const)(
+  "does not execute persisted restart effects for retired %s automation",
+  (automation) =>
+    Effect.gen(function* () {
+      const base = makeProjection();
+      const userMessageId = MessageId.make("retired-message");
+      const projection = {
+        ...base,
+        runs: [
+          {
+            ...base.runs[0]!,
+            status: "cancelled",
+            userMessageId,
+            ...(automation === "delegated" ? { delegatedTaskId: NodeId.make("retired-task") } : {}),
+          },
+        ],
+        messages: [
+          {
+            id: userMessageId,
+            role: "user",
+            text: "Saved automation prompt",
+            attachments: [],
+            ...(automation === "scheduled" ? { scheduledTaskId: "retired-schedule" } : {}),
+            ...(automation === "completion"
+              ? { delegatedCompletion: { parentRunId: runId, generation: 1 } }
+              : {}),
+          },
+        ],
+      } as unknown as OrchestrationV2ThreadProjection;
+      const dispatched: Parameters<
+        ThreadManagementService.ThreadManagementService["Service"]["dispatch"]
+      >[0][] = [];
+      yield* continueRestartedRun({ threadId, sourceRunId: runId }).pipe(
+        Effect.provide(
+          Layer.merge(
+            Layer.mock(ThreadManagementService.ThreadManagementService)({
+              getThreadRecords: () => Effect.succeed(projection),
+              dispatch: (command) =>
+                Effect.sync(() => {
+                  dispatched.push(command);
+                  return {} as never;
+                }),
+            }),
+            ServerSettings.layerTest({ continueThreadsAfterServerUpdate: true }),
+          ),
+        ),
+      );
+      assert.isEmpty(dispatched);
+    }),
+);
