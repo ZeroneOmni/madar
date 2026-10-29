@@ -78,5 +78,3 @@ export const IsExecutable = Context.Reference<boolean>("@t3tools/shared/HostProc
 export const UserId = Context.Reference<number | undefined>("@t3tools/shared/HostProcess/UserId", {
   defaultValue: () => process.getuid?.(),
 });
-
-export const isWindows = Effect.map(Platform, (platform) => platform === "win32");

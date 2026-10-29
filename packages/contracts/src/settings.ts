@@ -460,7 +460,7 @@ export const UsageModelPriceOverride = Schema.Struct({
 });
 export type UsageModelPriceOverride = typeof UsageModelPriceOverride.Type;
 
-export const makeBinaryPathSetting = (fallback: string) =>
+const makeBinaryPathSetting = (fallback: string) =>
   TrimmedString.pipe(
     Schema.decodeTo(
       Schema.String,
@@ -488,14 +488,6 @@ export interface ProviderSettingsFormAnnotation {
   readonly options?: ReadonlyArray<ProviderSettingsFormOption> | undefined;
 }
 
-export function secretSettingsFields(schema: {
-  readonly fields: Readonly<Record<string, Schema.Top>>;
-}): ReadonlyArray<string> {
-  return Object.entries(schema.fields).flatMap(([field, fieldSchema]) => {
-    return isSecretSetting(fieldSchema) ? [field] : [];
-  });
-}
-
 export interface ProviderSettingsFormSchemaAnnotation {
   readonly order?: readonly string[] | undefined;
 }
@@ -511,7 +503,7 @@ declare module "effect/Schema" {
   }
 }
 
-export function secretSetting<S extends Schema.Top>(schema: S): S["Rebuild"] {
+function secretSetting<S extends Schema.Top>(schema: S): S["Rebuild"] {
   return schema.annotateKey({ settingsSecret: true });
 }
 
@@ -529,7 +521,7 @@ export type ProviderSettingsOrder<Fields extends Schema.Struct.Fields> = readonl
   string
 >[];
 
-export function makeProviderSettingsSchema<const Fields extends Schema.Struct.Fields>(
+function makeProviderSettingsSchema<const Fields extends Schema.Struct.Fields>(
   fields: Fields,
   options?: {
     readonly order?: ProviderSettingsOrder<Fields> | undefined;
@@ -918,7 +910,7 @@ export const WorktreeCleanup = Schema.NullOr(
 );
 export type WorktreeCleanup = typeof WorktreeCleanup.Type;
 
-export const PROJECT_SCOPED_SERVER_SETTING_KEYS = [
+const PROJECT_SCOPED_SERVER_SETTING_KEYS = [
   "worktreeCleanup",
   "defaultModelSelection",
   "defaultRuntimeMode",
@@ -987,7 +979,6 @@ export const ProjectSettingsOverrides = Schema.Struct({
 export type ProjectSettingsOverrides = typeof ProjectSettingsOverrides.Type;
 
 /** Reclaimable bytes from which the offline `t3 doctor` repair is worth suggesting. */
-export const DATABASE_COMPACTION_RECOMMENDED_BYTES = 1024 ** 3;
 
 export const DatabaseStorageStatus = Schema.Struct({
   databaseBytes: Schema.Number,
@@ -1203,7 +1194,7 @@ export type ServerSettings = typeof ServerSettings.Type;
 
 export const DEFAULT_SERVER_SETTINGS: ServerSettings = Schema.decodeSync(ServerSettings)({});
 
-export const providerInstanceConfigEnabledFlag = (config: unknown): boolean | undefined => {
+const providerInstanceConfigEnabledFlag = (config: unknown): boolean | undefined => {
   if (config === null || typeof config !== "object" || Array.isArray(config)) {
     return undefined;
   }
@@ -1222,7 +1213,7 @@ const DEFAULT_ENABLED_DEFAULT_INSTANCES: ReadonlySet<ProviderInstanceId> = new S
   ["codex", "claudeAgent"].map((instanceId) => ProviderInstanceId.make(instanceId)),
 );
 
-export const isUnconfiguredDefaultInstanceEnabled = (instanceId: ProviderInstanceId): boolean =>
+const isUnconfiguredDefaultInstanceEnabled = (instanceId: ProviderInstanceId): boolean =>
   DEFAULT_ENABLED_DEFAULT_INSTANCES.has(instanceId);
 
 const defaultEnabledForDriver = (driver: ProviderDriverKind): boolean =>
@@ -1497,7 +1488,7 @@ export const ServerSettingsPatch = Schema.Struct({
 });
 export type ServerSettingsPatch = typeof ServerSettingsPatch.Type;
 
-export function requiredScopesForServerSettingsPatch(
+function requiredScopesForServerSettingsPatch(
   patch: ServerSettingsPatch,
 ): ReadonlyArray<AuthEnvironmentScope> {
   let changesProviders = false;

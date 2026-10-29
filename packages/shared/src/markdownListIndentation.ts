@@ -130,4 +130,4 @@ function attachListItemIndentationNormalizer(this: MarkdownParser) {
   };
 }
 
-export const remarkNormalizeListItemIndentation = attachListItemIndentationNormalizer;
+export {};

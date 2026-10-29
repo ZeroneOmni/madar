@@ -15,7 +15,7 @@ const ASSET_PATH_MAX_LENGTH = 1024;
  * The wire tag of a source control host's credentialed media. It names GitHub because GitHub had
  * it first, and servers and clients of different releases must keep understanding each other.
  */
-export const SOURCE_CONTROL_MEDIA_ASSET = "github-media" as const;
+const SOURCE_CONTROL_MEDIA_ASSET = "github-media" as const;
 
 export const AssetResource = Schema.Union([
   Schema.TaggedStruct("workspace-file", {

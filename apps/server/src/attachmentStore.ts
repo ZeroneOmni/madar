@@ -26,7 +26,7 @@ export const PENDING_ATTACHMENT_THREAD_SEGMENT = "pending";
 const PENDING_ATTACHMENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const PARTIAL_UPLOAD_MAX_AGE_MS = 60 * 60 * 1000;
 
-export function toSafeThreadAttachmentSegment(threadId: string): string | null {
+function toSafeThreadAttachmentSegment(threadId: string): string | null {
   const segment = threadId
     .trim()
     .toLowerCase()
@@ -72,7 +72,7 @@ export function parseAttachmentUuid(attachmentId: string): string | null {
   return normalizedId.match(ATTACHMENT_ID_PATTERN)?.[2]?.toLowerCase() ?? null;
 }
 
-export function parseAttachmentFileExtension(attachmentId: string): string | null {
+function parseAttachmentFileExtension(attachmentId: string): string | null {
   const normalizedId = normalizeAttachmentRelativePath(attachmentId);
   if (!normalizedId || normalizedId.includes("/") || normalizedId.includes(".")) {
     return null;
@@ -141,7 +141,7 @@ export function threadHtmlRenderAttachmentIds(
   });
 }
 
-export function attachmentRelativePath(attachment: ChatAttachment): string | null {
+function attachmentRelativePath(attachment: ChatAttachment): string | null {
   switch (attachment.type) {
     case "image": {
       const extension = inferImageExtension({
@@ -155,20 +155,6 @@ export function attachmentRelativePath(attachment: ChatAttachment): string | nul
     default:
       return null;
   }
-}
-
-export function resolveAttachmentPath(input: {
-  readonly attachmentsDir: string;
-  readonly attachment: ChatAttachment;
-}): string | null {
-  const relativePath = attachmentRelativePath(input.attachment);
-  if (!relativePath) {
-    return null;
-  }
-  return resolveAttachmentRelativePath({
-    attachmentsDir: input.attachmentsDir,
-    relativePath,
-  });
 }
 
 export function resolveAttachmentPathById(input: {

@@ -1,3 +1,7 @@
+import * as Console from "effect/Console";
+import * as EventLoopMonitor from "./observability/EventLoopMonitor.ts";
+import * as Observability from "./observability/Observability.ts";
+import * as ResourceAttribution from "./resourceTelemetry/ResourceAttribution.ts";
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeHttp from "node:http";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
@@ -19,7 +23,12 @@ import {
   guardHttpResponseWriteErrors,
   rejectRequestsUntilServing,
 } from "./httpResponseErrorGuard.ts";
-import { acceptsPrivateNetworkConnection } from "./startupAccess.ts";
+import {
+  acceptsPrivateNetworkConnection,
+  issueHeadlessServeAccessInfo,
+  formatHeadlessServeOutput,
+  formatHostForUrl,
+} from "./startupAccess.ts";
 import { makePersistedServerRuntimeState } from "./serverRuntimeState.ts";
 import * as ProcessRunner from "./processRunner.ts";
 import * as ExternalLauncher from "./process/externalLauncher.ts";
@@ -91,10 +100,29 @@ const layerServer = Layer.unwrap(
           });
           yield* ownership.publish(state);
         }
+        if (config.startupPresentation === "headless") {
+          const access = yield* issueHeadlessServeAccessInfo();
+          yield* Console.log(formatHeadlessServeOutput(access));
+        } else if (config.mode !== "desktop") {
+          const auth = yield* EnvironmentAuth.EnvironmentAuth;
+          const base =
+            config.devUrl?.toString() ??
+            `http://${formatHostForUrl(config.host ?? "127.0.0.1")}:${config.port}`;
+          const target = yield* auth.issueStartupPairingUrl(base);
+          yield* Console.log(`  pairingUrl: ${target}`);
+          if (!config.noBrowser) {
+            const launcher = yield* ExternalLauncher.ExternalLauncher;
+            yield* launcher.launchBrowser(target).pipe(
+              Effect.withTracerEnabled(false),
+              Effect.catch(() => Effect.logInfo("Open the pairing URL above in your browser.")),
+            );
+          }
+        }
         yield* Effect.logInfo("Madar server ready");
       }),
     );
-    return Layer.mergeAll(HttpRouter.serve(layerRoutes), listening).pipe(
+    return listening.pipe(
+      Layer.provideMerge(HttpRouter.serve(layerRoutes)),
       Layer.provideMerge(layerHttpServer),
       Layer.provide(layerAuth),
       Layer.provide(layerServerEnvironment),
@@ -103,6 +131,12 @@ const layerServer = Layer.unwrap(
       Layer.provide(ExternalLauncher.layer),
       Layer.provide(ProcessRunner.layer),
       Layer.provide(NetService.layer),
+      Layer.provide(
+        EventLoopMonitor.layer.pipe(
+          Layer.provideMerge(Observability.layer),
+          Layer.provideMerge(ResourceAttribution.layer),
+        ),
+      ),
       Layer.provide(FetchHttpClient.layer),
       Layer.provide(NodeServices.layer),
     );

@@ -16,8 +16,6 @@ export const ProviderDriverKind = slugSchema.pipe(Schema.brand("ProviderDriverKi
 export type ProviderDriverKind = typeof ProviderDriverKind.Type;
 
 const isProviderDriverKindValue = Schema.is(ProviderDriverKind);
-export const isProviderDriverKind = (value: unknown): value is ProviderDriverKind =>
-  isProviderDriverKindValue(value);
 
 export const ProviderInstanceId = slugSchema.pipe(Schema.brand("ProviderInstanceId"));
 export type ProviderInstanceId = typeof ProviderInstanceId.Type;
@@ -79,5 +77,3 @@ export const ProviderInstanceConfigMap = Schema.Record(ProviderInstanceId, Provi
 export type ProviderInstanceConfigMap = typeof ProviderInstanceConfigMap.Type;
 
 /** Driver-kind ids keep stored selections routable without migration. */
-export const defaultInstanceIdForDriver = (driver: ProviderDriverKind): ProviderInstanceId =>
-  ProviderInstanceId.make(driver);

@@ -94,7 +94,7 @@ export const annotateEnvironmentRequest =
     });
   });
 
-export function failEnvironmentAuthInvalid(
+function failEnvironmentAuthInvalid(
   reason: EnvironmentAuthInvalidReason,
   dpopFailureReason?: DpopFailureReason,
 ) {
@@ -112,7 +112,7 @@ export function failEnvironmentAuthInvalid(
   );
 }
 
-export function failEnvironmentInvalidRequest(reason: EnvironmentRequestInvalidReason) {
+function failEnvironmentInvalidRequest(reason: EnvironmentRequestInvalidReason) {
   return currentEnvironmentTraceId.pipe(
     Effect.flatMap((traceId) =>
       Effect.fail(new EnvironmentRequestInvalidError({ code: "invalid_request", reason, traceId })),
@@ -120,7 +120,7 @@ export function failEnvironmentInvalidRequest(reason: EnvironmentRequestInvalidR
   );
 }
 
-export function failEnvironmentScopeRequired(requiredScope: AuthEnvironmentScope) {
+function failEnvironmentScopeRequired(requiredScope: AuthEnvironmentScope) {
   return currentEnvironmentTraceId.pipe(
     Effect.flatMap((traceId) =>
       Effect.fail(
@@ -148,21 +148,13 @@ function failEnvironmentOperationForbidden(reason: "current_session_revoke_not_a
   );
 }
 
-export function failEnvironmentNotFound(reason: EnvironmentResourceNotFoundReason) {
-  return currentEnvironmentTraceId.pipe(
-    Effect.flatMap((traceId) =>
-      Effect.fail(new EnvironmentResourceNotFoundError({ code: "not_found", reason, traceId })),
-    ),
-  );
-}
-
 /**
  * `<img>` and WebSocket cannot set headers, so media routes (device hub, preview stream)
  * authenticate the way the `/ws` upgrade does: a cookie for browser sessions, or a short-lived
  * `wsTicket` minted over authenticated HTTP for bearer and DPoP clients.
  */
 
-export const failEnvironmentInternal =
+const failEnvironmentInternal =
   /* Request instrumentation already owns the span; keep this helper in that context. */
   Effect.fnUntraced(function* (reason: EnvironmentInternalErrorReason, error?: unknown) {
     const traceId = yield* currentEnvironmentTraceId;
@@ -193,7 +185,7 @@ const appendSessionCookie = (cookieName: string, token: string, expiresAt: DateT
     ),
   );
 
-export const requireEnvironmentScope = Effect.fn("environment.auth.requireScope")(function* (
+const requireEnvironmentScope = Effect.fn("environment.auth.requireScope")(function* (
   scope: AuthEnvironmentScope,
 ) {
   const session = yield* EnvironmentAuthenticatedPrincipal;

@@ -19,17 +19,6 @@ export function isWindowsAbsolutePath(value: string): boolean {
   return isUncPath(value) || isWindowsDrivePath(value);
 }
 
-export function isExplicitRelativePath(value: string): boolean {
-  return (
-    value === "." ||
-    value === ".." ||
-    value.startsWith("./") ||
-    value.startsWith("../") ||
-    value.startsWith(".\\") ||
-    value.startsWith("..\\")
-  );
-}
-
 function isRootPath(value: string): boolean {
   // Bare C: means the current directory on C, not its root; require the drive separator.
   return value === "/" || value === "\\" || /^[a-zA-Z]:[/\\]$/.test(value);

@@ -28,10 +28,6 @@ function scanThreadSearchOccurrences(text: string, query: string, offsets?: numb
   return count;
 }
 
-export function countThreadSearchOccurrences(text: string, query: string): number {
-  return scanThreadSearchOccurrences(text, query);
-}
-
 export function findThreadSearchOccurrences(text: string, query: string): number[] {
   const offsets: number[] = [];
   scanThreadSearchOccurrences(text, query, offsets);

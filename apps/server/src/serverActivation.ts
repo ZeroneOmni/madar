@@ -9,7 +9,7 @@ export class ServerActivation extends Context.Reference<Effect.Effect<void> | un
   { defaultValue: () => undefined },
 ) {}
 
-export const forkParkedFiber = Effect.fn("serverActivation.forkParkedFiber")(function* <A, E, R>(
+const forkParkedFiber = Effect.fn("serverActivation.forkParkedFiber")(function* <A, E, R>(
   effect: Effect.Effect<A, E, R>,
 ): Effect.fn.Return<Fiber.Fiber<A, E>, never, Scope.Scope | R> {
   const activation = yield* ServerActivation;

@@ -11,7 +11,7 @@ type FailureScanTurnItem =
   | ErrorTurnItem
   | { readonly type: Exclude<OrchestrationV2TurnItem["type"], "error"> };
 
-export function latestRootProviderFailure(
+function latestRootProviderFailure(
   run: OrchestrationV2Run | null,
   turnItems: ReadonlyArray<FailureScanTurnItem>,
 ): OrchestrationV2ProviderFailure | null {
@@ -37,7 +37,7 @@ export function latestRootProviderFailure(
   return latest?.failure ?? null;
 }
 
-export function threadErrorSummary(
+function threadErrorSummary(
   failure: OrchestrationV2ProviderFailure | null,
   sessionError: string | null,
 ) {
@@ -52,9 +52,7 @@ export function threadErrorSummary(
   };
 }
 
-export function latestExecutedRun(
-  runs: ReadonlyArray<OrchestrationV2Run>,
-): OrchestrationV2Run | null {
+function latestExecutedRun(runs: ReadonlyArray<OrchestrationV2Run>): OrchestrationV2Run | null {
   let latest: OrchestrationV2Run | null = null;
   for (const run of runs) {
     if (run.status === "queued") continue;
@@ -65,7 +63,7 @@ export function latestExecutedRun(
 }
 
 /** Held queues can execute out of ordinal order; unfinished runs count as latest. */
-export function runRanAfter(
+function runRanAfter(
   run: Pick<OrchestrationV2Run, "ordinal" | "completedAt">,
   other: Pick<OrchestrationV2Run, "ordinal" | "completedAt">,
 ): boolean {
@@ -76,7 +74,7 @@ export function runRanAfter(
   return end(run) === end(other) ? run.ordinal > other.ordinal : end(run) > end(other);
 }
 
-export function usageLimitBlockedRun(
+function usageLimitBlockedRun(
   runs: ReadonlyArray<OrchestrationV2Run>,
   turnItems: ReadonlyArray<FailureScanTurnItem>,
   sessionError: string | null,
@@ -88,22 +86,3 @@ export function usageLimitBlockedRun(
 }
 
 /** Retains a limited run's outcome when higher-ordinal runs never started. */
-export function usageLimitRunPresentedAsLatest(
-  runs: ReadonlyArray<OrchestrationV2Run>,
-  turnItems: ReadonlyArray<FailureScanTurnItem>,
-  sessionError: string | null,
-): OrchestrationV2Run | null {
-  const blocked = usageLimitBlockedRun(runs, turnItems, sessionError);
-  return blocked !== null && runs.some((run) => run.ordinal > blocked.ordinal) ? blocked : null;
-}
-
-export function latestUnheldRun(
-  runs: ReadonlyArray<OrchestrationV2Run>,
-): OrchestrationV2Run | null {
-  let latest: OrchestrationV2Run | null = null;
-  for (const run of runs) {
-    if (run.status === "queued" && run.queueHeld === true) continue;
-    if (latest === null || run.ordinal > latest.ordinal) latest = run;
-  }
-  return latest;
-}

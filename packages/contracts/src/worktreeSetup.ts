@@ -3,9 +3,9 @@ import * as Schema from "effect/Schema";
 import { IsoDateTime, NonNegativeInt, ThreadId, TrimmedNonEmptyString } from "./baseSchemas.ts";
 
 /** Producers clamp free text to these before publishing so encoding never fails. */
-export const WORKTREE_SETUP_DETAIL_MAX_LENGTH = 200;
-export const WORKTREE_SETUP_TAIL_LINE_MAX_LENGTH = 400;
-export const WORKTREE_SETUP_ERROR_MAX_LENGTH = 1000;
+const WORKTREE_SETUP_DETAIL_MAX_LENGTH = 200;
+const WORKTREE_SETUP_TAIL_LINE_MAX_LENGTH = 400;
+const WORKTREE_SETUP_ERROR_MAX_LENGTH = 1000;
 
 export const WorktreeSetupStageId = Schema.Literals([
   "fetch",
@@ -78,11 +78,3 @@ export const WorktreeSetupCancelResult = Schema.Struct({
   cancelled: Schema.Boolean,
 });
 export type WorktreeSetupCancelResult = typeof WorktreeSetupCancelResult.Type;
-
-export const WORKTREE_SETUP_STAGE_ORDER: ReadonlyArray<WorktreeSetupStageId> = [
-  "fetch",
-  "checkout",
-  "submodules",
-  "setup-script",
-  "agent",
-];

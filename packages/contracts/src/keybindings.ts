@@ -4,7 +4,7 @@ import { ForwardCompatibleArray, TrimmedString } from "./baseSchemas.ts";
 const MAX_KEYBINDING_VALUE_LENGTH = 64;
 const MAX_KEYBINDING_WHEN_LENGTH = 256;
 export const MAX_WHEN_EXPRESSION_DEPTH = 64;
-export const MAX_SCRIPT_ID_LENGTH = 24;
+const MAX_SCRIPT_ID_LENGTH = 24;
 export const MAX_KEYBINDINGS_COUNT = 256;
 
 export const THREAD_JUMP_KEYBINDING_COMMANDS = [

@@ -70,11 +70,6 @@ export const acceptsPrivateNetworkConnection = (socket: {
     (address) => address !== undefined && isPrivateNetworkAddress(address),
   );
 
-export const loopbackUrlHostForAddress = (address: NetAddress.InetAddress): string =>
-  address._tag === "InetAddressV6" && NetAddress.isLoopback(address.address)
-    ? "[::1]"
-    : "127.0.0.1";
-
 const normalizeHost = (host: string): string =>
   host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
 

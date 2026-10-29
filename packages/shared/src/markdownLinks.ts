@@ -300,18 +300,6 @@ const FENCED_CODE_SEGMENT_PATTERN = /(```[\s\S]*?(?:```|$))/;
 
 const INLINE_CODE_SPAN_PATTERN = /`([^`\n]+)`/g;
 
-export function extractInlineCodeSpans(text: string): string[] {
-  const spans: string[] = [];
-  const segments = text.split(FENCED_CODE_SEGMENT_PATTERN);
-  for (let index = 0; index < segments.length; index += 2) {
-    for (const match of (segments[index] ?? "").matchAll(INLINE_CODE_SPAN_PATTERN)) {
-      const span = match[1]?.trim();
-      if (span) spans.push(span);
-    }
-  }
-  return spans;
-}
-
 function markdownRunEndFinder(markdown: string, delimiter: RegExp) {
   let runStart = -1;
   let runEnd = -1;
@@ -403,8 +391,4 @@ export function resolveMarkdownFileLinkTarget(
   }
   if (!baseDir) return null;
   return resolvePathLinkTarget(pathWithPosition, baseDir);
-}
-
-export function isWindowsDrivePathHref(href: string): boolean {
-  return /^[A-Za-z]:[\\/]/.test(safeDecodeURIComponent(href));
 }

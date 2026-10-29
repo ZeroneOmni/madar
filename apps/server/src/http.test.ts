@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { describe, vi } from "vite-plus/test";
+import { describe } from "vite-plus/test";
 import * as NodeHttpPlatform from "@effect/platform-node/NodeHttpPlatform";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -67,8 +67,6 @@ describe("browser API CORS", () => {
   });
 });
 
-const layerFileResponse = Layer.mergeAll(NodeHttpPlatform.layer, NodeServices.layer);
-
 const makeStaticRequest = Effect.fn("HttpTest.makeStaticRequest")(function* (staticDir: string) {
   const config = yield* ServerConfig.ServerConfig;
   const fileSystem = yield* FileSystem.FileSystem;
@@ -94,6 +92,20 @@ it.layer(
     Layer.provideMerge(NodeServices.layer),
   ),
 )("static HTTP responses", (it) => {
+  it.effect("does not serve the app for retired coding APIs", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const staticDir = yield* fs.makeTempDirectoryScoped({ prefix: "madar-retired-api-" });
+      yield* fs.writeFileString(path.join(staticDir, "index.html"), "<main>Madar</main>");
+      const request = yield* makeStaticRequest(staticDir);
+      for (const resource of ["/api/orchestration/shell", "/api/projects", "/ws"]) {
+        const response = yield* request(resource);
+        expect(response.status).toBe(404);
+      }
+    }),
+  );
+
   it.effect("revalidates non-HTML files and returns changed contents", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

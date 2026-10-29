@@ -47,39 +47,6 @@ void TERMINAL_RUN_STATUSES;
 
 export type PendingBackgroundWorkTask = OrchestrationV2PendingBackgroundTask;
 
-export function deriveBlockedOnThreadWait(input: {
-  readonly activeRun: Pick<OrchestrationV2Run, "id" | "status"> | null;
-  readonly turnItems: ReadonlyArray<OrchestrationV2TurnItem>;
-}): boolean {
-  if (input.activeRun?.status !== "running") return false;
-  let hasWait = false;
-  for (const item of input.turnItems) {
-    if (
-      item.runId !== input.activeRun.id ||
-      !EXECUTION_TURN_ITEM_TYPES.has(item.type) ||
-      (item.status !== "running" && item.status !== "waiting") ||
-      // App-owned rows track the child, including the child a blocking delegate is waiting for.
-      (item.type === "subagent" && item.origin === "app_owned")
-    ) {
-      continue;
-    }
-    if (item.type !== "dynamic_tool") return false;
-    const tool = resolveT3McpToolId(item.toolName);
-    if (
-      tool !== "t3_thread_wait" &&
-      !(
-        tool === "delegate_task" &&
-        Predicate.isObject(item.input) &&
-        Reflect.get(item.input, "mode") === "wait"
-      )
-    ) {
-      return false;
-    }
-    hasWait = true;
-  }
-  return hasWait;
-}
-
 export function backgroundWorkHoldsCompletion(
   tasks: ReadonlyArray<Pick<PendingBackgroundWorkTask, "kind" | "awaited">>,
 ): boolean {
@@ -199,7 +166,7 @@ function nativeTaskIdFromTurnItem(item: PendingBackgroundWorkTurnItem): string {
 }
 
 /** Items Stop ends, without the pending list's settled-run gate. */
-export function pendingBackgroundTurnItems<Item extends PendingBackgroundWorkTurnItem>(input: {
+function pendingBackgroundTurnItems<Item extends PendingBackgroundWorkTurnItem>(input: {
   readonly turnItems: ReadonlyArray<Item>;
   readonly runs?: ReadonlyArray<PendingBackgroundWorkRun>;
 }): ReadonlyArray<Item> {

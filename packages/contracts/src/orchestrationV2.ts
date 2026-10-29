@@ -466,13 +466,8 @@ export const OrchestrationV2AppThread = Schema.Struct({
 export type OrchestrationV2AppThread = typeof OrchestrationV2AppThread.Type;
 
 /** Provider-native children cannot receive messages; T3 delegate_task children can. */
-export function isProviderNativeSubagentThread(
-  thread: Pick<OrchestrationV2AppThread, "lineage" | "creationSource">,
-): boolean {
-  return thread.lineage.relationshipToParent === "subagent" && thread.creationSource === "provider";
-}
 
-export const IDLE_COMPACTION_TEXT = "/compact";
+const IDLE_COMPACTION_TEXT = "/compact";
 
 interface CompactionMessageFields {
   readonly role: string;
@@ -484,7 +479,7 @@ interface CompactionMessageFields {
 }
 
 /** A prompt that only asks the provider to compact, so its turn is the compaction itself. */
-export function isCompactionCommandMessage(message: CompactionMessageFields): boolean {
+function isCompactionCommandMessage(message: CompactionMessageFields): boolean {
   return (
     message.role === "user" &&
     message.text.trim().toLowerCase() === IDLE_COMPACTION_TEXT &&
@@ -493,16 +488,6 @@ export function isCompactionCommandMessage(message: CompactionMessageFields): bo
 }
 
 /** Why T3 Code sent this `/compact` on its own, or undefined for one someone asked for. */
-export function idleCompactionOf(
-  message: CompactionMessageFields,
-): OrchestrationV2IdleCompaction | undefined {
-  if (!isCompactionCommandMessage(message)) return undefined;
-  if (message.idleCompaction !== undefined) return message.idleCompaction;
-  // Servers before `idleCompaction` marked their own as agent-created.
-  return message.createdBy === "agent" && message.creationSource === "server"
-    ? "beforeCacheExpires"
-    : undefined;
-}
 
 export const OrchestrationV2RunStatus = Schema.Literals([
   "preparing",
@@ -588,8 +573,6 @@ export const OrchestrationV2ThreadLaunchWorkspaceStrategy = Schema.Union([
 export type OrchestrationV2ThreadLaunchWorkspaceStrategy =
   typeof OrchestrationV2ThreadLaunchWorkspaceStrategy.Type;
 
-export const ORCHESTRATION_V2_WORKSPACE_PREPARATION_FAILURE_CODE = "workspace_preparation_failed";
-
 export const OrchestrationV2Run = Schema.Struct({
   id: RunId,
   threadId: ThreadId,
@@ -624,12 +607,6 @@ export const OrchestrationV2Run = Schema.Struct({
   workspacePreparation: Schema.optional(OrchestrationV2ThreadLaunchWorkspaceStrategy),
 });
 export type OrchestrationV2Run = typeof OrchestrationV2Run.Type;
-
-export function orchestrationV2RunWorkStartedAt(
-  run: Pick<OrchestrationV2Run, "workStartedAt" | "startedAt" | "requestedAt">,
-): OrchestrationV2Run["requestedAt"] {
-  return run.workStartedAt ?? run.startedAt ?? run.requestedAt;
-}
 
 export const OrchestrationV2RunAttempt = Schema.Struct({
   id: RunAttemptId,
@@ -1978,35 +1955,11 @@ const LIVE_SHELL_STATUSES: ReadonlySet<OrchestrationV2ShellThreadStatus> = new S
  * keep these, so every reader of live child rows (pending requests, working parents, background
  * work) still finds them.
  */
-export function isLiveSubagentShell(
-  thread: Pick<
-    OrchestrationV2ThreadShell,
-    "activityRunStatus" | "status" | "pendingRuntimeRequest" | "pendingBackgroundTasks"
-  >,
-): boolean {
-  return (
-    (thread.activityRunStatus ?? null) !== null ||
-    LIVE_SHELL_STATUSES.has(thread.status) ||
-    thread.pendingRuntimeRequest !== null ||
-    (thread.pendingBackgroundTasks?.length ?? 0) > 0
-  );
-}
 
 /**
  * A settled top-level thread settled before `beforeMs`. Shells that omit older settled threads
  * count every such thread, so the server and clients share this one rule.
  */
-export function isOlderSettledThreadShell(
-  thread: Pick<OrchestrationV2ThreadShell, "lineage" | "settledOverride" | "settledAt">,
-  beforeMs: number,
-): boolean {
-  return (
-    thread.lineage.relationshipToParent !== "subagent" &&
-    thread.settledOverride === "settled" &&
-    thread.settledAt !== null &&
-    DateTime.toEpochMillis(thread.settledAt) < beforeMs
-  );
-}
 
 export const OrchestrationV2OlderSettledCount = Schema.Struct({
   projectId: ProjectId,
@@ -3281,27 +3234,6 @@ export type OrchestrationV2InternalCommand = typeof OrchestrationV2InternalComma
 
 export type OrchestrationV2ServerCommand = OrchestrationV2Command | OrchestrationV2InternalCommand;
 
-export const ORCHESTRATION_V2_WS_METHODS = {
-  dispatchCommand: "orchestration.dispatchCommand",
-
-  searchThreads: "orchestration.searchThreads",
-  searchThread: "orchestration.searchThread",
-  searchThreadStream: "orchestration.searchThreadStream",
-  getArchivedShellSnapshot: "orchestration.getArchivedShellSnapshot",
-  getThreadFamily: "orchestration.getThreadFamily",
-  getWorktreeThreadIds: "orchestration.getWorktreeThreadIds",
-  getOlderSettledThreads: "orchestration.getOlderSettledThreads",
-  getThreadProjection: "orchestration.getThreadProjection",
-  getWorkflowScript: "orchestration.getWorkflowScript",
-  stopWorkflow: "orchestration.stopWorkflow",
-  getTurnItem: "orchestration.getTurnItem",
-  launchThread: "orchestration.launchThread",
-  subscribeArchivedShell: "orchestration.subscribeArchivedShell",
-  subscribeShell: "orchestration.subscribeShell",
-  subscribeThread: "orchestration.subscribeThread",
-  subscribeCommandOutput: "orchestration.subscribeCommandOutput",
-} as const;
-
 export const OrchestrationV2SubscribeCommandOutputInput = Schema.Struct({
   threadId: ThreadId,
   itemId: TurnItemId,
@@ -3567,10 +3499,6 @@ const knownDomainEventTypes: ReadonlySet<string> = new Set(
     return "literals" in type ? type.literals : [type.literal];
   }),
 );
-
-export function isKnownOrchestrationV2EventType(type: string): boolean {
-  return knownDomainEventTypes.has(type);
-}
 
 // Skip unknown event or turn-item types while advancing the resume cursor.
 const OrchestrationV2UnknownThreadStreamEvent = Schema.Struct({

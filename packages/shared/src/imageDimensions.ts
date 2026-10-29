@@ -4,7 +4,6 @@ export interface ImageDimensions {
 }
 
 /** Allows several 64 KiB JPEG metadata segments before the dimensions header. */
-export const IMAGE_DIMENSIONS_HEADER_BYTES = 256 * 1024;
 
 export function readImageDimensions(bytes: Uint8Array): ImageDimensions | null {
   const dimensions = readPng(bytes) ?? readGif(bytes) ?? readWebp(bytes) ?? readJpeg(bytes);

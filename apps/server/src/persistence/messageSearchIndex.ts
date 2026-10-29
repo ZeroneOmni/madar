@@ -38,28 +38,3 @@ export const indexedMessageText = (sql: SqlClient.SqlClient, payload: string) =>
  * database copy) rebuilds it instead of trusting it. Databases from before
  * migration 69, or on an SQLite without FTS5 trigrams, have no index.
  */
-export const rebuildMessageSearch = Effect.fn("MessageSearchIndex.rebuild")(function* (
-  sql: SqlClient.SqlClient,
-) {
-  const index = yield* sql`
-    SELECT 1 FROM sqlite_master WHERE name = 'orchestration_v2_message_search'
-  `;
-  if (index.length === 0) return;
-  // One transaction: an interrupt between clear and refill would leave an
-  // empty index that nothing repairs, since search only checks the table exists.
-  yield* sql.withTransaction(
-    Effect.gen(function* () {
-      yield* sql`
-        INSERT INTO orchestration_v2_message_search (orchestration_v2_message_search)
-        VALUES ('delete-all')
-      `;
-      yield* sql`
-        INSERT INTO orchestration_v2_message_search (rowid, text)
-        SELECT messages.rowid, ${indexedMessageText(sql, "messages.payload_json")}
-        FROM orchestration_v2_projection_messages AS messages
-        WHERE ${indexedMessageCondition(sql)}
-          AND json_extract(messages.payload_json, '$.text') IS NOT NULL
-      `;
-    }),
-  );
-});

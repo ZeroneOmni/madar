@@ -7,8 +7,8 @@ import {
   SourceControlRepositoryInfo,
 } from "./sourceControl.ts";
 
-export const PROJECT_CLONE_DETAIL_MAX_LENGTH = 200;
-export const PROJECT_CLONE_ERROR_MAX_LENGTH = 1000;
+const PROJECT_CLONE_DETAIL_MAX_LENGTH = 200;
+const PROJECT_CLONE_ERROR_MAX_LENGTH = 1000;
 
 export const ProjectCloneStage = Schema.Literals([
   "connecting",
@@ -89,15 +89,4 @@ function projectCloneStageLabel(stage: ProjectCloneStage): string {
     case "checkout":
       return "Checking out files";
   }
-}
-
-export function projectCloneProgressSummary(
-  snapshot: Pick<ProjectCloneSnapshot, "stage" | "percent" | "detail" | "stalled">,
-): string {
-  const parts = [projectCloneStageLabel(snapshot.stage)];
-  if (snapshot.percent !== null) parts.push(`${snapshot.percent}%`);
-  // The detail carries git's last transfer speed, which a stall makes a lie.
-  if (snapshot.stalled) parts.push("Stalled");
-  else if (snapshot.detail) parts.push(snapshot.detail);
-  return parts.join(" · ");
 }

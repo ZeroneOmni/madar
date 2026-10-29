@@ -27,18 +27,18 @@ export const ServerAuthSessionMethod = Schema.Literals([
 ]);
 export type ServerAuthSessionMethod = typeof ServerAuthSessionMethod.Type;
 
-export const AuthOrchestrationReadScope = "orchestration:read" as const;
+const AuthOrchestrationReadScope = "orchestration:read" as const;
 export const AuthOrchestrationOperateScope = "orchestration:operate" as const;
 export const AuthSettingsWriteScope = "settings:write" as const;
 export const AuthProvidersManageScope = "providers:manage" as const;
 export const AuthEnvironmentMaintainScope = "environment:maintain" as const;
 const AuthPreviewOperateScope = "preview:operate" as const;
-export const AuthDiagnosticsReadScope = "diagnostics:read" as const;
+const AuthDiagnosticsReadScope = "diagnostics:read" as const;
 const AuthTerminalReadScope = "terminal:read" as const;
 const AuthTerminalOperateScope = "terminal:operate" as const;
-export const AuthSourceControlWriteScope = "source-control:write" as const;
-export const AuthFilesystemReadScope = "filesystem:read" as const;
-export const AuthFilesystemWriteScope = "filesystem:write" as const;
+const AuthSourceControlWriteScope = "source-control:write" as const;
+const AuthFilesystemReadScope = "filesystem:read" as const;
+const AuthFilesystemWriteScope = "filesystem:write" as const;
 /** Retained for decoding existing credentials; grants no current RPC access. */
 const AuthReviewWriteScope = "review:write" as const;
 export const AuthAccessReadScope = "access:read" as const;

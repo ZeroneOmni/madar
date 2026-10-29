@@ -42,12 +42,4 @@ function readGithubAlert(node: MarkdownAstNode): void {
   };
 }
 
-export function remarkGithubAlerts() {
-  return (tree: MarkdownAstNode) => {
-    const visit = (node: MarkdownAstNode) => {
-      node.children?.forEach(visit);
-      readGithubAlert(node);
-    };
-    visit(tree);
-  };
-}
+export {};

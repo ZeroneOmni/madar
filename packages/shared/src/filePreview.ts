@@ -69,7 +69,7 @@ export function decodeFilePreviewText(bytes: Uint8Array, truncated = false) {
   }
 }
 
-export const WORKSPACE_BROWSER_PREVIEW_EXTENSIONS = [".htm", ".html", ".pdf"] as const;
+const WORKSPACE_BROWSER_PREVIEW_EXTENSIONS = [".htm", ".html", ".pdf"] as const;
 
 export const WORKSPACE_IMAGE_PREVIEW_EXTENSIONS = [
   ".avif",
@@ -111,7 +111,7 @@ const AUDIO_MIME_TYPE_BY_EXTENSION = new Map([
   [".aiff", "audio/aiff"],
 ]);
 
-export function audioMimeTypeFromExtension(extension: string): string | null {
+function audioMimeTypeFromExtension(extension: string): string | null {
   if (!/^\.[a-z0-9]+$/i.test(extension)) return null;
   return AUDIO_MIME_TYPE_BY_EXTENSION.get(extension.toLowerCase()) ?? null;
 }
@@ -122,16 +122,6 @@ function mediaMimeTypeFromExtension(extension: string): string | null {
   return (
     IMAGE_MIME_TYPE_BY_EXTENSION.get(extension.toLowerCase()) ??
     videoMimeType({ name: `media${extension}`, mimeType: "" })
-  );
-}
-
-export function hostPreviewMimeTypeFromExtension(extension: string): string | null {
-  if (!/^\.[a-z0-9]+$/i.test(extension)) return null;
-  return (
-    mediaMimeTypeFromExtension(extension) ??
-    audioMimeTypeFromExtension(extension) ??
-    BROWSER_MIME_TYPE_BY_EXTENSION.get(extension.toLowerCase()) ??
-    null
   );
 }
 
@@ -173,7 +163,7 @@ function isWorkspaceBrowserPreviewPath(path: string): boolean {
   return hasPreviewExtension(path, WORKSPACE_BROWSER_PREVIEW_EXTENSIONS);
 }
 
-export function isWorkspaceImagePreviewPath(path: string): boolean {
+function isWorkspaceImagePreviewPath(path: string): boolean {
   return hasPreviewExtension(path, WORKSPACE_IMAGE_PREVIEW_EXTENSIONS);
 }
 
