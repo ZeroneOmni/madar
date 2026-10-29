@@ -86,6 +86,8 @@
         "src/appearanceContrast.ts",
         "test/render.tsx",
       ],
+      // CI invokes the Playwright CLI directly to prepare Chromium.
+      "ignoreDependencies": ["playwright"],
       "ignoreIssues": { "src/components/ui/*.tsx": ["exports", "nsExports", "duplicates"] },
     },
     "infra/task-cache": {
