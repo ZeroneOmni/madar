@@ -4,37 +4,9 @@ Use the [Madar release runbook](./madar.md) for release triggers, targets, and c
 
 ## Server self-update release invariant
 
-Connected servers update to the client's exact version, not to an npm dist-tag. Servers that update
-themselves download that version's CLI archive from the GitHub Release; servers run through npm are
-handed a `t3@<version>` command to run. Every released client version must therefore have its
-release archives available before users can receive that client. Madar does not publish an npm launcher.
+Servers that update themselves download the target version's CLI archive from the GitHub Release. Every released client version must have its CLI archives and `SHA256SUMS` available before users can receive that client. Desktop auto-update also reads the GitHub Release directly. Madar does not publish an npm launcher or deploy a hosted web client.
 
-The workflow enforces this ordering:
-
-1. `release` publishes the GitHub Release with the CLI archives and `SHA256SUMS`.
-2. `publish_cli` publishes the `t3@<version>` launcher, which downloads from that release, on every
-   channel.
-3. `deploy_web` depends on both before moving the hosted channel to the new client.
-   `build_web` builds that client earlier with `vercel deploy --prod --skip-domain`, which
-   leaves the custom domains alone but moves the project's own `*.vercel.app` production
-   hostname. That hostname is behind Vercel SSO, so users only get the client through the
-   custom domains.
-
-Desktop auto-update reads the GitHub Release directly, so a desktop client can see the new version
-a few minutes before `t3@<version>` is on npm. Only the copied manual command for npm-run servers
-depends on npm, and it works once `publish_cli` finishes.
-
-Preserve these dependencies when changing the release graph. Publishing a client first would leave
-the **Update server** action targeting a package version that does not exist yet.
-
-For a release smoke test, confirm `npm view t3@<version> version` returns the expected version, then
-connect the new client to a server on the previous version and verify that the update action
-reconnects to the matching server. When the release adds database migrations, verify that the
-remote update applies them and reconnects. A failed trial must restore the database snapshot and
-restart the previous server. If the installed launcher does not support the target protocol,
-verify that the update stops before restart and run `npx t3@<version> service update` once on the
-server machine. Also test the manual or desktop-managed guidance when those environments are
-available.
+For a release smoke test, verify that the target CLI archive is available and its checksum matches `SHA256SUMS`. Exercise the retained backend's update path from the previous version and verify that it reconnects at the target version. When the release adds database migrations, verify that the update applies them. A failed trial must restore the database snapshot and restart the previous server. If the installed launcher does not support the target protocol, verify that the update stops before restart.
 
 ## Desktop auto-update notes
 
