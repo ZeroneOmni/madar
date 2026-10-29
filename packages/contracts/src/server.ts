@@ -130,14 +130,7 @@ export const ServerProviderWorkspaceSnapshot = Schema.Struct({
 });
 export type ServerProviderWorkspaceSnapshot = typeof ServerProviderWorkspaceSnapshot.Type;
 
-export const PROVIDER_WORKSPACE_SNAPSHOT_TTL_MS = 5 * 60_000;
-
-export function isProviderWorkspaceSnapshotCurrent(
-  snapshot: Pick<ServerProviderWorkspaceSnapshot, "checkedAt">,
-  nowMs: number,
-): boolean {
-  return nowMs - Date.parse(snapshot.checkedAt) < PROVIDER_WORKSPACE_SNAPSHOT_TTL_MS;
-}
+const PROVIDER_WORKSPACE_SNAPSHOT_TTL_MS = 5 * 60_000;
 
 /** Unavailable snapshots must set installed and enabled false. */
 export const ServerProviderAvailability = Schema.Literals(["available", "unavailable"]);
@@ -274,8 +267,6 @@ export const isProviderAvailable = (snapshot: ServerProvider): boolean =>
   snapshot.availability !== "unavailable";
 
 /** Legacy producers omit this field and support text generation. */
-export const isProviderTextGenerationCapable = (snapshot: ServerProvider): boolean =>
-  snapshot.supportsTextGeneration !== false;
 
 export const OtlpEndpointSource = Schema.Literals(["environment", "bootstrap", "settings"]);
 export type OtlpEndpointSource = typeof OtlpEndpointSource.Type;

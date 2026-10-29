@@ -40,10 +40,3 @@ export interface PtySpawnInput {
   rows: number;
   env: NodeJS.ProcessEnv;
 }
-
-export class PtyAdapter extends Context.Service<
-  PtyAdapter,
-  {
-    readonly spawn: (input: PtySpawnInput) => Effect.Effect<PtyProcess, PtySpawnError>;
-  }
->()("@t3tools/shared/PtyAdapter") {}

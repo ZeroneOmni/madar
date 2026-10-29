@@ -34,12 +34,6 @@ const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "
 
 const LOOPBACK_PREFIX_PATTERN = /^(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1?\])(?::|\/|$)/i;
 
-export function isLoopbackHost(host: string): boolean {
-  if (LOOPBACK_HOSTS.has(host)) return true;
-  if (host === "[::1]") return true;
-  return false;
-}
-
 export class PreviewUrlNormalizationError extends Schema.TaggedError<PreviewUrlNormalizationError>()(
   "PreviewUrlNormalizationError",
   {

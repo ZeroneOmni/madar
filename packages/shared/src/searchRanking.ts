@@ -4,21 +4,6 @@ export type RankedSearchResult<T> = {
   tieBreaker: string;
 };
 
-export function normalizeSearchQuery(
-  input: string,
-  options?: {
-    trimLeadingPattern?: RegExp;
-  },
-): string {
-  const trimmed = input.trim();
-  if (!trimmed) {
-    return "";
-  }
-  return options?.trimLeadingPattern
-    ? trimmed.replace(options.trimLeadingPattern, "").toLowerCase()
-    : trimmed.toLowerCase();
-}
-
 export function scoreSubsequenceMatch(
   value: string,
   query: string,

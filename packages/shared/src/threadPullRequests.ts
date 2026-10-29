@@ -1,7 +1,7 @@
 import type { ThreadLinkedPullRequest, ThreadPullRequestLink } from "@t3tools/contracts";
 
 /** Tombstones prevent sync from re-adding hidden members. */
-export function visibleThreadPullRequests(
+function visibleThreadPullRequests(
   links: ReadonlyArray<ThreadPullRequestLink>,
 ): ReadonlyArray<ThreadPullRequestLink> {
   return links.filter((link) => link.source !== "stack-dismissed");
@@ -23,7 +23,7 @@ export interface ThreadSearchPullRequest {
 const SEARCHED_PULL_REQUEST_TITLES = 3;
 
 /** Pull requests thread search matches by number, title, and reference. */
-export function threadSearchPullRequests(thread: {
+function threadSearchPullRequests(thread: {
   readonly pullRequests?: ReadonlyArray<ThreadPullRequestLink> | undefined;
   readonly linkedPullRequest?: ThreadLinkedPullRequest | null | undefined;
   readonly branchPullRequest?: ThreadLinkedPullRequest | null | undefined;
@@ -50,16 +50,4 @@ export function threadSearchPullRequests(thread: {
     );
   }
   return thread.linkedPullRequest ? branch.concat(entry(thread.linkedPullRequest, null)) : branch;
-}
-
-export function threadPullRequestSearchTerms(thread: {
-  readonly pullRequests?: ReadonlyArray<ThreadPullRequestLink> | undefined;
-  readonly linkedPullRequest?: ThreadLinkedPullRequest | null | undefined;
-  readonly branchPullRequest?: ThreadLinkedPullRequest | null | undefined;
-}): string[] {
-  return threadSearchPullRequests(thread).flatMap((pullRequest) => [
-    `#${pullRequest.number}`,
-    ...pullRequest.references,
-    ...(pullRequest.title ? [pullRequest.title] : []),
-  ]);
 }

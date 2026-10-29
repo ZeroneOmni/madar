@@ -1,5 +1,6 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
+import * as Deferred from "effect/Deferred";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -8,6 +9,7 @@ import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as TestClock from "effect/testing/TestClock";
 
+import * as ReplayMarkers from "./replayMarkers.ts";
 import * as ServerConfig from "../config.ts";
 import { pruneExpiredReplayMarkers, REPLAY_MARKER_MAX_AGE } from "./replayMarkers.ts";
 import * as ServerSecretStore from "./ServerSecretStore.ts";
@@ -34,6 +36,40 @@ const REAL_SECRET_NAMES = [
 ];
 
 it.layer(NodeServices.layer)("replayMarkers", (it) => {
+  it.effect("prunes expired authentication markers when the cleanup layer starts", () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const { secretsDir } = yield* ServerConfig.ServerConfig;
+      const secretStore = yield* ServerSecretStore.ServerSecretStore;
+      yield* secretStore.create("dpop-proof-expired", Uint8Array.from([1]));
+      const markerPath = path.join(secretsDir, "dpop-proof-expired.bin");
+      const mtime = DateTime.toDateUtc(DateTime.makeUnsafe(0));
+      yield* fileSystem.utimes(markerPath, mtime, mtime);
+      yield* TestClock.setTime(Duration.toMillis(Duration.days(2)));
+      const removed = yield* Deferred.make<void>();
+      yield* Layer.build(ReplayMarkers.layer).pipe(
+        Effect.provideService(FileSystem.FileSystem, {
+          ...fileSystem,
+          remove: (target, options) =>
+            fileSystem
+              .remove(target, options)
+              .pipe(Effect.tap(() => Deferred.succeed(removed, undefined))),
+        }),
+      );
+      yield* Deferred.await(removed);
+      assert.isFalse(yield* fileSystem.exists(markerPath));
+    }).pipe(
+      Effect.scoped,
+      Effect.provide(
+        ServerSecretStore.layer.pipe(
+          Layer.provideMerge(
+            ServerConfig.layerTest(process.cwd(), { prefix: "t3-replay-cleanup-test-" }),
+          ),
+        ),
+      ),
+    ),
+  );
   it.effect("prunes only replay markers older than the max age", () =>
     Effect.gen(function* () {
       const secretStore = yield* ServerSecretStore.ServerSecretStore;

@@ -100,11 +100,6 @@ export function toPersistenceSqlError(operation: string) {
   };
 }
 
-export function toPersistenceDecodeError(operation: string) {
-  return (cause: Schema.SchemaError): PersistenceDecodeError =>
-    PersistenceDecodeError.fromSchemaError(operation, cause);
-}
-
 export type OrchestrationEventStoreError = PersistenceSqlError | PersistenceDecodeError;
 
 export type OrchestrationCommandReceiptRepositoryError =

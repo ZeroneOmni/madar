@@ -230,8 +230,10 @@ const checkPatches = (): boolean => {
 };
 
 // CI's Lint job checks that generated GraphQL operations match their sources.
-const graphql = ["packages/source-control-github"].filter((dir) =>
-  files.some((file) => file.startsWith(`${dir}/`)),
+const graphql = ["packages/source-control-github"].filter(
+  (dir) =>
+    NodeFS.existsSync(NodePath.join(root, dir, "package.json")) &&
+    files.some((file) => file.startsWith(`${dir}/`)),
 );
 
 const filters = (names: ReadonlyArray<string>) => names.flatMap((name) => ["--filter", name]);

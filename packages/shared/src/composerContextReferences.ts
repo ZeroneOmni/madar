@@ -330,27 +330,3 @@ export function threadContextsOutsideEnvironment(input: {
       record.environmentId !== input.environmentId,
   );
 }
-
-export function remapComposerContextAttachments(
-  context: import("@t3tools/contracts").OrchestrationMessageContext | undefined,
-  before: ReadonlyArray<{ readonly id?: string | undefined }>,
-  after: ReadonlyArray<{ readonly id: string }>,
-): import("@t3tools/contracts").OrchestrationMessageContext | undefined {
-  if (context === undefined) return undefined;
-  const ids = new Map(
-    before.flatMap((attachment, index) => {
-      const target = after[index];
-      return attachment.id !== undefined && target !== undefined
-        ? [[attachment.id, target.id] as const]
-        : [];
-    }),
-  );
-  return {
-    ...context,
-    records: context.records.map((record) =>
-      (record.kind === "image" || record.kind === "file") && "attachmentId" in record
-        ? { ...record, attachmentId: ids.get(record.attachmentId) ?? record.attachmentId }
-        : record,
-    ),
-  };
-}

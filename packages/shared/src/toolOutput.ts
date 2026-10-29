@@ -214,7 +214,7 @@ export interface ToolOutputImage {
 }
 
 /** Raster types only, so agent SVG/HTML cannot be served inline. */
-export function readToolOutputImage(block: unknown): ToolOutputImage | null {
+function readToolOutputImage(block: unknown): ToolOutputImage | null {
   if (!Predicate.isObject(block) || block.type !== "image") return null;
   const source = Predicate.isObject(block.source) ? block.source : undefined;
   if (source !== undefined && source.type !== "base64") return null;
@@ -235,10 +235,7 @@ function outputBlocks(value: unknown): ReadonlyArray<unknown> {
 
 export const MAX_TOOL_OUTPUT_IMAGES = 8;
 
-export const MAX_TOOL_OUTPUT_IMAGE_BASE64_LENGTH =
-  Math.ceil(PROVIDER_SEND_TURN_MAX_IMAGE_BYTES / 3) * 4;
-
-export function toolOutputImageBlocks(value: unknown): ReadonlyArray<unknown> {
+function toolOutputImageBlocks(value: unknown): ReadonlyArray<unknown> {
   const blocks: unknown[] = [];
   for (const block of outputBlocks(value)) {
     if (readToolOutputImage(block) === null) continue;
@@ -251,16 +248,4 @@ export function toolOutputImageBlocks(value: unknown): ReadonlyArray<unknown> {
 /** Order defines the shared tool-output-image asset index. */
 export function toolOutputImages(value: unknown): ReadonlyArray<ToolOutputImage> {
   return toolOutputImageBlocks(value).flatMap((block) => readToolOutputImage(block) ?? []);
-}
-
-export function omitToolOutputImageData(value: unknown): unknown {
-  const omit = (block: unknown) => {
-    const image = readToolOutputImage(block);
-    return image?.data === undefined ? block : { type: "image", mimeType: image.mimeType };
-  };
-  if (Array.isArray(value)) return value.map(omit);
-  if (Predicate.isObject(value) && Array.isArray(value.content)) {
-    return { ...value, content: value.content.map(omit) };
-  }
-  return omit(value);
 }

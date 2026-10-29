@@ -596,39 +596,6 @@ const SPAN_KIND_MAP: Record<number, OtlpTraceRecord["kind"]> = {
   5: "consumer",
 };
 
-export function decodeOtlpTraceRecords(
-  payload: OtlpTracer.TraceData,
-): ReadonlyArray<OtlpTraceRecord> {
-  const records: Array<OtlpTraceRecord> = [];
-
-  for (const resourceSpan of payload.resourceSpans) {
-    const resourceAttributes = decodeAttributes(resourceSpan.resource?.attributes ?? []);
-
-    for (const scopeSpan of resourceSpan.scopeSpans) {
-      for (const span of scopeSpan.spans) {
-        records.push(
-          otlpSpanToTraceRecord({
-            resourceAttributes,
-            scopeAttributes: decodeAttributes(
-              "attributes" in scopeSpan.scope && Array.isArray(scopeSpan.scope.attributes)
-                ? scopeSpan.scope.attributes
-                : [],
-            ),
-            scopeName: scopeSpan.scope.name,
-            scopeVersion:
-              "version" in scopeSpan.scope && typeof scopeSpan.scope.version === "string"
-                ? scopeSpan.scope.version
-                : undefined,
-            span,
-          }),
-        );
-      }
-    }
-  }
-
-  return records;
-}
-
 function otlpSpanToTraceRecord(input: {
   readonly resourceAttributes: Readonly<Record<string, unknown>>;
   readonly scopeAttributes: Readonly<Record<string, unknown>>;

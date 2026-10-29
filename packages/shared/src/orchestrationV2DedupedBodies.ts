@@ -33,7 +33,7 @@ const sameCheckpointFiles = Schema.toEquivalence(
 );
 
 /** For subagent items and for a repeated `subagent.updated`, whose `previous` was sent earlier. */
-export function dedupeSubagentBodies<T extends WithSubagentBodies>(
+function dedupeSubagentBodies<T extends WithSubagentBodies>(
   value: T,
   previous: SubagentBodies | undefined,
 ): T {
@@ -68,7 +68,7 @@ export function restoreSubagentBodies<T extends WithSubagentBodies>(
   } as T;
 }
 
-export function dedupeTurnItemBodies(
+function dedupeTurnItemBodies(
   item: OrchestrationV2TurnItem,
   source: DedupedBodySource,
 ): OrchestrationV2TurnItem {
@@ -91,7 +91,7 @@ export function dedupeTurnItemBodies(
   }
 }
 
-export function restoreTurnItemBodies(
+function restoreTurnItemBodies(
   item: OrchestrationV2TurnItem,
   source: DedupedBodySource,
 ): OrchestrationV2TurnItem {

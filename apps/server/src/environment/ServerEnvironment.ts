@@ -1,7 +1,6 @@
 import {
   EnvironmentId,
   ORCHESTRATION_PROTOCOL_VERSION,
-  PROVIDER_SEND_TURN_MAX_FILE_BYTES,
   type ExecutionEnvironmentDescriptor,
 } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
@@ -15,9 +14,6 @@ import * as Schema from "effect/Schema";
 
 import packageJson from "../../package.json" with { type: "json" };
 
-import { resolveServerInstallation } from "../cli/invocation.ts";
-import { resolveServerSelfUpdateCapability } from "../cloud/selfUpdate.ts";
-import { resolveServiceLauncherMode } from "../cloud/serviceLauncherClient.ts";
 import * as ServerConfig from "../config.ts";
 import * as ProcessRunner from "../processRunner.ts";
 import { resolveServerEnvironmentLabel } from "./ServerEnvironmentLabel.ts";
@@ -191,17 +187,6 @@ export const make = Effect.gen(function* () {
   const cwdBaseName = path.basename(serverConfig.cwd).trim();
   const label = yield* resolveServerEnvironmentLabel({ cwdBaseName });
   const machine = yield* detectServerEnvironmentMachineKind();
-  const launcher = yield* resolveServiceLauncherMode();
-  const serverSelfUpdate = resolveServerSelfUpdateCapability({
-    desktopManaged: serverConfig.mode === "desktop",
-    launcherManaged: launcher.managed,
-  });
-  const serverInstallation = serverSelfUpdate === null ? yield* resolveServerInstallation : null;
-  // Desktop and server ship together; a control fd guarantees requestDesktopUpdate support.
-
-  const desktopAppUpdate =
-    serverSelfUpdate === "desktop-managed" && serverConfig.desktopTelemetryControlFd !== undefined;
-
   const descriptor: ExecutionEnvironmentDescriptor = {
     environmentId,
     label,
@@ -212,52 +197,7 @@ export const make = Effect.gen(function* () {
     },
     serverVersion: packageJson.version,
     orchestrationProtocolVersion: ORCHESTRATION_PROTOCOL_VERSION,
-    capabilities: {
-      repositoryIdentity: true,
-      connectionProbe: true,
-      attachmentUploads: true,
-      questionAttachments: true,
-      fileAttachments: { maxUploadBytes: PROVIDER_SEND_TURN_MAX_FILE_BYTES },
-
-      inlineMessageContext: true,
-      requiredWorktreeBootstrap: true,
-      threadSettlement: true,
-
-      storageCleanup: true,
-      storageCleanupRun: true,
-      databaseStorage: true,
-      otlpEndpointCheck: true,
-
-      worktreesDirectory: true,
-
-      threadRestartContinuation: true,
-      projectSettingsOverrides: true,
-      projectProviderInstanceOverrides: true,
-      threadSnooze: true,
-      environmentThemes: true,
-      usageLimitSources: true,
-      usagePriceOverrides: true,
-      usageModelAliases: true,
-      threadPinning: true,
-      threadPinReorder: true,
-      threadActiveReorder: true,
-
-      threadTitleRegeneration: true,
-      commandOutputStreaming: true,
-      threadVisitedTracking: true,
-
-      serverResolvedCommandContext: true,
-      threadStop: true,
-      environmentIcon: true,
-      projectCloneTracking: true,
-      ignoredFileListing: true,
-      ...(serverSelfUpdate === null ? {} : { serverSelfUpdate }),
-      ...(serverInstallation === null ? {} : { serverInstallation }),
-      ...(serverSelfUpdate === "boot-service" || desktopAppUpdate
-        ? { serverSelfUpdateProgress: true }
-        : {}),
-      ...(desktopAppUpdate ? { desktopAppUpdate: true } : {}),
-    },
+    capabilities: { repositoryIdentity: false },
   };
 
   return ServerEnvironment.of({

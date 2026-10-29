@@ -47,7 +47,7 @@ export type AcpRegistryDistribution = typeof AcpRegistryDistribution.Type;
 export const AcpRegistryIntegrity = Schema.Literals(["sha256", "registry"]);
 export type AcpRegistryIntegrity = typeof AcpRegistryIntegrity.Type;
 
-export const ACP_REGISTRY_MAX_AGENTS = 512;
+const ACP_REGISTRY_MAX_AGENTS = 512;
 
 export const AcpRegistrySearchInput = Schema.Struct({
   query: TrimmedString.check(Schema.isMaxLength(120)),

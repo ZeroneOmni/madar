@@ -27,14 +27,7 @@ const decodeManifest = Schema.decodeUnknownSync(Schema.fromJsonString(PackageMan
 
 describe("shouldBundleCliDependency", () => {
   it("leaves native addons and their dlopen wrappers external", () => {
-    for (const id of [
-      "ffi-rs",
-      "@yuuang/ffi-rs-win32-x64-msvc",
-      "@ff-labs/fff-node",
-      "@napi-rs/keyring",
-      "@clerk/electron-passkeys",
-      "node-addon-api",
-    ]) {
+    for (const id of ["@napi-rs/keyring", "@clerk/electron-passkeys", "node-addon-api"]) {
       assert.strictEqual(shouldBundleCliDependency(id), false, id);
     }
   });

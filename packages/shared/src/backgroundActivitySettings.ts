@@ -60,13 +60,13 @@ const PRESET_SETTINGS: Record<BackgroundActivityProfile, ResolvedBackgroundActiv
   },
 };
 
-export function getBackgroundActivityPresetSettings(
+function getBackgroundActivityPresetSettings(
   profile: BackgroundActivityProfile,
 ): ResolvedBackgroundActivitySettings {
   return PRESET_SETTINGS[profile];
 }
 
-export function getBackgroundActivityBaseProfile(
+function getBackgroundActivityBaseProfile(
   backgroundActivity: BackgroundActivitySettings,
 ): BackgroundActivityProfile {
   if (backgroundActivity.profile === "custom") {
@@ -75,7 +75,7 @@ export function getBackgroundActivityBaseProfile(
   return backgroundActivity.profile;
 }
 
-export function resolveBackgroundActivitySettings(
+function resolveBackgroundActivitySettings(
   backgroundActivity: BackgroundActivitySettings,
 ): ResolvedBackgroundActivitySettings {
   const baseProfile = getBackgroundActivityBaseProfile(backgroundActivity);
@@ -120,7 +120,7 @@ function resolvedSettingsEqual(
   );
 }
 
-export function normalizeBackgroundActivitySettings(
+function normalizeBackgroundActivitySettings(
   backgroundActivity: BackgroundActivitySettings,
 ): BackgroundActivitySettings {
   if (backgroundActivity.profile !== "custom") {
@@ -194,7 +194,7 @@ export function normalizeBackgroundActivitySettings(
   };
 }
 
-export function resolveServerBackgroundActivitySettings(
+function resolveServerBackgroundActivitySettings(
   settings: ServerSettings,
 ): ResolvedBackgroundActivitySettings {
   const defaultBackgroundActivity: BackgroundActivitySettings = {
@@ -245,26 +245,4 @@ export function resolveServerBackgroundActivitySettings(
     });
   }
   return resolveBackgroundActivitySettings(settings.backgroundActivity);
-}
-
-export function normalizeServerBackgroundActivitySettings(
-  settings: ServerSettings,
-): BackgroundActivitySettings {
-  const resolved = resolveServerBackgroundActivitySettings(settings);
-  return normalizeBackgroundActivitySettings({
-    schemaVersion: 1,
-    profile: "custom",
-    baseProfile: resolved.profile,
-    overrides: {
-      automaticGitFetchInterval: resolved.automaticGitFetchInterval,
-      providerHealthRefreshInterval: resolved.providerHealthRefreshInterval,
-      hostPowerMonitorActiveInterval: resolved.hostPowerMonitorActiveInterval,
-      hostPowerMonitorIdleInterval: resolved.hostPowerMonitorIdleInterval,
-      idleClientTtl: resolved.idleClientTtl,
-      pauseWhenHostLocked: resolved.pauseWhenHostLocked,
-      pauseWhenHostLowPower: resolved.pauseWhenHostLowPower,
-      pauseWhenClientLowPower: resolved.pauseWhenClientLowPower,
-      pauseWhenOnBattery: resolved.pauseWhenOnBattery,
-    },
-  });
 }

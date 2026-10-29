@@ -3,7 +3,6 @@ import * as Predicate from "effect/Predicate";
 const MCP_APP_RESOURCE_SCHEME = "ui://";
 export const MCP_APP_OUTPUT_KEY = "t3McpApp";
 
-export const MCP_APP_MAX_HTML_BYTES = 5 * 1024 * 1024;
 const MAX_DOMAINS = 32;
 const MAX_DOMAIN_LENGTH = 256;
 const MAX_NAME_LENGTH = 256;

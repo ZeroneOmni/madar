@@ -96,11 +96,6 @@ export function parseAssistantCitationHref(href: string): AssistantCitation | nu
   }
 }
 
-export function assistantCitationLabel(citation: AssistantCitation): string {
-  const preview = (citation.comment?.trim() || citation.text).replace(/\s+/g, " ");
-  return preview.length > 64 ? `${preview.slice(0, 64)}…` : preview;
-}
-
 export function serializeAssistantCitation(citation: AssistantCitation): string {
   return `[Assistant quote](${formatAssistantCitationHref(citation)})`;
 }

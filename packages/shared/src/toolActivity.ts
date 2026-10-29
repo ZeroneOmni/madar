@@ -28,12 +28,6 @@ function isJavaScriptReplTool(toolName: string | null | undefined): boolean {
   return toolName === "js" || toolName === "cua_repl.js" || toolName === "node_repl.js";
 }
 
-export const COMPUTER_USE_TOOL_SOURCE = {
-  key: "computer-use",
-  name: "Computer Use",
-  kind: "computer",
-} as const;
-
 export function dynamicToolSurface(toolName: string | null | undefined, input: unknown) {
   if (toolName === "cua_repl.js") return "computer" as const;
   const code = asRecord(input)?.code;
@@ -42,27 +36,6 @@ export function dynamicToolSurface(toolName: string | null | undefined, input: u
     (/\bsky\s*\./u.test(code) || /["']@oai\/sky["']/u.test(code))
     ? ("computer" as const)
     : undefined;
-}
-
-export function dynamicToolTitle(
-  toolName: string | null | undefined,
-  input: unknown,
-  retainedTitle?: string | null,
-): string | undefined {
-  if (isJavaScriptReplTool(toolName)) {
-    const title = asTrimmedString(retainedTitle);
-    const meaningfulTitle =
-      title && title.toLowerCase() !== "js" && title.toLowerCase() !== toolName?.toLowerCase()
-        ? title
-        : undefined;
-    return (
-      asTrimmedString(asRecord(input)?.title) ??
-      meaningfulTitle ??
-      (dynamicToolSurface(toolName, input) === "computer" ? "Computer use" : "Run JavaScript")
-    );
-  }
-  const skill = claudeSkillInvocation(toolName, input);
-  return skill === undefined ? undefined : `Skill: ${skill.name}`;
 }
 
 function recordHasKeys(
@@ -358,9 +331,7 @@ function searchTargetName(value: string | undefined): string | undefined {
   return value.split(/[\\/]/u).findLast((part) => part.length > 0 && part !== ".");
 }
 
-export function formatSearchToolLabel(
-  data: Record<string, unknown> | undefined,
-): string | undefined {
+function formatSearchToolLabel(data: Record<string, unknown> | undefined): string | undefined {
   const input = searchInputRecord(data);
   const query = firstInputString(input, SEARCH_QUERY_KEYS);
   const glob = firstInputString(input, SEARCH_GLOB_KEYS);
@@ -383,7 +354,7 @@ export function formatSearchToolLabel(
   return undefined;
 }
 
-export function formatReadToolLabel(path: string, extraCount = 0): string {
+function formatReadToolLabel(path: string, extraCount = 0): string {
   const trimmed = path.trim();
   const suffix = extraCount > 0 ? ` +${extraCount} more` : "";
   if (!trimmed) {
@@ -403,66 +374,4 @@ export interface ToolActivityPresentationInput {
 export interface ToolActivityPresentation {
   readonly summary: string;
   readonly detail?: string | undefined;
-}
-
-export function deriveToolActivityPresentation(
-  input: ToolActivityPresentationInput,
-): ToolActivityPresentation {
-  const title = asTrimmedString(input.title);
-  const detail = stripTrailingExitCode(asTrimmedString(input.detail));
-  const fallbackSummary = asTrimmedString(input.fallbackSummary) ?? "Tool";
-  const data = asRecord(input.data);
-  const command = extractToolCommand(data, title);
-  const primaryPath = extractPrimaryPath(data);
-  const action = classifyToolActivity({
-    itemType: input.itemType,
-    title,
-    data,
-  });
-
-  if (action === "command") {
-    return {
-      summary: "Ran command",
-      ...(command ? { detail: command } : {}),
-    };
-  }
-
-  if (action === "read") {
-    if (primaryPath) {
-      return {
-        summary: formatReadToolLabel(primaryPath),
-      };
-    }
-    return {
-      summary: "Read file",
-    };
-  }
-
-  if (action === "file_change") {
-    return {
-      summary: "Changed files",
-      ...(primaryPath ? { detail: primaryPath } : {}),
-    };
-  }
-
-  if (action === "search") {
-    const searchLabel = formatSearchToolLabel(data);
-    if (searchLabel) {
-      return { summary: searchLabel };
-    }
-    return {
-      summary: "Searched files",
-    };
-  }
-
-  if (detail && !isEquivalent(detail, title) && !isEquivalent(detail, fallbackSummary)) {
-    return {
-      summary: title ?? fallbackSummary,
-      detail,
-    };
-  }
-
-  return {
-    summary: title ?? fallbackSummary,
-  };
 }

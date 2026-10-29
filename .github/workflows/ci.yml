@@ -338,42 +338,7 @@ jobs:
 
       - name: Test
         if: steps.changes.outputs.test_server != 'false'
-        env:
-          T3CODE_TRANSFER_BUDGET_REPORT_PATH: ${{ runner.temp }}/t3code-transfer-budget.md
-          T3CODE_TRANSFER_BUDGET_RESULT_PATH: ${{ runner.temp }}/thread-transfer-result.json
         run: vp run --filter t3 test --shard ${{ matrix.shard }}/${{ strategy.job-total }}
-
-      # integration/transferBudgetV2.integration.test.ts writes the report; exactly one shard
-      # produces these files. Gating the upload on their presence keeps a
-      # single `thread-transfer-results` artifact per run, which is the name
-      # thread-transfer-report.yml resolves.
-      - name: Detect transfer budget report
-        id: transfer_budget
-        if: always()
-        run: |
-          if test -f "${{ runner.temp }}/thread-transfer-result.json"; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish transfer budget report
-        if: always() && steps.transfer_budget.outputs.present == 'true'
-        run: |
-          if test -f "${{ runner.temp }}/t3code-transfer-budget.md"; then
-            tee -a "$GITHUB_STEP_SUMMARY" < "${{ runner.temp }}/t3code-transfer-budget.md"
-          else
-            echo "Transfer budget report was not produced." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
-      - name: Upload thread transfer result
-        if: always() && steps.transfer_budget.outputs.present == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: thread-transfer-results
-          path: ${{ runner.temp }}/thread-transfer-result.json
-          if-no-files-found: ignore
-          retention-days: 30
 
   # Split out of Check and Test: both paid ~7-9s to install a Rust toolchain
   # for checks that take under 3s, on the critical path of every PR.
@@ -460,12 +425,3 @@ jobs:
                 .value.result == "success"
                 or (.value.result == "skipped"
                   and (($renamed[.key] // [.key]) | all(.[]; $gates[.] == "false"))))' > /dev/null
-
-      # thread-transfer-report.yml reads this artifact after CI, so a run whose
-      # server tests ran must have produced it.
-      - name: Require transfer measurements
-        if: needs.test_server.result == 'success' && needs.changes.outputs.test_server != 'false'
-        uses: actions/download-artifact@v8
-        with:
-          name: thread-transfer-results
-          path: ${{ runner.temp }}/thread-transfer
