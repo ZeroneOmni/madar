@@ -5,7 +5,6 @@ import baseConfig from "../../vite.config.ts";
 import { loadRepoEnv } from "../../scripts/lib/public-config.ts";
 import rootPackageJson from "../../package.json" with { type: "json" };
 import packageJson from "./package.json" with { type: "json" };
-import { WeightedShardSequencer } from "./src/testUtils/weightedShardSequencer.ts";
 
 // NSIS install time tracks file count, not bytes.
 import {
@@ -79,7 +78,7 @@ export default mergeConfig(
     },
     pack: {
       // SEA embeds one entry; expose the history worker as a hidden subcommand.
-      entry: packExecutable ? ["src/bin.ts"] : ["src/bin.ts", "src/claude-history-worker.ts"],
+      entry: packExecutable ? ["src/bin.ts"] : ["src/bin.ts"],
       outDir: packExecutable ? "dist-exe" : "dist",
       sourcemap: !packExecutable,
       clean: true,
@@ -127,8 +126,7 @@ export default mergeConfig(
     test: {
       // Parallel sqlite/git/worktree/orchestration tests introduce load-sensitive flakes.
       fileParallelism: false,
-      sequence: { sequencer: WeightedShardSequencer },
-      setupFiles: ["./src/testUtils/gitConfig.setup.ts"],
+
       hookTimeout: 120_000,
       testTimeout: 120_000,
     },

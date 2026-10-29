@@ -549,6 +549,4 @@ class EnvironmentProjectsHttpApi extends HttpApiGroup.make("projects")
 
 export class EnvironmentHttpApi extends HttpApi.make("environment")
   .add(EnvironmentMetadataHttpApi)
-  .add(EnvironmentAuthHttpApi)
-  .add(EnvironmentOrchestrationHttpApi)
-  .add(EnvironmentProjectsHttpApi) {}
+  .add(EnvironmentAuthHttpApi) {}

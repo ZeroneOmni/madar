@@ -1,3 +1,4 @@
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -14,7 +15,7 @@ import {
   collectUint8StreamText,
   decodeUtf8,
   type CollectedUint8StreamText,
-} from "@t3tools/provider-core/server/collectStreamText";
+} from "./process/collectStreamText.ts";
 
 export interface ProcessRunInput {
   readonly command: string;
@@ -147,7 +148,24 @@ const DEFAULT_TIMEOUT = "60 seconds";
 const FORCE_KILL_AFTER = "1 second";
 const DEFAULT_MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 
-export { isWindowsCommandNotFound } from "@t3tools/provider-core/server/snapshotProbe";
+const WINDOWS_COMMAND_NOT_FOUND_PATTERNS = [
+  /is not recognized as an internal or external command/i,
+  /n.o . reconhecido como um comando interno/i,
+  /non . riconosciuto come comando interno o esterno/i,
+  /n.est pas reconnu en tant que commande interne/i,
+  /no se reconoce como un comando interno o externo/i,
+  /wird nicht als interner oder externer befehl/i,
+] as const;
+
+export const isWindowsCommandNotFound = Effect.fn("isWindowsCommandNotFound")(function* (
+  code: number | null,
+  stderr: string,
+) {
+  const platform = yield* HostProcess.Platform;
+  if (platform !== "win32") return false;
+  if (code === 9009) return true;
+  return WINDOWS_COMMAND_NOT_FOUND_PATTERNS.some((pattern) => pattern.test(stderr));
+});
 
 const collectText = Effect.fnUntraced(function* (input: {
   readonly command: string;

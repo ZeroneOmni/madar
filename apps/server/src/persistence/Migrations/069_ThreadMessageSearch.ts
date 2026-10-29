@@ -2,10 +2,7 @@ import * as Effect from "effect/Effect";
 import * as Predicate from "effect/Predicate";
 import * as SqlClient from "effect/sql/SqlClient";
 
-import {
-  indexedMessageCondition,
-  indexedMessageText,
-} from "../../orchestration-v2/messageSearchIndex.ts";
+import { indexedMessageCondition, indexedMessageText } from "../messageSearchIndex.ts";
 
 /**
  * Trigrams match 3+ character substrings without a scan, ignoring case and accents.
