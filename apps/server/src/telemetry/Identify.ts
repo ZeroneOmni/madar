@@ -11,7 +11,7 @@ import * as Schema from "effect/Schema";
 import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { hashTelemetryId } from "@t3tools/shared/telemetryId";
-import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
+
 import * as ServerConfig from "../config.ts";
 
 /**

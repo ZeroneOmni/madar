@@ -157,7 +157,7 @@ it.layer(NodeServices.layer)("telemetry identity", (it) => {
   it.effect("reads each provider account as an owner", () =>
     Effect.gen(function* () {
       const config = yield* ServerConfig.ServerConfig;
-      const secrets = yield* ServerSecretStore.ServerSecretStore;
+
       const path = yield* Path.Path;
       const homeDirectory = path.join(config.baseDir, "home");
       yield* writeHomeFile(

@@ -4,7 +4,7 @@ import type * as Option from "effect/Option";
 
 import type { RemoteEnvironmentAuthorization } from "../authorization/service.ts";
 import type { PreparedConnection } from "../connection/model.ts";
-import type { ManagedRelayDpopSigner } from "../relay/managedRelay.ts";
+import type { ManagedRelayDpopSigner } from "../authorization/dpop.ts";
 import {
   executeAuthenticatedEnvironmentHttpRequest,
   withOrchestrationProtocolHeader,

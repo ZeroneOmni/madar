@@ -62,16 +62,6 @@ export function readHtmlRenderReference(value: unknown): HtmlRenderReference | u
   };
 }
 
-export function htmlRenderFileName(title: string) {
-  const name = title
-    .replace(/[\\/:*?"<>|\p{Cc}]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120)
-    .trim();
-  return `${name || "Page"}.html`;
-}
-
 function clampHtmlRenderHeight(height: number): number {
   return Math.min(HTML_RENDER_MAX_HEIGHT, Math.max(HTML_RENDER_MIN_HEIGHT, Math.round(height)));
 }

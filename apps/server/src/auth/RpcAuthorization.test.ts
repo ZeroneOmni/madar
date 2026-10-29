@@ -7,7 +7,6 @@ import {
   DEFAULT_SERVER_SETTINGS,
   ProviderInstanceId,
   ThreadId,
-  AuthOrchestrationOperateScope,
   AuthOrchestrationReadScope,
   WS_METHODS,
   WsRpcGroup,

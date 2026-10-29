@@ -17,8 +17,6 @@ import {
   AuthDiagnosticsReadScope,
   AuthOrchestrationOperateScope,
   AuthOrchestrationReadScope,
-  AuthRelayReadScope,
-  AuthRelayWriteScope,
   ORCHESTRATION_V2_WS_METHODS,
   type AuthEnvironmentScope,
   EnvironmentAuthorizationError,

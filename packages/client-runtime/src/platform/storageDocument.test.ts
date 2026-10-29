@@ -56,7 +56,6 @@ const REMOTE_TOKEN = new TokenStore.RemoteDpopAccessToken({
   endpoint: {
     httpBaseUrl: "https://remote.example.test",
     wsBaseUrl: "wss://remote.example.test",
-    providerKind: "cloudflare_tunnel",
   },
   accessToken: "dpop-token",
   expiresAtEpochMs: 1_000_000,
@@ -217,6 +216,7 @@ describe("ConnectionCatalogDocument", () => {
       target: {
         alias: "devbox",
         hostname: "devbox.example.test",
+
         username: "developer",
         port: 22,
       },

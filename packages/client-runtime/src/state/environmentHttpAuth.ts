@@ -10,7 +10,7 @@ import { FetchHttpClient, type HttpMethod } from "effect/http";
 
 import type { RemoteEnvironmentAuthorization } from "../authorization/service.ts";
 import type { PreparedConnection, PreparedHttpAuthorization } from "../connection/model.ts";
-import type { ManagedRelayDpopSigner } from "../relay/managedRelay.ts";
+import type { ManagedRelayDpopSigner } from "../authorization/dpop.ts";
 import {
   executeEnvironmentHttpRequest,
   makeEnvironmentHttpApiGroupClient,
@@ -133,84 +133,27 @@ const executeEnvironmentRequest = Effect.fnUntraced(function* <
   RemoteEnvironmentRequestError,
   Effect.Services<ReturnType<typeof makeEnvironmentHttpApiGroupClient<Group>>> | R
 > {
-  let httpBaseUrl = input.prepared.httpBaseUrl;
+  const httpBaseUrl = input.prepared.httpBaseUrl;
   const requestUrlFor = (baseUrl: string) =>
     input.url(makeEnvironmentHttpApiUrlBuilder(baseUrl)[input.group]);
   return yield* Effect.gen(function* () {
-    let rejectedAccessToken: string | undefined;
-    for (;;) {
-      let authorization = input.prepared.httpAuthorization;
-      if (authorization?._tag === "Dpop") {
-        const remote = input.remoteAuthorization;
-        if (remote === undefined || Option.isNone(remote)) {
-          return yield* new RemoteEnvironmentAuthFetchError({
-            message: "No relay authorization service is available for the environment request.",
-            cause: input.prepared.target._tag,
-          });
-        }
-        const current = yield* remote.value
-          .authorizeDpopHttp({
-            expectedEnvironmentId: input.prepared.environmentId,
-            ...(rejectedAccessToken === undefined ? {} : { rejectedAccessToken }),
-          })
-          .pipe(
-            Effect.mapError(
-              (cause) =>
-                new RemoteEnvironmentAuthFetchError({
-                  message: "Could not authorize the environment request.",
-                  cause,
-                }),
-            ),
-          );
-        // A learned direct route keeps its own origin; only the token renews.
-        if (input.prepared.target._tag === "RelayConnectionTarget") {
-          httpBaseUrl = current.httpBaseUrl;
-        }
-        authorization = current.httpAuthorization;
-      }
+    const authorization = input.prepared.httpAuthorization;
+    const requestUrl = requestUrlFor(httpBaseUrl);
+    const client = yield* makeEnvironmentHttpApiGroupClient(httpBaseUrl, input.group);
+    const headers = yield* buildEnvironmentAuthHeaders(
+      authorization,
+      input.method,
+      requestUrl,
+      input.signer,
+    );
+    const result = yield* executeEnvironmentHttpRequest(
+      requestUrl,
+      input.timeoutMs,
+      withEnvironmentCredentials(authorization, input.request({ client, headers })),
+    ).pipe(Effect.result);
 
-      const requestUrl = requestUrlFor(httpBaseUrl);
-      const client = yield* makeEnvironmentHttpApiGroupClient(httpBaseUrl, input.group);
-      const headers = yield* buildEnvironmentAuthHeaders(
-        authorization,
-        input.method,
-        requestUrl,
-        input.signer,
-      );
-      const result = yield* executeEnvironmentHttpRequest(
-        requestUrl,
-        input.timeoutMs,
-        withEnvironmentCredentials(authorization, input.request({ client, headers })),
-      ).pipe(Effect.result);
-
-      if (Result.isFailure(result)) {
-        if (
-          authorization?._tag === "Dpop" &&
-          rejectedAccessToken === undefined &&
-          result.failure._tag === "EnvironmentAuthInvalidError" &&
-          result.failure.reason === "invalid_credential"
-        ) {
-          rejectedAccessToken = authorization.accessToken;
-          continue;
-        }
-        return yield* result.failure;
-      }
-
-      if (
-        authorization?._tag === "Dpop" &&
-        input.isUnauthorizedResponse?.(result.success) === true
-      ) {
-        if (rejectedAccessToken === undefined) {
-          rejectedAccessToken = authorization.accessToken;
-          continue;
-        }
-        return yield* new RemoteEnvironmentAuthFetchError({
-          message: "The environment rejected the renewed session authorization.",
-          cause: result.success,
-        });
-      }
-      return result.success;
-    }
+    if (Result.isFailure(result)) return yield* result.failure;
+    return result.success;
   }).pipe(
     Effect.timeoutOrElse({
       duration: input.timeoutMs,

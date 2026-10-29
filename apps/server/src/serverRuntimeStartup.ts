@@ -32,7 +32,7 @@ import * as Keybindings from "./keybindings.ts";
 import * as ExternalLauncher from "./process/externalLauncher.ts";
 import * as EffectWorker from "./orchestration-v2/EffectWorker.ts";
 import * as LegacyV1ThreadImporter from "./orchestration-v2/legacy/LegacyV1ThreadImporter.ts";
-import * as Orchestrator from "./orchestration-v2/Orchestrator.ts";
+
 import * as ProviderRuntimeRecovery from "./orchestration-v2/ProviderRuntimeRecoveryService.ts";
 import * as ProviderSessionManager from "./orchestration-v2/ProviderSessionManager.ts";
 import * as ThreadLaunch from "./orchestration-v2/ThreadLaunchService.ts";
@@ -416,7 +416,7 @@ const make = Effect.fn("serverRuntimeStartup.make")(function* (options?: Startup
   const keybindings = yield* Keybindings.Keybindings;
   const legacyV1ThreadImporter = yield* LegacyV1ThreadImporter.LegacyV1ThreadImporter;
   const providerRuntimeRecovery = yield* ProviderRuntimeRecovery.ProviderRuntimeRecoveryService;
-  const orchestrator = yield* Orchestrator.OrchestratorV2;
+
   const providerSessions = yield* ProviderSessionManager.ProviderSessionManagerV2;
   const lifecycleEvents = yield* ServerLifecycleEvents.ServerLifecycleEvents;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
@@ -679,5 +679,3 @@ const make = Effect.fn("serverRuntimeStartup.make")(function* (options?: Startup
 
 export const layerWithOptions = (options?: StartupOptions) =>
   Layer.effect(ServerRuntimeStartup, make(options));
-
-const layer = layerWithOptions();
