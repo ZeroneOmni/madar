@@ -11,6 +11,20 @@ import * as SqlClient from "effect/sql/SqlClient";
 
 import * as SqlitePersistence from "./Sqlite.ts";
 
+it.effect("initializes only the local authentication schema", () =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const tables = yield* sql<{ readonly name: string }>`
+      SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+      ORDER BY name
+    `;
+    assert.deepEqual(
+      tables.map((table) => table.name),
+      ["auth_pairing_links", "auth_sessions", "effect_sql_migrations"],
+    );
+  }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
+);
+
 it.effect("drops planner statistics a database already has", () => {
   const tempDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-sqlite-stats-"));
   const dbPath = NodePath.join(tempDir, "state.sqlite");

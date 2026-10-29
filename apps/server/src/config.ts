@@ -129,7 +129,7 @@ export const deriveServerPaths = Effect.fn(function* (
     baseDir,
     devUrl !== undefined && !options.baseDirIsExplicit ? "dev" : "userdata",
   );
-  const dbPath = join(stateDir, "statev2.sqlite");
+  const dbPath = join(stateDir, "madar.sqlite");
   const attachmentsDir = join(stateDir, "attachments");
   const logsDir = join(stateDir, "logs");
   const providerLogsDir = join(logsDir, "provider");
