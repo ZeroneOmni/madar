@@ -145,7 +145,7 @@ it.effect.each(["startup", "shutdown"] as const)(
       for (const kind of ["buffered", "user", "notification", "delegated"] as const) {
         const threadId = yield* createThread(`wake:${trigger}:${kind}`);
         const buffered = kind === "buffered";
-        (buffered ? bufferedThreads : durableThreads).push(threadId);
+        (buffered || kind === "delegated" ? bufferedThreads : durableThreads).push(threadId);
         const messageId = MessageId.make(`message:${threadId}`);
         const runId = yield* createRun(threadId, "queued", {
           userMessageId: messageId,
@@ -192,7 +192,7 @@ it.effect.each(["startup", "shutdown"] as const)(
         new Set([...bufferedThreads, ...durableThreads]),
       );
       const summary = yield* recovery.reconcile(trigger);
-      assert.equal(summary.terminalizedRuns, 1);
+      assert.equal(summary.terminalizedRuns, 2);
       for (const threadId of bufferedThreads) {
         const projection = yield* projections.getThreadProjection(threadId);
         assert.equal(projection.runs[0]?.status, "cancelled");
