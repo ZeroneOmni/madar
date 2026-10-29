@@ -31,7 +31,7 @@ export class RemoteDpopAccessTokenStore extends Context.Service<
   }
 >()("@t3tools/client-runtime/authorization/tokenStore/RemoteDpopAccessTokenStore") {}
 
-export const make = (service: RemoteDpopAccessTokenStore["Service"]) =>
+const make = (service: RemoteDpopAccessTokenStore["Service"]) =>
   RemoteDpopAccessTokenStore.of(service);
 
 export const layer = (service: RemoteDpopAccessTokenStore["Service"]) =>

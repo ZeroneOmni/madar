@@ -1,6 +1,6 @@
 import { DEFAULT_HOSTED_APP_URL } from "./connectAuth.ts";
 
-export const PROMPT_LINK_MAX_PROMPT_LENGTH = 8_000;
+const PROMPT_LINK_MAX_PROMPT_LENGTH = 8_000;
 
 export interface PromptLinkRepository {
   readonly owner: string;
@@ -75,7 +75,7 @@ function repositoryOf(owner: string, name: string): PromptLinkRepository | null 
   return { owner, name: trimmedName };
 }
 
-export function parsePromptLinkRepository(value: string): PromptLinkRepository | null {
+function parsePromptLinkRepository(value: string): PromptLinkRepository | null {
   const trimmed = value.trim();
   const url = /^https?:\/\/(?:www\.)?github\.com\/([^/?#]+)\/([^/?#]+)\/?$/i.exec(trimmed);
   const short = /^([^/\s]+)\/([^/\s]+)$/.exec(trimmed);
@@ -95,10 +95,6 @@ function parsePromptLinkPullRequest(value: string): PromptLinkPullRequest | null
   return repository && Number.isSafeInteger(number) && number > 0
     ? { ...repository, number }
     : null;
-}
-
-export function promptLinkPullRequestUrl(pullRequest: PromptLinkPullRequest): string {
-  return `https://github.com/${pullRequest.owner}/${pullRequest.name}/pull/${pullRequest.number}`;
 }
 
 function readPrompt(params: URLSearchParams): PromptLinkResult<LinkedPrompt | null> {
@@ -201,10 +197,4 @@ export function promptLinkAppPath(
   if (url.pathname === "/new") return `/new${url.search}`;
   const thread = url.searchParams.has("prompt") ? THREAD_PATH.exec(url.pathname) : null;
   return thread ? `/${thread[1]}/${thread[2]}${url.search}` : null;
-}
-
-export function promptLinkDeepLink(appPath: string, scheme = "madar"): string {
-  const url = new URL(appPath, "https://app.invalid");
-  const host = url.pathname === "/new" ? "new" : `threads${url.pathname}`;
-  return `${scheme}://${host}${url.search}`;
 }

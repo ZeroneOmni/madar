@@ -26,7 +26,7 @@ export type ExecutionEnvironmentPlatformOs = typeof ExecutionEnvironmentPlatform
 export const ExecutionEnvironmentPlatformArch = Schema.Literals(["arm64", "x64", "other"]);
 export type ExecutionEnvironmentPlatformArch = typeof ExecutionEnvironmentPlatformArch.Type;
 
-export const ENVIRONMENT_MACHINE_KINDS = [
+const ENVIRONMENT_MACHINE_KINDS = [
   "server",
   "cloud",
   "linux",
@@ -37,7 +37,6 @@ export const ENVIRONMENT_MACHINE_KINDS = [
 ] as const;
 export const EnvironmentMachineKind = Schema.Literals(ENVIRONMENT_MACHINE_KINDS);
 export type EnvironmentMachineKind = typeof EnvironmentMachineKind.Type;
-export const isEnvironmentMachineKind = Schema.is(EnvironmentMachineKind);
 
 export const ExecutionEnvironmentPlatform = Schema.Struct({
   os: ExecutionEnvironmentPlatformOs,
@@ -172,16 +171,6 @@ export const RepositoryIdentity = Schema.Struct({
   origin: Schema.optionalKey(RepositoryOrigin),
 });
 export type RepositoryIdentity = typeof RepositoryIdentity.Type;
-
-export function repositoryGroupingKeyOf(identity: RepositoryIdentity): string {
-  return identity.origin?.canonicalKey ?? identity.canonicalKey;
-}
-
-export function repositoryGroupingDisplayNameOf(identity: RepositoryIdentity): string | undefined {
-  return identity.origin
-    ? (identity.origin.displayName ?? identity.origin.canonicalKey)
-    : identity.displayName;
-}
 
 export const ScopedProjectRef = Schema.Struct({
   environmentId: EnvironmentId,

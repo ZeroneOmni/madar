@@ -1,15 +1,10 @@
 import type { AssetResource, OrchestrationV2TurnItem } from "@t3tools/contracts";
 import { toolOutputImageBlocks, toolOutputImages } from "@t3tools/shared/toolOutput";
-import * as DateTime from "effect/DateTime";
 
 const MAX_TEXT_BLOCK_DEPTH = 4;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isSummarizedValue(value: unknown): boolean {
-  return isRecord(value) && value.truncated === true && typeof value.summary === "string";
 }
 
 function textFromBlocks(
@@ -78,69 +73,6 @@ function formatToolValue(value: unknown, hasImagePreview = false): string | null
   return json;
 }
 
-export function toolCallLines(input: {
-  readonly command?: string | undefined;
-  readonly args?: unknown;
-}): {
-  readonly command: string | null;
-  readonly args: ReadonlyArray<readonly [string, string]> | null;
-  readonly argsText: string | null;
-} {
-  if (input.command !== undefined) {
-    const command = input.command.trim();
-    return { command: command || null, args: null, argsText: null };
-  }
-  const args = input.args;
-  if (isRecord(args) && !isSummarizedValue(args)) {
-    const entries = Object.entries(args).flatMap(
-      ([key, value]): Array<readonly [string, string]> => {
-        if (value === undefined) return [];
-        // An empty string or null can be the point of a call (a clear or reset), so show it.
-        return [
-          [
-            key,
-            typeof value === "string" && value !== ""
-              ? value
-              : (JSON.stringify(value) ?? String(value)),
-          ],
-        ];
-      },
-    );
-    return { command: null, args: entries.length > 0 ? entries : null, argsText: null };
-  }
-  return { command: null, args: null, argsText: formatToolValue(args) };
-}
-
-function toolCallHasLines(lines: ReturnType<typeof toolCallLines>): boolean {
-  return lines.command !== null || lines.args !== null || lines.argsText !== null;
-}
-
-const LIVE_TURN_ITEM_STATUSES: ReadonlySet<OrchestrationV2TurnItem["status"]> = new Set([
-  "idle",
-  "pending",
-  "running",
-  "waiting",
-]);
-
-/**
- * A running item keeps one key, so an open row fetches once while it streams and
- * again when it finishes, not on every update.
- */
-export function turnItemDetailRevision(item: OrchestrationV2TurnItem): string {
-  return LIVE_TURN_ITEM_STATUSES.has(item.status) ? "live" : DateTime.formatIso(item.updatedAt);
-}
-
-export function turnItemNeedsDetailFetch(item: OrchestrationV2TurnItem): boolean {
-  switch (item.type) {
-    case "command_execution":
-      return item.outputOmitted === true;
-    case "dynamic_tool":
-      return item.outputOmitted === true || isSummarizedValue(item.input);
-    default:
-      return false;
-  }
-}
-
 function commandOutputText(output: string): string {
   if (!output.trimStart().startsWith('{"stdout"')) return output;
   const parsed = parseJson(output.trim());
@@ -207,47 +139,4 @@ export function turnItemOutputImages(
     itemId: item.id,
     index,
   }));
-}
-
-export function turnItemHasDetail(item: OrchestrationV2TurnItem): boolean {
-  switch (item.type) {
-    case "reasoning":
-      return item.text.trim().length > 0;
-    case "command_execution":
-      return (
-        toolCallLines({ command: item.input }).command !== null ||
-        item.outputOmitted === true ||
-        Boolean(item.output?.trim()) ||
-        (item.exitCode !== undefined && item.exitCode !== 0)
-      );
-    case "file_change":
-    case "checkpoint":
-    case "fork":
-    case "handoff":
-      return true;
-    case "file_search":
-      return (item.results?.length ?? 0) > 0 || Boolean(item.pattern?.trim());
-    case "web_search":
-      return (item.results?.length ?? 0) > 0 || (item.patterns?.length ?? 0) > 0;
-    case "dynamic_tool":
-      return item.outputOmitted === true || toolCallHasLines(toolCallLines({ args: item.input }));
-    case "approval_request":
-      return Boolean(item.prompt?.trim());
-    case "user_input_request":
-      return item.questions.length > 0;
-    case "notification":
-      return Boolean(item.detail?.trim());
-    case "system_notice":
-      return item.message.trim().length > 0;
-    case "error":
-      return item.failure.message.trim().length > 0;
-    case "proposed_plan":
-      return item.markdown.trim().length > 0;
-    case "todo_list":
-      return item.steps.length > 0;
-    case "subagent":
-      return item.childThreadId !== null;
-    default:
-      return false;
-  }
 }

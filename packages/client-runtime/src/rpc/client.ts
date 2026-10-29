@@ -35,7 +35,7 @@ export interface EnvironmentRpcRequestObservation {
   readonly method: string;
 }
 
-export class EnvironmentRpcRequestObserver extends Context.Reference<{
+class EnvironmentRpcRequestObserver extends Context.Reference<{
   readonly observe: (
     request: EnvironmentRpcRequestObservation,
   ) => Effect.Effect<Effect.Effect<void>>;
@@ -84,7 +84,7 @@ export interface EnvironmentRpcSubscriptionObservation {
   readonly input: unknown;
 }
 
-export class EnvironmentRpcSubscriptionObserver extends Context.Reference<{
+class EnvironmentRpcSubscriptionObserver extends Context.Reference<{
   readonly observe: (
     subscription: EnvironmentRpcSubscriptionObservation,
   ) => Effect.Effect<Effect.Effect<void>>;
@@ -138,13 +138,6 @@ const currentSession = Effect.fn("EnvironmentRpc.currentSession")(function* () {
     ),
   );
 });
-
-export const getInitialServerConfig = Effect.fn("EnvironmentRpc.getInitialServerConfig")(
-  function* () {
-    const session = yield* currentSession();
-    return yield* session.initialConfig;
-  },
-);
 
 /** Installed by the shared command boundary. A missing boundary denies protected writes. */
 export class RpcPermissionGuard extends Context.Reference<{
@@ -381,7 +374,7 @@ function subscribeDynamicMapped<TTag extends EnvironmentSubscriptionRpcTag, A>(
   );
 }
 
-export function subscribeDynamic<TTag extends EnvironmentSubscriptionRpcTag>(
+function subscribeDynamic<TTag extends EnvironmentSubscriptionRpcTag>(
   tag: TTag,
   makeInput: (session: RpcSession) => Effect.Effect<EnvironmentRpcInput<TTag>>,
   options?: SubscriptionOptions<TTag>,
@@ -422,11 +415,6 @@ export function subscribe<TTag extends EnvironmentSubscriptionRpcTag>(
 > {
   return subscribeDynamic(tag, () => Effect.succeed(input), options);
 }
-
-export const request = <TTag extends Exclude<EnvironmentUnaryRpcTag, ClientGuardedRpcTag>>(
-  tag: TTag,
-  input: EnvironmentRpcInput<TTag>,
-) => requestGuarded(tag, input);
 
 export const runStream = <
   TTag extends Exclude<EnvironmentStreamCommandRpcTag, ClientGuardedRpcTag>,

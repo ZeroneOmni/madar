@@ -77,44 +77,6 @@ export function decodeThirdPartyLicenseManifest(value: unknown): ThirdPartyLicen
   };
 }
 
-export function filterThirdPartyLicenseEntries(
-  entries: ReadonlyArray<ThirdPartyLicenseEntry>,
-  query: string,
-): ReadonlyArray<ThirdPartyLicenseEntry> {
-  const terms = query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((term) => term.length > 0);
-  if (terms.length === 0) return entries;
-  return entries.filter((entry) => {
-    const searchable = [entry.name, entry.version, entry.license, ...entry.bundles]
-      .filter((value): value is string => value !== null)
-      .join(" ")
-      .toLowerCase();
-    return terms.every((term) => searchable.includes(term));
-  });
-}
-
-const BUNDLE_LABELS: Readonly<Record<string, string>> = {
-  android: "Android",
-  assets: "Assets",
-  desktop: "Desktop",
-  "device-tools": "Device tools",
-  ios: "iOS",
-  mobile: "Mobile",
-  server: "Server",
-  web: "Web",
-};
-
-export function formatLicenseBundles(bundles: ReadonlyArray<string>): string {
-  return bundles
-    .map((bundle) =>
-      Object.prototype.hasOwnProperty.call(BUNDLE_LABELS, bundle) ? BUNDLE_LABELS[bundle] : bundle,
-    )
-    .join(", ");
-}
-
 export function thirdPartyLicenseEntryKey(entry: ThirdPartyLicenseEntry): string {
   return encodeURIComponent(JSON.stringify([entry.kind, entry.name, entry.version]));
 }

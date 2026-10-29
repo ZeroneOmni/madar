@@ -116,15 +116,6 @@ export function readMcpAppReference(value: unknown): McpAppReference | undefined
   };
 }
 
-export function mcpAppReferencesEqual(left: McpAppReference, right: McpAppReference): boolean {
-  return (
-    left.attachmentId === right.attachmentId &&
-    left.server === right.server &&
-    left.tool === right.tool &&
-    left.resourceUri === right.resourceUri
-  );
-}
-
 export function readMcpAppResourceUri(meta: unknown): string | undefined {
   if (!Predicate.isObject(meta)) return undefined;
   const nested = Predicate.isObject(meta.ui) ? meta.ui.resourceUri : undefined;

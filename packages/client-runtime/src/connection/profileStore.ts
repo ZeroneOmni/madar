@@ -15,6 +15,3 @@ export class ConnectionProfileStore extends Context.Service<
     readonly remove: (connectionId: string) => Effect.Effect<void, ConnectionAttemptError>;
   }
 >()("@t3tools/client-runtime/connection/profileStore/ConnectionProfileStore") {}
-
-export const make = (service: ConnectionProfileStore["Service"]) =>
-  ConnectionProfileStore.of(service);

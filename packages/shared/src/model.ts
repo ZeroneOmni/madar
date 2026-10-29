@@ -1,5 +1,4 @@
 import {
-  type CustomModelSetting,
   MODEL_SLUG_ALIASES_BY_PROVIDER,
   ModelCapabilities,
   type ModelSelection,
@@ -13,15 +12,6 @@ import * as Schema from "effect/Schema";
 import { copySorted } from "./Array.ts";
 
 const DEFAULT_PROVIDER_DRIVER_KIND = ProviderDriverKind.make("codex");
-
-export function modelSelectionCommandType(
-  currentInstanceId: ProviderInstanceId,
-  selection: ModelSelection,
-) {
-  return currentInstanceId === selection.instanceId
-    ? ("thread.model-selection.set" as const)
-    : ("provider.switch" as const);
-}
 
 export interface SelectableModelOption {
   slug: string;
@@ -114,20 +104,6 @@ export function modelSelectionsEqual(left: ModelSelection, right: ModelSelection
       ([id, value], index) => id === rightOptions[index]?.[0] && value === rightOptions[index]?.[1],
     )
   );
-}
-
-/**
- * Whether a composer's draft model pick is what the thread already runs. Web sends
- * `fastMode: false` for models with a fast toggle while mobile omits it, so off counts as unset.
- */
-export function draftModelPickMatchesThread(pick: ModelSelection, thread: ModelSelection): boolean {
-  const withoutFastModeOff = (selection: ModelSelection) =>
-    createModelSelection(
-      selection.instanceId,
-      selection.model,
-      selection.options?.filter((option) => option.id !== "fastMode" || option.value !== false),
-    );
-  return modelSelectionsEqual(withoutFastModeOff(pick), withoutFastModeOff(thread));
 }
 
 function resolveDescriptorChoiceValue(
@@ -227,17 +203,6 @@ function getReportedOptionValue(
   return getRawSelectionValueById(reportedSelection.options, id);
 }
 
-export function getProviderOptionStatedValue(
-  id: string,
-  selection?: ModelSelection | null,
-  reportedSelection?: ModelSelection | null,
-) {
-  return (
-    getRawSelectionValueById(selection?.options, id) ??
-    getReportedOptionValue(id, selection, reportedSelection)
-  );
-}
-
 export function getProviderOptionCurrentValue(
   descriptor: ProviderOptionDescriptor | null | undefined,
   selection?: ModelSelection | null,
@@ -319,32 +284,12 @@ export function buildExplicitProviderOptionSelectionsFromDescriptors(
   return normalized && normalized.length > 0 ? normalized : undefined;
 }
 
-export function isClaudeUltrathinkPrompt(text: string | null | undefined): boolean {
-  return typeof text === "string" && /\bultrathink\b/i.test(text);
-}
-
 export function codexModelFamily(slug: string): string {
   return slug.startsWith("openai.gpt-") ? slug.slice("openai.".length) : slug;
 }
 
 export function formatCodexModelName(name: string): string {
   return name.replace(/^gpt/i, "GPT").replace(/-([a-z])/g, (_, c) => "-" + c.toUpperCase());
-}
-
-export function formatModelSlugName(slug: string): string {
-  const separator = slug.lastIndexOf("/") + 1;
-  const prefix = slug.slice(0, separator);
-  const name = slug.slice(separator);
-  if (/^gpt-\d/i.test(name)) return prefix + formatCodexModelName(name);
-  if (!/^(claude-(opus|sonnet|haiku|fable)|gemini|grok|composer)-\d/i.test(name)) return slug;
-  return (
-    prefix +
-    name
-      .replace(/^(claude-[a-z]+-\d+)-(\d{1,2})(?=-|\[|$)/i, "$1.$2")
-      .split("-")
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" ")
-  );
 }
 
 export function normalizeModelSlug(
@@ -364,7 +309,7 @@ export function normalizeModelSlug(
 }
 
 /** Custom model identifiers are provider-owned, so only trim them; never expand aliases. */
-export function normalizeCustomModelSlug(model: string | null | undefined): string | null {
+function normalizeCustomModelSlug(model: string | null | undefined): string | null {
   if (typeof model !== "string") {
     return null;
   }
@@ -410,59 +355,6 @@ export function readCustomModelEntries(value: unknown): CustomModelDefinition[] 
     });
   }
   return entries;
-}
-
-export function toCustomModelSetting(entry: CustomModelDefinition): CustomModelSetting {
-  const descriptors = entry.capabilities?.optionDescriptors ?? [];
-  const name = entry.name !== entry.slug ? entry.name : undefined;
-  if (!name && descriptors.length === 0) return entry.slug;
-  return {
-    slug: entry.slug,
-    ...(name ? { name } : {}),
-    ...(descriptors.length > 0
-      ? { capabilities: createModelCapabilities({ optionDescriptors: descriptors }) }
-      : {}),
-  };
-}
-
-export function resolveSelectableModel(
-  provider: ProviderDriverKind,
-  value: string | null | undefined,
-  options: ReadonlyArray<SelectableModelOption>,
-): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const direct = options.find((option) => option.slug === trimmed);
-  if (direct) {
-    return direct.slug;
-  }
-
-  const byName = options.find((option) => option.name.toLowerCase() === trimmed.toLowerCase());
-  if (byName) {
-    return byName.slug;
-  }
-
-  const byAlias = options.find((option) =>
-    option.aliases?.some((alias) => alias.toLowerCase() === trimmed.toLowerCase()),
-  );
-  if (byAlias) {
-    return byAlias.slug;
-  }
-
-  const normalized = normalizeModelSlug(trimmed, provider);
-  if (!normalized) {
-    return null;
-  }
-
-  const resolved = options.find((option) => option.slug === normalized);
-  return resolved ? resolved.slug : null;
 }
 
 function trimOrNull<T extends string>(value: T | null | undefined): T | null {

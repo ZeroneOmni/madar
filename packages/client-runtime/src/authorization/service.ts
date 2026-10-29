@@ -31,7 +31,6 @@ import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
-import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Result from "effect/Result";
@@ -554,5 +553,3 @@ export const make = Effect.gen(function* () {
       ),
   });
 });
-
-export const layer = Layer.effect(RemoteEnvironmentAuthorization, make);

@@ -199,7 +199,7 @@ export function inlineCodeFilePathCandidate(codeText: string): string | null {
   return candidate;
 }
 
-export function safeDecodeURIComponent(value: string): string {
+function safeDecodeURIComponent(value: string): string {
   try {
     return decodeURIComponent(value);
   } catch {
@@ -207,12 +207,12 @@ export function safeDecodeURIComponent(value: string): string {
   }
 }
 
-export function normalizeMarkdownLinkDestination(value: string): string {
+function normalizeMarkdownLinkDestination(value: string): string {
   const trimmed = value.trim();
   return trimmed.startsWith("<") && trimmed.endsWith(">") ? trimmed.slice(1, -1) : trimmed;
 }
 
-export function splitMarkdownLinkSearchAndHash(value: string): {
+function splitMarkdownLinkSearchAndHash(value: string): {
   readonly path: string;
   readonly hash: string;
 } {
@@ -248,7 +248,7 @@ export function isMarkdownFileLinkLabel(label: string, href: string): boolean {
   return destinationPath === labelPath || destinationPath.endsWith(`/${labelPath}`);
 }
 
-export function isRelativeFilePath(path: string): boolean {
+function isRelativeFilePath(path: string): boolean {
   return (
     RELATIVE_PATH_PREFIX_PATTERN.test(path) ||
     (!path.startsWith("/") && !isWindowsAbsolutePath(path))

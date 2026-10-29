@@ -1,9 +1,7 @@
-import { MessageId, ProjectId, ThreadId } from "@t3tools/contracts";
 import { isMacPlatform } from "@t3tools/shared/keybindings";
 import { type CxOptions, cx } from "class-variance-authority";
 import * as Hex from "effect/encoding/Hex";
 import { extendTailwindMerge } from "tailwind-merge";
-import { DraftId } from "../composerDraftStore";
 
 // Register extra font sizes so tailwind-merge does not treat text-2xs as a color.
 const twMerge = extendTailwindMerge({ extend: { theme: { text: ["2xs", "3xs", "4xs", "5xs"] } } });
@@ -39,11 +37,3 @@ export function randomUUID(): string {
   const hex = Hex.encode(bytes);
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
-
-export const newProjectId = (): ProjectId => ProjectId.make(randomUUID());
-
-export const newThreadId = (): ThreadId => ThreadId.make(randomUUID());
-
-export const newDraftId = (): DraftId => DraftId.make(randomUUID());
-
-export const newMessageId = (): MessageId => MessageId.make(randomUUID());

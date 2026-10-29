@@ -458,7 +458,7 @@ function defaultRepositorySelector(
   return identity.owner && identity.name ? `${identity.owner}/${identity.name}` : null;
 }
 
-export const UNKNOWN_SOURCE_CONTROL_CLIENT: SourceControlDefinition = {
+const UNKNOWN_SOURCE_CONTROL_CLIENT: SourceControlDefinition = {
   kind: SourceControlProviderKind.make("unknown"),
   label: "source control",
   pickerLabel: "source control",
