@@ -1,5 +1,4 @@
 import type { ServerConfig } from "@t3tools/contracts";
-import * as Option from "effect/Option";
 
 import type { ConnectionCatalogEntry } from "./catalog.ts";
 import type { ConnectionTarget, SupervisorConnectionState } from "./model.ts";
@@ -64,36 +63,6 @@ export function presentConnectionState(
   }
 }
 
-export function connectionStatusText(connection: EnvironmentConnectionPresentation): string {
-  switch (connection.phase) {
-    case "available":
-      return "Available";
-    case "offline":
-      return "Offline";
-    case "connecting":
-      return "Connecting...";
-    case "reconnecting":
-      return connection.error
-        ? `Failed to connect. Reconnecting... Reason: ${connection.error}`
-        : "Reconnecting...";
-    case "connected":
-      return "Connected";
-    case "unsupported":
-      return "Client not supported";
-    case "error":
-      return connection.error
-        ? `Connection failed. Reason: ${connection.error}`
-        : "Connection failed";
-  }
-}
-
-export function connectionStatusTitle(connection: EnvironmentConnectionPresentation): string {
-  if (connection.phase === "reconnecting" && connection.error) {
-    return "Failed to connect. Reconnecting...";
-  }
-  return connectionStatusText({ ...connection, error: null });
-}
-
 export function presentEnvironmentConnection(
   state: SupervisorConnectionState,
 ): EnvironmentConnectionPresentation {
@@ -136,21 +105,4 @@ function mcpUrlFromBase(httpBaseUrl: string): string | null {
   url.search = "";
   url.hash = "";
   return url.toString();
-}
-
-export function connectionCatalogDisplayUrl(entry: ConnectionCatalogEntry): string | null {
-  switch (entry.target._tag) {
-    case "PrimaryConnectionTarget":
-      return entry.target.httpBaseUrl;
-    case "RelayConnectionTarget":
-      return null;
-    case "BearerConnectionTarget":
-      return Option.isSome(entry.profile) && entry.profile.value._tag === "BearerConnectionProfile"
-        ? entry.profile.value.httpBaseUrl
-        : null;
-    case "SshConnectionTarget":
-      return Option.isSome(entry.profile) && entry.profile.value._tag === "SshConnectionProfile"
-        ? `${entry.profile.value.target.username}@${entry.profile.value.target.hostname}`
-        : null;
-  }
 }

@@ -2,12 +2,7 @@ import type { QueryPersistence } from "./queryPersistence.ts";
 import { createCommandPermissions } from "./commandPermissions.ts";
 import { followStreamInEnvironment } from "./environmentStreams.ts";
 import { reuseUnchanged } from "./serverConfigProjection.ts";
-export { runStreamInEnvironment, followStreamInEnvironment } from "./environmentStreams.ts";
-import {
-  type ClientGuardedRpcTag,
-  EnvironmentId,
-  type EnvironmentId as EnvironmentIdType,
-} from "@t3tools/contracts";
+import { EnvironmentId, type EnvironmentId as EnvironmentIdType } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -23,15 +18,10 @@ import {
   type EnvironmentRpcInput,
   type EnvironmentRpcSuccess,
   type EnvironmentRpcFailure,
-  type EnvironmentRpcStreamFailure,
-  type EnvironmentRpcStreamValue,
-  type EnvironmentSubscriptionRpcTag,
   type EnvironmentUnaryRpcTag,
   EnvironmentRpcUnavailableError,
-  request,
   requestGuarded,
   RpcPermissionGuard,
-  subscribe,
 } from "../rpc/client.ts";
 import * as EnvironmentSupervisor from "../connection/supervisor.ts";
 import type * as RpcSession from "../rpc/session.ts";
@@ -320,38 +310,7 @@ export const scheduleAtomCommandEffect =
     return result._tag === "Success" ? result.value : yield* Effect.failCause(result.cause);
   });
 
-export async function runAtomCommand<W, A, E>(
-  registry: AtomRegistry.AtomRegistry,
-  command: AtomCommand<W, A, E>,
-  input: W,
-  options: AtomCommandOptions = {},
-  reporter: AtomCommandReporter = console,
-): Promise<AtomCommandResult<A, E>> {
-  const result = await settleAtomCommandResult(() => command.run(registry, input));
-  reportAtomCommandResult(result, { ...options, label: options.label ?? command.label }, reporter);
-  return result;
-}
-
-export function mapAtomCommandResult<A, E, B>(
-  result: AtomCommandResult<A, E>,
-  map: (value: A) => B,
-): AtomCommandResult<B, E> {
-  return result._tag === "Success"
-    ? AsyncResult.success(map(result.value))
-    : AsyncResult.failure(result.cause);
-}
-
-export function isAtomCommandInterrupted(result: AtomCommandResult<unknown, unknown>): boolean {
-  return result._tag === "Failure" && Cause.hasInterruptsOnly(result.cause);
-}
-
-export function squashAtomCommandFailure(result: {
-  readonly cause: Cause.Cause<unknown>;
-}): unknown {
-  return Cause.squash(result.cause);
-}
-
-export async function settleAsyncResult<A, E>(
+async function settleAsyncResult<A, E>(
   execute: () => Promise<Exit.Exit<A, E>>,
 ): Promise<SettledAsyncResult<A, E>> {
   try {
@@ -361,7 +320,7 @@ export async function settleAsyncResult<A, E>(
   }
 }
 
-export async function executeAtomCommand<A, E>(
+async function executeAtomCommand<A, E>(
   execute: () => Promise<Exit.Exit<A, E>>,
   options: AtomCommandOptions = {},
   reporter: AtomCommandReporter = console,
@@ -435,7 +394,7 @@ export function createRuntimeCommand<R, ER, W, A, E>(
   };
 }
 
-export function reportAtomCommandResult(
+function reportAtomCommandResult(
   result: AtomCommandResult<unknown, unknown>,
   options: AtomCommandOptions = {},
   reporter: AtomCommandReporter = console,
@@ -454,17 +413,7 @@ export function reportAtomCommandResult(
   }
 }
 
-export async function settlePromise<A>(
-  execute: () => Promise<A>,
-): Promise<AtomCommandResult<A, never>> {
-  try {
-    return AsyncResult.success(await execute());
-  } catch (defect) {
-    return AsyncResult.failure(Cause.die(defect));
-  }
-}
-
-export function environmentRpcKey<Input>(target: {
+function environmentRpcKey<Input>(target: {
   readonly environmentId: EnvironmentIdType;
   readonly input: Input;
 }): string {
@@ -539,14 +488,6 @@ const refreshEveryUntilFinal =
       },
       { initialValueTarget: self },
     );
-
-/**
- * A query result's data alone. A refetch always publishes a new result (a new
- * timestamp, `waiting` on and off), while equal data keeps its identity, so a
- * reader of only this skips the refetches that changed nothing.
- */
-export const selectEnvironmentQueryData = <A, E>(result: AsyncResult.AsyncResult<A, E>): A | null =>
-  Option.getOrNull(AsyncResult.value(result));
 
 export function createEnvironmentQueryAtomFamily<R, ER, Input, A, E>(
   runtime: Atom.AtomRuntime<EnvironmentRegistry.EnvironmentRegistry | R, ER>,
@@ -729,7 +670,7 @@ export function createEnvironmentSubscriptionAtomFamily<R, ER, Input, A, E>(
     family(environmentRpcKey(target));
 }
 
-export function createEnvironmentCommand<R, ER, Input, A, E>(
+function createEnvironmentCommand<R, ER, Input, A, E>(
   runtime: Atom.AtomRuntime<EnvironmentRegistry.EnvironmentRegistry | R, ER>,
   options: EnvironmentCommandAtomOptions<
     Input,
@@ -747,93 +688,6 @@ export function createEnvironmentCommand<R, ER, Input, A, E>(
         target.environmentId,
         options.execute(target.input, registry, target.environmentId),
       ),
-  });
-}
-
-export function createEnvironmentRpcQueryAtomFamily<
-  R,
-  ER,
-  TTag extends Exclude<EnvironmentUnaryRpcTag, ClientGuardedRpcTag>,
->(
-  runtime: Atom.AtomRuntime<EnvironmentRegistry.EnvironmentRegistry | R, ER>,
-  options: {
-    readonly label: string;
-    readonly tag: TTag;
-    readonly execute?: (
-      input: EnvironmentRpcInput<TTag>,
-      emit: (value: EnvironmentRpcSuccess<TTag>) => Effect.Effect<void>,
-    ) => Effect.Effect<
-      EnvironmentRpcSuccess<TTag>,
-      EnvironmentRpcFailure<TTag> | EnvironmentRpcUnavailableError,
-      EnvironmentSupervisor.EnvironmentSupervisor | EnvironmentRegistry.EnvironmentRegistry
-    >;
-    readonly persistence?: QueryPersistence<EnvironmentRpcSuccess<TTag>>;
-    readonly staleTimeMs?: number;
-    readonly idleTtlMs?: number;
-    readonly refreshIntervalMs?: number;
-    readonly refreshTrigger?: (target: {
-      readonly environmentId: EnvironmentIdType;
-      readonly input: EnvironmentRpcInput<TTag>;
-    }) => Atom.Atom<unknown> | undefined;
-    readonly isFinal?: (value: EnvironmentRpcSuccess<TTag>) => boolean;
-  },
-) {
-  return createEnvironmentQueryAtomFamily(runtime, {
-    label: options.label,
-    ...(options.persistence === undefined ? {} : { persistence: options.persistence }),
-    ...(options.staleTimeMs === undefined ? {} : { staleTimeMs: options.staleTimeMs }),
-    ...(options.idleTtlMs === undefined ? {} : { idleTtlMs: options.idleTtlMs }),
-    ...(options.refreshIntervalMs === undefined
-      ? {}
-      : { refreshIntervalMs: options.refreshIntervalMs }),
-    ...(options.refreshTrigger === undefined ? {} : { refreshTrigger: options.refreshTrigger }),
-    ...(options.isFinal === undefined ? {} : { isFinal: options.isFinal }),
-    execute: (
-      input: EnvironmentRpcInput<TTag>,
-      emit: (value: EnvironmentRpcSuccess<TTag>) => Effect.Effect<void>,
-    ) => options.execute?.(input, emit) ?? request(options.tag, input),
-  });
-}
-
-export function createEnvironmentRpcSubscriptionAtomFamily<
-  R,
-  ER,
-  TTag extends EnvironmentSubscriptionRpcTag,
-  B = EnvironmentRpcStreamValue<TTag>,
->(
-  runtime: Atom.AtomRuntime<EnvironmentRegistry.EnvironmentRegistry | R, ER>,
-  options: {
-    readonly label: string;
-    readonly tag: TTag;
-    readonly idleTtlMs?: number;
-    readonly completeWhen?: (value: B) => boolean;
-    readonly transform?: (
-      stream: Stream.Stream<
-        EnvironmentRpcStreamValue<TTag>,
-        EnvironmentRpcStreamFailure<TTag>,
-        EnvironmentSupervisor.EnvironmentSupervisor | R
-      >,
-    ) => Stream.Stream<
-      B,
-      EnvironmentRpcStreamFailure<TTag>,
-      EnvironmentSupervisor.EnvironmentSupervisor | R
-    >;
-  },
-) {
-  return createEnvironmentSubscriptionAtomFamily(runtime, {
-    label: options.label,
-    ...(options.completeWhen === undefined ? {} : { completeWhen: options.completeWhen }),
-    ...(options.idleTtlMs === undefined ? {} : { idleTtlMs: options.idleTtlMs }),
-    subscribe: (input: EnvironmentRpcInput<TTag>) => {
-      const stream = subscribe(options.tag, input);
-      return options.transform === undefined
-        ? (stream as Stream.Stream<
-            B,
-            EnvironmentRpcStreamFailure<TTag>,
-            EnvironmentSupervisor.EnvironmentSupervisor | R
-          >)
-        : options.transform(stream);
-    },
   });
 }
 

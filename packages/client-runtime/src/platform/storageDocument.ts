@@ -40,7 +40,7 @@ export const EMPTY_CONNECTION_CATALOG_DOCUMENT: ConnectionCatalogDocument = Obje
   disabledEnvironmentIds: [],
 });
 
-export function replaceCatalogValue<A>(
+function replaceCatalogValue<A>(
   values: ReadonlyArray<A>,
   key: (value: A) => string,
   next: A,
@@ -49,7 +49,7 @@ export function replaceCatalogValue<A>(
   return [...values.filter((value) => key(value) !== nextKey), next];
 }
 
-export function removeCatalogValue<A>(
+function removeCatalogValue<A>(
   values: ReadonlyArray<A>,
   key: (value: A) => string,
   removedKey: string,

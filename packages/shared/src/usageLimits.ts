@@ -14,17 +14,6 @@ import {
 import * as DateTime from "effect/DateTime";
 
 const MINUTE = 60_000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
-
-export const CHATGPT_USAGE_URL = "https://chatgpt.com/#settings/Usage";
-export const CHATGPT_USAGE_LIMIT_CODE = "subscription_sharing_usage_limit_exceeded";
-/** A ChatGPT Business admin caps plan use in other apps; only the admin can raise it. */
-export const CHATGPT_WORKSPACE_USAGE_LIMIT_CODE =
-  "subscription_sharing_workplace_individual_usage_limit_exceeded";
-/** OpenAI's partner guidelines fix this wording; the user sends it to their admin themselves. */
-export const CHATGPT_WORKSPACE_ADMIN_REQUEST =
-  "I've reached the limit for using my ChatGPT plan in T3 Code. Could you increase our workspace's usage limits so I can continue?\n\nGo to admin.openai.com → Workspace → Usage limits. Thank you!";
 
 export function usesChatGptSharing(provider: ServerProvider | null | undefined): boolean {
   return provider?.auth.status === "authenticated" && provider.auth.subscriptionSharing === true;
@@ -47,15 +36,6 @@ export const CURSOR_USAGE_WINDOWS = [
     description: "Claude, GPT, and Gemini use this pool. Grok and Composer fall back here.",
   },
 ] as const;
-
-export function cursorUsageWindowDetails(id: string) {
-  return CURSOR_USAGE_WINDOWS.find((window) => window.id === id);
-}
-
-function cursorUsageWindowRank(id: string): number {
-  const rank = CURSOR_USAGE_WINDOWS.findIndex((window) => window.id === id);
-  return rank < 0 ? CURSOR_USAGE_WINDOWS.length : rank;
-}
 
 function providersWithLimits(providers: readonly ServerProvider[]): readonly ServerProvider[] {
   return providers.filter(
@@ -338,26 +318,6 @@ export interface LimitPool {
   readonly windows: readonly LimitPoolWindow[];
 }
 
-export function displayLimitWindows(pool: LimitPool) {
-  if (pool.driver === "antigravity") {
-    return [...pool.windows].sort(
-      (left, right) =>
-        Number(!left.id.startsWith("gemini-")) - Number(!right.id.startsWith("gemini-")) ||
-        left.id
-          .replace(/-(5h|weekly|quota)$/, "")
-          .localeCompare(right.id.replace(/-(5h|weekly|quota)$/, "")) ||
-        WINDOW_KIND_ORDER[left.kind] - WINDOW_KIND_ORDER[right.kind],
-    );
-  }
-  if (pool.driver !== "cursor") return pool.windows;
-  const hasAuto = pool.windows.some((window) => window.id === "autoPercentUsed");
-  const hasApi = pool.windows.some((window) => window.id === "apiPercentUsed");
-  const hasBothPools = hasAuto && hasApi;
-  return pool.windows
-    .filter((window) => !hasBothPools || window.id !== "totalPercentUsed")
-    .sort((left, right) => cursorUsageWindowRank(left.id) - cursorUsageWindowRank(right.id));
-}
-
 const WINDOW_KIND_ORDER: Record<ServerProviderUsageWindow["kind"], number> = {
   session: 0,
   weekly: 1,
@@ -510,7 +470,7 @@ function poolWindows(accounts: readonly LimitAccount[], now: number): readonly L
   return pools.sort((left, right) => WINDOW_KIND_ORDER[left.kind] - WINDOW_KIND_ORDER[right.kind]);
 }
 
-export function limitsNotice(limits: ServerProviderUsageLimits): string | null {
+function limitsNotice(limits: ServerProviderUsageLimits): string | null {
   if (limits.unavailable?.reason === "unsupported") {
     return limits.unavailable.message ?? "This account has no subscription limits.";
   }
@@ -518,10 +478,6 @@ export function limitsNotice(limits: ServerProviderUsageLimits): string | null {
     return limits.unavailable.message ?? "Could not read limits.";
   }
   return limits.windows.length === 0 ? "No limits reported." : null;
-}
-
-export function remainingPercent(window: ServerProviderUsageWindow): number {
-  return Math.round(100 - Math.max(0, Math.min(100, window.usedPercent)));
 }
 
 function resetMillis(window: ServerProviderUsageWindow): number | null {
@@ -561,34 +517,12 @@ function paceOfShares(usedPercent: number, elapsed: number): LimitPace {
   return "on";
 }
 
-export function formatDuration(ms: number): string {
-  const remaining = Math.max(0, ms);
-  const days = Math.floor(remaining / DAY);
-  const hours = Math.floor((remaining % DAY) / HOUR);
-  const minutes = Math.floor((remaining % HOUR) / MINUTE);
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
-}
-
-export function formatResetsIn(window: ServerProviderUsageWindow, now: number): string | null {
-  const resetsAt = resetMillis(window);
-  if (resetsAt === null) return null;
-  if (resetsAt <= now) return "resets now";
-  if (resetsAt - now < MINUTE) return "Resets momentarily";
-  return `resets in ${formatDuration(resetsAt - now)}`;
-}
-
-export const USAGE_LIMITS_COMMAND = {
+const USAGE_LIMITS_COMMAND = {
   name: "usage-limits",
   description: "Show this provider's usage limits",
 } satisfies ServerProviderSlashCommand;
 
-export function isUsageLimitsCommand(prompt: string): boolean {
-  return prompt.trim().toLowerCase() === "/usage-limits";
-}
-
-export function hasProviderUsageLimits(
+function hasProviderUsageLimits(
   driver: ServerProvider["driver"],
   providers: readonly ServerProvider[],
   sources: UsageLimitSourceSnapshots,

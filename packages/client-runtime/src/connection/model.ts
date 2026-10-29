@@ -181,22 +181,6 @@ export interface SupervisorConnectionState {
 
 export type ConnectionProjectionPhase = "disconnected" | "synchronizing" | "ready";
 
-export function connectionProjectionPhase(
-  state: SupervisorConnectionState,
-): ConnectionProjectionPhase {
-  switch (state.phase) {
-    case "connecting":
-      return "synchronizing";
-    case "connected":
-      return "ready";
-    case "available":
-    case "offline":
-    case "backoff":
-    case "blocked":
-      return "disconnected";
-  }
-}
-
 export const AVAILABLE_CONNECTION_STATE: SupervisorConnectionState = Object.freeze({
   desired: false,
   network: "unknown",

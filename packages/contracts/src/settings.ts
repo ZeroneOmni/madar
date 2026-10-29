@@ -72,8 +72,8 @@ export const SidebarProjectGroupingMode = Schema.Literals([
 ]);
 export type SidebarProjectGroupingMode = typeof SidebarProjectGroupingMode.Type;
 const DEFAULT_SIDEBAR_PROJECT_GROUPING_MODE: SidebarProjectGroupingMode = "repository";
-export const MIN_SIDEBAR_THREAD_PREVIEW_COUNT = 1;
-export const MAX_SIDEBAR_THREAD_PREVIEW_COUNT = 15;
+const MIN_SIDEBAR_THREAD_PREVIEW_COUNT = 1;
+const MAX_SIDEBAR_THREAD_PREVIEW_COUNT = 15;
 export const SidebarThreadPreviewCount = Schema.Int.check(
   Schema.isBetween({
     minimum: MIN_SIDEBAR_THREAD_PREVIEW_COUNT,
@@ -82,8 +82,8 @@ export const SidebarThreadPreviewCount = Schema.Int.check(
 );
 export type SidebarThreadPreviewCount = typeof SidebarThreadPreviewCount.Type;
 const DEFAULT_SIDEBAR_THREAD_PREVIEW_COUNT: SidebarThreadPreviewCount = 6;
-export const MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS = 1;
-export const MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS = 90;
+const MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS = 1;
+const MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS = 90;
 export const SidebarAutoSettleAfterDays = Schema.Number.check(
   Schema.isBetween({
     minimum: MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS,
@@ -92,8 +92,8 @@ export const SidebarAutoSettleAfterDays = Schema.Number.check(
 );
 export type SidebarAutoSettleAfterDays = typeof SidebarAutoSettleAfterDays.Type;
 const DEFAULT_SIDEBAR_AUTO_SETTLE_AFTER_DAYS: SidebarAutoSettleAfterDays = 3;
-export const MIN_GLASS_OPACITY = 40;
-export const MAX_GLASS_OPACITY = 100;
+const MIN_GLASS_OPACITY = 40;
+const MAX_GLASS_OPACITY = 100;
 export const GlassOpacity = Schema.Int.check(
   Schema.isBetween({
     minimum: MIN_GLASS_OPACITY,
@@ -103,15 +103,15 @@ export const GlassOpacity = Schema.Int.check(
 export type GlassOpacity = typeof GlassOpacity.Type;
 const DEFAULT_GLASS_OPACITY: GlassOpacity = 80;
 
-export const MIN_APPEARANCE_CONTRAST = 50;
-export const MAX_APPEARANCE_CONTRAST = 200;
+const MIN_APPEARANCE_CONTRAST = 50;
+const MAX_APPEARANCE_CONTRAST = 200;
 export const AppearanceContrast = Schema.Int.check(
   Schema.isBetween({ minimum: MIN_APPEARANCE_CONTRAST, maximum: MAX_APPEARANCE_CONTRAST }),
 );
 export type AppearanceContrast = typeof AppearanceContrast.Type;
 const DEFAULT_APPEARANCE_CONTRAST: AppearanceContrast = 100;
-export const MIN_PANEL_ANIMATION_DURATION_MS = 0;
-export const MAX_PANEL_ANIMATION_DURATION_MS = 400;
+const MIN_PANEL_ANIMATION_DURATION_MS = 0;
+const MAX_PANEL_ANIMATION_DURATION_MS = 400;
 export const PanelAnimationDurationMs = Schema.Int.check(
   Schema.isBetween({
     minimum: MIN_PANEL_ANIMATION_DURATION_MS,
@@ -145,8 +145,8 @@ export const CodeFontSize = Schema.Int.check(
 export type CodeFontSize = typeof CodeFontSize.Type;
 export const DEFAULT_CODE_FONT_SIZE: CodeFontSize = 13;
 
-export const MIN_TERMINAL_FONT_SIZE = 8;
-export const MAX_TERMINAL_FONT_SIZE = 20;
+const MIN_TERMINAL_FONT_SIZE = 8;
+const MAX_TERMINAL_FONT_SIZE = 20;
 export const TerminalFontSize = Schema.Int.check(
   Schema.isBetween({ minimum: MIN_TERMINAL_FONT_SIZE, maximum: MAX_TERMINAL_FONT_SIZE }),
 );
@@ -155,7 +155,7 @@ const DEFAULT_TERMINAL_FONT_SIZE: TerminalFontSize = 12;
 
 export const EnvironmentIdentificationMode = Schema.Literals(["artwork", "pill", "none"]);
 export type EnvironmentIdentificationMode = typeof EnvironmentIdentificationMode.Type;
-export const DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE: EnvironmentIdentificationMode = "artwork";
+const DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE: EnvironmentIdentificationMode = "artwork";
 
 export const SnapShotKeyChord = KeybindingShortcut.check(
   Schema.makeFilter(
@@ -517,7 +517,7 @@ export function secretSetting<S extends Schema.Top>(schema: S): S["Rebuild"] {
 }
 
 /** A masked form field is a credential too, so none is saved or sent to clients as plain text. */
-export function isSecretSetting(schema: Schema.Top): boolean {
+function isSecretSetting(schema: Schema.Top): boolean {
   const annotations = Schema.resolveAnnotationsKey(schema) ?? Schema.resolveAnnotations(schema);
   return (
     annotations?.settingsSecret === true ||
@@ -603,7 +603,7 @@ export type CodexSettings = typeof CodexSettings.Type;
 
 const CLAUDE_AUTO_COMPACT_WINDOW_PATTERN = /^(?:|[1-9]\d{5}|1000000)$/;
 
-export const IDLE_COMPACTION_MODES = [
+const IDLE_COMPACTION_MODES = [
   { value: "onReturn", label: "When you return" },
   { value: "beforeCacheExpires", label: "Before the cache expires (beta)" },
   { value: "off", label: "Never" },
@@ -694,7 +694,7 @@ export const ClaudeSettings = makeProviderSettingsSchema(
 );
 export type ClaudeSettings = typeof ClaudeSettings.Type;
 
-export const ANTIGRAVITY_AUTH_METHODS = [
+const ANTIGRAVITY_AUTH_METHODS = [
   { value: "oauth-personal", label: "Google account" },
   { value: "oauth-business", label: "Gemini Enterprise" },
   { value: "gemini-api-key", label: "Gemini API key" },
@@ -989,22 +989,6 @@ export const ProjectSettingsOverrides = Schema.Struct({
 } satisfies Record<ProjectScopedServerSettingKey | "providerInstances", unknown>);
 export type ProjectSettingsOverrides = typeof ProjectSettingsOverrides.Type;
 
-/** True if null stores an override; otherwise null removes it. */
-export function isNullableProjectSettingsOverride(key: ProjectScopedServerSettingKey): boolean {
-  return NULLABLE_PROJECT_SETTINGS_OVERRIDES.has(key);
-}
-const NULLABLE_PROJECT_SETTINGS_OVERRIDES: ReadonlySet<ProjectScopedServerSettingKey> = new Set<
-  {
-    [K in ProjectScopedServerSettingKey]: null extends ProjectSettingsOverrides[K] ? K : never;
-  }[ProjectScopedServerSettingKey]
->([
-  "defaultModelSelection",
-  "sourceControlWriterModelSelection",
-  "reviewGuideModelSelection",
-  "pullRequestMergeMethod",
-  "sidebarAutoSettleAfterDays",
-]);
-
 /** Reclaimable bytes from which the offline `t3 doctor` repair is worth suggesting. */
 export const DATABASE_COMPACTION_RECOMMENDED_BYTES = 1024 ** 3;
 
@@ -1018,13 +1002,6 @@ export const DatabaseStorageStatus = Schema.Struct({
   compactCommand: Schema.String,
 });
 export type DatabaseStorageStatus = typeof DatabaseStorageStatus.Type;
-
-export function shouldRecommendDatabaseCompaction(status: DatabaseStorageStatus): boolean {
-  return (
-    !status.incrementalVacuumEnabled &&
-    status.reclaimableBytes >= DATABASE_COMPACTION_RECOMMENDED_BYTES
-  );
-}
 
 export const StorageCleanupReportEntry = Schema.Struct({
   kind: Schema.Literals(["worktree", "browser-artifacts", "logs"]),
@@ -1310,7 +1287,7 @@ export const withIdleCompaction = <S extends IdleCompactionSettings>(
 ): S => ({ ...settings, idleCompaction: mode, compactIdleThreads: mode === "beforeCacheExpires" });
 
 /** Whether a server reads modes, rather than only the boolean switch from before them. */
-export const readsIdleCompactionModes = (settings: IdleCompactionSettings) =>
+const readsIdleCompactionModes = (settings: IdleCompactionSettings) =>
   settings.idleCompaction !== undefined || typeof settings.compactIdleThreads === "string";
 
 /**
@@ -1377,10 +1354,6 @@ export class ServerSettingsError extends Schema.TaggedError<ServerSettingsError>
 }
 
 export type UnifiedSettings = Omit<ServerSettings, keyof ModelPreferences> & ClientSettings;
-export const DEFAULT_UNIFIED_SETTINGS: UnifiedSettings = {
-  ...DEFAULT_SERVER_SETTINGS,
-  ...DEFAULT_CLIENT_SETTINGS,
-};
 
 const ModelSelectionPatch = Schema.Struct({
   instanceId: Schema.optionalKey(ProviderInstanceId),

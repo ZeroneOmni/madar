@@ -65,7 +65,7 @@ export function parseComposerContextHref(
   return { kind, contextId: contextId as ComposerContextId };
 }
 
-export function sanitizeComposerContextLabel(label: string, kind: ComposerContextKind): string {
+function sanitizeComposerContextLabel(label: string, kind: ComposerContextKind): string {
   const cleaned = label
     .replace(/[[\]\\\r\n]/g, " ")
     .replace(/\s+/g, " ")
@@ -114,9 +114,6 @@ export function collectComposerContextReferences(
   return occurrences;
 }
 
-export const ATTACHMENT_ONLY_BOOTSTRAP_PROMPT =
-  "[User attached one or more files without additional text. Respond using the conversation context and the attached files.]";
-
 export function isImageReferencesOnly(text: string): boolean {
   const references = collectComposerContextReferences(text);
   return (
@@ -126,7 +123,7 @@ export function isImageReferencesOnly(text: string): boolean {
   );
 }
 
-export function replaceComposerContextReferences(
+function replaceComposerContextReferences(
   text: string,
   replace: (occurrence: ComposerContextReferenceOccurrence) => string,
 ): string {

@@ -54,87 +54,8 @@ export const EVENT_CODE_SHORTCUT_KEYS: Readonly<Record<string, string>> = {
   Slash: "/",
 };
 
-export const US_SHIFTED_TO_UNSHIFTED_KEYS: ReadonlyMap<string, string> = new Map([
-  ["!", "1"],
-  ["@", "2"],
-  ["#", "3"],
-  ["$", "4"],
-  ["%", "5"],
-  ["^", "6"],
-  ["&", "7"],
-  ["*", "8"],
-  ["(", "9"],
-  [")", "0"],
-  ["~", "`"],
-  ["_", "-"],
-  ["+", "="],
-  ["{", "["],
-  ["}", "]"],
-  ["|", "\\"],
-  [":", ";"],
-  ['"', "'"],
-  ["<", ","],
-  [">", "."],
-  ["?", "/"],
-]);
-
 export function isMacPlatform(platform: string): boolean {
   return /mac|iphone|ipad|ipod/i.test(platform);
-}
-
-export function normalizeEventKey(key: string): string {
-  const normalized = key.toLowerCase();
-  if (normalized === "esc") return "escape";
-  return normalized;
-}
-
-export function shortcutKeyFromEvent(event: Pick<ShortcutEventLike, "key" | "code">): string {
-  const layoutKey = normalizeEventKey(event.key);
-  if (/^[a-z]$/.test(layoutKey)) return layoutKey;
-  const physicalKey = event.code ? EVENT_CODE_SHORTCUT_KEYS[event.code] : undefined;
-  return physicalKey ?? layoutKey;
-}
-
-export function resolveEventKeys(event: ShortcutEventLike): Set<string> {
-  const layoutKey = normalizeEventKey(event.key);
-  const keys = new Set([layoutKey]);
-  const letterCode = event.code?.match(/^Key([A-Z])$/)?.[1];
-  if (letterCode && !/^[a-z]$/.test(layoutKey)) {
-    keys.add(letterCode.toLowerCase());
-  }
-  keys.add(shortcutKeyFromEvent(event));
-  return keys;
-}
-
-export function matchesKeybindingShortcutModifiers(
-  event: ShortcutModifierStateLike,
-  shortcut: KeybindingShortcut,
-  platform: string,
-): boolean {
-  const useMetaForMod = isMacPlatform(platform);
-  const expectedMeta = shortcut.metaKey || (shortcut.modKey && useMetaForMod);
-  const expectedCtrl = shortcut.ctrlKey || (shortcut.modKey && !useMetaForMod);
-  return (
-    event.metaKey === expectedMeta &&
-    event.ctrlKey === expectedCtrl &&
-    event.shiftKey === shortcut.shiftKey &&
-    event.altKey === shortcut.altKey
-  );
-}
-
-export function matchesKeybindingShortcut(
-  event: ShortcutEventLike,
-  shortcut: KeybindingShortcut,
-  platform: string,
-): boolean {
-  if (
-    !isMacPlatform(platform) &&
-    event.getModifierState?.("AltGraph") &&
-    !/^[a-z0-9]$/i.test(event.key)
-  )
-    return false;
-  if (!matchesKeybindingShortcutModifiers(event, shortcut, platform)) return false;
-  return resolveEventKeys(event).has(shortcut.key);
 }
 
 type WhenToken =
@@ -145,7 +66,7 @@ type WhenToken =
   | { type: "lparen" }
   | { type: "rparen" };
 
-export function isSupportedKeybindingCommand(command: KeybindingCommand): boolean {
+function isSupportedKeybindingCommand(command: KeybindingCommand): boolean {
   return !/^(terminal|preview|pullRequest|script)\./.test(command) && command !== "diff.toggle";
 }
 
@@ -348,7 +269,7 @@ function tokenizeWhenExpression(expression: string): WhenToken[] | null {
   return tokens;
 }
 
-export function parseKeybindingWhenExpression(expression: string): KeybindingWhenNode | null {
+function parseKeybindingWhenExpression(expression: string): KeybindingWhenNode | null {
   const tokens = tokenizeWhenExpression(expression);
   if (!tokens || tokens.length === 0) return null;
   let index = 0;
@@ -467,7 +388,7 @@ export function compileResolvedKeybindingsConfig(
   return compiled.slice(-MAX_KEYBINDINGS_COUNT);
 }
 
-export const DEFAULT_RESOLVED_KEYBINDINGS = compileResolvedKeybindingsConfig(DEFAULT_KEYBINDINGS);
+const DEFAULT_RESOLVED_KEYBINDINGS = compileResolvedKeybindingsConfig(DEFAULT_KEYBINDINGS);
 
 export function mergeWithDefaultKeybindings(
   custom: ResolvedKeybindingsConfig,

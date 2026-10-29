@@ -1,88 +1,6 @@
 // @effect-diagnostics globalDate:off -- Usage windows are calendar days in the viewer's zone, derived from wall-clock "now" via Intl.
 import { UsageDay, type UsageResolution, type UsageSummaryInput } from "@t3tools/contracts";
 
-import type { UsageContractMismatch } from "./usageMerge.ts";
-
-const CURRENCY = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-const INTEGER = new Intl.NumberFormat("en-US");
-
-export function formatUsd(value: number): string {
-  return CURRENCY.format(value);
-}
-
-export function formatCount(value: number): string {
-  return INTEGER.format(Math.round(value));
-}
-
-export function formatTokens(value: number): string {
-  const abs = Math.abs(value);
-  if (abs >= 1e12) return `${trim(value / 1e12)}T`;
-  if (abs >= 1e9) return `${trim(value / 1e9)}B`;
-  if (abs >= 1e6) return `${trim(value / 1e6)}M`;
-  if (abs >= 1e3) return `${trim(value / 1e3)}K`;
-  return INTEGER.format(Math.round(value));
-}
-
-function trim(value: number): string {
-  const abs = Math.abs(value);
-  const digits = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
-  return value.toFixed(digits).replace(/\.0+$/, "");
-}
-
-export function formatPercent(share: number, digits = 1): string {
-  const percent = share * 100;
-  const smallest = 10 ** -digits;
-  if (percent > 0 && percent < smallest) return `<${smallest.toFixed(digits)}%`;
-  return `${percent.toFixed(digits)}%`;
-}
-
-export function formatUsageContractMismatch(
-  environmentLabel: string,
-  mismatch: Pick<UsageContractMismatch, "direction">,
-): string {
-  return mismatch.direction === "serverBehind"
-    ? `${environmentLabel} runs an older server version and is excluded from totals.`
-    : `This client is older than the server on ${environmentLabel}; its usage is excluded from totals.`;
-}
-
-export function formatDayShort(day: string): string {
-  const [year, month, dayOfMonth] = day.split("-").map((part) => Number(part));
-  if (year === undefined || month === undefined || dayOfMonth === undefined) return day;
-  const MONTHS = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  return `${MONTHS[month - 1] ?? ""} ${dayOfMonth}`;
-}
-
-export function enumerateDays(sinceDay: string, untilDay: string): readonly string[] {
-  const days: string[] = [];
-  const start = Date.parse(`${sinceDay}T00:00:00Z`);
-  const end = Date.parse(`${untilDay}T00:00:00Z`);
-  if (Number.isNaN(start) || Number.isNaN(end) || end < start) return days;
-
-  for (let cursor = start; cursor <= end; cursor += 86_400_000) {
-    days.push(new Date(cursor).toISOString().slice(0, 10));
-  }
-  return days;
-}
-
 const HOUR_MS = 60 * 60 * 1000;
 
 const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>();
@@ -100,18 +18,6 @@ function dateTimeFormatter(
     dateTimeFormatters.set(key, formatter);
   }
   return formatter;
-}
-
-export function enumerateHourStarts(sinceTime: string, untilTime: string): readonly string[] {
-  const starts: string[] = [];
-  const start = Date.parse(sinceTime);
-  const end = Date.parse(untilTime);
-  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return starts;
-
-  for (let cursor = start; cursor < end; cursor += HOUR_MS) {
-    starts.push(new Date(cursor).toISOString());
-  }
-  return starts;
 }
 
 function hourOptions(hour12: boolean): Intl.DateTimeFormatOptions {
@@ -159,46 +65,6 @@ export function formatHourShort(hourStart: string, timeZone?: string, hour12 = t
     timeZoneName: "short",
   });
   return formatHour(zonedHourFormat, instant, hour12);
-}
-
-export function formatDateTimeShort(instant: string, timeZone?: string, hour12 = true): string {
-  const date = new Date(instant);
-  if (Number.isNaN(date.getTime())) return instant;
-  const dateHourFormat = dateTimeFormatter("en-US", {
-    ...(timeZone === undefined ? {} : { timeZone }),
-    month: "short",
-    day: "numeric",
-    ...hourOptions(hour12),
-  });
-  return formatHour(dateHourFormat, date, hour12);
-}
-
-export function formatRelativeHourShort(
-  hourStart: string,
-  relativeTo: string,
-  timeZone?: string,
-  hour12 = true,
-): string {
-  const instant = new Date(hourStart);
-  const reference = new Date(relativeTo);
-  if (Number.isNaN(instant.getTime()) || Number.isNaN(reference.getTime())) {
-    return formatDateTimeShort(hourStart, timeZone, hour12);
-  }
-
-  const dayFormat = dateTimeFormatter("en-CA", {
-    ...(timeZone === undefined ? {} : { timeZone }),
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const instantDay = Date.parse(`${dayFormat.format(instant)}T00:00:00Z`);
-  const referenceDay = Date.parse(`${dayFormat.format(reference)}T00:00:00Z`);
-  const calendarDaysAgo = Math.round((referenceDay - instantDay) / (24 * HOUR_MS));
-  const hour = formatHourShort(hourStart, timeZone, hour12);
-
-  if (calendarDaysAgo === 0) return `${hour} today`;
-  if (calendarDaysAgo === 1) return `${hour} yesterday`;
-  return formatDateTimeShort(hourStart, timeZone, hour12);
 }
 
 export function makeWindow(

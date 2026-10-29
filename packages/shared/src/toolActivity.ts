@@ -14,7 +14,7 @@ function asTrimmedString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function claudeSkillInvocation(
+function claudeSkillInvocation(
   toolName: string | null | undefined,
   input: unknown,
 ): { readonly name: string; readonly args: string | undefined } | undefined {
@@ -24,7 +24,7 @@ export function claudeSkillInvocation(
   return name === undefined ? undefined : { name, args: asTrimmedString(record?.args) };
 }
 
-export function isJavaScriptReplTool(toolName: string | null | undefined): boolean {
+function isJavaScriptReplTool(toolName: string | null | undefined): boolean {
   return toolName === "js" || toolName === "cua_repl.js" || toolName === "node_repl.js";
 }
 
@@ -184,7 +184,7 @@ function collectPaths(value: unknown, paths: string[], seen: Set<string>, depth:
   }
 }
 
-export function collectToolFilePaths(data: unknown): string[] {
+function collectToolFilePaths(data: unknown): string[] {
   const paths: string[] = [];
   collectPaths(data, paths, new Set<string>(), 0);
   return paths;

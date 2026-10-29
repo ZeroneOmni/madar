@@ -32,31 +32,6 @@ export function projectScriptsInheritDefaults(
   return legacy === null || (legacy === undefined && project.scripts.length === 0);
 }
 
-interface ProjectScriptRuntimeEnvInput {
-  project: {
-    cwd: string;
-  };
-  worktreePath?: string | null;
-  extraEnv?: Record<string, string>;
-}
-
-export function projectScriptCwd(input: {
-  project: {
-    cwd: string;
-  };
-  worktreePath?: string | null;
-}): string {
-  return input.worktreePath ?? input.project.cwd;
-}
-
-export function setupProjectScript(scripts: readonly ProjectScript[]): ProjectScript | null {
-  return scripts.find((script) => script.runOnWorktreeCreate) ?? null;
-}
-
-export function settleProjectScript(scripts: readonly ProjectScript[]): ProjectScript | null {
-  return scripts.find((script) => script.runOnSettle === true) ?? null;
-}
-
 /**
  * Leading spaces omit scripts from Bash history with ignorespace/ignoreboth,
  * zsh with HIST_IGNORE_SPACE, and fish. Only the first line is prefixed, so later

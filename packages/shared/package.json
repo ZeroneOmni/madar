@@ -7,10 +7,6 @@
       "types": "./src/changedFileKind.ts",
       "import": "./src/changedFileKind.ts"
     },
-    "./authScopeOptions": {
-      "types": "./src/authScopeOptions.ts",
-      "import": "./src/authScopeOptions.ts"
-    },
     "./orchestrationV2ThreadError": {
       "types": "./src/orchestrationV2ThreadError.ts",
       "import": "./src/orchestrationV2ThreadError.ts"
@@ -138,10 +134,6 @@
     "./backgroundActivitySettings": {
       "types": "./src/backgroundActivitySettings.ts",
       "import": "./src/backgroundActivitySettings.ts"
-    },
-    "./String": {
-      "types": "./src/String.ts",
-      "import": "./src/String.ts"
     },
     "./projectScripts": {
       "types": "./src/projectScripts.ts",

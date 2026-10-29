@@ -139,9 +139,6 @@ export const make = Effect.gen(function* () {
     const checkForUpdatesClick = () => {
       runMenuEffect("check-for-updates", handleCheckForUpdatesMenuClick);
     };
-    const settingsClick = () => {
-      runMenuEffect("open-settings", dispatchMenuAction("open-settings"));
-    };
     // Chromium and the renderer already handle this chord; injecting another paste duplicates text.
     const pasteAsTextClick = (
       _item: Electron.MenuItem,
@@ -169,12 +166,6 @@ export const make = Effect.gen(function* () {
             click: checkForUpdatesClick,
           },
           { type: "separator" },
-          {
-            label: "Settings...",
-            accelerator: "CmdOrCtrl+,",
-            click: settingsClick,
-          },
-          { type: "separator" },
           { role: "services" },
           { type: "separator" },
           { role: "hide", label: `Hide ${environment.displayName}` },
@@ -189,19 +180,7 @@ export const make = Effect.gen(function* () {
     template.push(
       {
         label: "File",
-        submenu: [
-          ...(environment.platform === "darwin"
-            ? []
-            : [
-                {
-                  label: "Settings...",
-                  accelerator: "CmdOrCtrl+,",
-                  click: settingsClick,
-                },
-                { type: "separator" as const },
-              ]),
-          { role: environment.platform === "darwin" ? "close" : "quit" },
-        ],
+        submenu: [{ role: environment.platform === "darwin" ? "close" : "quit" }],
       },
       {
         label: "Edit",

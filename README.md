@@ -1,6 +1,6 @@
 # Madar
 
-Madar is a fork of [T3 Code](https://github.com/pingdotgg/t3code), maintained by ZeroneOmni. It provides a desktop interface for coding agents using your provider accounts.
+Madar is a fork of [T3 Code](https://github.com/pingdotgg/t3code), maintained by ZeroneOmni. Its desktop shell is being adapted for MikroTik User Manager. The coding workspace has been removed; User Manager workflows are not implemented yet.
 
 Development uses pull requests and required CI. Stable releases are built manually for Windows x64, macOS Apple Silicon, and Linux x64/ARM64.
 
@@ -10,7 +10,7 @@ Download Madar's installers from [this repository's releases](https://github.com
 
 The desktop app uses its own identity, URL handlers, profile, `.madar` home folder, and `madar` launcher so it can coexist with an installed T3 Code app.
 
-To install only the CLI, download and inspect [install.sh](scripts/install.sh) for macOS/Linux or [install.ps1](scripts/install.ps1) for Windows, then run it locally. These scripts download from ZeroneOmni/madar and create the `madar` command. At least one coding provider must already be installed and authenticated.
+To install only the CLI, download and inspect [install.sh](scripts/install.sh) for macOS/Linux or [install.ps1](scripts/install.ps1) for Windows, then run it locally. These scripts download from ZeroneOmni/madar and create the `madar` command.
 
 Madar is distributed through this repository's releases. The upstream npm, Homebrew, winget, Scoop, AUR, mobile stores, website, and hosted Connect service belong to T3 Code.
 
@@ -25,6 +25,6 @@ vp run dev:desktop
 
 See [maintainer setup and releases](docs/operations/madar.md) for the PR workflow, GitHub-hosted runners, supported build targets, signing, and draft releases.
 
-The [documentation](docs/) and [architecture overview](docs/internals/overview.md) are inherited from upstream. Some pages still use upstream product names and distribution instructions; use this README and the Madar maintainer guide for installation and releases.
+The [documentation](docs/) and [architecture overview](docs/internals/overview.md) are inherited from upstream. Those pages describe the retained backend and upstream features, including coding screens no longer available in Madar. Use this README and the Madar maintainer guide for installation and releases.
 
 Original T3 Code attribution and license notices are retained.

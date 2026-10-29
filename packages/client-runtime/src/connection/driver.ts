@@ -2,7 +2,6 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
-import * as Layer from "effect/Layer";
 import * as Scope from "effect/Scope";
 import * as HttpClient from "effect/http/HttpClient";
 
@@ -205,5 +204,3 @@ export const make = Effect.gen(function* () {
 
   return ConnectionDriver.of({ connect, checkRoute, preflight });
 });
-
-export const layer = Layer.effect(ConnectionDriver, make);

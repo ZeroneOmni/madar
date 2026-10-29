@@ -14,7 +14,7 @@ const v2ProjectId = ProjectId.make("project-v2");
 export const v2ThreadId = ThreadId.make("thread-v2");
 const v2ProviderInstanceId = ProviderInstanceId.make("codex");
 
-export const v2Project: OrchestrationProjectShell = {
+const v2Project: OrchestrationProjectShell = {
   id: v2ProjectId,
   title: "Project",
   workspaceRoot: "/workspace/project",
@@ -25,7 +25,7 @@ export const v2Project: OrchestrationProjectShell = {
   updatedAt: "2026-06-20T00:00:00.000Z",
 };
 
-export const v2ThreadShell: OrchestrationV2ThreadShell = {
+const v2ThreadShell: OrchestrationV2ThreadShell = {
   id: v2ThreadId,
   projectId: v2ProjectId,
   title: "Thread",

@@ -27,13 +27,6 @@ const arrayReplacements = new WeakMap<
   WeakMap<ReadonlyArray<unknown>, number>
 >();
 
-export function getProjectionArrayReplacementIndex(
-  previous: ReadonlyArray<unknown>,
-  next: ReadonlyArray<unknown>,
-): number | undefined {
-  return arrayReplacements.get(previous)?.get(next);
-}
-
 function replaceProjectionArrayItem<T>(
   items: ReadonlyArray<T>,
   index: number,

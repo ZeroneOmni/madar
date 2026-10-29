@@ -1,8 +1,8 @@
-export function isWindowsDrivePath(value: string): boolean {
+function isWindowsDrivePath(value: string): boolean {
   return /^[a-zA-Z]:([/\\]|$)/.test(value);
 }
 
-export function isUncPath(value: string): boolean {
+function isUncPath(value: string): boolean {
   return value.startsWith("\\\\");
 }
 
@@ -117,11 +117,6 @@ export function workspaceRelativeFilePath(
 
 export function isAbsolutePath(value: string): boolean {
   return value.startsWith("/") || isWindowsAbsolutePath(value);
-}
-
-/** Home-relative host paths are expanded by the destination server. */
-export function isHostPath(value: string): boolean {
-  return isAbsolutePath(value) || value.startsWith("~/");
 }
 
 export function resolveWorkspaceFilePath(path: string, workspaceRoot: string): string {
