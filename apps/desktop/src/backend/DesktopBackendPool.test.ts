@@ -15,7 +15,7 @@ import * as DesktopTelemetryPublisher from "../telemetry/DesktopTelemetryPublish
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as DesktopWindow from "../window/DesktopWindow.ts";
-import * as DesktopWslEnvironment from "../wsl/DesktopWslEnvironment.ts";
+
 import * as DesktopBackendConfiguration from "./DesktopBackendConfiguration.ts";
 import * as DesktopBackendPool from "./DesktopBackendPool.ts";
 import type { DesktopBackendStartConfig } from "./DesktopBackendManager.ts";
@@ -58,11 +58,11 @@ function layerPool(labelRef: Ref.Ref<string>): Layer.Layer<DesktopBackendPool.De
         Layer.succeed(DesktopBackendConfiguration.DesktopBackendConfiguration, {
           resolvePrimary: Effect.die("unexpected primary config resolve"),
           resolvePrimaryLabel: Ref.get(labelRef),
-          resolveWsl: () => Effect.die("unexpected WSL config resolve"),
+
           currentBootstrapToken: Effect.die("unexpected bootstrap token read"),
         } satisfies DesktopBackendConfiguration.DesktopBackendConfiguration["Service"]),
         DesktopAppSettings.layerTest(),
-        DesktopWslEnvironment.layerTest(),
+
         ElectronDialog.layer,
         ElectronApp.layer,
         Layer.succeed(DesktopWindow.DesktopWindow, {
@@ -71,7 +71,7 @@ function layerPool(labelRef: Ref.Ref<string>): Layer.Layer<DesktopBackendPool.De
           revealOrCreateMain: Effect.die("unexpected window reveal"),
           activate: Effect.die("unexpected window activate"),
           createMainIfBackendReady: Effect.die("unexpected window create"),
-          showConnectingSplash: Effect.void,
+
           handleBackendReady: () => Effect.void,
           handleBackendNotReady: Effect.void,
           flushMainWindowBounds: Effect.void,
@@ -104,13 +104,13 @@ describe("DesktopBackendPool", () => {
             env: {},
             bootstrap: {
               mode: "desktop",
+              tailscaleServeEnabled: false,
+              tailscaleServePort: 443,
               noBrowser: true,
               port: 3774,
               t3Home: "/tmp/t3",
               host: "127.0.0.1",
               desktopBootstrapToken: "token",
-              tailscaleServeEnabled: false,
-              tailscaleServePort: 443,
             },
             bootstrapDelivery: "fd3",
             extendEnv: true,

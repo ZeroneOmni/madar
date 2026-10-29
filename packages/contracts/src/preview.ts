@@ -17,7 +17,7 @@ export type PreviewTabId = typeof PreviewTabId.Type;
 
 const PREVIEW_VIEWPORT_MIN_DIMENSION = 240;
 const PREVIEW_VIEWPORT_MAX_DIMENSION = 3840;
-export const PREVIEW_VIEWPORT_MAX_AREA = 3840 * 2160;
+const PREVIEW_VIEWPORT_MAX_AREA = 3840 * 2160;
 
 const PreviewViewportDimension = Schema.Int.check(
   Schema.isBetween({

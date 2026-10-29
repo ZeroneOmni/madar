@@ -1,10 +1,5 @@
 /** Keep bundler externals aligned with the staged production dependency list. */
-export const DESKTOP_RUNTIME_EXTERNAL_PREFIXES = [
-  "@napi-rs/keyring",
-  "@clerk/electron-passkeys",
-  "electron-webauthn",
-  "@yuuang/",
-] as const;
+export const DESKTOP_RUNTIME_EXTERNAL_PREFIXES = ["@napi-rs/keyring"] as const;
 
 export function isDesktopRuntimeExternalDependency(id: string): boolean {
   return DESKTOP_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix));

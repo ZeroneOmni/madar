@@ -18,6 +18,14 @@ import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as DesktopState from "./DesktopState.ts";
 import * as DesktopWindow from "../window/DesktopWindow.ts";
 
+export const claimSingleInstance = Effect.fn("desktop.lifecycle.claimSingleInstance")(function* () {
+  const app = yield* ElectronApp.ElectronApp;
+  if (!(yield* app.requestSingleInstanceLock)) {
+    yield* app.quit;
+    return yield* Effect.interrupt;
+  }
+});
+
 export class DesktopLifecycleRelaunchError extends Schema.TaggedError<DesktopLifecycleRelaunchError>()(
   "DesktopLifecycleRelaunchError",
   {
@@ -273,7 +281,7 @@ export const make = DesktopLifecycle.of({
     yield* electronApp.on("before-quit", (event: Electron.Event) => {
       handleBeforeQuit(event, runEffect, quit);
     });
-    yield* electronApp.on("activate", () => {
+    const activate = () => {
       void runEffect(
         Effect.gen(function* () {
           const state = yield* DesktopState.DesktopState;
@@ -281,7 +289,9 @@ export const make = DesktopLifecycle.of({
           yield* desktopWindow.activate;
         }).pipe(Effect.withSpan("desktop.lifecycle.activate")),
       );
-    });
+    };
+    yield* electronApp.on("activate", activate);
+    yield* electronApp.on("second-instance", activate);
     yield* electronApp.on("window-all-closed", () => {
       void runEffect(
         Effect.gen(function* () {

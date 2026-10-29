@@ -220,15 +220,3 @@ export const make = Effect.gen(function* () {
 });
 
 export const layer = Layer.effect(DesktopClientSettings, make);
-
-export const layerTest = (initialSettings: Option.Option<ClientSettings> = Option.none()) =>
-  Layer.effect(
-    DesktopClientSettings,
-    Effect.gen(function* () {
-      const settingsRef = yield* Ref.make(initialSettings);
-      return DesktopClientSettings.of({
-        get: Ref.get(settingsRef),
-        set: (settings) => Ref.set(settingsRef, Option.some(settings)),
-      });
-    }),
-  );

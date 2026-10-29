@@ -20,6 +20,7 @@ function layerElectronApp(
   appListeners: Map<string, (...args: readonly unknown[]) => void>,
   quit: Effect.Effect<void> = Effect.void,
   exit: (code: number) => Effect.Effect<void> = () => Effect.void,
+  ownsInstance = true,
 ) {
   const registerListener = (eventName: string, listener: (...args: readonly unknown[]) => void) =>
     Effect.acquireRelease(
@@ -37,7 +38,7 @@ function layerElectronApp(
     name: Effect.succeed("T3 Code"),
     systemLocale: Effect.succeed("en-US"),
     whenReady: Effect.void,
-    requestSingleInstanceLock: Effect.succeed(true),
+    requestSingleInstanceLock: Effect.succeed(ownsInstance),
     quit,
     exit,
     relaunch: () => Effect.void,
@@ -91,7 +92,7 @@ function layerDesktopWindow(
     revealOrCreateMain: Effect.die("unexpected window creation"),
     activate: input.activate ?? Effect.void,
     createMainIfBackendReady: Effect.void,
-    showConnectingSplash: Effect.void,
+
     handleBackendReady: () => Effect.void,
     handleBackendNotReady: Effect.void,
     flushMainWindowBounds: input.flushMainWindowBounds ?? Effect.void,
@@ -105,6 +106,70 @@ function layerDesktopWindow(
 }
 
 describe("DesktopLifecycle", () => {
+  it.effect("quits a second instance before startup continues", () => {
+    let quit = false;
+    let continued = false;
+    return Effect.gen(function* () {
+      const result = yield* Effect.exit(
+        DesktopLifecycle.claimSingleInstance().pipe(
+          Effect.andThen(
+            Effect.sync(() => {
+              continued = true;
+            }),
+          ),
+        ),
+      );
+      assert.equal(result._tag, "Failure");
+      assert.isTrue(quit);
+      assert.isFalse(continued);
+    }).pipe(
+      Effect.provide(
+        layerElectronApp(
+          new Map(),
+          Effect.sync(() => {
+            quit = true;
+          }),
+          () => Effect.void,
+          false,
+        ),
+      ),
+    );
+  });
+
+  it.effect("reveals the existing app on a second launch", () =>
+    Effect.gen(function* () {
+      const appListeners = new Map<string, (...args: readonly unknown[]) => void>();
+      const activated = yield* Deferred.make<void>();
+      const layer = DesktopLifecycle.layer.pipe(
+        Layer.provideMerge(layerElectronApp(appListeners)),
+        Layer.provideMerge(layerElectronTheme),
+        Layer.provideMerge(layerElectronWindow()),
+        Layer.provideMerge(
+          layerDesktopWindow({
+            activate: Deferred.succeed(activated, undefined).pipe(Effect.asVoid),
+          }),
+        ),
+        Layer.provideMerge(
+          Layer.succeed(DesktopEnvironment.DesktopEnvironment, {
+            platform: "win32",
+            isDevelopment: false,
+          } as DesktopEnvironment.DesktopEnvironment["Service"]),
+        ),
+        Layer.provideMerge(DesktopShutdown.layer),
+        Layer.provideMerge(DesktopState.layer),
+      );
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          yield* (yield* DesktopLifecycle.DesktopLifecycle).register;
+          const secondInstance = appListeners.get("second-instance");
+          assert.isDefined(secondInstance);
+          secondInstance?.();
+          yield* Deferred.await(activated);
+        }),
+      ).pipe(Effect.provide(layer));
+    }),
+  );
+
   it.effect.each(["darwin", "win32", "linux"] satisfies ReadonlyArray<NodeJS.Platform>)(
     "lets the updater's quit event proceed on %s",
     (platform) => {

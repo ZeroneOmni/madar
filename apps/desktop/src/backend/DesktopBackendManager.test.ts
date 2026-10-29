@@ -27,8 +27,6 @@ import * as DesktopBackendManager from "./DesktopBackendManager.ts";
 import * as DesktopObservability from "../app/DesktopObservability.ts";
 import * as DesktopTelemetryPublisher from "../telemetry/DesktopTelemetryPublisher.ts";
 
-import * as DesktopWslEnvironment from "../wsl/DesktopWslEnvironment.ts";
-
 const decodeDesktopBackendBootstrap = Schema.decodeEffect(
   Schema.fromJsonString(DesktopBackendBootstrap),
 );
@@ -44,13 +42,14 @@ const baseConfig: DesktopBackendManager.DesktopBackendStartConfig = {
   env: { ELECTRON_RUN_AS_NODE: "1" },
   bootstrap: {
     mode: "desktop",
+    tailscaleServeEnabled: false,
+    tailscaleServePort: 443,
     noBrowser: true,
     port: 3773,
     t3Home: "/tmp/t3",
     host: "127.0.0.1",
     desktopBootstrapToken: "token",
-    tailscaleServeEnabled: false,
-    tailscaleServePort: 443,
+
     desktopTelemetryFd: 4,
     desktopTelemetryControlFd: 5,
   },
@@ -63,7 +62,7 @@ const baseConfig: DesktopBackendManager.DesktopBackendStartConfig = {
 
 const configWithObservability: DesktopBackendBootstrapValue = {
   ...baseConfig.bootstrap,
-  tailscaleServeEnabled: true,
+
   desktopTelemetryFd: 4,
   otlpTracesUrl: "http://127.0.0.1:4318/v1/traces",
 };
@@ -168,10 +167,6 @@ function makeTestInstance(input: MakeInstanceInput) {
       updateCancellations: Stream.empty,
       ...input.desktopTelemetryPublisher,
     }),
-
-    DesktopWslEnvironment.layerTest(
-      input.pruneRuntimes === undefined ? {} : { pruneRuntimes: input.pruneRuntimes },
-    ),
   );
 
   const instance = DesktopBackendManager.makeBackendInstance({

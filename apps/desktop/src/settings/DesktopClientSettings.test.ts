@@ -1,3 +1,4 @@
+import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import {
@@ -110,32 +111,34 @@ const withClientSettings = <A, E, R>(
   }).pipe(Effect.provide(NodeServices.layer), Effect.scoped);
 
 describe("DesktopClientSettings", () => {
-  it.effect("saves through a symlinked client settings file without replacing the link", () =>
-    withClientSettings(
-      Effect.gen(function* () {
-        const environment = yield* DesktopEnvironment.DesktopEnvironment;
-        const fileSystem = yield* FileSystem.FileSystem;
-        const settings = yield* DesktopClientSettings.DesktopClientSettings;
-        const dotfiles = yield* fileSystem.makeTempDirectoryScoped({
-          prefix: "t3-desktop-client-settings-dotfiles-",
-        });
-        const linkedSettingsPath = `${dotfiles}/client-settings.json`;
-        yield* fileSystem.writeFileString(linkedSettingsPath, "{}\n");
-        yield* fileSystem.makeDirectory(environment.stateDir, { recursive: true });
-        yield* fileSystem.symlink(linkedSettingsPath, environment.clientSettingsPath);
+  it.effect.skipIf(!symlinksSupported)(
+    "saves through a symlinked client settings file without replacing the link",
+    () =>
+      withClientSettings(
+        Effect.gen(function* () {
+          const environment = yield* DesktopEnvironment.DesktopEnvironment;
+          const fileSystem = yield* FileSystem.FileSystem;
+          const settings = yield* DesktopClientSettings.DesktopClientSettings;
+          const dotfiles = yield* fileSystem.makeTempDirectoryScoped({
+            prefix: "t3-desktop-client-settings-dotfiles-",
+          });
+          const linkedSettingsPath = `${dotfiles}/client-settings.json`;
+          yield* fileSystem.writeFileString(linkedSettingsPath, "{}\n");
+          yield* fileSystem.makeDirectory(environment.stateDir, { recursive: true });
+          yield* fileSystem.symlink(linkedSettingsPath, environment.clientSettingsPath);
 
-        yield* settings.set(clientSettings);
+          yield* settings.set(clientSettings);
 
-        assert.equal(
-          yield* fileSystem.readLink(environment.clientSettingsPath),
-          linkedSettingsPath,
-        );
-        assert.deepEqual(
-          yield* decodeClientSettingsJson(yield* fileSystem.readFileString(linkedSettingsPath)),
-          clientSettings,
-        );
-      }),
-    ),
+          assert.equal(
+            yield* fileSystem.readLink(environment.clientSettingsPath),
+            linkedSettingsPath,
+          );
+          assert.deepEqual(
+            yield* decodeClientSettingsJson(yield* fileSystem.readFileString(linkedSettingsPath)),
+            clientSettings,
+          );
+        }),
+      ),
   );
 
   it.effect.each([

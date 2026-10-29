@@ -55,24 +55,3 @@ function classifyHostedHttpsCompatibility(
   }
   return fallback === "mixed-content-blocked" ? "unknown" : fallback;
 }
-
-export function createAdvertisedEndpoint(input: CreateAdvertisedEndpointInput): AdvertisedEndpoint {
-  const httpBaseUrl = normalizeHttpBaseUrl(input.httpBaseUrl);
-  return {
-    id: input.id,
-    label: input.label,
-    provider: input.provider,
-    httpBaseUrl,
-    wsBaseUrl: deriveWsBaseUrl(httpBaseUrl),
-    reachability: input.reachability,
-    compatibility: {
-      hostedHttpsApp:
-        input.hostedHttpsCompatibility ?? classifyHostedHttpsCompatibility(httpBaseUrl),
-      desktopApp: input.desktopCompatibility ?? "compatible",
-    },
-    source: input.source,
-    status: input.status ?? "available",
-    ...(input.isDefault === undefined ? {} : { isDefault: input.isDefault }),
-    ...(input.description === undefined ? {} : { description: input.description }),
-  };
-}
