@@ -1,6 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off - Tests use Node's glob matcher to verify electron-builder exclusions.
 import * as NodeCrypto from "node:crypto";
-import * as NodePath from "node:path";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
 
@@ -28,7 +27,6 @@ import {
   parseWslRuntimeArchiveMembers,
   readWorkspaceConfig,
   createBuildConfig,
-  DESKTOP_FILE_EXCLUSIONS,
   InvalidMacPasskeyRpDomainError,
   InvalidMacPasskeyPublishableKeyError,
   UnsupportedDesktopBuildArchitectureError,
@@ -46,12 +44,9 @@ import {
   copyDirectoryPreservingSymlinks,
   validateWindowsPackagedPayload,
   verifyPackagedBundleIsSelfContained,
-  WindowsPrimaryNativeProbeError,
   WindowsDesktopBuildPrerequisitesMissingError,
   WindowsPackagedPayloadValidationError,
-  stageCursorSdkPlatformPackages,
   WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT,
-  WINDOWS_SERVER_ASAR_IGNORE_GLOBS,
   WINDOWS_SERVER_ASAR_RESOURCE,
   WSL_RUNTIME_ARCHIVE_EXTRA_RESOURCE,
   WSL_RUNTIME_ARCHIVE_HASH_EXTRA_RESOURCE,
@@ -535,9 +530,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       resolveMergedStageDependencies({
         platform: "mac",
         serverDependencies: {
-          "@cursor/sdk": "1.0.22",
           "@anthropic-ai/claude-agent-sdk": "^0.3.170",
-          "@ff-labs/fff-node": "0.9.4",
           "@opencode-ai/sdk": "^1.3.15",
           "@pierre/diffs": "1.3.0",
         },
@@ -546,87 +539,25 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           "@clerk/electron-passkeys": "1.0.0",
         },
         arch: "arm64",
-        fffNodeVersion: "0.9.4",
       }),
       {
-        "@cursor/sdk": "1.0.22",
-        "@ff-labs/fff-node": "0.9.4",
-
         "@napi-rs/keyring": "1.3.0",
         "@clerk/electron-passkeys": "1.0.0",
-        "@ff-labs/fff-bin-darwin-arm64": "0.9.4",
       },
     );
 
     assert.deepStrictEqual(
       resolveMergedStageDependencies({
         platform: "linux",
-        serverDependencies: { "@ff-labs/fff-node": "0.9.4", effect: "4.0.0" },
+        serverDependencies: { effect: "4.0.5" },
         desktopDependencies: { "@clerk/electron-passkeys": "1.0.0" },
         arch: "x64",
-        fffNodeVersion: "0.9.4",
       }),
       {
-        "@ff-labs/fff-node": "0.9.4",
-
         "@clerk/electron-passkeys": "1.0.0",
-        "@ff-labs/fff-bin-linux-x64-gnu": "0.9.4",
-        "@ff-labs/fff-bin-linux-x64-musl": "0.9.4",
       },
     );
   });
-
-  it.effect("ships Cursor platform assets outside asar for spawning and native loading", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem;
-        const path = yield* Path.Path;
-        const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cursor-helpers-" });
-        const nodeModules = path.join(root, "node_modules");
-        const destination = path.join(root, "resources/node_modules/@cursor");
-        const cursorDirectory = symlinksSupported
-          ? path.join(root, "store/@cursor")
-          : path.join(nodeModules, "@cursor");
-        yield* fs.makeDirectory(path.join(cursorDirectory, "sdk"), { recursive: true });
-        if (symlinksSupported) {
-          yield* fs.makeDirectory(path.join(nodeModules, "@cursor"), { recursive: true });
-          yield* fs.symlink(
-            path.join(cursorDirectory, "sdk"),
-            path.join(nodeModules, "@cursor/sdk"),
-          );
-        }
-        const helpers = [
-          "sdk-darwin-arm64/bin/rg",
-          "sdk-darwin-arm64/bin/cursorsandbox",
-          "sdk-darwin-arm64/vendor/tree-sitter/index.js",
-          "sdk-darwin-arm64/vendor/tree-sitter/binding.node",
-          "sdk-darwin-arm64/vendor/tree-sitter-bash/binding.node",
-          "sdk-darwin-arm64/package.json",
-          "sdk-win32-x64/bin/rg.exe",
-        ];
-        for (const helper of helpers) {
-          const source = path.join(cursorDirectory, helper);
-          yield* fs.makeDirectory(path.dirname(source), { recursive: true });
-          yield* fs.writeFileString(source, "fixture helper", { mode: 0o755 });
-        }
-        yield* stageCursorSdkPlatformPackages(nodeModules, destination);
-        for (const helper of helpers) {
-          assert.equal(yield* fs.readFileString(path.join(destination, helper)), "fixture helper");
-          const packagedPath = `node_modules/@cursor/${helper}`;
-          assert.isTrue(
-            DESKTOP_FILE_EXCLUSIONS.some((glob) =>
-              NodePath.matchesGlob(packagedPath, glob.slice(1)),
-            ),
-          );
-          assert.isTrue(
-            WINDOWS_SERVER_ASAR_IGNORE_GLOBS.some((glob) =>
-              NodePath.matchesGlob(packagedPath, glob),
-            ),
-          );
-        }
-      }),
-    ),
-  );
 
   it.effect("reports missing Windows toolchain capabilities before building", () =>
     Effect.scoped(
@@ -874,145 +805,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         assert.instanceOf(error, WindowsPackagedPayloadValidationError);
         assert.equal(error.reason, "wsl-runtime-invalid");
       }),
-    ),
-  );
-
-  it.effect("probes fff through the packaged Windows primary instead of helper executables", () => {
-    const commands: Array<{
-      readonly command: string;
-      readonly args: ReadonlyArray<string>;
-      readonly options: {
-        readonly cwd?: string;
-        readonly env?: Readonly<Record<string, string | undefined>>;
-      };
-    }> = [];
-    const spawnerLayer = Layer.succeed(
-      ChildProcessSpawner.ChildProcessSpawner,
-      ChildProcessSpawner.make((command) => {
-        commands.push(command as unknown as (typeof commands)[number]);
-        return Effect.succeed(mockProcess(0));
-      }),
-    );
-
-    return Effect.scoped(
-      Effect.gen(function* () {
-        const path = yield* Path.Path;
-        const fixture = yield* makeWindowsPayloadFixture({ copyUnpackedNatives: true });
-        yield* validateWindowsPackagedPayload({
-          stageDistDir: fixture.stageDistDir,
-          appExecutableName: fixture.appExecutableName,
-          targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
-        });
-
-        const primaryProbe = commands.find(
-          (command) => command.options.env?.ELECTRON_RUN_AS_NODE === "1",
-        );
-        if (primaryProbe === undefined) return assert.fail("Windows primary probe was not spawned");
-
-        assert.equal(
-          primaryProbe.command,
-          path.join(fixture.packagedAppDir, fixture.appExecutableName),
-        );
-        assert.deepStrictEqual(primaryProbe.args.slice(0, 3), [
-          "--no-global-search-paths",
-          "--input-type=module",
-          "--eval",
-        ]);
-        assert.include(primaryProbe.args[3], "FileFinder.create");
-        assert.equal(
-          primaryProbe.args[4],
-          path.join(
-            fixture.packagedAppDir,
-            "resources/server.asar/node_modules/@ff-labs/fff-node/dist/index.js",
-          ),
-        );
-        assert.equal(primaryProbe.options.cwd, fixture.packagedAppDir);
-        assert.equal(primaryProbe.options.env?.NODE_PATH, "");
-      }),
-    ).pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          spawnerLayer,
-          Layer.succeed(HostProcess.Platform, "win32"),
-          Layer.succeed(HostProcess.Architecture, "x64"),
-        ),
-      ),
-    );
-  });
-
-  it.effect("skips the primary native probe for cross-architecture Windows payloads", () => {
-    const commands: Array<{
-      readonly command: string;
-      readonly options: {
-        readonly env?: Readonly<Record<string, string | undefined>>;
-      };
-    }> = [];
-    const spawnerLayer = Layer.succeed(
-      ChildProcessSpawner.ChildProcessSpawner,
-      ChildProcessSpawner.make((command) => {
-        commands.push(command as unknown as (typeof commands)[number]);
-        return Effect.succeed(mockProcess(0));
-      }),
-    );
-
-    return Effect.scoped(
-      Effect.gen(function* () {
-        const fixture = yield* makeWindowsPayloadFixture({ copyUnpackedNatives: true });
-        yield* validateWindowsPackagedPayload({
-          stageDistDir: fixture.stageDistDir,
-          appExecutableName: fixture.appExecutableName,
-          targetArch: "arm64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
-        });
-
-        assert.isFalse(
-          commands.some((command) => command.options.env?.ELECTRON_RUN_AS_NODE === "1"),
-        );
-        assert.isTrue(
-          commands.some(
-            (command) =>
-              command.command === process.execPath && command.options.env?.NODE_PATH === "",
-          ),
-        );
-      }),
-    ).pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          spawnerLayer,
-          Layer.succeed(HostProcess.Platform, "win32"),
-          Layer.succeed(HostProcess.Architecture, "x64"),
-        ),
-      ),
-    );
-  });
-
-  it.effect("rejects a cross-architecture Windows payload without its primary executable", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem;
-        const path = yield* Path.Path;
-        const fixture = yield* makeWindowsPayloadFixture({ copyUnpackedNatives: true });
-        const executablePath = path.join(fixture.packagedAppDir, fixture.appExecutableName);
-        yield* fs.remove(executablePath);
-
-        const error = yield* validateWindowsPackagedPayload({
-          stageDistDir: fixture.stageDistDir,
-          appExecutableName: fixture.appExecutableName,
-          targetArch: "arm64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
-        }).pipe(Effect.flip);
-
-        assert.instanceOf(error, WindowsPrimaryNativeProbeError);
-        assert.equal(error.executablePath, executablePath);
-      }),
-    ).pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          Layer.succeed(HostProcess.Platform, "win32"),
-          Layer.succeed(HostProcess.Architecture, "x64"),
-        ),
-      ),
     ),
   );
 

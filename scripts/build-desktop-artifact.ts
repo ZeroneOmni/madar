@@ -579,24 +579,6 @@ const desktopBuildInputArtifactNames = {
 const BUNDLE_SELF_CONTAINED_SENTINEL = "effect";
 
 const BUNDLE_SELF_CHECK_TIMEOUT = Duration.seconds(120);
-const WINDOWS_PRIMARY_NATIVE_PROBE_TIMEOUT = Duration.seconds(30);
-
-const WINDOWS_PRIMARY_FFF_PROBE_SOURCE = `
-const { join } = await import("node:path");
-const { pathToFileURL } = await import("node:url");
-const { FileFinder } = await import(pathToFileURL(process.argv[1]).href);
-const probeRoot = process.argv[2];
-const result = FileFinder.create({
-  basePath: probeRoot,
-  frecencyDbPath: join(probeRoot, "frecency.mdb"),
-  historyDbPath: join(probeRoot, "history.mdb"),
-  disableWatch: true,
-  disableMmapCache: true,
-  disableContentIndexing: true,
-});
-if (!result.ok) throw new Error(result.error);
-result.value.destroy();
-`;
 
 export class ExternalizedBundleError extends Schema.TaggedError<ExternalizedBundleError>()(
   "ExternalizedBundleError",
@@ -705,19 +687,6 @@ export class WindowsServerSidecarPackError extends Schema.TaggedError<WindowsSer
 ) {
   override get message(): string {
     return `Failed to pack the Windows server sidecar at ${this.asarPath}.`;
-  }
-}
-
-export class WindowsPrimaryNativeProbeError extends Schema.TaggedError<WindowsPrimaryNativeProbeError>()(
-  "WindowsPrimaryNativeProbeError",
-  {
-    executablePath: Schema.String,
-    exitCode: Schema.Number,
-    output: Schema.String,
-  },
-) {
-  override get message(): string {
-    return `The packaged Windows primary could not load fff from server.asar (exit ${this.exitCode}). Output:\n${this.output}`;
   }
 }
 
@@ -963,9 +932,6 @@ export const STAGE_INSTALL_ARGS = ["install", "--prod"] as const;
 export const DESKTOP_ELECTRON_LANGUAGES = ["en-US"] as const;
 export const DESKTOP_FILE_EXCLUSIONS = [
   // Cursor walks from argv[1] to platform assets; helpers and native addons need real paths outside ASAR.
-  "!**/node_modules/@cursor/sdk-*/**/*",
-  "!apps/desktop/prod-resources/cursor-sdk",
-  "!apps/desktop/prod-resources/cursor-sdk/**/*",
   // The installed Claude CLI is supplied explicitly; exclude optional bundled executables, retaining SDK JavaScript.
   "!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**/*",
   "!**/*.map",
@@ -993,8 +959,6 @@ export const WINDOWS_SERVER_ASAR_UNPACK_GLOBS = [
 ] as const;
 // Keep sidecar exclusions aligned with the app; .bin symlinks are unused and unsupported by ASAR extraction.
 export const WINDOWS_SERVER_ASAR_IGNORE_GLOBS = [
-  "**/node_modules/@cursor/sdk-*",
-  "**/node_modules/@cursor/sdk-*/**",
   "**/node_modules/@anthropic-ai/claude-agent-sdk-*",
   "**/node_modules/@anthropic-ai/claude-agent-sdk-*/**",
   "**/node_modules/.bin",
@@ -1032,10 +996,6 @@ export const WSL_RUNTIME_EXTRA_RESOURCES = [
   WSL_RUNTIME_ARCHIVE_HASH_EXTRA_RESOURCE,
 ] as const;
 export const DESKTOP_EXTRA_RESOURCES = [
-  {
-    from: "apps/desktop/prod-resources/cursor-sdk",
-    to: "node_modules/@cursor",
-  },
   {
     from: "apps/desktop/prod-resources/resource-monitor",
     to: "resource-monitor",
@@ -1325,63 +1285,18 @@ ${associatedDomains}
 `;
 }
 
-export function resolveFffNativeDependencies(
-  platform: typeof BuildPlatform.Type,
-  arch: typeof BuildArch.Type,
-  version: string,
-): Record<string, string> {
-  const architectures = arch === "universal" ? (["arm64", "x64"] as const) : [arch];
-
-  if (platform === "mac") {
-    return Object.fromEntries(
-      architectures.map((architecture) => [`@ff-labs/fff-bin-darwin-${architecture}`, version]),
-    );
-  }
-
-  if (platform === "win") {
-    return Object.fromEntries(
-      architectures.map((architecture) => [`@ff-labs/fff-bin-win32-${architecture}`, version]),
-    );
-  }
-
-  return Object.fromEntries(
-    architectures.flatMap((architecture) =>
-      ["gnu", "musl"].map((libc) => [`@ff-labs/fff-bin-linux-${architecture}-${libc}`, version]),
-    ),
-  );
-}
-
 // macOS and Linux share one app.asar; stage the union of both bundles' external dependencies.
 export function resolveMergedStageDependencies(input: {
   readonly platform: "mac" | "linux";
   readonly serverDependencies: Record<string, string>;
   readonly desktopDependencies: Record<string, string>;
   readonly arch: typeof BuildArch.Type;
-  readonly fffNodeVersion: string;
 }) {
   return {
     ...selectCliRuntimeExternalDependencies(input.serverDependencies),
     ...input.desktopDependencies,
-    ...resolveFffNativeDependencies(input.platform, input.arch, input.fffNodeVersion),
   };
 }
-
-/** Cursor's helper lookup falls through the archive to this real resources tree. */
-export const stageCursorSdkPlatformPackages = Effect.fn("stageCursorSdkPlatformPackages")(
-  function* (nodeModulesDir: string, destination: string) {
-    const fs = yield* FileSystem.FileSystem;
-    const path = yield* Path.Path;
-    yield* fs.makeDirectory(destination, { recursive: true });
-    const sdkDirectory = path.join(nodeModulesDir, "@cursor/sdk");
-    if (!(yield* fs.exists(sdkDirectory))) return;
-    const cursorDirectory = path.dirname(yield* fs.realPath(sdkDirectory));
-    for (const name of yield* fs.readDirectory(cursorDirectory)) {
-      if (!name.startsWith("sdk-")) continue;
-      const source = yield* fs.realPath(path.join(cursorDirectory, name));
-      yield* fs.copy(source, path.join(destination, name));
-    }
-  },
-);
 
 export interface ClerkPasskeyNativeArtifact {
   readonly packageName: string;
@@ -2897,7 +2812,6 @@ export const stageWindowsServerSidecar = Effect.fn("stageWindowsServerSidecar")(
   readonly arch: typeof BuildArch.Type;
   readonly appVersion: string;
   readonly runtimeExternalDependencies: Record<string, string>;
-  readonly fffNodeVersion: string;
   readonly allowBuilds: Record<string, boolean>;
   readonly patchedDependencies: Record<string, string>;
   readonly overrides: Record<string, string>;
@@ -2913,7 +2827,6 @@ export const stageWindowsServerSidecar = Effect.fn("stageWindowsServerSidecar")(
 
   const sidecarDependencies = {
     ...input.runtimeExternalDependencies,
-    ...resolveFffNativeDependencies("win", input.arch, input.fffNodeVersion),
   };
   const sidecarPatchedDependencies = createStagePatchedDependencies(
     input.patchedDependencies,
@@ -3014,92 +2927,6 @@ const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(functio
   return count;
 });
 
-export const verifyWindowsPrimaryFffNativeLoad = Effect.fn(
-  "desktopArtifact.verifyWindowsPrimaryFffNativeLoad",
-)(function* (input: {
-  readonly packagedAppDir: string;
-  readonly asarPath: string;
-  readonly appExecutableName: string;
-  readonly targetArch: typeof BuildArch.Type;
-  readonly verbose: boolean;
-}) {
-  const hostPlatform = yield* HostProcess.Platform;
-  const hostArchitecture = yield* HostProcess.Architecture;
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const executablePath = path.join(input.packagedAppDir, input.appExecutableName);
-  const executableStat = yield* fs.stat(executablePath).pipe(Effect.orElseSucceed(() => null));
-  if (executableStat?.type !== "File") {
-    return yield* new WindowsPrimaryNativeProbeError({
-      executablePath,
-      exitCode: -1,
-      output: "The unpacked application does not contain its expected primary executable.",
-    });
-  }
-  if (hostPlatform !== "win32" || hostArchitecture !== input.targetArch) return;
-
-  const probeRoot = yield* fs.makeTempDirectoryScoped({
-    prefix: "t3code-windows-primary-native-probe-",
-  });
-  const fffEntryPath = path.join(input.asarPath, "node_modules/@ff-labs/fff-node/dist/index.js");
-  const probeEnv = { ...process.env };
-  delete probeEnv.ELECTRON_NO_ASAR;
-  delete probeEnv.NODE_OPTIONS;
-
-  yield* runCommand(
-    ChildProcess.make(
-      executablePath,
-      [
-        "--no-global-search-paths",
-        "--input-type=module",
-        "--eval",
-        WINDOWS_PRIMARY_FFF_PROBE_SOURCE,
-        fffEntryPath,
-        probeRoot,
-      ],
-      {
-        cwd: input.packagedAppDir,
-        stdout: "pipe",
-        stderr: "pipe",
-        env: {
-          ...probeEnv,
-          ELECTRON_RUN_AS_NODE: "1",
-          NODE_PATH: "",
-        },
-      },
-    ),
-    {
-      label: "Windows primary fff native-load probe",
-      verbose: input.verbose,
-    },
-  ).pipe(
-    Effect.timeout(WINDOWS_PRIMARY_NATIVE_PROBE_TIMEOUT),
-    Effect.catchTags({
-      TimeoutError: () =>
-        Effect.fail(
-          new WindowsPrimaryNativeProbeError({
-            executablePath,
-            exitCode: -1,
-            output: `The native-load probe did not finish within ${Duration.toSeconds(WINDOWS_PRIMARY_NATIVE_PROBE_TIMEOUT)}s.`,
-          }),
-        ),
-      BuildCommandFailedError: (error) =>
-        Effect.fail(
-          new WindowsPrimaryNativeProbeError({
-            executablePath,
-            exitCode: error.exitCode,
-            output: `${error.stderrTail ?? ""}${error.stdoutTail ?? ""}`.trim(),
-          }),
-        ),
-    }),
-  );
-});
-
-/**
- * The fff probe needs a host of the target's platform and architecture; the
- * bundle self-check needs a Windows host. A cross build defers both to
- * scripts/verify-windows-desktop-artifact.ts.
- */
 export const verifyWindowsPackagedRuntime = Effect.fn(
   "desktopArtifact.verifyWindowsPackagedRuntime",
 )(function* (input: {
@@ -3110,7 +2937,6 @@ export const verifyWindowsPackagedRuntime = Effect.fn(
 }) {
   const path = yield* Path.Path;
   const asarPath = path.join(input.packagedAppDir, "resources", WINDOWS_SERVER_ASAR_RESOURCE);
-  yield* verifyWindowsPrimaryFffNativeLoad({ ...input, asarPath });
   const hostPlatform = yield* HostProcess.Platform;
   if (hostPlatform !== "win32") {
     yield* Effect.log(
@@ -3596,7 +3422,6 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
           serverDependencies: resolvedServerDependencies,
           desktopDependencies: resolvedDesktopRuntimeDependencies,
           arch: options.arch,
-          fffNodeVersion: serverPackageJson.dependencies["@ff-labs/fff-node"],
         });
   const stagePatchedDependencies = createStagePatchedDependencies(
     workspacePatchedDependencies,
@@ -3682,7 +3507,6 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       arch: options.arch,
       appVersion,
       runtimeExternalDependencies: resolvedServerRuntimeExternalDependencies,
-      fffNodeVersion: serverPackageJson.dependencies["@ff-labs/fff-node"],
       allowBuilds: workspaceAllowBuilds,
       patchedDependencies: workspacePatchedDependencies,
       overrides: resolvedOverrides,
@@ -3690,13 +3514,6 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       verbose: options.verbose,
     });
   }
-  yield* stageCursorSdkPlatformPackages(
-    path.join(
-      options.platform === "win" ? path.join(stageRoot, "server") : stageAppDir,
-      "node_modules",
-    ),
-    path.join(stageProdResourcesDir, "cursor-sdk"),
-  );
   if (
     options.wslRuntime !== undefined &&
     bundlesWslRuntime({ platform: options.platform, runtimeArchivePath: options.wslRuntime })
