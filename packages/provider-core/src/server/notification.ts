@@ -22,7 +22,7 @@ export type BackgroundWorkReport = BackgroundWork & { readonly outcome: Notifica
 
 const LABEL_MAX_LENGTH = 80;
 
-export function reportLabel(label: string | undefined): string | undefined {
+function reportLabel(label: string | undefined): string | undefined {
   const firstLine = label?.trim().split("\n")[0]?.trim();
   if (firstLine === undefined || firstLine.length === 0) return undefined;
   return firstLine.length > LABEL_MAX_LENGTH

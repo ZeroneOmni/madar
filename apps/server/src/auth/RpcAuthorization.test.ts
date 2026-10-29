@@ -7,7 +7,6 @@ import {
   DEFAULT_SERVER_SETTINGS,
   ProviderInstanceId,
   ThreadId,
-  AuthOrchestrationOperateScope,
   AuthOrchestrationReadScope,
   WS_METHODS,
   WsRpcGroup,
@@ -18,11 +17,7 @@ import * as Layer from "effect/Layer";
 
 import * as RpcTest from "effect/rpc/RpcTest";
 
-import {
-  RPC_REQUIRED_SCOPES,
-  requiredScopeForRpcMethod,
-  requiredScopeForDeviceList,
-} from "./RpcAuthorization.ts";
+import { RPC_REQUIRED_SCOPES, requiredScopeForRpcMethod } from "./RpcAuthorization.ts";
 import * as RpcAuthorization from "./RpcAuthorization.ts";
 
 describe("RPC authorization scopes", () => {
@@ -46,20 +41,6 @@ describe("RPC authorization scopes", () => {
       );
     }
   });
-});
-
-it("requires operate permission for host retry while preserving read-only listing", () => {
-  expect(requiredScopeForDeviceList({})).toBe(AuthOrchestrationReadScope);
-  expect(requiredScopeForDeviceList({ retryHostId: "remote-host" })).toBe(
-    AuthOrchestrationOperateScope,
-  );
-});
-
-it("requires operate permission for tool updates even alongside a read-only check", () => {
-  expect(requiredScopeForDeviceList({ updateTool: "agent", inspectOnly: true })).toBe(
-    AuthOrchestrationOperateScope,
-  );
-  expect(requiredScopeForDeviceList({ updateTool: "hub" })).toBe(AuthOrchestrationOperateScope);
 });
 
 describe("RPC scope middleware", () => {

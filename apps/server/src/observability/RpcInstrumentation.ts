@@ -86,9 +86,6 @@ const RPC_AGGREGATES = {
   [WS_METHODS.serverGetBackgroundPolicy]: "server",
 
   [WS_METHODS.secretsAnswerRequest]: "secrets",
-  [WS_METHODS.guestShareCreate]: "guest-share",
-  [WS_METHODS.cloudGetRelayClientStatus]: "cloud",
-  [WS_METHODS.cloudInstallRelayClient]: "cloud",
 
   [WS_METHODS.sourceControlLookupRepository]: "source-control",
   [WS_METHODS.sourceControlCloneRepository]: "source-control",
@@ -130,16 +127,6 @@ const RPC_AGGREGATES = {
   [WS_METHODS.vcsSwitchRef]: "vcs",
   [WS_METHODS.vcsInit]: "vcs",
 
-  [WS_METHODS.deviceConfigure]: "device",
-  [WS_METHODS.deviceTestHost]: "device",
-  [WS_METHODS.deviceEasAccount]: "device",
-  [WS_METHODS.deviceList]: "device",
-  [WS_METHODS.deviceOpen]: "device",
-  [WS_METHODS.deviceClose]: "device",
-  [WS_METHODS.deviceShutdown]: "device",
-  [WS_METHODS.deviceDetail]: "device",
-  [WS_METHODS.deviceAction]: "device",
-  [WS_METHODS.subscribeDeviceState]: "device",
   [WS_METHODS.subscribeServerConfig]: "server",
   [WS_METHODS.subscribeServerLifecycle]: "server",
   [WS_METHODS.subscribeAuthAccess]: "auth",

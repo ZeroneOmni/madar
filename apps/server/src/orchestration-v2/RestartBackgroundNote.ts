@@ -158,15 +158,6 @@ export function isAwaitedWork(work: Pick<Work, "kind" | "awaited">): boolean {
   return work.awaited === true || (work.kind !== "shell" && work.kind !== "monitor");
 }
 
-export function runOutcome(
-  run: Pick<OrchestrationV2Run, "status" | "restartCancelledBackgroundWork">,
-): OrchestrationV2Run["status"] {
-  return (run.status === "completed" || run.status === "cancelled") &&
-    (run.restartCancelledBackgroundWork ?? []).some(isAwaitedWork)
-    ? "interrupted"
-    : run.status;
-}
-
 /** Unstarted runs have no lost work to continue, except prepared continuations carrying a source run. */
 export function neverStarted(
   run: Pick<OrchestrationV2Run, "startedAt" | "restartContinuationOfRunId">,

@@ -45,3 +45,44 @@ describe("WebSocket RPC contracts", () => {
     expect(Exit.isFailure(decode({ ...request, path: "/repo/.git/hooks" }))).toBe(true);
   });
 });
+
+it.each([
+  "device.list",
+  "device.open",
+  "subscribeDeviceState",
+  "guestShare.create",
+  "cloud.getRelayClientStatus",
+  "cloud.installRelayClient",
+  "scheduledTasks.upsert",
+  "mcpApps.callTool",
+])("does not expose the removed %s RPC", (method) => {
+  expect([...WsRpcGroup.requests.keys()]).not.toContain(method);
+});
+
+it.each([
+  {
+    type: "delegated_task.wake-policy",
+    commandId: "wake",
+    parentThreadId: "parent",
+    taskId: "task",
+    completionWake: "always",
+  },
+  {
+    type: "delegated_task.completion-delivery.acknowledge",
+    commandId: "ack",
+    parentThreadId: "parent",
+    taskId: "task",
+    observedByRunId: null,
+  },
+  { type: "thread.guest-share.close", commandId: "close", threadId: "thread" },
+  {
+    type: "thread.guest-message.dismiss",
+    commandId: "dismiss",
+    threadId: "thread",
+    guestMessageId: "message",
+  },
+])("rejects retired $type commands over WebSocket", (command) => {
+  const rpc = WsRpcGroup.requests.get(ORCHESTRATION_V2_WS_METHODS.dispatchCommand);
+  if (rpc === undefined) throw new Error("dispatchCommand is not registered");
+  expect(Exit.isFailure(Schema.decodeUnknownExit(rpc.payloadSchema)(command))).toBe(true);
+});

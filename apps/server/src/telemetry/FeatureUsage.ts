@@ -50,7 +50,6 @@ const COMMAND_FEATURES: {
  * Thread launches are left out because `client.thread.started` counts them.
  */
 const METHOD_FEATURES: Readonly<Record<string, (payload: Payload) => FeatureUsage>> = {
-  [WS_METHODS.deviceOpen]: () => ({ feature: "device.open" }),
   [WS_METHODS.shellOpenInEditor]: (payload) => use("editor.open", literal(payload, "editor")),
   [WS_METHODS.vcsCreateWorktree]: () => ({ feature: "worktree.create" }),
 

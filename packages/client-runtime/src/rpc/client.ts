@@ -61,7 +61,6 @@ export type EnvironmentSubscriptionRpcTag =
   | typeof WS_METHODS.subscribeServerLifecycle
   | typeof WS_METHODS.serverGetStorageCleanupReport
   | typeof WS_METHODS.serverGetDatabaseStorage
-  | typeof WS_METHODS.subscribeDeviceState
   | typeof WS_METHODS.subscribeResourceTelemetry
   | typeof WS_METHODS.subscribeVcsStatus
   | typeof WS_METHODS.subscribeWorktreeSetup
@@ -69,7 +68,6 @@ export type EnvironmentSubscriptionRpcTag =
 
 export type EnvironmentStreamCommandRpcTag =
   | typeof WS_METHODS.chatGptHandoffSubscribe
-  | typeof WS_METHODS.cloudInstallRelayClient
   | typeof WS_METHODS.serverUpdateServerWithProgress;
 
 export type EnvironmentStreamRpcTag =
@@ -415,10 +413,3 @@ export function subscribe<TTag extends EnvironmentSubscriptionRpcTag>(
 > {
   return subscribeDynamic(tag, () => Effect.succeed(input), options);
 }
-
-export const runStream = <
-  TTag extends Exclude<EnvironmentStreamCommandRpcTag, ClientGuardedRpcTag>,
->(
-  tag: TTag,
-  input: EnvironmentRpcInput<TTag>,
-) => runStreamGuarded(tag, input);

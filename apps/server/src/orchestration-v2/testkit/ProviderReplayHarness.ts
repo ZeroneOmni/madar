@@ -417,8 +417,6 @@ export function layerWithRegistry<Error>(
         dispatch: orchestrator.dispatch,
         getThreadRecords: orchestrator.getThreadRecords,
         getThreadProjection: orchestrator.getThreadProjection,
-        recoverDelegatedTask: orchestrator.recoverDelegatedTask,
-        delegatedTaskResultPending: orchestrator.delegatedTaskResultPending,
       });
     }),
   ).pipe(Layer.provide(layerOrchestratorProvided));
@@ -488,7 +486,6 @@ export function layerWithRegistry<Error>(
     Orchestrator.OrchestratorV2,
     Effect.gen(function* () {
       const orchestrator = yield* Orchestrator.OrchestratorV2;
-      yield* orchestrator.recoverDelegatedTasks;
       yield* EffectWorker.runDaemon.pipe(Effect.forkScoped);
       return orchestrator;
     }),

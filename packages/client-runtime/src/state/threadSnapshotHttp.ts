@@ -5,7 +5,7 @@ import * as Option from "effect/Option";
 
 import * as RemoteEnvironmentAuthorization from "../authorization/service.ts";
 import type { PreparedConnection } from "../connection/model.ts";
-import * as ManagedRelay from "../relay/managedRelay.ts";
+import * as ManagedRelay from "../authorization/dpop.ts";
 import type { RemoteEnvironmentRequestError } from "../rpc/http.ts";
 import {
   executeAuthenticatedEnvironmentHttpRequest,

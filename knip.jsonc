@@ -40,12 +40,9 @@
         "src/bin.ts!",
         "src/claude-history-worker.ts!",
         "scripts/cli.ts",
-        "scripts/fetch-expo-schema.ts",
         "scripts/update-test-shard-weights.ts",
         "scripts/verify-background-live.ts",
         "src/provider/testFixtures/*.mjs",
-        // graphqlgen reads its config.
-        "graphql.config.ts",
       ],
       // The generated operations export every selection's class.
       "ignoreIssues": { "**/*.graphql.ts": ["exports", "types", "namespaceMembers"] },
@@ -103,6 +100,13 @@
     "packages/*": {
       // These workspace packages are private to this monorepo.
       "includeEntryExports": true,
+    },
+    "packages/client-runtime": {
+      // Preserve canonical Effect construction APIs for direct client authentication.
+      "ignoreIssues": {
+        "src/authorization/service.ts": ["exports"],
+        "src/authorization/tokenStore.ts": ["exports"],
+      },
     },
     "packages/effect-acp": {
       "includeEntryExports": true,

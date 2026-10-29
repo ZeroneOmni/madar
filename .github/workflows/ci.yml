@@ -103,9 +103,6 @@ jobs:
       - name: Check generated GitHub GraphQL operations
         run: vp run --filter @t3tools/source-control-github generate --check
 
-      - name: Check generated Expo GraphQL operations
-        run: vp run --filter t3 generate --check
-
       - name: Validate release guard
         run: node --test .github/scripts/madar-release.test.cjs
 

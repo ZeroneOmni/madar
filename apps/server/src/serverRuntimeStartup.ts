@@ -32,7 +32,7 @@ import * as Keybindings from "./keybindings.ts";
 import * as ExternalLauncher from "./process/externalLauncher.ts";
 import * as EffectWorker from "./orchestration-v2/EffectWorker.ts";
 import * as LegacyV1ThreadImporter from "./orchestration-v2/legacy/LegacyV1ThreadImporter.ts";
-import * as Orchestrator from "./orchestration-v2/Orchestrator.ts";
+
 import * as ProviderRuntimeRecovery from "./orchestration-v2/ProviderRuntimeRecoveryService.ts";
 import * as ProviderSessionManager from "./orchestration-v2/ProviderSessionManager.ts";
 import * as ThreadLaunch from "./orchestration-v2/ThreadLaunchService.ts";
@@ -40,7 +40,6 @@ import * as ThreadManagement from "./orchestration-v2/ThreadManagementService.ts
 import * as ProjectService from "./project/ProjectService.ts";
 import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
 import * as ProjectStore from "./orchestration-v2/ProjectStore.ts";
-import * as AgentAwarenessRelay from "./relay/AgentAwarenessRelay.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import { forkParked, forkParkedFiber } from "./serverActivation.ts";
@@ -385,31 +384,6 @@ interface StartupOptions {
   readonly abort?: (error: ServerRuntimeStartupError) => Effect.Effect<void>;
 }
 
-export const startEffectWorkerWithRelay = Effect.fn(
-  "ServerRuntimeStartup.startEffectWorkerWithRelay",
-)(function* <WorkerContext, RelayContext>(input: {
-  readonly runWorker: Effect.Effect<void, never, WorkerContext>;
-  readonly startRelay: Effect.Effect<void, never, RelayContext>;
-  readonly workerFiberRef: Ref.Ref<Fiber.Fiber<void, never> | null>;
-}) {
-  const workerFiber = yield* forkParkedFiber(input.runWorker);
-  yield* Ref.set(input.workerFiberRef, workerFiber);
-  yield* input.startRelay.pipe(
-    Effect.onExit((exit) => {
-      if (Exit.isSuccess(exit)) {
-        return Effect.void;
-      }
-      return Ref.getAndSet(input.workerFiberRef, null).pipe(
-        Effect.flatMap((ownedWorkerFiber) =>
-          ownedWorkerFiber === null
-            ? Effect.void
-            : Fiber.interrupt(ownedWorkerFiber).pipe(Effect.asVoid),
-        ),
-      );
-    }),
-  );
-});
-
 const runOrderedV2StartupPhases = Effect.fn("serverRuntimeStartup.runOrderedV2StartupPhases")(
   function* <
     Import,
@@ -417,24 +391,20 @@ const runOrderedV2StartupPhases = Effect.fn("serverRuntimeStartup.runOrderedV2St
     Bootstrap,
     ImportError,
     RecoveryError,
-    DelegationError,
     WorkerError,
     BootstrapError,
     ImportContext,
     RecoveryContext,
-    DelegationContext,
     WorkerContext,
     BootstrapContext,
   >(input: {
     readonly importLegacyShells: Effect.Effect<Import, ImportError, ImportContext>;
     readonly recover: Effect.Effect<Recovery, RecoveryError, RecoveryContext>;
-    readonly recoverDelegatedTasks: Effect.Effect<void, DelegationError, DelegationContext>;
     readonly startEffectWorker: Effect.Effect<void, WorkerError, WorkerContext>;
     readonly autoBootstrap: Effect.Effect<Bootstrap, BootstrapError, BootstrapContext>;
   }) {
     yield* input.importLegacyShells;
     const recovery = yield* input.recover;
-    yield* input.recoverDelegatedTasks;
     yield* input.startEffectWorker;
     const bootstrap = yield* input.autoBootstrap;
     return { recovery, bootstrap } as const;
@@ -446,9 +416,8 @@ const make = Effect.fn("serverRuntimeStartup.make")(function* (options?: Startup
   const keybindings = yield* Keybindings.Keybindings;
   const legacyV1ThreadImporter = yield* LegacyV1ThreadImporter.LegacyV1ThreadImporter;
   const providerRuntimeRecovery = yield* ProviderRuntimeRecovery.ProviderRuntimeRecoveryService;
-  const orchestrator = yield* Orchestrator.OrchestratorV2;
+
   const providerSessions = yield* ProviderSessionManager.ProviderSessionManagerV2;
-  const agentAwarenessRelay = yield* AgentAwarenessRelay.AgentAwarenessRelay;
   const lifecycleEvents = yield* ServerLifecycleEvents.ServerLifecycleEvents;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
   const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
@@ -543,17 +512,11 @@ const make = Effect.fn("serverRuntimeStartup.make")(function* (options?: Startup
         ),
       ),
       recover: runStartupPhase("orchestration-v2.recovery", providerRuntimeRecovery.recover),
-      recoverDelegatedTasks: runStartupPhase(
-        "orchestration-v2.delegated-tasks.recover",
-        orchestrator.recoverDelegatedTasks,
-      ),
       startEffectWorker: runStartupPhase(
         "orchestration-v2.effect-worker.start",
-        startEffectWorkerWithRelay({
-          runWorker: EffectWorker.runDaemon,
-          startRelay: agentAwarenessRelay.start(),
-          workerFiberRef: effectWorkerFiber,
-        }),
+        forkParkedFiber(EffectWorker.runDaemon).pipe(
+          Effect.flatMap((fiber) => Ref.set(effectWorkerFiber, fiber)),
+        ),
       ),
       autoBootstrap: (serverConfig.autoBootstrapProjectFromCwd
         ? runStartupPhase(
@@ -716,5 +679,3 @@ const make = Effect.fn("serverRuntimeStartup.make")(function* (options?: Startup
 
 export const layerWithOptions = (options?: StartupOptions) =>
   Layer.effect(ServerRuntimeStartup, make(options));
-
-const layer = layerWithOptions();

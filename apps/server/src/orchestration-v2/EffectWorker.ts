@@ -100,11 +100,6 @@ export const layerExecutor: Layer.Layer<
             return continueRestartedRun({ threadId: effect.threadId, sourceRunId }).pipe(
               Effect.provideService(ThreadManagementService.ThreadManagementService, threads),
               Effect.provideService(ServerSettings.ServerSettingsService, settings),
-              Effect.tapError(() =>
-                willRetry
-                  ? Effect.void
-                  : threads.recoverDelegatedTask(effect.threadId, sourceRunId),
-              ),
               Effect.mapError(
                 (cause) =>
                   new OrchestrationEffectExecutionError({

@@ -135,8 +135,6 @@ function commandThreadIds(command: OrchestrationV2Command): ReadonlyArray<Thread
     case "thread.archive":
     case "thread.unarchive":
     case "thread.delete":
-    case "thread.guest-share.close":
-    case "thread.guest-message.dismiss":
     case "thread.settle":
     case "thread.auto-settle":
     case "thread.unsettle":
@@ -161,7 +159,6 @@ function commandThreadIds(command: OrchestrationV2Command): ReadonlyArray<Thread
     case "thread.model-selection.set":
     case "provider-session.detach":
     case "message.dispatch":
-    case "notification.delivery.accept":
     case "prepared-run.release":
     case "prepared-run.progress":
     case "prepared-run.fail":
@@ -179,10 +176,6 @@ function commandThreadIds(command: OrchestrationV2Command): ReadonlyArray<Thread
     case "checkpoint.rollback":
     case "provider.switch":
       return [command.threadId];
-    case "delegated_task.request":
-    case "delegated_task.wake-policy":
-    case "delegated_task.completion-delivery.acknowledge":
-    case "delegated_task.completion-delivery.dispose":
     case "thread.created.record":
       return [command.parentThreadId];
     case "thread.fork":
