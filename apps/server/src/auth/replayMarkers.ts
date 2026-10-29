@@ -53,3 +53,14 @@ export const pruneExpiredReplayMarkers = Effect.fn("replayMarkers.pruneExpired")
     });
   }
 });
+
+export const layer = Layer.effectDiscard(
+  forkParked(
+    pruneExpiredReplayMarkers().pipe(
+      Effect.catch((cause) =>
+        Effect.logWarning("Failed to prune expired replay markers", { cause }),
+      ),
+      Effect.repeat(Schedule.spaced(Duration.hours(1))),
+    ),
+  ),
+);

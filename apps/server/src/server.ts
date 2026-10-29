@@ -18,6 +18,7 @@ import * as ServerOwnership from "./serverOwnership.ts";
 import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import * as AuthHttp from "./auth/http.ts";
+import * as ReplayMarkers from "./auth/replayMarkers.ts";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
 import {
   guardHttpResponseWriteErrors,
@@ -121,7 +122,7 @@ const layerServer = Layer.unwrap(
         yield* Effect.logInfo("Madar server ready");
       }),
     );
-    return listening.pipe(
+    return Layer.merge(listening, ReplayMarkers.layer).pipe(
       Layer.provideMerge(HttpRouter.serve(layerRoutes)),
       Layer.provideMerge(layerHttpServer),
       Layer.provide(layerAuth),
