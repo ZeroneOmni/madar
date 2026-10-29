@@ -130,8 +130,6 @@ export const ServerProviderWorkspaceSnapshot = Schema.Struct({
 });
 export type ServerProviderWorkspaceSnapshot = typeof ServerProviderWorkspaceSnapshot.Type;
 
-const PROVIDER_WORKSPACE_SNAPSHOT_TTL_MS = 5 * 60_000;
-
 /** Unavailable snapshots must set installed and enabled false. */
 export const ServerProviderAvailability = Schema.Literals(["available", "unavailable"]);
 export type ServerProviderAvailability = typeof ServerProviderAvailability.Type;
@@ -262,9 +260,6 @@ export type ServerProvider = typeof ServerProvider.Type;
 
 export const ServerProviders = ForwardCompatibleArray(ServerProvider);
 export type ServerProviders = typeof ServerProviders.Type;
-
-export const isProviderAvailable = (snapshot: ServerProvider): boolean =>
-  snapshot.availability !== "unavailable";
 
 /** Legacy producers omit this field and support text generation. */
 

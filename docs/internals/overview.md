@@ -6,10 +6,9 @@ and static assets; User Manager integration awaits a RouterOS version and connec
 
 ## Existing data
 
-Keep recorded database migrations stable. Existing installations can contain historical T3 Code
-records even though coding orchestration, provider runtimes, AI usage tracking, and source-control
-operations are no longer available. Removing a runtime does not authorize deleting those records
-or rewriting migration history. New User Manager models should use their own domain shapes.
+Madar stores local authentication in `madar.sqlite`. It never copies or migrates the inherited
+`state.sqlite` or `statev2.sqlite` databases; those files remain untouched. New User Manager models
+should use their own domain shapes.
 
 ## Runtime boundaries
 

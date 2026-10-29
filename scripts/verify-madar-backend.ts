@@ -6,9 +6,15 @@ import * as NodeFSP from "node:fs/promises";
 import * as NodeNet from "node:net";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
+import * as NodeSqlite from "node:sqlite";
 
 const entry = NodePath.resolve(process.argv[2] ?? "apps/server/dist/bin.mjs");
 const home = await NodeFSP.mkdtemp(NodePath.join(NodeOS.tmpdir(), "madar-backend-proof-"));
+const stateDir = NodePath.join(home, "userdata");
+await NodeFSP.mkdir(stateDir);
+for (const filename of ["state.sqlite", "statev2.sqlite"]) {
+  await NodeFSP.writeFile(NodePath.join(stateDir, filename), "legacy data must remain untouched");
+}
 const listener = NodeNet.createServer();
 listener.listen(0, "127.0.0.1");
 await new Promise<void>((resolve, reject) =>
@@ -81,8 +87,26 @@ try {
   for (const resource of ["/api/orchestration/shell", "/api/projects", "/ws"]) {
     NodeAssert.equal((await fetch(`${origin}${resource}`)).status, 404, resource);
   }
+  for (const filename of ["state.sqlite", "statev2.sqlite"]) {
+    NodeAssert.equal(
+      await NodeFSP.readFile(NodePath.join(stateDir, filename), "utf8"),
+      "legacy data must remain untouched",
+    );
+  }
+  using database = new NodeSqlite.DatabaseSync(NodePath.join(stateDir, "madar.sqlite"), {
+    readOnly: true,
+  });
+  NodeAssert.deepEqual(
+    database
+      .prepare(
+        "SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+      )
+      .all()
+      .map((row) => row.name),
+    ["auth_pairing_links", "auth_sessions", "effect_sql_migrations"],
+  );
   console.log(
-    "PASS: desktop bootstrap, authenticated session, metadata, and retired API rejection",
+    "PASS: desktop bootstrap, authentication, metadata, retired APIs, and isolated Madar schema",
   );
 } finally {
   if (child.exitCode === null && child.signalCode === null) child.kill();

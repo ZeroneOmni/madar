@@ -1,6 +1,6 @@
 import { OrchestrationMessageContext } from "./composerContext.ts";
 import { withRecordIdTable } from "./orchestrationV2IdTable.ts";
-import * as DateTime from "effect/DateTime";
+
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
@@ -479,13 +479,6 @@ interface CompactionMessageFields {
 }
 
 /** A prompt that only asks the provider to compact, so its turn is the compaction itself. */
-function isCompactionCommandMessage(message: CompactionMessageFields): boolean {
-  return (
-    message.role === "user" &&
-    message.text.trim().toLowerCase() === IDLE_COMPACTION_TEXT &&
-    (message.attachments?.length ?? 0) === 0
-  );
-}
 
 /** Why T3 Code sent this `/compact` on its own, or undefined for one someone asked for. */
 
@@ -768,12 +761,6 @@ export const OrchestrationV2Subagent = Schema.Struct({
   resultOmitted: DedupedBodyMarker,
 });
 export type OrchestrationV2Subagent = typeof OrchestrationV2Subagent.Type;
-
-export function isOrchestrationV2WorkActive(
-  status: OrchestrationV2ExecutionNode["status"],
-): boolean {
-  return status === "pending" || status === "running" || status === "waiting";
-}
 
 export const OrchestrationV2CheckpointScope = Schema.Struct({
   id: CheckpointScopeId,
@@ -1941,14 +1928,6 @@ export const OrchestrationV2ThreadShell = Schema.Struct({
   deletedAt: Schema.NullOr(Schema.DateTimeUtc),
 });
 export type OrchestrationV2ThreadShell = typeof OrchestrationV2ThreadShell.Type;
-
-const LIVE_SHELL_STATUSES: ReadonlySet<OrchestrationV2ShellThreadStatus> = new Set([
-  "queued",
-  "preparing",
-  "starting",
-  "running",
-  "waiting",
-]);
 
 /**
  * A subagent child that can still need the user or hold its parent. Shells that omit idle children

@@ -5,10 +5,8 @@ import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
-import * as ManagedRuntime from "effect/ManagedRuntime";
-import * as Option from "effect/Option";
+
 import * as Path from "effect/Path";
-import { ChildProcessSpawner } from "effect/process";
 
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopBackendConfiguration from "./DesktopBackendConfiguration.ts";
@@ -79,14 +77,6 @@ function layerEnvironment(
   );
 }
 
-const restoreEnv = (name: string, value: string | undefined) => {
-  if (value === undefined) {
-    delete process.env[name];
-  } else {
-    process.env[name] = value;
-  }
-};
-
 const withHarness = <A, E, R>(
   effect: Effect.Effect<
     A,
@@ -115,15 +105,6 @@ const withHarness = <A, E, R>(
       ),
     );
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer));
-
-interface PackagedWslHarnessContext {
-  readonly baseDir: string;
-  readonly archivePath: string;
-  readonly hashPath: string;
-  readonly archiveHash: string;
-  readonly mountedAppRoot: string;
-  readonly mountedEntryPath: string;
-}
 
 describe("DesktopBackendConfiguration", () => {
   it.effect("resolvePrimary produces a stable scoped bootstrap token", () =>

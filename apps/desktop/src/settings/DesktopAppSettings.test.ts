@@ -29,7 +29,6 @@ const DesktopSettingsPatch = Schema.Struct({
   updateChannelConfiguredByUser: Schema.optionalKey(Schema.Boolean),
 });
 
-const decodeDesktopSettingsPatch = Schema.decodeEffect(Schema.fromJsonString(DesktopSettingsPatch));
 const encodeDesktopSettingsPatch = Schema.encodeEffect(Schema.fromJsonString(DesktopSettingsPatch));
 
 function layerEnvironment(baseDir: string, appVersion = "0.0.17") {

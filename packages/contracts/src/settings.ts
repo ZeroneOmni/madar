@@ -508,13 +508,6 @@ function secretSetting<S extends Schema.Top>(schema: S): S["Rebuild"] {
 }
 
 /** A masked form field is a credential too, so none is saved or sent to clients as plain text. */
-function isSecretSetting(schema: Schema.Top): boolean {
-  const annotations = Schema.resolveAnnotationsKey(schema) ?? Schema.resolveAnnotations(schema);
-  return (
-    annotations?.settingsSecret === true ||
-    annotations?.providerSettingsForm?.control === "password"
-  );
-}
 
 export type ProviderSettingsOrder<Fields extends Schema.Struct.Fields> = readonly Extract<
   keyof Fields,
@@ -829,8 +822,8 @@ export interface BranchNamingOptions {
   instructions: string;
 }
 
-export const DEFAULT_AUTOMATIC_GIT_FETCH_INTERVAL = Duration.seconds(30);
-export const DEFAULT_PROVIDER_HEALTH_REFRESH_INTERVAL = Duration.minutes(5);
+const DEFAULT_AUTOMATIC_GIT_FETCH_INTERVAL = Duration.seconds(30);
+const DEFAULT_PROVIDER_HEALTH_REFRESH_INTERVAL = Duration.minutes(5);
 
 export const BackgroundActivityProfile = Schema.Literals([
   "balanced",
@@ -838,7 +831,7 @@ export const BackgroundActivityProfile = Schema.Literals([
   "battery-saver",
 ]);
 export type BackgroundActivityProfile = typeof BackgroundActivityProfile.Type;
-export const DEFAULT_BACKGROUND_ACTIVITY_PROFILE: BackgroundActivityProfile = "balanced";
+const DEFAULT_BACKGROUND_ACTIVITY_PROFILE: BackgroundActivityProfile = "balanced";
 
 export const BackgroundActivityProfileSelection = Schema.Literals([
   "balanced",

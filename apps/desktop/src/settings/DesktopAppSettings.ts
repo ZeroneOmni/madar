@@ -330,12 +330,6 @@ export const make = Effect.gen(function* () {
   const crypto = yield* Crypto.Crypto;
   const settingsRef = yield* SynchronizedRef.make(environment.defaultDesktopSettings);
 
-  const updateInMemory = (update: (settings: DesktopSettings) => DesktopSettings) =>
-    SynchronizedRef.modify(settingsRef, (settings) => {
-      const nextSettings = update(settings);
-      return [settingsChange(nextSettings, nextSettings !== settings), nextSettings] as const;
-    });
-
   const persist = (
     update: (settings: DesktopSettings) => DesktopSettings,
   ): Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError> =>

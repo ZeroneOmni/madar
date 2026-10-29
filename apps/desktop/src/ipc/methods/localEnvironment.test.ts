@@ -49,7 +49,7 @@ describe("local environment IPC", () => {
 
       yield* setLocalEnvironmentEnabled.handler(true);
       assert.isTrue(yield* getLocalEnvironmentEnabled.handler());
-      const appSettings = yield* DesktopAppSettings.DesktopAppSettings;
+
       assert.deepEqual(relaunchReasons, [
         "localEnvironmentEnabled=false",
         "localEnvironmentEnabled=true",
