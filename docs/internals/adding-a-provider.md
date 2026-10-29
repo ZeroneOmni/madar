@@ -7,7 +7,7 @@ whether a turn runs. This page lists the decisions and evidence a new driver nee
 
 ## Choose the integration shape
 
-- **ACP agents** start as [ACP Registry](../user/providers-acp.md) entries, which follow the ACP
+- **ACP agents** start as ACP Registry entries, which follow the ACP
   spec with no per-agent handling. An agent gets a dedicated driver only when it needs behavior the
   spec does not cover, and then it is a small flavor over the
   [shared ACP adapter](../../packages/provider-acp/src/server/adapter.ts), like Grok
@@ -123,6 +123,4 @@ A provider lives in its own `packages/provider-<name>` package, with
   (bump `updatedAt`; see [model manifest](./model-manifest.md)), and its default model in contracts.
 - **Client registration:** the client definition in the web and mobile provider registries, and
   settings search terms. Clients draw the package icon; do not add a per-driver icon branch.
-- **Docs:** a `docs/user/providers-<name>.md` guide in the product's voice, a row in the
-  [install](../user/install.md#providers) table, and any provider difference that changes the
-  [permission modes](../user/permission-modes.md) page.
+- **Docs:** keep backend integration constraints in this guide. Provider setup screens are outside Madar's current product scope.

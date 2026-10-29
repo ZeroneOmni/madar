@@ -3,8 +3,7 @@
 Each connection joins a client to one environment over HTTP and WebSocket. The
 environment owns providers, execution, files, and durable state. Direct access,
 Tailscale, SSH, and T3 Connect change how the client reaches that server; they do
-not introduce another execution model. See
-[remote access](../user/remote-access.md) for setup.
+not introduce another execution model.
 
 ## Identity is independent of the route
 

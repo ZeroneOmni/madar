@@ -38,7 +38,7 @@ Terms whose meaning matters across T3 Code. Architecture and lifecycle constrain
 | Provider instance   | One configured provider, with its own settings and lifecycle. Multiple instances can use the same driver.    |
 | Adapter             | The boundary translating a provider's native protocol into T3 Code operations and events.                    |
 | Session             | The provider runtime attached to a thread. A session can be stopped and resumed without deleting the thread. |
-| Runtime mode        | The thread's permission policy. See [permission modes](../user/permission-modes.md).                         |
+| Runtime mode        | The thread's permission policy.                                                                              |
 | Interaction mode    | How the agent approaches the task, such as planning. Separate from permission policy.                        |
 | Checkpoint          | A saved workspace state used for diffs and restore, stored as a hidden Git ref.                              |
 | Checkpoint baseline | The workspace state captured before the work being compared.                                                 |

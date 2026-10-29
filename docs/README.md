@@ -1,28 +1,19 @@
-# T3 Code docs
+# Madar docs
 
-## Using T3 Code
+## Using Madar
 
-- [Install T3 Code](./user/install.md)
-- [Messages and context](./user/composer.md)
-- [Working with threads](./user/thread-sidebar.md)
-- [Permission modes](./user/permission-modes.md)
-- [Source control](./user/source-control.md)
-- [Project settings](./user/project-settings.md)
-- [Appearance and themes](./user/appearance.md)
-- [Keyboard shortcuts](./user/keybindings.md)
-- [Devices](./user/devices.md)
-- [Usage and limits](./user/usage.md)
-- [Product usage data](./user/telemetry.md)
-- [Remote access](./user/remote-access.md)
-- [Guest links](./user/guest-links.md)
-- [T3 Connect troubleshooting](./user/t3-connect-troubleshooting.md)
+- [Install Madar](./user/install.md)
+- [Open-source licenses](./user/open-source-licenses.md)
+
+The coding workspace has been removed. User Manager workflows are not implemented yet.
+The background-service and updater guides below describe retained CLI capabilities.
+
 - [Running in the background](./user/background-service.md)
-- [Updating T3 Code](./user/updating.md)
-- Provider guides: [Codex](./user/providers-codex.md) · [Claude](./user/providers-claude.md) · [OpenCode](./user/providers-opencode.md) · [Antigravity](./user/providers-antigravity.md) · [Pi](./user/providers-pi.md) · [Muse Code](./user/providers-muse.md)
+- [Updating the CLI](./user/updating.md)
 
 ---
 
-## Working on T3 Code
+## Working on Madar
 
 Start with the [development runbook](./operations/development.md) and
 [contribution policy](../CONTRIBUTING.md).
@@ -48,8 +39,7 @@ source alone does not explain. Most code changes do not need an internal documen
 
 ### Runbooks
 
+- [Maintaining Madar](./operations/madar.md)
 - [Development and local builds](./operations/development.md)
-- [T3 Connect setup](./operations/connect-setup.md)
 - [Release](./operations/release.md)
 - [Observability](./operations/observability.md)
-- [Relay observability](./operations/relay-observability.md)
