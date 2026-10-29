@@ -57,13 +57,11 @@ import * as ProviderMaintenanceRunner from "./provider/providerMaintenanceRunner
 import * as ProviderRegistry from "./provider/ProviderRegistry.ts";
 import * as ProviderSessionManager from "./orchestration-v2/ProviderSessionManager.ts";
 
-import * as RelayClient from "@t3tools/shared/relayClient";
 import * as RemoteOpenTargets from "./environment/RemoteOpenTargets.ts";
 import * as RepositoryIdentityResolver from "./project/RepositoryIdentityResolver.ts";
 import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
 
 import * as SecretRequests from "./secrets/SecretRequests.ts";
-import * as GuestShareService from "./guest/GuestShareService.ts";
 import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
@@ -416,12 +414,10 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(ProviderLatestVersions.ProviderLatestVersions)({}),
   Layer.mock(ProviderMaintenanceRunner.ProviderMaintenanceRunner)({}),
   Layer.mock(ProviderSessionManager.ProviderSessionManagerV2)({}),
-  Layer.mock(RelayClient.RelayClient)({}),
   Layer.mock(RepositoryIdentityResolver.RepositoryIdentityResolver)({}),
   Layer.mock(ResourceTelemetry.ResourceTelemetry)({}),
 
   Layer.mock(SecretRequests.SecretRequests)({}),
-  Layer.mock(GuestShareService.GuestShareService)({}),
   Layer.mock(ServerLifecycleEvents.ServerLifecycleEvents)({}),
   Layer.mock(ServerRuntimeStartup.ServerRuntimeStartup)({}),
   Layer.mock(ServerSelfUpdate.ServerSelfUpdate)({}),

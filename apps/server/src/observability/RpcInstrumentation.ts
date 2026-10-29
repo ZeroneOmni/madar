@@ -86,9 +86,6 @@ const RPC_AGGREGATES = {
   [WS_METHODS.serverGetBackgroundPolicy]: "server",
 
   [WS_METHODS.secretsAnswerRequest]: "secrets",
-  [WS_METHODS.guestShareCreate]: "guest-share",
-  [WS_METHODS.cloudGetRelayClientStatus]: "cloud",
-  [WS_METHODS.cloudInstallRelayClient]: "cloud",
 
   [WS_METHODS.sourceControlLookupRepository]: "source-control",
   [WS_METHODS.sourceControlCloneRepository]: "source-control",
