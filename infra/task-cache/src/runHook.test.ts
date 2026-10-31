@@ -320,6 +320,7 @@ it("installs without masking .profile and configures CI through bash", async () 
     );
     const githubEnv = NodePath.join(home, "github-env");
     await run([process.execPath, NodePath.join(import.meta.dirname, "../scripts/install-ci.ts")], {
+      MADAR_CACHE_SETUP_URL: `http://127.0.0.1:${address.port}/projects/test`,
       MADAR_TASK_CACHE_READ_TOKEN: "read-only-fixture-token-01234567890123456789",
       GITHUB_REPOSITORY: "ZeroneOmni/madar",
       GITHUB_ACTIONS: "true",

@@ -16,9 +16,9 @@ await NodeFSP.writeFile(
     module: NodePath.join(root, "infra/task-cache/src/runHook.ts"),
   }),
 );
-const { endpoint } = JSON.parse(
-  await NodeFSP.readFile(NodePath.join(root, ".task-cache.json"), "utf8"),
-);
+const endpoint =
+  process.env.MADAR_CACHE_SETUP_URL ||
+  JSON.parse(await NodeFSP.readFile(NodePath.join(root, ".task-cache.json"), "utf8")).endpoint;
 const token = process.env.MADAR_TASK_CACHE_READ_TOKEN;
 if (!token || token.length < 32) throw new Error("Missing task-cache read credential");
 const credentialFile = NodePath.join(NodeOS.homedir(), ".config/madar-task-cache/credentials.json");

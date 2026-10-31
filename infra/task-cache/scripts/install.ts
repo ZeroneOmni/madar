@@ -66,7 +66,13 @@ if (process.argv.includes("--uninstall")) {
 }
 
 const { endpoint: defaultEndpoint } = JSON.parse(
-  await NodeFSP.readFile(NodePath.join(root, ".task-cache.json"), "utf8"),
+  await NodeFSP.readFile(NodePath.join(root, ".task-cache.json"), "utf8").catch(
+    (error: unknown) => {
+      if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT")
+        return '{"endpoint":""}';
+      throw error;
+    },
+  ),
 );
 let credentials: Record<string, { name: string; token: string }> = {};
 try {

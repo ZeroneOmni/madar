@@ -1052,10 +1052,12 @@ mod tests {
 
     #[test]
     fn rejects_removed_process_table_command() {
-        assert!(serde_json::from_str::<Command>(
-            r#"{"version":3,"type":"processTable","requestId":"processes-1"}"#,
-        )
-        .is_err());
+        assert!(
+            serde_json::from_str::<Command>(
+                r#"{"version":3,"type":"processTable","requestId":"processes-1"}"#,
+            )
+            .is_err()
+        );
     }
 
     #[test]

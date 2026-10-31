@@ -99,7 +99,7 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       const home = yield* fs.makeTempDirectoryScoped();
       const command = yield* commandIn({ home });
       const link = path.join(home, ".local", "bin", "madar");
-      const originalT3 = path.join(home, ".local", "bin", "madar");
+      const originalT3 = path.join(home, ".local", "bin", "t3");
       yield* fs.makeDirectory(path.dirname(originalT3), { recursive: true });
       yield* fs.writeFileString(originalT3, "existing T3 installation\n");
 
