@@ -2,7 +2,7 @@ import type { Plugin, ViteDevServer } from "vite-plus";
 
 const STARTUP_LAZY_ENTRIES = ["src/main.tsx"];
 
-const WARMUP_CLIENT_ID = "t3code-startup-warmup";
+const WARMUP_CLIENT_ID = "madar-startup-warmup";
 
 // Bundled dev keeps these private and untyped. A Vite upgrade that moves them
 // skips the warmup or logs a warning, never breaks dev; bundledDev.test.ts
@@ -86,7 +86,7 @@ async function warmLazyEntries(
 // Warm them on listening to avoid serial compilation before first paint.
 export function warmBundledDevPlugin(): Plugin {
   return {
-    name: "t3code:warm-bundled-dev",
+    name: "madar:warm-bundled-dev",
     apply: "serve",
     configureServer(server) {
       if (!server.config.experimental.bundledDev) return;
@@ -97,12 +97,12 @@ export function warmBundledDevPlugin(): Plugin {
             if (warmed.length === 0) return;
             const seconds = ((performance.now() - startedAt) / 1000).toFixed(1);
             server.config.logger.info(
-              `[t3code] pre-bundled ${String(warmed.length)} startup chunks in ${seconds}s`,
+              `[madar] pre-bundled ${String(warmed.length)} startup chunks in ${seconds}s`,
               { timestamp: true },
             );
           },
           (error: unknown) => {
-            server.config.logger.warn(`[t3code] startup chunk warmup failed: ${String(error)}`, {
+            server.config.logger.warn(`[madar] startup chunk warmup failed: ${String(error)}`, {
               timestamp: true,
             });
           },

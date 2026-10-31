@@ -1,11 +1,11 @@
 /// <reference types="vite-plus/client" />
 
-import type { DesktopBridge } from "@t3tools/contracts";
+import type { DesktopBridge } from "@madar/contracts";
 
 interface ImportMetaEnv {
   readonly VITE_HTTP_URL: string;
   readonly VITE_WS_URL: string;
-  readonly T3CODE_DESKTOP_UPDATE_REPOSITORY: string;
+  readonly MADAR_DESKTOP_UPDATE_REPOSITORY: string;
   readonly APP_VERSION: string;
 }
 

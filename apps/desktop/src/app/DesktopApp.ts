@@ -5,7 +5,7 @@ import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 
-import * as NetService from "@t3tools/shared/Net";
+import * as NetService from "@madar/shared/Net";
 import * as Crypto from "effect/Crypto";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
@@ -19,7 +19,6 @@ import * as DesktopWindow from "../window/DesktopWindow.ts";
 
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
-import * as DesktopLegacyLocalStorage from "./DesktopLegacyLocalStorage.ts";
 import * as DesktopLifecycle from "./DesktopLifecycle.ts";
 import * as DesktopLinuxUrlHandler from "./DesktopLinuxUrlHandler.ts";
 import * as DesktopObservability from "./DesktopObservability.ts";
@@ -33,7 +32,7 @@ import * as DesktopRemoteUpdates from "../updates/DesktopRemoteUpdates.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as HostProcess from "@madar/shared/HostProcess";
 
 const DEFAULT_DESKTOP_BACKEND_PORT = 3773;
 const MAX_TCP_PORT = 65_535;
@@ -62,12 +61,11 @@ export class DesktopDevelopmentBackendPortRequiredError extends Schema.TaggedErr
   {},
 ) {
   override get message(): string {
-    return "T3CODE_PORT is required in desktop development.";
+    return "MADAR_PORT is required in desktop development.";
   }
 }
 
-const { logInfo: logBootstrapInfo, logWarning: logBootstrapWarning } =
-  DesktopObservability.makeComponentLogger("desktop-bootstrap");
+const { logInfo: logBootstrapInfo } = DesktopObservability.makeComponentLogger("desktop-bootstrap");
 
 const { logInfo: logStartupInfo, logError: logStartupError } =
   DesktopObservability.makeComponentLogger("desktop-startup");
@@ -134,7 +132,7 @@ const handleFatalStartupError = Effect.fn("desktop.startup.handleFatalStartupErr
   const wasQuitting = yield* Ref.getAndSet(state.quitting, true);
   if (!wasQuitting) {
     yield* electronDialog.showErrorBox(
-      "T3 Code failed to start",
+      "Madar failed to start",
       `Stage: ${stage}\n${message}${detail}`,
     );
   }
@@ -176,11 +174,6 @@ const bootstrap = Effect.gen(function* () {
   });
   yield* installDesktopIpcHandlers();
   yield* logBootstrapInfo("bootstrap ipc handlers registered");
-  // Before any window: the preload merges these items before the app reads storage.
-  yield* (yield* DesktopLegacyLocalStorage.DesktopLegacyLocalStorage).load(
-    yield* (yield* DesktopAppIdentity.DesktopAppIdentity).resolveUserDataPath,
-  );
-
   if (!settings.localEnvironmentEnabled) {
     yield* logBootstrapInfo("bootstrap skipping local environment (disabled in settings)");
     if (!(yield* Ref.get(state.quitting))) {

@@ -25,8 +25,8 @@ it.effect("initializes only the local authentication schema", () =>
   }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
 );
 
-it.effect("drops planner statistics a database already has", () => {
-  const tempDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-sqlite-stats-"));
+it.effect("preserves planner statistics when reopening a database", () => {
+  const tempDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "madar-sqlite-stats-"));
   const dbPath = NodePath.join(tempDir, "state.sqlite");
   const persistence = () =>
     SqlitePersistence.layerFromPath(dbPath).pipe(Layer.provide(NodeServices.layer));
@@ -44,22 +44,7 @@ it.effect("drops planner statistics a database already has", () => {
       const stats = yield* sql<{ readonly count: number }>`
         SELECT COUNT(*) AS count FROM sqlite_stat1
       `;
-      assert.equal(stats[0]?.count, 0);
-      // A connection still using the old stats scans the table at each step.
-      const plan = yield* sql<{ readonly detail: string }>`
-        EXPLAIN QUERY PLAN
-        WITH RECURSIVE retained(node_id) AS (
-          SELECT 'node-2'
-          UNION
-          SELECT parent.parent_node_id FROM walk_probe AS parent
-          INNER JOIN retained ON parent.node_id = retained.node_id
-        )
-        SELECT node_id FROM retained
-      `;
-      assert.include(
-        plan.map((row) => row.detail),
-        "SEARCH parent USING INDEX sqlite_autoindex_walk_probe_1 (node_id=?)",
-      );
+      assert.isAbove(stats[0]?.count ?? 0, 0);
     }).pipe(Effect.provide(persistence()));
   }).pipe(
     Effect.ensuring(Effect.sync(() => NodeFS.rmSync(tempDir, { recursive: true, force: true }))),

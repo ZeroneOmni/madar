@@ -29,14 +29,14 @@ export type CliShimTarget =
 export const renderCliShim = (input: {
   readonly target: CliShimTarget;
   readonly shimPath: string;
-  readonly t3Home: string;
+  readonly madarHome: string;
 }) => {
   const { target } = input;
   if (target.kind === "windows") {
-    const utf8 = [target.executable, target.entry, input.shimPath, input.t3Home].some((value) =>
+    const utf8 = [target.executable, target.entry, input.shimPath, input.madarHome].some((value) =>
       [...value].some((character) => character.codePointAt(0)! > 0x7f),
     );
-    const restore = utf8 ? ["chcp %t3_codepage% >nul"] : [];
+    const restore = utf8 ? ["chcp %madar_codepage% >nul"] : [];
     return [
       "@echo off",
       `rem ${MARKER}`,
@@ -45,15 +45,15 @@ export const renderCliShim = (input: {
       // Ctrl-C skips codepage restoration, so switch to UTF-8 only for non-ASCII install paths.
       ...(utf8
         ? [
-            `for /f "tokens=2 delims=:." %%c in ('chcp') do set "t3_codepage=%%c"`,
+            `for /f "tokens=2 delims=:." %%c in ('chcp') do set "madar_codepage=%%c"`,
             "chcp 65001 >nul",
           ]
         : []),
-      `set "T3CODE_CLI_PATH=${cmdText(input.shimPath)}"`,
-      `if not defined MADAR_HOME set "MADAR_HOME=${cmdText(input.t3Home)}"`,
+      `set "MADAR_CLI_PATH=${cmdText(input.shimPath)}"`,
+      `if not defined MADAR_HOME set "MADAR_HOME=${cmdText(input.madarHome)}"`,
       'set "ELECTRON_RUN_AS_NODE=1"',
       // Electron's Windows executable starts without stdin; this tells the CLI to reopen the console.
-      'set "T3CODE_DESKTOP_CLI_LAUNCHER=1"',
+      'set "MADAR_DESKTOP_CLI_LAUNCHER=1"',
       // A goto, not a parenthesized block: "Program Files (x86)" would close the block early.
       `if exist ${cmdWord(target.executable)} goto run`,
       ...restore,
@@ -61,17 +61,17 @@ export const renderCliShim = (input: {
       "exit /b 127",
       ":run",
       `${cmdWord(target.executable)} ${cmdWord(target.entry)} %*`,
-      'set "t3_exit=%ERRORLEVEL%"',
+      'set "madar_exit=%ERRORLEVEL%"',
       ...restore,
-      "exit /b %t3_exit%",
+      "exit /b %madar_exit%",
       "",
     ].join("\r\n");
   }
   const header = [
     "#!/bin/sh",
     `# ${MARKER}`,
-    `export T3CODE_CLI_PATH=${shellWord(input.shimPath)}`,
-    `home=${shellWord(input.t3Home)}`,
+    `export MADAR_CLI_PATH=${shellWord(input.shimPath)}`,
+    `home=${shellWord(input.madarHome)}`,
     'export MADAR_HOME="${MADAR_HOME:-$home}"',
     "export ELECTRON_RUN_AS_NODE=1",
     `app=${shellWord(target.kind === "appimage" ? target.appImage : target.executable)}`,
@@ -137,7 +137,7 @@ export const install = Effect.gen(function* () {
         }),
         onNone: () => ({ kind: "direct" as const, executable: process.execPath, entry }),
       });
-  const content = renderCliShim({ target, shimPath, t3Home: environment.baseDir });
+  const content = renderCliShim({ target, shimPath, madarHome: environment.baseDir });
 
   return yield* Effect.gen(function* () {
     const existing = yield* fs.readFileString(shimPath).pipe(Effect.option);

@@ -3,7 +3,7 @@ import * as Layer from "effect/Layer";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 import * as SqlClient from "effect/sql/SqlClient";
-import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import * as NodeSqliteClient from "@madar/shared/nodeSqliteClient";
 
 import { runMigrations } from "./Migrations.ts";
 import * as ServerConfig from "../config.ts";
@@ -30,13 +30,6 @@ const layerSetup = Layer.effectDiscard(
     // PASSIVE checkpoints retain peak WAL size until the last connection closes.
     yield* sql.unsafe(`PRAGMA journal_size_limit = ${WAL_SIZE_LIMIT_BYTES};`);
     yield* runMigrations();
-    // Collecting stats scans every page, and stale small-table stats cause scans after growth; use indexes by default.
-    // Connections cache stats; reload after deleting them.
-    const statTables = yield* sql`SELECT 1 FROM sqlite_schema WHERE name = 'sqlite_stat1'`;
-    if (statTables.length > 0) {
-      yield* sql`DELETE FROM sqlite_stat1;`;
-      yield* sql`ANALYZE sqlite_schema;`;
-    }
   }),
 );
 
@@ -54,7 +47,7 @@ export const layerFromPath = Effect.fn("makeSqlitePersistenceLive")(function* (d
       checkpointWorker: true,
       spanAttributes: {
         "db.name": path.basename(dbPath),
-        "service.name": "t3code-server",
+        "service.name": "madar-server",
       },
     }),
   );

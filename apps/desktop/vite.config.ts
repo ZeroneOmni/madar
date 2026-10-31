@@ -6,19 +6,19 @@ import { isDesktopRuntimeExternalDependency } from "../../scripts/lib/desktop-ex
 // Install only bundle externals; the server bundle already carries its dependency tree.
 const isMainProcessExternal = (id: string) =>
   id === "electron" || id.startsWith("electron/") || isDesktopRuntimeExternalDependency(id);
-const shouldLaunchElectronAfterPack = process.env.T3CODE_DESKTOP_DEV === "1";
+const shouldLaunchElectronAfterPack = process.env.MADAR_DESKTOP_DEV === "1";
 
 export default defineConfig({
   run: {
     tasks: {
       build: {
         command: "vp pack",
-        dependsOn: ["t3#build"],
+        dependsOn: ["madar#build"],
         cache: false,
       },
       dev: {
-        command: "cross-env T3CODE_DESKTOP_DEV=1 vp pack --watch",
-        dependsOn: ["t3#build"],
+        command: "cross-env MADAR_DESKTOP_DEV=1 vp pack --watch",
+        dependsOn: ["madar#build"],
         cache: false,
       },
       "dev:bundle": {
@@ -27,7 +27,7 @@ export default defineConfig({
       },
       "dev:electron": {
         command: "node scripts/dev-electron.mjs",
-        dependsOn: ["t3#build"],
+        dependsOn: ["madar#build"],
         cache: false,
       },
       // tsc (tsc-rs) rewrites the tsbuildinfo it reads, which keeps a task out of the cache.

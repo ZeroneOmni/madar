@@ -24,36 +24,27 @@ describe("ElectronShell", () => {
     writeTextMock.mockReset();
   });
 
-  it.effect("opens remote SSH editor URLs", () =>
+  it.effect("opens web URLs", () =>
     Effect.gen(function* () {
       openExternalMock.mockResolvedValue(undefined);
-
-      const electronShell = yield* ElectronShell.ElectronShell;
-      const result = yield* electronShell.openExternal(
-        "vscode://vscode-remote/ssh-remote+user%40example.com/home/user/project",
-      );
-
-      assert.equal(result, true);
-      assert.deepEqual(openExternalMock.mock.calls, [
-        ["vscode://vscode-remote/ssh-remote+user%40example.com/home/user/project"],
-      ]);
+      const shell = yield* ElectronShell.ElectronShell;
+      assert.isTrue(yield* shell.openExternal("https://example.com/"));
+      assert.deepEqual(openExternalMock.mock.calls, [["https://example.com/"]]);
     }).pipe(Effect.provide(ElectronShell.layer)),
   );
-
-  it.effect("opens the JetBrains Toolbox ssh deep link", () =>
+  it.effect("rejects former IDE integration protocols", () =>
     Effect.gen(function* () {
-      openExternalMock.mockResolvedValue(undefined);
-
-      const url =
-        "jetbrains://gateway/ssh/environment?h=example.com&launchIde=true&ideHint=IU&projectHint=%2Fhome%2Fuser%2Fproject&u=user";
-      const electronShell = yield* ElectronShell.ElectronShell;
-      const result = yield* electronShell.openExternal(url);
-
-      assert.equal(result, true);
-      assert.deepEqual(openExternalMock.mock.calls, [[url]]);
+      const shell = yield* ElectronShell.ElectronShell;
+      for (const url of [
+        "vscode://vscode-remote/ssh-remote+example.com/workspace",
+        "jetbrains://gateway/ssh/environment?h=example.com",
+        "zed://ssh/example.com/workspace",
+      ]) {
+        assert.isFalse(yield* shell.openExternal(url));
+      }
+      assert.equal(openExternalMock.mock.calls.length, 0);
     }).pipe(Effect.provide(ElectronShell.layer)),
   );
-
   it.effect("does not open editor URLs that mix up link shapes", () =>
     Effect.gen(function* () {
       openExternalMock.mockResolvedValue(undefined);

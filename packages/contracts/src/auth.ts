@@ -159,7 +159,7 @@ export const AuthTokenExchangeGrantType =
   "urn:ietf:params:oauth:grant-type:token-exchange" as const;
 export const AuthAccessTokenType = "urn:ietf:params:oauth:token-type:access_token" as const;
 export const AuthEnvironmentBootstrapTokenType =
-  "urn:t3:params:oauth:token-type:environment-bootstrap" as const;
+  "urn:madar:params:oauth:token-type:environment-bootstrap" as const;
 
 export const ServerAuthDescriptor = Schema.Struct({
   policy: ServerAuthPolicy,

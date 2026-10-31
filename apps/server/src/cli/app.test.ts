@@ -8,10 +8,10 @@ import * as NodePath from "node:path";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
-import type { DesktopAppActivationRequest } from "@t3tools/contracts";
-import { resolveDesktopAppControlAddress } from "@t3tools/shared/desktopAppControl";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import * as NetService from "@t3tools/shared/Net";
+import type { DesktopAppActivationRequest } from "@madar/contracts";
+import { resolveDesktopAppControlAddress } from "@madar/shared/desktopAppControl";
+import * as HostProcess from "@madar/shared/HostProcess";
+import * as NetService from "@madar/shared/Net";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -141,9 +141,9 @@ const withTempDirectory = <A, E, R>(
     (root) => Effect.promise(() => NodeFSP.rm(root, { recursive: true, force: true })),
   );
 
-describe("t3 server command safety", () => {
+describe("madar server command safety", () => {
   it.effect("rejects unknown command words without creating a home or project", () =>
-    withTempDirectory("t3-cli-unknown-", (root) =>
+    withTempDirectory("madar-cli-unknown-", (root) =>
       Effect.gen(function* () {
         const baseDir = NodePath.join(root, "home");
         for (const word of [
@@ -167,7 +167,7 @@ describe("t3 server command safety", () => {
   );
 
   it.effect("refuses manual startup over a live server before creating directories", () =>
-    withTempDirectory("t3-cli-running-", (root) =>
+    withTempDirectory("madar-cli-running-", (root) =>
       Effect.gen(function* () {
         const baseDir = NodePath.join(root, "home");
         const stateDir = NodePath.join(baseDir, "userdata");
@@ -202,7 +202,7 @@ describe("t3 server command safety", () => {
             ),
             Effect.flip,
           );
-          expect(String(error)).toContain("A T3 Code server is already running");
+          expect(String(error)).toContain("A Madar server is already running");
           expect(yield* Effect.promise(() => NodeFSP.readFile(statePath, "utf8"))).toBe(record);
           expect(yield* pathExists(newDirectory)).toBe(false);
           expect(yield* Effect.promise(() => NodeFSP.readdir(stateDir))).toEqual([
@@ -214,11 +214,11 @@ describe("t3 server command safety", () => {
   );
 });
 
-describe("t3 app", () => {
+describe("madar app", () => {
   it.effect("uses MADAR_HOME or --base-dir and sends the default or explicit path", () =>
-    withTempDirectory("t3-app-command-test-", (root) =>
+    withTempDirectory("madar-app-command-test-", (root) =>
       Effect.gen(function* () {
-        const baseDir = NodePath.join(root, "t3-home");
+        const baseDir = NodePath.join(root, "madar-home");
         const explicitPath = NodePath.join(root, "project");
         const platform = yield* HostProcess.Platform;
         const workingDirectory = yield* HostProcess.WorkingDirectory;
@@ -237,7 +237,7 @@ describe("t3 app", () => {
   );
 
   it.effect("prefers the installed desktop app when a dev desktop is also running", () =>
-    withTempDirectory("t3-app-preferred-test-", (root) =>
+    withTempDirectory("madar-app-preferred-test-", (root) =>
       Effect.gen(function* () {
         const baseDir = NodePath.join(root, ".madar");
         const desktop = yield* fakeDesktop({ baseDir });
@@ -252,7 +252,7 @@ describe("t3 app", () => {
   );
 
   it.effect("finds the dev desktop when the default desktop socket is absent", () =>
-    withTempDirectory("t3-app-dev-test-", (root) =>
+    withTempDirectory("madar-app-dev-test-", (root) =>
       Effect.gen(function* () {
         const baseDir = NodePath.join(root, ".madar");
         const development = yield* fakeDesktop({ baseDir, stateSubdirectory: "dev" });
@@ -266,8 +266,8 @@ describe("t3 app", () => {
     ),
   );
 
-  it.effect("never searches a dev state directory for an explicit T3 home", () =>
-    withTempDirectory("t3-app-explicit-test-", (root) =>
+  it.effect("never searches a dev state directory for an explicit Madar home", () =>
+    withTempDirectory("madar-app-explicit-test-", (root) =>
       Effect.gen(function* () {
         const baseDir = NodePath.join(root, ".madar");
         const development = yield* fakeDesktop({ baseDir, stateSubdirectory: "dev" });
@@ -285,7 +285,7 @@ describe("t3 app", () => {
   it.effect.each(["failure", "invalid"] as const)(
     "never falls back after the default desktop sends a %s response",
     (responseKind) =>
-      withTempDirectory("t3-app-response-test-", (root) =>
+      withTempDirectory("madar-app-response-test-", (root) =>
         Effect.gen(function* () {
           const baseDir = NodePath.join(root, ".madar");
           const desktop = yield* fakeDesktop({

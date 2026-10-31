@@ -3,7 +3,7 @@ import {
   type DesktopSshEnvironmentBootstrap,
   type DesktopSshEnvironmentTarget,
   EnvironmentId,
-} from "@t3tools/contracts";
+} from "@madar/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import type * as Option from "effect/Option";
@@ -27,7 +27,7 @@ export interface ProvisionedSshEnvironment extends PreparedSshEnvironment {
  */
 export class AnalyticsDevice extends Context.Reference<{
   readonly id: Effect.Effect<Option.Option<string>>;
-}>("@t3tools/client-runtime/platform/capabilities/AnalyticsDevice", {
+}>("@madar/client-runtime/platform/capabilities/AnalyticsDevice", {
   defaultValue: () => ({ id: Effect.succeedNone }),
 }) {}
 
@@ -36,4 +36,4 @@ export class ClientPresentation extends Context.Service<
   {
     readonly metadata: AuthClientPresentationMetadata;
   }
->()("@t3tools/client-runtime/platform/capabilities/ClientPresentation") {}
+>()("@madar/client-runtime/platform/capabilities/ClientPresentation") {}

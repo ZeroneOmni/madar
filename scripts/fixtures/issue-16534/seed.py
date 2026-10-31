@@ -71,7 +71,7 @@ def main():
             threads[16]['lineage']['rootThreadId'] = 'triage-missing-root'
     messages = []
     for group in ['A', 'B']:
-        text = "Synthetic navigation links: " + " | ".join(f"[Open {label}](t3-thread://v1/{target_id})" for label,target_id in [('A1','triage-A-1'),('A8','triage-A-8'),('child','triage-A-9'),('grandchild','triage-A-10'),('sibling','triage-A-12'),('fork','triage-A-11'),('missing','triage-missing')])
+        text = "Synthetic navigation links: " + " | ".join(f"[Open {label}](madar-thread://v1/{target_id})" for label,target_id in [('A1','triage-A-1'),('A8','triage-A-8'),('child','triage-A-9'),('grandchild','triage-A-10'),('sibling','triage-A-12'),('fork','triage-A-11'),('missing','triage-missing')])
         messages.append(dict(id=f'triage-link-{group}',threadId=f'triage-{group}-8',runId=None,nodeId=None,role='assistant',text=text,attachments=[],streaming=False,createdAt=CLOCK,updatedAt=CLOCK,createdBy='agent',creationSource='web'))
     message_values = ['(' + ','.join(map(quote,[m['id'],m['threadId'],None,None,m['role'],0,CLOCK,CLOCK,encoded(m)])) + ')' for m in messages]
     (args.output/'messages.sql').write_text('INSERT OR REPLACE INTO orchestration_v2_projection_messages (message_id,thread_id,run_id,node_id,role,streaming,created_at,updated_at,payload_json) VALUES ' + ','.join(message_values) + ';\n')

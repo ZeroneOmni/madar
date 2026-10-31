@@ -29,7 +29,6 @@ import {
   openExternal,
   openSystemSettings,
   pasteAsText,
-  probeRemoteEditors,
   revealWindow,
   pickFolder,
   pickProjectFavicon,
@@ -40,10 +39,6 @@ import {
 
 import * as AppActivationIpc from "./methods/appActivation.ts";
 import * as WebLinksIpc from "./methods/webLinks.ts";
-import {
-  completeLegacyLocalStorage,
-  takeLegacyLocalStorage,
-} from "./methods/legacyLocalStorage.ts";
 import {
   getCliCommandState,
   installCliCommand,
@@ -58,8 +53,6 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handle(AppActivationIpc.complete);
   yield* ipc.handle(WebLinksIpc.setReady);
 
-  yield* ipc.handleSync(takeLegacyLocalStorage);
-  yield* ipc.handle(completeLegacyLocalStorage);
   yield* ipc.handleSync(getAppBranding);
   yield* ipc.handleSync(getRelayTelemetryEnabled);
   yield* ipc.handleSync(getSystemLocale);
@@ -86,7 +79,6 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
 
   yield* ipc.handle(pasteAsText);
   yield* ipc.handle(revealWindow);
-  yield* ipc.handle(probeRemoteEditors);
   yield* ipc.handle(getUpdateState);
   yield* ipc.handle(setUpdateChannel);
   yield* ipc.handle(downloadUpdate);

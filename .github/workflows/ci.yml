@@ -83,7 +83,7 @@ jobs:
       - name: Setup Vite+
         uses: ./.github/actions/setup-ci-deps
         with:
-          task-cache-read-token: ${{ secrets.T3_TASK_CACHE_READ_TOKEN }}
+          task-cache-read-token: ${{ secrets.MADAR_TASK_CACHE_READ_TOKEN }}
 
       # electron's install.js (run by ensure:electron) reads this cache before it
       # downloads from GitHub. The key changes only with the Electron version.
@@ -94,14 +94,14 @@ jobs:
           key: electron-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('node_modules/.pnpm/electron@*/node_modules/electron/package.json') }}
 
       - name: Ensure Electron runtime is installed
-        run: vp run --filter @t3tools/desktop ensure:electron
+        run: vp run --filter @madar/desktop ensure:electron
 
       # Files/dependencies are repo-wide; export checks cover clean workspaces only.
       - name: Check unused code
         run: vp run knip:check
 
       - name: Check generated GitHub GraphQL operations
-        run: vp run --filter @t3tools/source-control-github generate --check
+        run: vp run --filter @madar/source-control-github generate --check
 
       - name: Validate release guard
         run: node --test .github/scripts/madar-release.test.cjs
@@ -133,7 +133,7 @@ jobs:
       - name: Setup Vite+
         uses: ./.github/actions/setup-ci-deps
         with:
-          task-cache-read-token: ${{ secrets.T3_TASK_CACHE_READ_TOKEN }}
+          task-cache-read-token: ${{ secrets.MADAR_TASK_CACHE_READ_TOKEN }}
 
       # electron's install.js (run by ensure:electron) reads this cache before it
       # downloads from GitHub. The key changes only with the Electron version.
@@ -145,7 +145,7 @@ jobs:
 
       - name: Ensure Electron runtime is installed
         id: electron
-        run: vp run --filter @t3tools/desktop ensure:electron
+        run: vp run --filter @madar/desktop ensure:electron
 
       # Runs in the background while the build runs, and reports in the last
       # step: neither result hides the other.
@@ -176,7 +176,7 @@ jobs:
           cat "$RUNNER_TEMP/typecheck.log"
           exit "$(cat "$RUNNER_TEMP/typecheck-status")"
 
-  # Everything except `t3` (apps/server) and the web app, which has its own job
+  # Everything except `madar` (apps/server) and the web app, which has its own job
   # below. `--parallel` drops the package dependency ordering that `vp run`
   # applies by default: these `test` tasks declare no `dependsOn` and resolve
   # workspace deps from source, so ordering only bought us idle runners between
@@ -212,7 +212,7 @@ jobs:
       - name: Setup Vite+
         uses: ./.github/actions/setup-ci-deps
         with:
-          task-cache-read-token: ${{ secrets.T3_TASK_CACHE_READ_TOKEN }}
+          task-cache-read-token: ${{ secrets.MADAR_TASK_CACHE_READ_TOKEN }}
 
       # electron's install.js (run by ensure:electron) reads this cache before it
       # downloads from GitHub. The key changes only with the Electron version.
@@ -223,7 +223,7 @@ jobs:
           key: electron-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('node_modules/.pnpm/electron@*/node_modules/electron/package.json') }}
 
       - name: Ensure Electron runtime is installed
-        run: vp run --filter @t3tools/desktop ensure:electron
+        run: vp run --filter @madar/desktop ensure:electron
 
       - name: Test preview artifact validation
         run: python3 -B .github/scripts/stage-preview-bundle.test.py
@@ -236,7 +236,7 @@ jobs:
         env:
           TEST_PACKAGES: ${{ needs.changes.outputs.test_packages }}
         run: |
-          filters=(--filter '!t3' --filter '!@t3tools/monorepo' --filter '!@t3tools/web')
+          filters=(--filter '!madar' --filter '!@madar/monorepo' --filter '!@madar/web')
           if [[ -n "$TEST_PACKAGES" ]]; then
             filters=()
             for package in $TEST_PACKAGES; do filters+=(--filter "$package"); done
@@ -267,7 +267,7 @@ jobs:
       - name: Setup Vite+
         uses: ./.github/actions/setup-ci-deps
         with:
-          task-cache-read-token: ${{ secrets.T3_TASK_CACHE_READ_TOKEN }}
+          task-cache-read-token: ${{ secrets.MADAR_TASK_CACHE_READ_TOKEN }}
 
       # The browser project runs React tests in headless Chromium. Same cache key as
       # test_server, so both jobs share one downloaded browser.
@@ -295,7 +295,7 @@ jobs:
           fi
 
       - name: Test
-        run: vp run --filter @t3tools/web test
+        run: vp run --filter @madar/web test
 
   # apps/server sets `fileParallelism: false`, so its test files run strictly
   # one at a time. Sharding spreads them over separate runners instead of
@@ -334,11 +334,11 @@ jobs:
         if: steps.changes.outputs.test_server != 'false'
         uses: ./.github/actions/setup-ci-deps
         with:
-          task-cache-read-token: ${{ secrets.T3_TASK_CACHE_READ_TOKEN }}
+          task-cache-read-token: ${{ secrets.MADAR_TASK_CACHE_READ_TOKEN }}
 
       - name: Test
         if: steps.changes.outputs.test_server != 'false'
-        run: vp run --filter t3 test --shard ${{ matrix.shard }}/${{ strategy.job-total }}
+        run: vp run --filter madar test --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
   # Split out of Check and Test: both paid ~7-9s to install a Rust toolchain
   # for checks that take under 3s, on the critical path of every PR.
@@ -395,7 +395,7 @@ jobs:
       - name: Setup Vite+
         uses: ./.github/actions/setup-ci-deps
         with:
-          task-cache-read-token: ${{ secrets.T3_TASK_CACHE_READ_TOKEN }}
+          task-cache-read-token: ${{ secrets.MADAR_TASK_CACHE_READ_TOKEN }}
 
       - name: Exercise release-only workflow steps
         run: node scripts/release-smoke.ts

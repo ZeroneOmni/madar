@@ -8,9 +8,9 @@ import * as PlatformError from "effect/PlatformError";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 
-import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
-import * as HostProcess from "@t3tools/shared/HostProcess";
-import { hashTelemetryId } from "@t3tools/shared/telemetryId";
+import { writeFileStringAtomically } from "@madar/shared/atomicWrite";
+import * as HostProcess from "@madar/shared/HostProcess";
+import { hashTelemetryId } from "@madar/shared/telemetryId";
 
 import * as ServerConfig from "../config.ts";
 
@@ -299,7 +299,7 @@ export const getTelemetryIdentity = Effect.flatMap(
 );
 
 /**
- * Owners the server can read without a client: the linked T3 Connect account
+ * Owners the server can read without a client: the linked Madar Connect account
  * and the provider logins under `homeDirectory`. Clients add `connect` and
  * `device` owners when they connect.
  */

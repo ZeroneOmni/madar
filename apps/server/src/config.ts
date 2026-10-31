@@ -8,10 +8,10 @@ import * as Path from "effect/Path";
 import type * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 
-import type { OtlpEndpointSource } from "@t3tools/contracts";
+import type { OtlpEndpointSource } from "@madar/contracts";
 import { sweepStalePendingAttachments } from "./attachmentStore.ts";
-import { DEFAULT_SIGNAL_EXPORT, type SignalExport } from "@t3tools/shared/observability";
-import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
+import { DEFAULT_SIGNAL_EXPORT, type SignalExport } from "@madar/shared/observability";
+import * as OtelEnvironment from "@madar/shared/otelEnvironment";
 import packageJson from "../package.json" with { type: "json" };
 
 export const DEFAULT_PORT = 3773;
@@ -94,7 +94,7 @@ export class ServerConfig extends Context.Service<
     readonly tailscaleServeEnabled: boolean;
     readonly tailscaleServePort: number;
   }
->()("t3/config/ServerConfig") {
+>()("madar/config/ServerConfig") {
   static readonly layerTest = (
     cwd: string,
     baseDirOrPrefix: string | { readonly prefix: string },
@@ -107,12 +107,12 @@ export const otlpResource = (
   config: Pick<ServerConfig["Service"], "mode" | "otelEnvironment">,
   hostName: string,
 ) => ({
-  serviceName: "t3code-server",
+  serviceName: "madar-server",
   serviceVersion: packageJson.version,
   attributes: {
-    "service.namespace": "t3code",
-    "service.runtime": "t3-server",
-    "t3code.server.managed_by": config.mode === "desktop" ? "desktop" : "standalone",
+    "service.namespace": "madar",
+    "service.runtime": "madar-server",
+    "madar.server.managed_by": config.mode === "desktop" ? "desktop" : "standalone",
     "host.name": config.otelEnvironment.resourceAttributes["host.name"] || hostName,
   },
 });

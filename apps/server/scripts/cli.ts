@@ -12,7 +12,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 import { DEVELOPMENT_ICON_OVERRIDES } from "../../../scripts/lib/brand-assets.ts";
 import { findEsmImportsOfExternalPackages } from "../../../scripts/lib/cli-executable-imports.ts";
 import rootPackageJson from "../../../package.json" with { type: "json" };
-import { resolveSpawnCommand } from "@t3tools/shared/shell";
+import { resolveSpawnCommand } from "@madar/shared/shell";
 import {
   ServerCliCommandExitError,
   ServerCliDevelopmentIconSourceMissingError,
@@ -123,10 +123,10 @@ const buildExeCmd = Command.make(
           cwd: serverDir,
           env: {
             ...process.env,
-            T3CODE_PACK_EXE: "1",
+            MADAR_PACK_EXE: "1",
             ...Option.match(config.target, {
               onNone: () => ({}),
-              onSome: (target) => ({ T3CODE_PACK_EXE_TARGET: target }),
+              onSome: (target) => ({ MADAR_PACK_EXE_TARGET: target }),
             }),
           },
           stdout: config.verbose ? "inherit" : "ignore",
@@ -142,7 +142,7 @@ const buildExeCmd = Command.make(
         return yield* new ServerCliExecutableImportError({ bundlePath, specifiers });
       }
       yield* Effect.log(
-        "[cli] Built dist-exe/t3 (expects client/, resource-monitor/, and the runtime-external node_modules beside it; scripts/build-cli-archive.ts assembles that tree)",
+        "[cli] Built dist-exe/madar (expects client/, resource-monitor/, and the runtime-external node_modules beside it; scripts/build-cli-archive.ts assembles that tree)",
       );
     }),
 ).pipe(

@@ -13,7 +13,7 @@ export class DesktopServerExposure extends Context.Service<
       readonly httpBaseUrl: URL;
     }>;
   }
->()("@t3tools/desktop/backend/DesktopServerExposure") {}
+>()("@madar/desktop/backend/DesktopServerExposure") {}
 
 export const layer = Layer.effect(
   DesktopServerExposure,

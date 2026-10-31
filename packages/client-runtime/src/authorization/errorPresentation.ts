@@ -1,4 +1,4 @@
-import type { DpopFailureReason } from "@t3tools/contracts";
+import type { DpopFailureReason } from "@madar/contracts";
 
 const DPOP_CLOCK_HINT =
   "Hint: Check that automatic date and time is enabled on both devices, then try again.";

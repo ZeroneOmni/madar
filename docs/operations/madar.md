@@ -28,6 +28,6 @@ This fork does not configure T3's hosted Clerk, relay, telemetry exporters, mark
 
 ## Coexisting with T3 Code
 
-Madar uses its own app ID, `madar:` / `madar-dev:` URL handlers, Electron profile, default `.madar` home, and `madar` desktop launcher. Keep its `MADAR_HOME` override unset unless intentionally choosing a different folder. Internal workspace package names and other compatibility environment variable names retain their upstream names to make updates easier.
+Madar uses its own app ID, `madar:` / `madar-dev:` URL handlers, Electron profile, default `.madar` home, and `madar` desktop launcher. Keep its `MADAR_HOME` override unset unless intentionally choosing a different folder. Workspace packages use the `@madar/*` namespace, and configuration variables use the `MADAR_*` prefix.
 
 Fetch upstream changes, integrate them on a new branch, and open a PR so CI runs before merging. The `upstream` remote points to `pingdotgg/t3code`; release assets always belong to this fork.

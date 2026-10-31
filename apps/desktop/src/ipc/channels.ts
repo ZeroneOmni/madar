@@ -6,7 +6,6 @@ export const SET_THEME_CHANNEL = "desktop:set-theme";
 export const CONTEXT_MENU_CHANNEL = "desktop:context-menu";
 export const OPEN_EXTERNAL_CHANNEL = "desktop:open-external";
 export const OPEN_SYSTEM_SETTINGS_CHANNEL = "desktop:open-system-settings";
-export const PROBE_REMOTE_EDITORS_CHANNEL = "desktop:probe-remote-editors";
 export const MENU_ACTION_CHANNEL = "desktop:menu-action";
 export const PASTE_AS_TEXT_CHANNEL = "desktop:paste-as-text";
 export const REVEAL_WINDOW_CHANNEL = "desktop:reveal-window";
@@ -45,6 +44,3 @@ export const SET_CONNECTION_CATALOG_CHANNEL = "desktop:set-connection-catalog";
 export const CLEAR_CONNECTION_CATALOG_CHANNEL = "desktop:clear-connection-catalog";
 
 export const MAC_PERMISSION_HELPER_CHANNEL = "desktop:mac-permission-helper";
-
-export const TAKE_LEGACY_LOCAL_STORAGE_CHANNEL = "desktop:take-legacy-local-storage";
-export const COMPLETE_LEGACY_LOCAL_STORAGE_CHANNEL = "desktop:complete-legacy-local-storage";

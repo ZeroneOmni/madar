@@ -1,14 +1,14 @@
 {
-  "name": "t3",
+  "name": "madar",
   "version": "0.1.2",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pingdotgg/t3code",
+    "url": "https://github.com/ZeroneOmni/madar",
     "directory": "apps/server"
   },
   "bin": {
-    "t3": "./dist/bin.mjs"
+    "madar": "./dist/bin.mjs"
   },
   "files": [
     "dist"
@@ -32,10 +32,10 @@
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
-    "@t3tools/contracts": "workspace:*",
-    "@t3tools/shared": "workspace:*",
-    "@t3tools/tailscale": "workspace:*",
-    "@t3tools/web": "workspace:*",
+    "@madar/contracts": "workspace:*",
+    "@madar/shared": "workspace:*",
+    "@madar/tailscale": "workspace:*",
+    "@madar/web": "workspace:*",
     "@types/node": "catalog:",
     "vite-plus": "catalog:"
   },

@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 const tempRoot = () => {
-  const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-cli-shim-"));
+  const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "madar-cli-shim-"));
   directories.push(root);
   return root;
 };
@@ -28,7 +28,7 @@ const writeExecutable = (path: string, content: string) => {
 
 const writeShim = (root: string, target: CliShimTarget) => {
   const shim = NodePath.join(root, "bin", "madar");
-  writeExecutable(shim, renderCliShim({ target, shimPath: shim, t3Home: `${root}/home` }));
+  writeExecutable(shim, renderCliShim({ target, shimPath: shim, madarHome: `${root}/home` }));
   return shim;
 };
 
@@ -39,7 +39,7 @@ const run = (shim: string, args: ReadonlyArray<string>, env: NodeJS.ProcessEnv =
   });
 
 const REPORTER =
-  '#!/bin/sh\necho "node=$ELECTRON_RUN_AS_NODE cli=$T3CODE_CLI_PATH home=$MADAR_HOME"\nprintf "%s\\n" "$@"\nexit 3\n';
+  '#!/bin/sh\necho "node=$ELECTRON_RUN_AS_NODE cli=$MADAR_CLI_PATH home=$MADAR_HOME"\nprintf "%s\\n" "$@"\nexit 3\n';
 
 const fakeAppImage = (canMount = true) => {
   const root = tempRoot();
@@ -73,7 +73,7 @@ describe("renderCliShim", () => {
     );
   });
 
-  it("keeps the install's T3 home under sudo, unless one is set", () => {
+  it("keeps the install's Madar home under sudo, unless one is set", () => {
     const root = tempRoot();
     writeExecutable(NodePath.join(root, "app"), REPORTER);
     const shim = writeShim(root, {
@@ -108,8 +108,8 @@ describe("renderCliShim", () => {
     const executable = "C:\\Apps\\R&whoami&X 100%\\!CHANNEL!\\Madar.exe";
     const script = renderCliShim({
       target: { kind: "windows", executable, entry: "C:\\Apps\\server.asar\\bin.mjs" },
-      shimPath: "C:\\Users\\José\\.t3\\bin\\madar.cmd",
-      t3Home: "C:\\Users\\José\\.t3",
+      shimPath: "C:\\Users\\JosÃ©\\.madar\\bin\\madar.cmd",
+      madarHome: "C:\\Users\\JosÃ©\\.madar",
     });
     const lines = script.split("\r\n");
     expect(lines).toContain("setlocal EnableExtensions DisableDelayedExpansion");
@@ -119,6 +119,6 @@ describe("renderCliShim", () => {
       (line) => line.includes("whoami") && !/"[^"]*whoami[^"]*"/.test(line),
     );
     expect(bare).toEqual([]);
-    expect(lines).toContain('set "T3CODE_CLI_PATH=C:\\Users\\José\\.t3\\bin\\madar.cmd"');
+    expect(lines).toContain('set "MADAR_CLI_PATH=C:\\Users\\JosÃ©\\.madar\\bin\\madar.cmd"');
   });
 });

@@ -1,4 +1,4 @@
-import type { KeybindingCommand } from "@t3tools/contracts";
+import type { KeybindingCommand } from "@madar/contracts";
 import {
   type KeybindingRule,
   type KeybindingShortcut,
@@ -9,7 +9,7 @@ import {
   type ResolvedKeybindingRule,
   type ResolvedKeybindingsConfig,
   THREAD_JUMP_KEYBINDING_COMMANDS,
-} from "@t3tools/contracts";
+} from "@madar/contracts";
 
 export interface ShortcutEventLike {
   getModifierState?: (key: "AltGraph") => boolean;

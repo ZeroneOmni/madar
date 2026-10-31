@@ -3,7 +3,7 @@ import type * as NodeChildProcess from "node:child_process";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
-import { SERVER_EXIT_CODE_STATE_DIR_OWNED } from "@t3tools/contracts";
+import { SERVER_EXIT_CODE_STATE_DIR_OWNED } from "@madar/contracts";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -115,7 +115,7 @@ const writeFakeRuntime = (
   childSource: string,
 ) =>
   Effect.gen(function* () {
-    const entryPath = path.join(versionDir, "t3");
+    const entryPath = path.join(versionDir, "madar");
     yield* fs.makeDirectory(versionDir, { recursive: true });
     yield* fs.writeFileString(entryPath, `#!${process.execPath}\n${childSource}`);
     yield* fs.chmod(entryPath, 0o755);
@@ -133,13 +133,13 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-env-" });
+        const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-service-env-" });
         const inherited = Object.freeze({
           PATH: "inherited-path",
           MADAR_HOME: root,
           MADAR_BOOT_SERVICE_UNIT: "managed-unit",
-          T3_SERVICE_LAUNCHER_CONTEXT: "managed-context",
-          T3CODE_PORT: "ambient",
+          MADAR_SERVICE_LAUNCHER_CONTEXT: "managed-context",
+          MADAR_PORT: "ambient",
         });
         assert.deepEqual(
           yield* Effect.promise(() => readServiceEnvironment(root, inherited)),
@@ -149,8 +149,8 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
           path.join(root, SERVICE_ENV_FILE),
           [
             "# service configuration",
-            "export T3CODE_PORT=1234 # inline comment",
-            'T3CODE_TOKEN="literal $HOME ${USER} $(whoami) # token"',
+            "export MADAR_PORT=1234 # inline comment",
+            'MADAR_TOKEN="literal $HOME ${USER} $(whoami) # token"',
             'MULTILINE="first\nsecond"',
             "EMPTY=",
             "PATH=/bad",
@@ -159,25 +159,25 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
             "madar_home=/bad",
             "MADAR_BOOT_SERVICE_UNIT=bad",
             "madar_boot_service_unit=bad",
-            "T3_SERVICE_LAUNCHER_CONTEXT=bad",
-            "t3_service_launcher_context=bad",
+            "MADAR_SERVICE_LAUNCHER_CONTEXT=bad",
+            "madar_service_launcher_context=bad",
           ].join("\n"),
         );
         assert.deepEqual(yield* Effect.promise(() => readServiceEnvironment(root, inherited)), {
           ...inherited,
-          T3CODE_PORT: "1234",
-          T3CODE_TOKEN: "literal $HOME ${USER} $(whoami) # token",
+          MADAR_PORT: "1234",
+          MADAR_TOKEN: "literal $HOME ${USER} $(whoami) # token",
           MULTILINE: "first\nsecond",
           EMPTY: "",
         });
       }),
   );
 
-  it.effect("a fresh launcher clears a restart deferred by t3 update", () =>
+  it.effect("a fresh launcher clears a restart deferred by madar update", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-restart-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-service-launcher-restart-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       const restartPending = path.join(root, "runtime", SERVICE_RESTART_PENDING_FILE);
       yield* writeFakeRuntime(
@@ -213,11 +213,11 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
     }),
   );
 
-  it.effect("stays idle instead of exiting when another server owns the T3 home", () =>
+  it.effect("stays idle instead of exiting when another server owns the Madar home", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-refused-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-service-refused-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       yield* writeFakeRuntime(
         fs,
@@ -235,7 +235,7 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
       yield* Effect.acquireRelease(
         Effect.sync(() =>
           vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
-            if (String(chunk).includes("owns this T3 home")) refused.resolve();
+            if (String(chunk).includes("owns this Madar home")) refused.resolve();
             return true;
           }),
         ),
@@ -257,14 +257,14 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-flow-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-service-launcher-flow-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       const databasePath = path.join(root, "userdata", "state.sqlite");
       yield* fs.makeDirectory(path.dirname(databasePath), { recursive: true });
       yield* fs.writeFileString(databasePath, "before trial");
       const encodedDatabasePath = JSON.stringify(databasePath);
       const childSource = `
-const context = JSON.parse(process.env.T3_SERVICE_LAUNCHER_CONTEXT);
+const context = JSON.parse(process.env.MADAR_SERVICE_LAUNCHER_CONTEXT);
 if (context.update?.status === "pending") {
   process.send({ type: "prepared", updateId: context.update.id });
   process.on("message", (message) => {
@@ -310,29 +310,31 @@ if (context.update?.status === "pending") {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-rollback-" });
+      const root = yield* fs.makeTempDirectoryScoped({
+        prefix: "madar-service-launcher-rollback-",
+      });
       const statePath = path.join(root, "runtime", "service-state.json");
       const databasePath = path.join(root, "userdata", "state.sqlite");
       const observationsPath = path.join(root, "environment-observations.jsonl");
       const envPath = path.join(root, SERVICE_ENV_FILE);
-      yield* fs.writeFileString(envPath, "T3CODE_TEST_SERVICE_TOKEN=initial\n");
+      yield* fs.writeFileString(envPath, "MADAR_TEST_SERVICE_TOKEN=initial\n");
       vi.stubEnv("MADAR_HOME", root);
-      vi.stubEnv("T3CODE_TEST_SERVICE_TOKEN", "inherited");
+      vi.stubEnv("MADAR_TEST_SERVICE_TOKEN", "inherited");
       yield* Effect.addFinalizer(() => Effect.sync(() => vi.unstubAllEnvs()));
       yield* fs.makeDirectory(path.dirname(databasePath), { recursive: true });
       yield* fs.writeFileString(databasePath, "before trial");
       const encodedDatabasePath = JSON.stringify(databasePath);
       const childSource = `
 import { appendFileSync, writeFileSync } from "node:fs";
-const context = JSON.parse(process.env.T3_SERVICE_LAUNCHER_CONTEXT);
+const context = JSON.parse(process.env.MADAR_SERVICE_LAUNCHER_CONTEXT);
 appendFileSync(${JSON.stringify(observationsPath)}, JSON.stringify({
-  token: process.env.T3CODE_TEST_SERVICE_TOKEN,
+  token: process.env.MADAR_TEST_SERVICE_TOKEN,
   update: context.update?.status ?? "active",
 }) + "\\n");
 if (context.update?.status === "pending") {
   process.send({ type: "prepared", updateId: "wrong-update" });
 } else if (context.update === undefined) {
-  writeFileSync(${JSON.stringify(envPath)}, "T3CODE_TEST_SERVICE_TOKEN=changed\\n");
+  writeFileSync(${JSON.stringify(envPath)}, "MADAR_TEST_SERVICE_TOKEN=changed\\n");
   process.send({ type: "request-update", targetVersion: "1.1.0", dbPath: ${encodedDatabasePath} });
   setInterval(() => {}, 1_000);
 } else {
@@ -377,8 +379,8 @@ if (context.update?.status === "pending") {
         { token: "initial", update: "pending" },
         { token: "initial", update: "rolled-back" },
       ]);
-      assert.equal(process.env.T3CODE_TEST_SERVICE_TOKEN, "inherited");
-      assert.equal(yield* fs.readFileString(envPath), "T3CODE_TEST_SERVICE_TOKEN=changed\n");
+      assert.equal(process.env.MADAR_TEST_SERVICE_TOKEN, "inherited");
+      assert.equal(yield* fs.readFileString(envPath), "MADAR_TEST_SERVICE_TOKEN=changed\n");
     }),
   );
 
@@ -388,7 +390,7 @@ if (context.update?.status === "pending") {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
-        const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-db-" });
+        const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-service-launcher-db-" });
         const statePath = path.join(root, "runtime", "service-state.json");
         const databasePath = path.join(root, "userdata", "state.sqlite");
         const databaseFile =
@@ -407,7 +409,7 @@ if (context.update?.status === "pending") {
         const encodedDatabasePath = JSON.stringify(databasePath);
         const childSource = `
 import { realpathSync, unlinkSync, writeFileSync } from "node:fs";
-const context = JSON.parse(process.env.T3_SERVICE_LAUNCHER_CONTEXT);
+const context = JSON.parse(process.env.MADAR_SERVICE_LAUNCHER_CONTEXT);
 if (context.update?.status === "pending") {
   writeFileSync(context.update.dbPath, "database after migration");
   writeFileSync(context.update.dbPath + "-wal", "trial wal");
@@ -465,7 +467,7 @@ if (context.update?.status === "pending") {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-space-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-service-launcher-space-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       const databasePath = path.join(root, "userdata", "state.sqlite");
       const replyPath = path.join(root, "rejection.txt");
@@ -476,7 +478,7 @@ if (context.update?.status === "pending") {
       const childSource = `
 import { writeFileSync } from "node:fs";
 const paths = ${encoded};
-const context = JSON.parse(process.env.T3_SERVICE_LAUNCHER_CONTEXT);
+const context = JSON.parse(process.env.MADAR_SERVICE_LAUNCHER_CONTEXT);
 if (context.update?.status === "pending") {
   writeFileSync(paths.trialMarker, "started");
   process.exit(1);
@@ -562,7 +564,7 @@ if (context.update?.status === "pending") {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-exit-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-service-launcher-exit-" });
       const statePath = path.join(root, "runtime", "service-state.json");
       const databasePath = path.join(root, "userdata", "state.sqlite");
       yield* fs.makeDirectory(path.dirname(databasePath), { recursive: true });
@@ -622,7 +624,7 @@ setInterval(() => {}, 1_000);
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-launcher-blocker-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-service-launcher-blocker-" });
       const databasePath = path.join(root, "state.sqlite");
       yield* writeSparseFile(databasePath, 10 * 1024 ** 3);
       const check = (free: number, cloneable: boolean) =>

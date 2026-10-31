@@ -29,7 +29,7 @@ export * from "./orchestrationV2.ts";
 export * from "./guestShare.ts";
 export * from "./threadPullRequest.ts";
 export * from "./threadSearch.ts";
-export * from "./editor.ts";
+export * from "./externalLauncher.ts";
 export * from "./project.ts";
 export * from "./assets.ts";
 export * from "./browserProfile.ts";

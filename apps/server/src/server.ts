@@ -6,7 +6,7 @@ import * as ResourceAttribution from "./resourceTelemetry/ResourceAttribution.ts
 import * as NodeHttp from "node:http";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { EnvironmentHttpApi } from "@t3tools/contracts";
+import { EnvironmentHttpApi } from "@madar/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { HttpRouter, HttpServer, FetchHttpClient } from "effect/http";
@@ -33,7 +33,7 @@ import {
 import { makePersistedServerRuntimeState } from "./serverRuntimeState.ts";
 import * as ProcessRunner from "./processRunner.ts";
 import * as ExternalLauncher from "./process/externalLauncher.ts";
-import * as NetService from "@t3tools/shared/Net";
+import * as NetService from "@madar/shared/Net";
 import * as ServiceLauncherClient from "./cloud/serviceLauncherClient.ts";
 const HTTP_PREEMPTIVE_SHUTDOWN_GRACE_MS = 0;
 const layerHttpServer = Layer.unwrap(

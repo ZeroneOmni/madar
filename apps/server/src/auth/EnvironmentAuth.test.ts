@@ -2,12 +2,12 @@
 import * as NodeCrypto from "node:crypto";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { authScopeResponse, AuthStandardClientScopes } from "@t3tools/contracts";
+import { authScopeResponse, AuthStandardClientScopes } from "@madar/contracts";
 import {
   computeDpopAccessTokenHash,
   computeDpopJwkThumbprint,
   type DpopPublicJwk,
-} from "@t3tools/shared/dpop";
+} from "@madar/shared/dpop";
 import { expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -35,7 +35,9 @@ const layerServerConfig = (overrides?: Partial<ServerConfig.ServerConfig["Servic
         port: TEST_SERVER_PORT,
       } satisfies ServerConfig.ServerConfig["Service"];
     }),
-  ).pipe(Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "t3-auth-server-test-" })));
+  ).pipe(
+    Layer.provide(ServerConfig.layerTest(process.cwd(), { prefix: "madar-auth-server-test-" })),
+  );
 
 const layerEnvironmentAuth = (overrides?: Partial<ServerConfig.ServerConfig["Service"]>) =>
   EnvironmentAuth.layer.pipe(
@@ -414,7 +416,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       const paired = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         pairing.credential,
         undefined,
-        { ...requestMetadata, label: "T3 Code Desktop" },
+        { ...requestMetadata, label: "Madar Desktop" },
       );
       const first = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         "desktop-bootstrap-token",

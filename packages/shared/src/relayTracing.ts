@@ -22,17 +22,17 @@ export interface RelayClientTracingResource {
 }
 
 export class RelayClientTracer extends Context.Reference(
-  "@t3tools/shared/relayTracing/RelayClientTracer",
+  "@madar/shared/relayTracing/RelayClientTracer",
   {
     defaultValue: () => Option.none<Tracer.Tracer>(),
   },
 ) {}
 
-class LocalTracer extends Context.Reference("@t3tools/shared/relayTracing/LocalTracer", {
+class LocalTracer extends Context.Reference("@madar/shared/relayTracing/LocalTracer", {
   defaultValue: () => Option.none<Tracer.Tracer>(),
 }) {}
 
-/** Export only T3 Connect spans; wrap local work with {@link withLocalTracing}. */
+/** Export only Madar Connect spans; wrap local work with {@link withLocalTracing}. */
 export const withRelayClientTracing = <A, E, R>(
   effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, E, R> =>

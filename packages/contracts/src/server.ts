@@ -22,7 +22,6 @@ import {
   KeybindingWhen,
   ResolvedKeybindingsConfig,
 } from "./keybindings.ts";
-import { EditorId, FileManagerRevealKind, RemoteOpenTarget } from "./editor.ts";
 import { ModelCapabilities, ProviderOptionDescriptor } from "./model.ts";
 import { RuntimeMode } from "./providerPolicy.ts";
 import { ProviderDriverKind, ProviderInstanceId } from "./providerInstance.ts";
@@ -573,8 +572,6 @@ export const ServerConfig = Schema.Struct({
   keybindings: ResolvedKeybindingsConfig,
   issues: ServerConfigIssues,
   providers: ServerProviders,
-  availableEditors: ForwardCompatibleArray(EditorId),
-  remoteOpenTargets: Schema.optionalKey(ForwardCompatibleArray(RemoteOpenTarget)),
   /** Hints only; verify each address answers as this environment. */
   directEndpoints: Schema.optionalKey(ForwardCompatibleArray(ServerDirectEndpoint)),
   observability: ServerObservability,
@@ -591,7 +588,6 @@ export const ServerConfig = Schema.Struct({
    */
   shellOlderSettled: Schema.optionalKey(Schema.Boolean),
   shellRevealInFileManager: Schema.optionalKey(Schema.Boolean),
-  shellRevealInFileManagerKind: Schema.optionalKey(FileManagerRevealKind),
   threadResumeCompletionMarker: Schema.optionalKey(Schema.Boolean),
   /** Send window fields only when advertised. */
   threadSnapshotPagination: Schema.optionalKey(Schema.Boolean),

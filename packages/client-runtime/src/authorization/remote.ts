@@ -7,9 +7,9 @@ import {
   type AuthEnvironmentScope,
   type AuthWebSocketTicketResult,
   type AuthWebSocketTicketUse,
-} from "@t3tools/contracts";
-import { encodeOAuthScope } from "@t3tools/shared/oauthScope";
-import { hashTelemetryId } from "@t3tools/shared/telemetryId";
+} from "@madar/contracts";
+import { encodeOAuthScope } from "@madar/shared/oauthScope";
+import { hashTelemetryId } from "@madar/shared/telemetryId";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import { environmentEndpointUrl } from "../environment/endpoint.ts";
@@ -46,7 +46,7 @@ export interface ClientOwnerParams {
 }
 
 /**
- * Tells the environment, for analytics, which T3 Connect account and device
+ * Tells the environment, for analytics, which Madar Connect account and device
  * are connecting, so it can count the environment as theirs.
  */
 export const readClientOwnerParams = Effect.gen(function* () {

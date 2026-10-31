@@ -1,5 +1,5 @@
 {
-  "name": "@t3tools/shared",
+  "name": "@madar/shared",
   "private": true,
   "type": "module",
   "exports": {
@@ -30,10 +30,6 @@
     "./httpObservability": {
       "types": "./src/httpObservability.ts",
       "import": "./src/httpObservability.ts"
-    },
-    "./editor": {
-      "types": "./src/editor.ts",
-      "import": "./src/editor.ts"
     },
     "./shell": {
       "types": "./src/shell.ts",
@@ -193,9 +189,9 @@
     "test": "vp test run --config ../../vite.config.ts --dir ."
   },
   "dependencies": {
+    "@madar/contracts": "workspace:*",
     "@noble/curves": "catalog:",
     "@noble/hashes": "catalog:",
-    "@t3tools/contracts": "workspace:*",
     "effect": "catalog:",
     "yaml": "catalog:"
   },

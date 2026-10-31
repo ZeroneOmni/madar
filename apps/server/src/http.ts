@@ -1,7 +1,7 @@
 import * as Schema from "effect/Schema";
 import * as Mime from "effect/http/Mime";
-import { EnvironmentHttpApi } from "@t3tools/contracts";
-import { isDevProxiedPath } from "@t3tools/shared/devProxy";
+import { EnvironmentHttpApi } from "@madar/contracts";
+import { isDevProxiedPath } from "@madar/shared/devProxy";
 import * as ByteSize from "effect/ByteSize";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";

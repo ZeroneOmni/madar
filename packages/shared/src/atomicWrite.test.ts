@@ -18,7 +18,7 @@ it.layer(NodeServices.layer)("writeFileStringAtomically", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-atomic-write-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-atomic-write-" });
       const destination = path.join(root, "dotfiles", "settings.json");
       const link = path.join(root, "home", "settings.json");
       yield* fs.makeDirectory(path.dirname(destination), { recursive: true });
@@ -37,7 +37,7 @@ it.layer(NodeServices.layer)("writeFileStringAtomically", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-atomic-write-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-atomic-write-" });
       const destination = path.join(root, "dotfiles", "settings.json");
       const link = path.join(root, "home", "settings.json");
       yield* fs.makeDirectory(path.dirname(link), { recursive: true });
@@ -54,7 +54,7 @@ it.layer(NodeServices.layer)("writeFileStringAtomically", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-atomic-write-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-atomic-write-" });
       const first = path.join(root, "first.json");
       const second = path.join(root, "second.json");
       yield* fs.symlink(second, first);
@@ -74,7 +74,7 @@ it.layer(NodeServices.layer)("writeFileStringAtomically", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-atomic-write-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-atomic-write-" });
       const destination = path.join(root, "dotfiles", "config", "settings.json");
       const linkedState = path.join(root, "dotfiles", "state");
       const home = path.join(root, "home");
@@ -97,7 +97,7 @@ it.layer(NodeServices.layer)("writeFileStringAtomically", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-atomic-write-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-atomic-write-" });
       const filePath = path.join(root, "settings.json");
       yield* fs.writeFileString(filePath, "before");
       const firstAttempt = yield* Deferred.make<void>();
@@ -136,7 +136,7 @@ const advanceUntilDone = <A, E>(fiber: Fiber.Fiber<A, E>) =>
   Effect.gen(function* () {
     while (fiber.pollUnsafe() === undefined) {
       yield* TestClock.adjust("100 millis");
-      // oxlint-disable-next-line t3code/no-real-time-wait-in-tests -- a macrotask boundary so the real stat I/O can finish; time moves only via TestClock
+      // oxlint-disable-next-line madar/no-real-time-wait-in-tests -- a macrotask boundary so the real stat I/O can finish; time moves only via TestClock
       yield* Effect.promise(() => new Promise((resolve) => setImmediate(resolve)));
     }
     return yield* Fiber.join(fiber);

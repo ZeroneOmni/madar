@@ -67,10 +67,6 @@ enum Command {
         version: u32,
         request_id: String,
     },
-    ProcessTable {
-        version: u32,
-        request_id: String,
-    },
     ReadHistory {
         version: u32,
         request_id: String,
@@ -89,7 +85,6 @@ impl Command {
             | Self::SetSampleInterval { version, .. }
             | Self::SetStreaming { version, .. }
             | Self::SampleNow { version, .. }
-            | Self::ProcessTable { version, .. }
             | Self::ReadHistory { version, .. }
             | Self::Shutdown { version } => *version,
         }
@@ -150,24 +145,6 @@ struct ProcessSample {
     io_read_bytes: u64,
     io_write_bytes: u64,
     io_semantics: IoSemantics,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ProcessTableEntry {
-    pid: u32,
-    ppid: u32,
-    name: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ProcessTableEvent<'a> {
-    version: u32,
-    #[serde(rename = "type")]
-    event_type: &'static str,
-    request_id: &'a str,
-    processes: Vec<ProcessTableEntry>,
 }
 
 impl ProcessSample {
@@ -373,37 +350,6 @@ impl Collector {
             process_discovery_refresh_kind(),
         );
         self.cpu_baseline_refreshed_at = Some(Instant::now());
-    }
-
-    fn process_table(&self) -> Vec<ProcessTableEntry> {
-        // A separate System preserves snapshot CPU baselines.
-        let mut process_table_system = System::new();
-        process_table_system.refresh_processes_specifics(
-            ProcessesToUpdate::All,
-            true,
-            ProcessRefreshKind::nothing().without_tasks(),
-        );
-        let mut processes = process_table_system
-            .processes()
-            .iter()
-            .filter_map(|(pid, process)| {
-                let pid = pid.as_u32();
-                // Kernel idle PID 0 would fail the server's positive-PID event schema.
-                if pid == 0 {
-                    return None;
-                }
-                Some(ProcessTableEntry {
-                    pid,
-                    ppid: process.parent().map(Pid::as_u32).unwrap_or(0),
-                    name: truncate_utf8(
-                        process.name().to_string_lossy().into_owned(),
-                        MAX_PROCESS_NAME_BYTES,
-                    ),
-                })
-            })
-            .collect::<Vec<_>>();
-        processes.sort_by_key(|process| process.pid);
-        processes
     }
 
     fn sample(&mut self, config: &CollectorConfig, request_id: Option<String>) -> SnapshotEvent {
@@ -924,15 +870,6 @@ fn main() -> io::Result<()> {
                             )?;
                         }
                     }
-                    Command::ProcessTable { request_id, .. } => {
-                        let event = ProcessTableEvent {
-                            version: PROTOCOL_VERSION,
-                            event_type: "processTable",
-                            request_id: &request_id,
-                            processes: collector.process_table(),
-                        };
-                        write_event(&mut writer, &event)?;
-                    }
                     Command::ReadHistory {
                         request_id,
                         window_ms,
@@ -1111,15 +1048,16 @@ mod tests {
                 ..
             } if request_id == "history-1"
         ));
+    }
 
-        let process_table = serde_json::from_str::<Command>(
-            r#"{"version":3,"type":"processTable","requestId":"processes-1"}"#,
-        )
-        .expect("process table command");
-        assert!(matches!(
-            process_table,
-            Command::ProcessTable { request_id, .. } if request_id == "processes-1"
-        ));
+    #[test]
+    fn rejects_removed_process_table_command() {
+        assert!(
+            serde_json::from_str::<Command>(
+                r#"{"version":3,"type":"processTable","requestId":"processes-1"}"#,
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -1331,7 +1269,7 @@ mod tests {
 
     #[test]
     fn truncates_process_strings_at_utf8_boundaries() {
-        let value = "é".repeat(MAX_PROCESS_NAME_BYTES);
+        let value = "ÃƒÂ©".repeat(MAX_PROCESS_NAME_BYTES);
         let truncated = truncate_utf8(value, MAX_PROCESS_NAME_BYTES - 1);
 
         assert!(truncated.len() < MAX_PROCESS_NAME_BYTES);

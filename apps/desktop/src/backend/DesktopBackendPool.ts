@@ -63,7 +63,7 @@ export class DesktopBackendPool extends Context.Service<
       id: BackendInstanceId,
     ) => Effect.Effect<void, DesktopBackendPoolCannotUnregisterPrimaryError>;
   }
->()("@t3tools/desktop/backend/DesktopBackendPool") {}
+>()("@madar/desktop/backend/DesktopBackendPool") {}
 
 export type BackendInstanceFactoryRequirements =
   | FileSystem.FileSystem
@@ -123,8 +123,8 @@ export const layer = Layer.effect(
       onStateDirOwned: () =>
         electronDialog
           .showErrorBox(
-            "This T3 home is unavailable",
-            "Another T3 Code server, such as the background service, is using this data directory, or an older background service is set up for it. Stop that server or try `t3 update`. If the older launcher cannot update, run `t3 service uninstall` and optionally reinstall with `t3 service install` from a current CLI. Use `npx t3@latest` if `t3` is missing or outdated, and pass `--base-dir` with the service's T3 home to each command. Then reopen T3 Code. You can also set a separate MADAR_HOME and pair with the running server.",
+            "This Madar home is unavailable",
+            "Another Madar server, such as the background service, is using this data directory, or an older background service is set up for it. Stop that server or try `madar update`. If the older launcher cannot update, run `madar service uninstall` and optionally reinstall with `madar service install` from a current CLI. Use `npx madar@latest` if `madar` is missing or outdated, and pass `--base-dir` with the service's Madar home to each command. Then reopen Madar. You can also set a separate MADAR_HOME and pair with the running server.",
           )
           .pipe(Effect.andThen(electronApp.quit)),
     });

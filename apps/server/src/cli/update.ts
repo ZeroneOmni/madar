@@ -1,4 +1,4 @@
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as HostProcess from "@madar/shared/HostProcess";
 import {
   CLI_RELEASE_BASE_URL_ENV,
   CLI_RELEASE_CHANNELS,
@@ -6,7 +6,7 @@ import {
   cliReleaseChannelOf,
   newestCliReleaseVersion,
   type CliReleaseChannel,
-} from "@t3tools/shared/cliRelease";
+} from "@madar/shared/cliRelease";
 import * as Console from "effect/Console";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -72,15 +72,16 @@ export const resolveNewestVersion = Effect.fn("cli.update.resolve_newest")(funct
     const body = yield* httpClient.execute(authenticatedRequest).pipe(
       Effect.flatMap(HttpClientResponse.filterStatusOk),
       Effect.flatMap((response) => response.text),
-      Effect.mapError(() => new CliUpdateError({ reason: "Could not list t3 releases." })),
+      Effect.mapError(() => new CliUpdateError({ reason: "Could not list madar releases." })),
       Effect.timeoutOrElse({
         duration: RELEASE_INDEX_TIMEOUT,
-        orElse: () => Effect.fail(new CliUpdateError({ reason: "Timed out listing t3 releases." })),
+        orElse: () =>
+          Effect.fail(new CliUpdateError({ reason: "Timed out listing madar releases." })),
       }),
     );
     const releases = yield* decodeReleaseIndex(body).pipe(
       Effect.mapError(
-        () => new CliUpdateError({ reason: "The t3 release index had an unexpected shape." }),
+        () => new CliUpdateError({ reason: "The madar release index had an unexpected shape." }),
       ),
     );
     const version = newestCliReleaseVersion(releases, channel);
@@ -116,7 +117,8 @@ export const repointLauncher = Effect.fn("cli.update.repoint_launcher")(function
       .writeFileString(shimPath, `@echo off\r\n"${input.targetEntryPath}" %*`)
       .pipe(
         Effect.mapError(
-          () => new CliUpdateError({ reason: `Could not rewrite the t3 launcher at ${shimPath}.` }),
+          () =>
+            new CliUpdateError({ reason: `Could not rewrite the madar launcher at ${shimPath}.` }),
         ),
       );
     return Option.some(shimPath);
@@ -131,7 +133,9 @@ export const repointLauncher = Effect.fn("cli.update.repoint_launcher")(function
     Effect.andThen(fs.rename(tempLink, input.launchedAs)),
     Effect.mapError(
       () =>
-        new CliUpdateError({ reason: `Could not repoint the t3 launcher at ${input.launchedAs}.` }),
+        new CliUpdateError({
+          reason: `Could not repoint the madar launcher at ${input.launchedAs}.`,
+        }),
     ),
   );
   return Option.some(input.launchedAs);
@@ -159,7 +163,7 @@ export const resolveLauncherPath = Effect.gen(function* () {
   return undefined;
 });
 
-/** Windows executables see their own path, so find the installer shim by matching t3.cmd targets on PATH. */
+/** Windows executables see their own path, so find the installer shim by matching madar.cmd targets on PATH. */
 export const findWindowsShim = Effect.fn("cli.update.find_windows_shim")(function* (
   executablePath: string,
 ) {
@@ -167,11 +171,11 @@ export const findWindowsShim = Effect.fn("cli.update.find_windows_shim")(functio
   const path = yield* Path.Path;
   const environment = yield* HostProcess.Environment;
   const candidates = [
-    ...(environment["T3CODE_INSTALL_BIN_DIR"] ? [environment["T3CODE_INSTALL_BIN_DIR"]] : []),
+    ...(environment["MADAR_INSTALL_BIN_DIR"] ? [environment["MADAR_INSTALL_BIN_DIR"]] : []),
     ...(environment["PATH"] ?? environment["Path"] ?? "").split(";"),
   ].filter((entry) => entry.trim().length > 0);
   for (const directory of candidates) {
-    const shimPath = path.join(directory, "t3.cmd");
+    const shimPath = path.join(directory, "madar.cmd");
     const contents = yield* fs.readFileString(shimPath).pipe(Effect.option);
     if (Option.isNone(contents)) continue;
     const target = windowsShimTarget(contents.value);
@@ -189,7 +193,7 @@ const updateFlags = {
   ...projectLocationFlags,
   channel: Flag.Literals("channel", CLI_RELEASE_CHANNELS).pipe(
     Flag.withDescription(
-      "Release channel to follow. Defaults to the channel this t3 was published on.",
+      "Release channel to follow. Defaults to the channel this madar was published on.",
     ),
     Flag.optional,
   ),
@@ -218,7 +222,7 @@ export const updateCommand = Command.make("update", {
   version: versionArgument,
 }).pipe(
   Command.withDescription(
-    "Download a newer t3 and switch this machine to it, including the background service when one is installed.",
+    "Download a newer madar and switch this machine to it, including the background service when one is installed.",
   ),
   Command.withHandler((flags) =>
     Effect.gen(function* () {
@@ -306,7 +310,7 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
   const channel = input.channel ?? cliReleaseChannelOf(currentVersion);
   if (input.requestedVersion !== undefined && !isExactServiceVersion(input.requestedVersion)) {
     return yield* new CliUpdateError({
-      reason: `'${input.requestedVersion}' is not an exact t3 version.`,
+      reason: `'${input.requestedVersion}' is not an exact madar version.`,
     });
   }
   const progress = createUpdateProgress();
@@ -322,10 +326,10 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
   if (targetChannel === "preview" && currentChannel !== "preview") {
     yield* Console.log(
       [
-        `t3@${targetVersion} is a preview build.`,
+        `madar@${targetVersion} is a preview build.`,
         "  Preview builds are cut by maintainers from unreleased branches to exercise the release",
         "  pipeline. They can be broken, receive no fixes, and are never offered as updates; you",
-        `  will have to switch back to ${currentChannel} yourself with \`t3 update --channel ${currentChannel} --allow-downgrade\`.`,
+        `  will have to switch back to ${currentChannel} yourself with \`madar update --channel ${currentChannel} --allow-downgrade\`.`,
       ].join("\n"),
     );
     if (!(process.stdin.isTTY && process.stdout.isTTY)) {
@@ -368,14 +372,14 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
   if (executableCurrent && serviceCurrent) {
     yield* Console.log(
       serviceVersion !== undefined
-        ? `t3 and its background service are already on ${targetVersion} (${targetChannel}).`
-        : `t3 is already on ${targetVersion} (${targetChannel}).`,
+        ? `madar and its background service are already on ${targetVersion} (${targetChannel}).`
+        : `madar is already on ${targetVersion} (${targetChannel}).`,
     );
     return;
   }
   if (!input.allowDowngrade && compareExactServiceVersions(targetVersion, newestInstalled) < 0) {
     return yield* new CliUpdateError({
-      reason: `t3@${targetVersion} is older than the installed ${newestInstalled}. Pass --allow-downgrade to install it anyway.`,
+      reason: `madar@${targetVersion} is older than the installed ${newestInstalled}. Pass --allow-downgrade to install it anyway.`,
     });
   }
 
@@ -392,8 +396,8 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
       : executableCurrent
         ? `Updating the background service ${serviceVersion ?? "(unknown version)"} -> ${targetVersion} (${targetChannel}).`
         : alreadyOnDisk
-          ? "Switching T3 Code"
-          : "Updating T3 Code",
+          ? "Switching Madar"
+          : "Updating Madar",
     executableCurrent
       ? ""
       : `${currentVersion} → ${targetVersion}${targetChannel === "stable" ? "" : ` (${targetChannel})`}`,
@@ -401,7 +405,7 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
   let restartService = false;
   if (serviceInstalled && !serviceCurrent) {
     yield* Console.log(
-      "  A background service is installed for this T3 home. Restarting it interrupts anything running in it: agent turns, terminals, remote clients.",
+      "  A background service is installed for this Madar home. Restarting it interrupts anything running in it: agent turns, terminals, remote clients.",
     );
     if (input.assumeYes) {
       restartService = true;
@@ -414,7 +418,7 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
       ).pipe(Effect.catchTags({ QuitError: () => Effect.succeed(false) }));
     } else {
       yield* Console.log(
-        "  Not a terminal, so the service keeps running its current version. Rerun with --yes to restart it now, or run `t3 service restart` later.",
+        "  Not a terminal, so the service keeps running its current version. Rerun with --yes to restart it now, or run `madar service restart` later.",
       );
     }
   }
@@ -440,14 +444,14 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
         .pipe(
           Effect.mapError(
             (cause) =>
-              new PinnedRuntimeInstallError({ step: "verifying the downloaded t3", cause }),
+              new PinnedRuntimeInstallError({ step: "verifying the downloaded madar", cause }),
           ),
           Effect.flatMap((result) =>
             result.code === 0 && /\bv(\S+)\s*$/.exec(result.stdout)?.[1] === targetVersion
               ? Effect.void
               : Effect.fail(
                   new PinnedRuntimeInstallError({
-                    step: "verifying the downloaded t3",
+                    step: "verifying the downloaded madar",
                     exitCode: Number(result.code),
                   }),
                 ),
@@ -458,12 +462,12 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
     Effect.catchIf(
       (error): error is PinnedRuntimeInstallError =>
         error._tag === "PinnedRuntimeInstallError" &&
-        error.step.startsWith("downloading the t3 release checksums") &&
+        error.step.startsWith("downloading the madar release checksums") &&
         String(error.cause).includes("404"),
       () =>
         Effect.fail(
           new CliUpdateError({
-            reason: `No release archive was published for t3@${targetVersion}.`,
+            reason: `No release archive was published for madar@${targetVersion}.`,
           }),
         ),
     ),
@@ -499,7 +503,7 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
       Effect.mapError(
         (error) =>
           new CliUpdateError({
-            reason: `t3@${targetVersion} is installed but the background service could not be ${restartService ? "updated" : "pointed at it"}: ${error.message}`,
+            reason: `madar@${targetVersion} is installed but the background service could not be ${restartService ? "updated" : "pointed at it"}: ${error.message}`,
           }),
       ),
     );
@@ -516,9 +520,9 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
     });
   }
 
-  progress.success(`Installed T3 Code ${targetVersion}`);
+  progress.success(`Installed Madar ${targetVersion}`);
   if (Option.isSome(repointed)) {
-    yield* Console.log("  Run t3 to get started.\n");
+    yield* Console.log("  Run madar to get started.\n");
   } else {
     yield* Console.log(`  Run ${runtime.entryPath}\n`);
   }
@@ -532,11 +536,11 @@ const runUpdate = Effect.fn("cli.update.run")(function* (input: {
     yield* Console.log(`  Background service already on ${targetVersion}`);
   } else if (serviceInstalled) {
     yield* Console.log(
-      `  Background service still running ${serviceVersion ?? "an unknown version"}. Run \`t3 service restart\` when you are ready to switch it to ${targetVersion}.`,
+      `  Background service still running ${serviceVersion ?? "an unknown version"}. Run \`madar service restart\` when you are ready to switch it to ${targetVersion}.`,
     );
   } else if (status.installed && !servesThisHome) {
     yield* Console.log(
-      `  The background service serves ${status.installedBaseDir ?? "another T3 home"} and was left unchanged.`,
+      `  The background service serves ${status.installedBaseDir ?? "another Madar home"} and was left unchanged.`,
     );
   }
   if (foreground !== undefined) {

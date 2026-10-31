@@ -108,7 +108,7 @@ describe("DesktopBackendPool", () => {
               tailscaleServePort: 443,
               noBrowser: true,
               port: 3774,
-              t3Home: "/tmp/t3",
+              madarHome: "/tmp/madar",
               host: "127.0.0.1",
               desktopBootstrapToken: "token",
             },

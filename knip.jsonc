@@ -41,7 +41,7 @@
       "ignoreIssues": {
         "**/*.graphql.ts": ["exports", "types", "namespaceMembers"],
       },
-      "ignoreDependencies": ["@effect/platform-node-shared", "@t3tools/web", "@napi-rs/keyring"],
+      "ignoreDependencies": ["@effect/platform-node-shared", "@madar/web", "@napi-rs/keyring"],
     },
     "apps/desktop": {
       "entry": [

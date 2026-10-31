@@ -18,25 +18,25 @@ const RUNS_EVERYTHING = [/^packages\/shared\/src\/(HostProcess|testing\/longTemp
 // Includes cross-package reads absent from package.json dependencies.
 const EXTRA_OWNERS = [
   // Vite configs and tsconfigs of these apps import scripts/lib directly.
-  [/^scripts\/lib\//, ["@t3tools/desktop", "@t3tools/web", "t3"]],
+  [/^scripts\/lib\//, ["@madar/desktop", "@madar/web", "madar"]],
 ];
 const RUST = /^native\/(resource-monitor)\//;
 
 // These tests read other packages without declaring dependencies.
 const TEST_ONLY_DEPS = {
-  "@t3tools/provider-pi": ["@t3tools/client-runtime"],
-  "@t3tools/scripts": [
-    "@t3tools/desktop",
+  "@madar/provider-pi": ["@madar/client-runtime"],
+  "@madar/scripts": [
+    "@madar/desktop",
 
-    "@t3tools/web",
-    "t3",
-    "@t3tools/provider-cursor",
+    "@madar/web",
+    "madar",
+    "@madar/provider-cursor",
   ],
 };
 // The server bundles the web build without importing it.
-const BUILD_ONLY_DEPS = { t3: ["@t3tools/web"] };
+const BUILD_ONLY_DEPS = { madar: ["@madar/web"] };
 
-const OWN_TEST_JOB = new Set(["t3", "@t3tools/web", "@t3tools/monorepo"]);
+const OWN_TEST_JOB = new Set(["madar", "@madar/web", "@madar/monorepo"]);
 
 function readWorkspace() {
   const patterns = [];
@@ -85,7 +85,7 @@ function ownersOf(file, packages) {
   if (RUNS_EVERYTHING.some((pattern) => pattern.test(file))) return null;
   const extra = EXTRA_OWNERS.flatMap(([pattern, names]) => (pattern.test(file) ? names : []));
   // scripts/build-desktop-artifact.test.ts reads the crates' sources.
-  if (RUST.test(file)) return ["@t3tools/scripts", ...extra];
+  if (RUST.test(file)) return ["@madar/scripts", ...extra];
 
   const owner = packages
     .filter((pkg) => file.startsWith(`${pkg.dir}/`))
@@ -126,7 +126,7 @@ function decide(files, packages, full) {
         }
       }
     }
-    scriptsChanged = affected.has("@t3tools/scripts");
+    scriptsChanged = affected.has("@madar/scripts");
     for (const [name, deps] of Object.entries(TEST_ONLY_DEPS)) {
       if (deps.some((dep) => affected.has(dep))) affected.add(name);
     }
@@ -141,12 +141,12 @@ function decide(files, packages, full) {
     affected: [...affected].sort(),
     outputs: {
       typecheck: affected.size > 0,
-      build: has("@t3tools/desktop") || has("t3") || has("@t3tools/web"),
+      build: has("@madar/desktop") || has("madar") || has("@madar/web"),
       test: tested.length > 0,
       // Empty means every package the Test job covers.
       test_packages: everything ? "" : tested.map((pkg) => pkg.name).join(" "),
-      test_web: has("@t3tools/web"),
-      test_server: has("t3"),
+      test_web: has("@madar/web"),
+      test_server: has("madar"),
       rust: everything || rust,
       release_smoke: scriptsChanged,
     },
