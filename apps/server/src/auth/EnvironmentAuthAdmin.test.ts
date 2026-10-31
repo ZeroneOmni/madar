@@ -47,7 +47,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth administrative operations", (it) =
       const environmentAuth = yield* EnvironmentAuth.EnvironmentAuth;
 
       const created = yield* environmentAuth.createPairingLink({
-        scopes: ["orchestration:read"],
+        scopes: ["diagnostics:read"],
         subject: "one-time-token",
         label: "CI phone",
       });
@@ -55,7 +55,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth administrative operations", (it) =
       const revoked = yield* environmentAuth.revokePairingLink(created.id);
       const listedAfterRevoke = yield* environmentAuth.listPairingLinks();
 
-      expect(created.scopes).toEqual(["orchestration:read"]);
+      expect(created.scopes).toEqual(["diagnostics:read"]);
       expect(created.credential.length).toBeGreaterThan(0);
       expect(listedBeforeRevoke).toHaveLength(1);
       expect(listedBeforeRevoke[0]?.id).toBe(created.id);

@@ -15,8 +15,6 @@ import * as PlatformError from "effect/PlatformError";
 import * as Queue from "effect/Queue";
 import { HttpClient, HttpClientRequest, HttpRouter, HttpServerResponse } from "effect/http";
 
-import { ORCHESTRATION_PROTOCOL_HEADER } from "@madar/contracts";
-
 import * as ServerConfig from "./config.ts";
 
 import * as ServerHttp from "./http.ts";
@@ -42,11 +40,7 @@ describe("browser API CORS", () => {
           headers: {
             origin: "https://app.madar.codes",
             "access-control-request-method": "GET",
-            "access-control-request-headers": [
-              ORCHESTRATION_PROTOCOL_HEADER,
-              "authorization",
-              "dpop",
-            ].join(", "),
+            "access-control-request-headers": ["authorization", "dpop"].join(", "),
           },
         }),
       );
@@ -58,7 +52,6 @@ describe("browser API CORS", () => {
           .split(",")
           .map((header) => header.trim().toLowerCase()),
       );
-      expect(allowedHeaders.has(ORCHESTRATION_PROTOCOL_HEADER)).toBe(true);
       expect(allowedHeaders.has("authorization")).toBe(true);
       expect(allowedHeaders.has("dpop")).toBe(true);
     } finally {

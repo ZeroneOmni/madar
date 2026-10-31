@@ -7,7 +7,11 @@ import * as Schema from "effect/Schema";
 import * as SqlClient from "effect/sql/SqlClient";
 import * as SqlSchema from "effect/sql/SqlSchema";
 
-import { AuthEnvironmentScopes } from "@madar/contracts";
+import {
+  AuthEnvironmentScopes,
+  AuthEnvironmentScope,
+  ForwardCompatibleArray,
+} from "@madar/contracts";
 
 import {
   type AuthPairingLinkRepositoryError,
@@ -20,7 +24,7 @@ export const AuthPairingLinkRecord = Schema.Struct({
   id: Schema.String,
   credential: Schema.String,
   method: Schema.Literals(["desktop-bootstrap", "one-time-token"]),
-  scopes: Schema.fromJsonString(AuthEnvironmentScopes),
+  scopes: Schema.fromJsonString(ForwardCompatibleArray(AuthEnvironmentScope)),
   subject: Schema.String,
   label: Schema.NullOr(Schema.String),
   proofKeyThumbprint: Schema.NullOr(Schema.String),

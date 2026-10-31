@@ -1,5 +1,5 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { ORCHESTRATION_PROTOCOL_VERSION } from "@madar/contracts";
+import { SERVER_PROTOCOL_VERSION } from "@madar/contracts";
 import { expect, it } from "@effect/vitest";
 import * as Crypto from "effect/Crypto";
 import * as Deferred from "effect/Deferred";
@@ -53,7 +53,6 @@ const makeServerConfig = Effect.fn(function* (baseDir: string) {
     cwd: process.cwd(),
     baseDir,
     mode: "web",
-    autoBootstrapProjectFromCwd: false,
     logWebSocketEvents: false,
     tailscaleServeEnabled: false,
     tailscaleServePort: 443,
@@ -90,7 +89,7 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
           Effect.provideService(HostProcess.Platform, "linux"),
           Effect.provideService(HostProcess.Environment, {}),
         );
-        expect(descriptor.capabilities).toEqual({ repositoryIdentity: false });
+        expect(descriptor.capabilities).toEqual({});
       }
     }),
   );
@@ -182,8 +181,8 @@ it.layer(NodeServices.layer)("ServerEnvironmentLive", (it) => {
       }).pipe(Effect.provide(layerServerEnvironment(baseDir)));
 
       expect(first.environmentId).toBe(second.environmentId);
-      expect(first.orchestrationProtocolVersion).toBe(ORCHESTRATION_PROTOCOL_VERSION);
-      expect(second.capabilities).toEqual({ repositoryIdentity: false });
+      expect(first.protocolVersion).toBe(SERVER_PROTOCOL_VERSION);
+      expect(second.capabilities).toEqual({});
     }),
   );
 });

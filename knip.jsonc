@@ -17,12 +17,7 @@
       },
     },
     "scripts": {
-      "entry": [
-        "fixtures/*/*.js",
-        "knip-schemas.ts",
-        "sign-macos.ts",
-        "verify-windows-desktop-artifact.ts",
-      ],
+      "entry": ["knip-schemas.ts", "sign-macos.ts", "verify-windows-desktop-artifact.ts"],
       "ignoreDependencies": ["esbuild"],
       "ignore": [".knip-test-*/**"],
     },
@@ -35,8 +30,6 @@
         "src/resourceTelemetry/*.ts",
         "src/compileCache.ts",
         "src/serverLogger.ts",
-        "src/assets/MediaFile.ts",
-        "src/assets/NativeAppIconResolver.ts",
       ],
       "ignoreIssues": {
         "**/*.graphql.ts": ["exports", "types", "namespaceMembers"],
@@ -64,8 +57,6 @@
         "src/components/desktopUpdate.logic.ts",
         "src/components/desktopUpdate.toast.tsx",
         "src/state/desktopUpdate.ts",
-        "src/appearanceFonts.ts",
-        "src/appearanceContrast.ts",
         "test/render.tsx",
       ],
       "ignoreDependencies": ["playwright"],

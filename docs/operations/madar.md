@@ -16,15 +16,15 @@ After merging and waiting for main CI to pass, open **Actions > Release > Run wo
 | macOS    | ARM64 (Apple Silicon) | DMG, updater zip, CLI archive         |
 | Linux    | x64 and ARM64         | AppImage, Debian package, CLI archive |
 
-All builds must succeed. Windows embeds the same-architecture Linux CLI archive for WSL. Releases include updater manifests and SHA-256 checksums. The desktop and bundled CLI update from `ZeroneOmni/madar`. There are no scheduled nightlies, npm publications, AUR publications, mobile-store releases, or upstream hosted-service deployments.
+All builds must succeed. Releases include updater manifests and SHA-256 checksums. The desktop and bundled CLI update from `ZeroneOmni/madar`. There are no scheduled nightlies, npm publications, AUR publications, mobile-store releases, or upstream hosted-service deployments.
 
-Windows x64 artifacts target Windows 10 and 11, but hosted x64 builds run on Windows Server 2025. Test installation, startup, provider sign-in, terminal, WSL, and upgrade on actual Windows 10 and 11 machines before claiming those versions verified. Also test on Apple Silicon and the Linux distributions you support. CI build success alone does not establish compatibility on every OS version.
+Windows x64 artifacts target Windows 10 and 11, but hosted x64 builds run on Windows Server 2025. Test installation, startup, authentication, and upgrade on actual Windows 10 and 11 machines before claiming those versions verified. Also test on Apple Silicon and the Linux distributions you support. CI build success alone does not establish compatibility on every OS version.
 
 ## Signing and remote services
 
 Unsigned builds work without signing credentials. For trusted distribution, configure your own certificates in GitHub's repository secrets: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, plus the `APPLE_TEAM_ID` variable for macOS. Windows supports the `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, and `AZURE_TRUSTED_SIGNING_*` secrets used by `release-desktop.yml`. Never reuse upstream credentials. Unsigned apps can trigger OS warnings; Apple notarization requires an Apple Developer account.
 
-This fork does not configure T3's hosted Clerk, relay, telemetry exporters, marketing site, or store accounts. Local providers and direct server connections do not need those credentials. Deploying your own Connect service is a separate setup.
+Madar does not require upstream hosted-service credentials. Local desktop startup uses its bundled backend and local authentication.
 
 ## Coexisting with T3 Code
 

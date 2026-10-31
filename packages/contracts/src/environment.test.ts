@@ -34,3 +34,12 @@ describe("ExecutionEnvironmentDescriptor", () => {
     }
   });
 });
+
+it("drops an unknown machine kind without rejecting environment metadata", () => {
+  const parsed = decodeDescriptor({
+    ...descriptor,
+    platform: { ...descriptor.platform, machine: "toaster" },
+  });
+  expect(parsed.platform.machine).toBeUndefined();
+  expect(parsed.environmentId).toBe(descriptor.environmentId);
+});

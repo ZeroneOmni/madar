@@ -1,5 +1,5 @@
 import type { DesktopBridge } from "@madar/contracts";
-import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
+import { contextBridge, ipcRenderer, webFrame } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
 // oxlint-disable-next-line madar/no-global-process-runtime -- Electron exposes the client platform in its sandboxed preload process.
@@ -27,15 +27,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   },
   getRelayTelemetryEnabled: () =>
     ipcRenderer.sendSync(IpcChannels.GET_RELAY_TELEMETRY_ENABLED_CHANNEL) === true,
-  getPathForFile: (file: File) => webUtils.getPathForFile(file),
   getClientPlatform: () => clientPlatform,
-  setNotificationBadge: (badge) =>
-    ipcRenderer.invoke(IpcChannels.SET_NOTIFICATION_BADGE_CHANNEL, badge),
-  onNotificationBadgeClear: (listener) => {
-    const handler = () => listener();
-    ipcRenderer.on(IpcChannels.SET_NOTIFICATION_BADGE_CHANNEL, handler);
-    return () => ipcRenderer.removeListener(IpcChannels.SET_NOTIFICATION_BADGE_CHANNEL, handler);
-  },
   onTrackpadScrollEnd: (listener) => {
     const handler = () => listener();
     ipcRenderer.on(IpcChannels.TRACKPAD_SCROLL_END_CHANNEL, handler);
@@ -62,15 +54,6 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   getClientSettings: () => ipcRenderer.invoke(IpcChannels.GET_CLIENT_SETTINGS_CHANNEL),
   setClientSettings: (settings) =>
     ipcRenderer.invoke(IpcChannels.SET_CLIENT_SETTINGS_CHANNEL, settings),
-
-  getConnectionCatalog: () => ipcRenderer.invoke(IpcChannels.GET_CONNECTION_CATALOG_CHANNEL),
-  setConnectionCatalog: (catalog) =>
-    ipcRenderer.invoke(IpcChannels.SET_CONNECTION_CATALOG_CHANNEL, catalog),
-  clearConnectionCatalog: () => ipcRenderer.invoke(IpcChannels.CLEAR_CONNECTION_CATALOG_CHANNEL),
-  pickFolder: (options) => ipcRenderer.invoke(IpcChannels.PICK_FOLDER_CHANNEL, options),
-  pickProjectFavicon: (initialPath) =>
-    ipcRenderer.invoke(IpcChannels.PICK_PROJECT_FAVICON_CHANNEL, initialPath),
-  pickThemeFiles: () => ipcRenderer.invoke(IpcChannels.PICK_THEME_FILES_CHANNEL, undefined),
   setTheme: (theme) => ipcRenderer.invoke(IpcChannels.SET_THEME_CHANNEL, theme),
   showContextMenu: (items, position) =>
     ipcRenderer.invoke(IpcChannels.CONTEXT_MENU_CHANNEL, {
@@ -150,36 +133,5 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     return () => {
       ipcRenderer.removeListener(IpcChannels.UPDATE_STATE_CHANNEL, wrappedListener);
     };
-  },
-  webLinks: {
-    setReady: (ready) => ipcRenderer.invoke(IpcChannels.WEB_LINK_READY_CHANNEL, ready),
-    onOpen: (listener) => {
-      const wrappedListener = (_event: Electron.IpcRendererEvent, url: unknown) => {
-        if (typeof url === "string") listener(url);
-      };
-      ipcRenderer.on(IpcChannels.WEB_LINK_OPEN_CHANNEL, wrappedListener);
-      return () => {
-        ipcRenderer.removeListener(IpcChannels.WEB_LINK_OPEN_CHANNEL, wrappedListener);
-      };
-    },
-  },
-  appActivation: {
-    setReady: (ready) =>
-      ipcRenderer.invoke(IpcChannels.DESKTOP_APP_ACTIVATION_READY_CHANNEL, ready),
-    complete: (response) =>
-      ipcRenderer.invoke(IpcChannels.DESKTOP_APP_ACTIVATION_COMPLETE_CHANNEL, response),
-    onRequest: (listener) => {
-      const wrappedListener = (_event: Electron.IpcRendererEvent, request: unknown) => {
-        if (typeof request !== "object" || request === null) return;
-        listener(request as Parameters<typeof listener>[0]);
-      };
-      ipcRenderer.on(IpcChannels.DESKTOP_APP_ACTIVATION_REQUEST_CHANNEL, wrappedListener);
-      return () => {
-        ipcRenderer.removeListener(
-          IpcChannels.DESKTOP_APP_ACTIVATION_REQUEST_CHANNEL,
-          wrappedListener,
-        );
-      };
-    },
   },
 } satisfies DesktopBridge);

@@ -1,4 +1,3 @@
-import { isMacPlatform } from "@madar/shared/keybindings";
 import { type CxOptions, cx } from "class-variance-authority";
 import * as Hex from "effect/encoding/Hex";
 import { extendTailwindMerge } from "tailwind-merge";
@@ -10,7 +9,9 @@ export function cn(...inputs: CxOptions) {
   return twMerge(cx(inputs));
 }
 
-export { isMacPlatform };
+export function isMacPlatform(platform: string): boolean {
+  return /mac|iphone|ipad|ipod/i.test(platform);
+}
 
 export function isWindowsPlatform(platform: string): boolean {
   return /^win(dows)?/i.test(platform);

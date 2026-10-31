@@ -17,63 +17,7 @@ import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopClientSettings from "./DesktopClientSettings.ts";
 
-const clientSettings: ClientSettings = {
-  ...DEFAULT_CLIENT_SETTINGS,
-  notificationMode: "notifications-and-sound",
-  inAppNotificationsEnabled: true,
-  appearanceContrast: 100,
-  browserDefaultViewport: { _tag: "preset", width: 1024, height: 600, presetId: "nest-hub" },
-  browserDefaultZoomFactor: 1.25,
-  browserDefaultAppearance: "dark",
-  browserRecordingFrameRate: 60,
-  browserLinkTarget: "app",
-  browserAutoShowFloatingPreview: false,
-  browserProfiles: [{ id: "work", name: "Work", kind: "persistent" }],
-  browserDefaultProfileId: "work",
-  confirmQuit: "double-click",
-  confirmThreadArchive: true,
-  confirmThreadDelete: false,
-  confirmThreadUnpin: false,
-  contextWindowMeterEnabled: false,
-  composerCollapseOnScroll: true,
-  dismissedProviderUpdateNotificationKeys: [],
-  diffFilesCollapsed: true,
-  diffIgnoreWhitespace: true,
-  diffLayout: "stacked",
-  environmentIdentificationMode: "artwork",
-  favorites: [],
-  fontFamilyCode: "",
-  fontFamilyComposer: "",
-  fontFamilySans: "",
-  fontFamilyTerminal: "",
-  fontSizeCode: 13,
-  fontSizeInterface: 16,
-  fontSizePrompt: 14,
-  fontSizeTerminal: 12,
-  fontSmoothing: true,
-  glassOpacity: 80,
-  onboardingCompletedAt: null,
-  panelAnimationDurationMs: 0,
-  planModeEnabled: false,
-  proactivePanelsEnabled: true,
-  showSkillsInSlashMenu: false,
-  persistComposerContextStrip: true,
-  providerModelPreferences: {},
-  sidebarProjectGroupingMode: "repository_path",
-  sidebarProjectGroupingOverrides: {
-    "environment-1:/tmp/project-a": "separate",
-  },
-  sidebarProjectSortOrder: "manual",
-  sidebarThreadSortOrder: "created_at",
-  sidebarThreadPreviewCount: 6,
-  legacySidebarEnabled: false,
-  sidebarWorkingShelfEnabled: false,
-  loadBalancingEnabled: false,
-  loadBalancingWeights: { "environment-1": 75, "environment-2": 0 },
-  pullRequestMergeMethodOverrides: {},
-  timestampFormat: "24-hour",
-  wordWrap: true,
-};
+const clientSettings: ClientSettings = { ...DEFAULT_CLIENT_SETTINGS, confirmQuit: "double-click" };
 
 const decodeClientSettingsJson = Schema.decodeEffect(Schema.fromJsonString(ClientSettingsSchema));
 function layer(baseDir: string) {
@@ -152,7 +96,7 @@ describe("DesktopClientSettings", () => {
         const settings = yield* DesktopClientSettings.DesktopClientSettings;
         const savedSettings = {
           ...clientSettings,
-          onboardingCompletedAt: "2026-09-05T12:00:00.000Z",
+          confirmQuit: "direct" as const,
         };
         yield* settings.set(savedSettings);
         const savedContents = yield* fileSystem.readFileString(environment.clientSettingsPath);
@@ -203,14 +147,14 @@ describe("DesktopClientSettings", () => {
           environment.clientSettingsPath,
           `{
             // Matches server settings parsing.
-            "timestampFormat": "24-hour",
+            "confirmQuit": "double-click",
           }\n`,
         );
 
         const persisted = yield* settings.get;
         assert.isTrue(Option.isSome(persisted));
         if (Option.isSome(persisted)) {
-          assert.equal(persisted.value.timestampFormat, "24-hour");
+          assert.equal(persisted.value.confirmQuit, "double-click");
         }
       }),
     ),
@@ -227,7 +171,7 @@ describe("DesktopClientSettings", () => {
           environment.clientSettingsPath,
           `{
             "settings": {
-              "timestampFormat": "12-hour"
+              "confirmQuit": "direct"
             }
           }\n`,
         );
@@ -235,7 +179,7 @@ describe("DesktopClientSettings", () => {
         const persisted = yield* settings.get;
         assert.isTrue(Option.isSome(persisted));
         if (Option.isSome(persisted)) {
-          assert.equal(persisted.value.timestampFormat, "12-hour");
+          assert.equal(persisted.value.confirmQuit, "direct");
         }
       }),
     ),
@@ -243,7 +187,7 @@ describe("DesktopClientSettings", () => {
 
   it.effect.each([
     { label: "malformed JSON", contents: "{not-json" },
-    { label: "invalid legacy settings", contents: '{"settings":{"fontSizeCode":"large"}}' },
+    { label: "invalid legacy settings", contents: '{"settings":{"confirmQuit":"invalid"}}' },
   ])("reports $label without treating the settings file as absent", (document) =>
     withClientSettings(
       Effect.gen(function* () {
@@ -266,3 +210,29 @@ describe("DesktopClientSettings", () => {
     ),
   );
 });
+
+it.effect("saves the quit preference without carrying retired coding settings forward", () =>
+  withClientSettings(
+    Effect.gen(function* () {
+      const environment = yield* DesktopEnvironment.DesktopEnvironment;
+      const fileSystem = yield* FileSystem.FileSystem;
+      const settings = yield* DesktopClientSettings.DesktopClientSettings;
+      yield* fileSystem.makeDirectory(environment.stateDir, { recursive: true });
+      yield* fileSystem.writeFileString(
+        environment.clientSettingsPath,
+        '{"confirmQuit":"direct","diffLayout":"split","providerModelPreferences":{}}',
+      );
+      const persisted = yield* settings.get;
+      assert.isTrue(Option.isSome(persisted));
+      if (Option.isSome(persisted)) {
+        assert.equal(persisted.value.confirmQuit, "direct");
+        assert.isFalse(Object.hasOwn(persisted.value, "diffLayout"));
+        yield* settings.set(persisted.value);
+        assert.deepEqual(
+          JSON.parse(yield* fileSystem.readFileString(environment.clientSettingsPath)),
+          { confirmQuit: "direct" },
+        );
+      }
+    }),
+  ),
+);

@@ -19,8 +19,6 @@ on:
         required: false
       APPLE_API_ISSUER:
         required: false
-      MACOS_PROVISIONING_PROFILE:
-        required: false
       AZURE_TENANT_ID:
         required: false
       AZURE_CLIENT_ID:
@@ -80,18 +78,6 @@ on:
       release_channel:
         required: true
         type: string
-      clerk_publishable_key:
-        required: true
-        type: string
-      clerk_jwt_template:
-        required: true
-        type: string
-      clerk_cli_oauth_client_id:
-        required: true
-        type: string
-      relay_url:
-        required: true
-        type: string
 
 # electron-builder leaves the default arch (x64) out of the unpacked app's
 # directory name.
@@ -99,7 +85,6 @@ env:
   UNPACKED_DIR: ${{ inputs.platform }}-${{ inputs.arch != 'x64' && format('{0}-', inputs.arch) || '' }}unpacked
 
 permissions:
-  # Windows builds read this run's artifact list to wait for the Linux CLI archive.
   actions: read
   contents: read
 
@@ -107,14 +92,7 @@ jobs:
   build:
     name: Build ${{ inputs.label }}
     runs-on: ${{ inputs.runner }}
-    # Windows waits for the Linux CLI archive inside its own budget (see
-    # "Wait for Linux CLI archive"), so it gets that wait on top of the usual 30.
-    timeout-minutes: ${{ inputs.platform == 'win' && 100 || 60 }}
-    env:
-      MADAR_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk_publishable_key }}
-      MADAR_CLERK_JWT_TEMPLATE: ${{ inputs.clerk_jwt_template }}
-      MADAR_CLERK_CLI_OAUTH_CLIENT_ID: ${{ inputs.clerk_cli_oauth_client_id }}
-      MADAR_RELAY_URL: ${{ inputs.relay_url }}
+    timeout-minutes: 60
     steps:
       # This repository is public, so Git needs no credentials. checkout's
       # credential cleanup runs submodule foreach even with submodules disabled,
@@ -335,67 +313,6 @@ jobs:
               convert -version
           fi
 
-      # The WSL backend runs the Linux CLI archive inside the distro, so the
-      # Windows desktop embeds the same-arch archive the release attaches.
-      # This job starts alongside that Linux job instead of after it, and the
-      # Linux job uploads the archive partway through, so the wait is placed
-      # after all other setup. It stops early if the Linux job ended without
-      # uploading the archive.
-      - name: Wait for Linux CLI archive
-        if: inputs.platform == 'win'
-        shell: pwsh
-        timeout-minutes: 40
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          ARTIFACT: cli-linux-${{ inputs.arch }}
-          LINUX_JOB: Build Linux ${{ inputs.arch }}
-        run: |
-          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" }
-          $run = "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
-          function Test-Archive {
-            (Invoke-RestMethod -Headers $headers -Uri "$run/artifacts?name=$env:ARTIFACT").total_count -gt 0
-          }
-          $missingSince = $null
-          while ($true) {
-            try {
-              if (Test-Archive) {
-                Write-Host "$env:ARTIFACT is ready."
-                exit 0
-              }
-              $jobs = Invoke-RestMethod -Headers $headers -Uri "$run/attempts/$env:GITHUB_RUN_ATTEMPT/jobs?per_page=100"
-              $linux = $jobs.jobs | Where-Object { $_.name.EndsWith($env:LINUX_JOB) } | Select-Object -First 1
-              if (-not $linux) {
-                # Both jobs start together, so a Linux job still missing after a
-                # few minutes means a renamed or skipped job, not a slow one.
-                if (-not $missingSince) {
-                  $missingSince = Get-Date
-                } elseif (((Get-Date) - $missingSince).TotalMinutes -ge 5) {
-                  Write-Host "::error::No job named '$env:LINUX_JOB' in this run, so $env:ARTIFACT will not arrive."
-                  exit 1
-                }
-              } elseif ($linux.conclusion) {
-                # The upload may have landed between the two requests above.
-                if (Test-Archive) {
-                  Write-Host "$env:ARTIFACT is ready."
-                  exit 0
-                }
-                Write-Host "::error::$env:LINUX_JOB ended ($($linux.conclusion)) without uploading $env:ARTIFACT."
-                exit 1
-              }
-            } catch {
-              Write-Warning "Could not read this run's artifacts or jobs: $($_.Exception.Message)"
-            }
-            Write-Host "Waiting for $env:ARTIFACT..."
-            Start-Sleep -Seconds 10
-          }
-
-      - name: Download Linux CLI archive for WSL
-        if: inputs.platform == 'win'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: cli-linux-${{ inputs.arch }}
-          path: wsl-runtime
-
       - name: Build desktop artifact
         shell: bash
         env:
@@ -406,9 +323,6 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-          MACOS_PROVISIONING_PROFILE: ${{ secrets.MACOS_PROVISIONING_PROFILE }}
-          MADAR_CLERK_PASSKEY_RP_DOMAINS: ${{ vars.CLERK_PASSKEY_RP_DOMAINS }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
@@ -440,20 +354,9 @@ jobs:
 
           if [[ "${{ inputs.platform }}" == "mac" ]]; then
             if has_all "$CSC_LINK" "$CSC_KEY_PASSWORD" "$APPLE_API_KEY" "$APPLE_API_KEY_ID" "$APPLE_API_ISSUER"; then
-              if ! has_all "$APPLE_TEAM_ID" "$MACOS_PROVISIONING_PROFILE"; then
-                echo "macOS signing is configured, but APPLE_TEAM_ID or MACOS_PROVISIONING_PROFILE is missing." >&2
-                exit 1
-              fi
-
               key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
               printf '%s' "$APPLE_API_KEY" > "$key_path"
               export APPLE_API_KEY="$key_path"
-
-              profile_path="$RUNNER_TEMP/madar.provisionprofile"
-              printf '%s' "$MACOS_PROVISIONING_PROFILE" | base64 -D > "$profile_path"
-              security cms -D -i "$profile_path" >/dev/null
-              export MADAR_APPLE_TEAM_ID="$APPLE_TEAM_ID"
-              export MADAR_MACOS_PROVISIONING_PROFILE="$profile_path"
 
               echo "macOS signing enabled."
               args+=(--signed)
@@ -461,9 +364,6 @@ jobs:
               echo "macOS signing disabled (missing one or more Apple signing secrets)."
             fi
           elif [[ "${{ inputs.platform }}" == "win" ]]; then
-            # Embed the Linux CLI archive built by the same-arch Linux job as
-            # the WSL runtime. Required for a working WSL backend on Windows.
-            args+=(--wsl-runtime "$GITHUB_WORKSPACE"/wsl-runtime/madar-*-linux-${{ inputs.arch }}.tar.gz)
             if has_all \
               "$AZURE_TENANT_ID" \
               "$AZURE_CLIENT_ID" \

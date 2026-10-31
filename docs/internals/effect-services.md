@@ -1,46 +1,16 @@
 # Effect services
 
-Server features are Effect services. Transports call them: WebSocket RPC handlers in
-[`ws.ts`](../../apps/server/src/ws.ts), HTTP routes, MCP tools, scheduled tasks, and the CLI. This
-page holds the rules for writing them. The
-[Effect Service Conventions](../../.macroscope/check-run-agents/effect-service-conventions.md)
-review check enforces the same rules; keep the two in step.
+Server features are Effect services. HTTP handlers and the CLI decode requests,
+call a service, and map its errors. Filesystem, persistence, and integration work
+belong in the service so every entry point uses the same behavior.
 
-## Where a feature lives
-
-A server capability is a method on a service in its domain folder (`project/`, `workspace/`, `git/`,
-`provider/`, ...). Extend the service that already owns the domain; add a new one only when none
-does.
-
-A transport handler does three things: decode the request, call one service method, and map the
-service's typed errors to the transport's error. Nothing else. Filesystem, Git, process, or
-persistence work, folder naming, multi-step dispatch, retries, and rollback belong in the service.
-
-The reason is reach. Users trigger a capability from the WebSocket, agents reach it through MCP
-tools, and scheduled tasks and the CLI run it too. Logic written into one handler is missing from
-the others, and testing it needs a socket. Plain functions for pure work (a slug, an SVG, a
-message) are fine next to the service; the capability itself is the method.
-
-```ts
-// ws.ts: a thin handler
-[WS_METHODS.projectsCreateNew]: (input) =>
-  projectFolders
-    .createNamedProject(input)
-    .pipe(Effect.mapError((cause) => new ProjectCreateNewError({ cause }))),
-```
-
-Handlers don't add their own spans or request metrics. Group middleware authorizes every call
-([`RpcAuthorization.ts`](../../apps/server/src/auth/RpcAuthorization.ts)), and the server's group
-also instruments it
-([`RpcInstrumentation.ts`](../../apps/server/src/observability/RpcInstrumentation.ts)). A handler
-with per-call context, such as a thread id, adds it with `Effect.annotateCurrentSpan`.
+Extend the service that owns the capability. Keep pure helpers beside it when useful.
 
 ## Shape of a service module
 
 One module per service, in this order: imports, errors and schemas, the `Context.Service` tag with
-its interface inline, `make`, then `layer`. [`WorkspacePaths.ts`](../../apps/server/src/workspace/WorkspacePaths.ts)
-and [`T3ProjectFileLoader.ts`](../../apps/server/src/project/T3ProjectFileLoader.ts) are good
-references.
+its interface inline, `make`, then `layer`. See
+[`ServerEnvironment.ts`](../../apps/server/src/environment/ServerEnvironment.ts) for an existing service.
 
 ```ts
 export class FooWriteError extends Schema.TaggedError<FooWriteError>()("FooWriteError", {
@@ -82,11 +52,9 @@ export const layer = Layer.effect(Foo, make);
 - **`make`** exists when the module owns construction and stays private unless another module
   imports it. Knip fails CI on an unused export. Don't write `make = Effect.succeed(...)` to force
   `Layer.effect`; use the constructor that fits, like `Layer.succeed` or `Layer.sync`.
-- **Names.** A module named for its implementation uses plain `make` and `layer`
-  ([`NodePtyAdapter.ts`](../../apps/server/src/terminal/NodePtyAdapter.ts)). A port module that also
-  holds implementations names them, like `makeCloudflaredRelayClient` and `layerCloudflared`.
+- **Names.** Implementation modules use plain `make` and `layer`.
 - **Moves.** Moving a service deletes the old files and updates every consumer, including
-  orchestration, MCP, tests, and integration harnesses. No re-export shims.
+  transports, tests, and integration harnesses. No re-export shims.
 - **Tests** exercise behavior through the service, with test layers only for external dependencies.
   Don't mock the logic under test.
 
@@ -130,9 +98,7 @@ optional-service layer. Don't route around the layer with an imperative runtime.
 - **Safe values.** Attributes and log annotations stay bounded: no raw payloads, command arguments
   or output, signed URLs, credentials, query strings, or arbitrary defect text. The exact value
   lives only in `cause`. Expose a category, length, count, or a URL's protocol and host instead.
-  `DeviceBootError.diagnostics` is a deliberate exception: authorized device users and agents
-  need the device hub's launch command and failure text to diagnose host setup. It is capped at
-  2,000 characters and included in the error message; other service errors keep the rule above.
+
 - **Translation.** Construct the error where the failure happens, and map it to a transport error
   only in the transport. A translation boundary passes through domain errors already in the target
   channel and wraps only unknown or lower-level failures. Map each failure where its context is
@@ -153,7 +119,6 @@ optional-service layer. Don't route around the layer with an imperative runtime.
 ## Before you push
 
 - Does any handler you touched do more than decode, call, and map errors?
-- Could an agent (MCP) or a scheduled task use this capability? If not, is that deliberate?
 - Did you extend the domain's existing service before adding a new one?
 - Did you run knip? A new export with no importer fails it.
 - Does every directive you added that disables a lint, type-checker, or LSP diagnostic say why, in

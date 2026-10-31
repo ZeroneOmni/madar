@@ -238,18 +238,15 @@ export function buildResourceTelemetryHistory(
     );
     aggregateSamples.push({
       sampledAtMs: snapshot.sampledAtUnixMs,
-      cpuPercent: merged.groups.allT3.currentCpuPercent,
-      rssBytes: merged.groups.allT3.currentRssBytes,
-      processCount: merged.groups.allT3.processCount,
+      cpuPercent: merged.groups.allMadar.currentCpuPercent,
+      rssBytes: merged.groups.allMadar.currentRssBytes,
+      processCount: merged.groups.allMadar.processCount,
       ioReadBytes: deltas.reduce((total, process) => total + process.ioReadBytes, 0),
       ioWriteBytes: deltas.reduce((total, process) => total + process.ioWriteBytes, 0),
     });
     const backendDeltas = deltas.filter(
       (processDelta) =>
-        processDelta.category === "server" ||
-        processDelta.category === "server-child" ||
-        processDelta.category === "provider-root" ||
-        processDelta.category === "terminal-root",
+        processDelta.category === "server" || processDelta.category === "server-child",
     );
     legacyBackendAggregateSamples.push({
       sampledAtMs: snapshot.sampledAtUnixMs,

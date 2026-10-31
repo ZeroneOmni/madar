@@ -2,7 +2,6 @@
 // Filesystem-loaded externals need dependencies outside the bundle.
 export const CLI_RUNTIME_EXTERNAL_PREFIXES = [
   "@napi-rs/keyring",
-  "@clerk/electron-passkeys",
   "node-gyp-build",
   "node-addon-api",
   "bufferutil",

@@ -1,6 +1,6 @@
 import {
   EnvironmentId,
-  ORCHESTRATION_PROTOCOL_VERSION,
+  SERVER_PROTOCOL_VERSION,
   type ExecutionEnvironmentDescriptor,
 } from "@madar/contracts";
 import * as HostProcess from "@madar/shared/HostProcess";
@@ -196,8 +196,8 @@ export const make = Effect.gen(function* () {
       ...(machine === null ? {} : { machine }),
     },
     serverVersion: packageJson.version,
-    orchestrationProtocolVersion: ORCHESTRATION_PROTOCOL_VERSION,
-    capabilities: { repositoryIdentity: false },
+    protocolVersion: SERVER_PROTOCOL_VERSION,
+    capabilities: {},
   };
 
   return ServerEnvironment.of({

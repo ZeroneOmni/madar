@@ -5,12 +5,8 @@ The environment issues its own sessions and enforces their capabilities.
 ## Authority survives transport changes
 
 Pairing delegates a set of scopes. Exchanging a bootstrap credential can narrow
-that grant but cannot widen it. The default grant includes access
-management: `terminal:operate` is a shell as the server's user and
-`orchestration:operate` can start a full-access agent, and either can mint a
-session with every scope through `madar auth session issue`, so withholding
-management from the default would not be a boundary. A narrower client gets
-explicit scopes. Creating another pairing link requires both `access:write` and
+that grant but cannot widen it. The default grant includes access management.
+A narrower client gets explicit scopes. Creating another pairing link requires both `access:write` and
 every scope being delegated. The
 [auth handlers](../../apps/server/src/auth/http.ts) enforce this at issuance;
 client labels and device metadata have no authorization role.
@@ -47,13 +43,10 @@ intersects recognized requests with the pairing grant; retired and unknown names
 are dropped. A request with no granted scopes fails before consuming the link.
 Stored credentials are never expanded when scopes split.
 
-Auth responses keep `scopes` within the original wire vocabulary and include
-`permissions` for the exact grant. New clients use `permissions` when present,
-even if empty. Older servers omit it, so clients use legacy parent checks for
-features those servers already support. These client checks never change server
-authorization. Permission errors likewise retain a legacy `requiredScope` and
-add the exact `requiredPermission`, so a denied RPC stays decodable by old clients.
-Unknown response permissions are ignored; grant inputs stay strict.
+Auth responses expose the exact grant in both `scopes` and `permissions`.
+Clients use `permissions` when present, even when empty. Stored credentials drop
+retired or unknown scopes without expanding their remaining grants. New grant
+inputs stay strict. Unknown response permissions are ignored.
 
 Desktop restarts forget the previous local bearer token, so its reusable
 bootstrap grant replaces earlier sessions for the same subject and method.
@@ -80,27 +73,3 @@ Normal credentials keep precedence. A rejected normal credential never falls
 back to the reusable credential. OAuth exchanges create ordinary local bearer
 or DPoP children with normal expiry and revocation. The reusable cookie expires
 after 30 days.
-
-## The environment is the filesystem boundary
-
-Projects are organizational boundaries, not filesystem sandboxes.
-`filesystem:read` permits reading files the server account can read, including
-absolute paths outside a project. This lets clients display artifacts that an
-agent writes in a temporary directory. Relative paths and writes still follow
-the [workspace path rules](../../apps/server/src/workspace/WorkspaceFileSystem.ts).
-
-Signed asset URLs are bearer credentials. A URL for media on the host grants
-access to one canonical file and its device/inode identity, not its containing directory.
-[Asset access](../../apps/server/src/assets/AssetAccess.ts) rechecks the opened
-file's identity when serving it, so atomic replacement requires a new URL while
-editing the same file in place does not. An HTML file authorized this way cannot
-load sibling assets; directory-scoped workspace previews are a separate grant.
-Clients should share the authored file reference so they do not disclose the
-temporary URL's credential. `filesystem:read` is checked when the URL is minted,
-not when it is served: a URL issued before the grant was revoked keeps working
-until it expires, and it is not bound to the session that minted it.
-
-Host videos can change in place. Their [HTTP
-responses](../../apps/server/src/http.ts) omit cache validators because file
-metadata cannot prove byte-for-byte identity for `If-Range`. Adding weak
-validators would turn native-player seeks into full downloads.

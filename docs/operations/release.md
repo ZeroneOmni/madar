@@ -35,14 +35,7 @@ Windows packages the bundled server and only its runtime-external/native
 dependency closure in `resources/server.asar`. Native modules and helper
 executables declared as unpacked by that archive must be present at the matching
 paths below `resources/server.asar.unpacked`. The Windows-native backend reads
-the archive in place through Electron. Packaged Windows builds also ship
-`resources/wsl-runtime.tar.gz` plus its SHA-256 sidecar: the Linux CLI archive
-(`madar-<version>-linux-<arch>.tar.gz`, the same arch as the Windows host) built
-by the Linux desktop job and handed to the Windows desktop build as
-`--wsl-runtime`, copied in verbatim so WSL runs the exact bytes a Linux user
-downloads. WSL verifies and extracts that archive
-into `~/.madar/wsl-runtime/sha256-<archive-digest>` inside the selected distro,
-then reuses it for later launches of the same update.
+the archive in place through Electron.
 
 Windows keeps JavaScript and package metadata inside `app.asar` and unpacks only
 native libraries and helper executables. Avoid enabling whole-package smart
@@ -55,15 +48,7 @@ break:
 - `resources/server.asar` is absent or does not contain the server entry.
 - Any file marked unpacked in the ASAR header is absent from
   `resources/server.asar.unpacked`.
-- On same-architecture Windows builds, the packaged primary cannot load the fff
-  native library from inside `server.asar` through its `.unpacked` sibling.
 - The isolated, extracted sidecar cannot load the server entry with plain Node.
-- A Windows build given `--wsl-runtime` omits the WSL archive or SHA-256
-  sidecar, or the sidecar digest does not match the emitted archive.
-- The emitted WSL archive is not a Linux CLI release archive: it must unpack to
-  a single `madar-<version>-linux-<arch>` directory holding `madar`, `client/`, and
-  `node_modules/` for its external dependencies, and must not carry a loose
-  server bundle (`bin.mjs`).
 - The external Windows resource monitor is absent.
 - The unpacked Windows application contains more than 80 files.
 
@@ -84,53 +69,21 @@ Required secrets used by the workflow:
 - `APPLE_API_KEY`
 - `APPLE_API_KEY_ID`
 - `APPLE_API_ISSUER`
-- `MACOS_PROVISIONING_PROFILE` (base64-encoded provisioning profile with Associated Domains)
-
-Required repository variables:
-
-- `APPLE_TEAM_ID`
-
-Optional repository variables:
-
-- `CLERK_PASSKEY_RP_DOMAINS`: comma-separated RP-domain override. By default, the build derives the
-  domain from the production Clerk publishable key.
 
 Checklist:
 
-1. Apple Developer account access:
-   - Team has rights to create Developer ID certificates.
-2. Create an explicit App ID for `com.madartools.madar` and enable Associated Domains.
-3. Create a `Developer ID Application` certificate and a compatible provisioning profile for that
-   App ID with Associated Domains enabled.
-4. Export the certificate + private key as `.p12` from Keychain.
-5. Base64-encode the `.p12` and store as `CSC_LINK`.
-6. Base64-encode the provisioning profile and store it as `MACOS_PROVISIONING_PROFILE`.
-7. Store the `.p12` export password as `CSC_KEY_PASSWORD`, and set `APPLE_TEAM_ID` to the
-   10-character Apple Developer Team ID.
-8. In App Store Connect, create an API key (Team key).
-9. Add API key values:
+1. Create a `Developer ID Application` certificate in your Apple Developer account.
+2. Export the certificate and private key as `.p12` from Keychain.
+3. Base64-encode the `.p12` and store it as `CSC_LINK`.
+4. Store the export password as `CSC_KEY_PASSWORD`.
+5. In App Store Connect, create a Team API key.
+6. Add its values as secrets:
    - `APPLE_API_KEY`: contents of the downloaded `.p8`
    - `APPLE_API_KEY_ID`: Key ID
    - `APPLE_API_ISSUER`: Issuer ID
-10. Re-run a tag release and confirm macOS artifacts are signed/notarized and contain the expected
-    `com.apple.developer.associated-domains` entitlement.
+7. Re-run a tag release and confirm that the macOS artifacts are signed and notarized.
 
-Notes:
-
-- `APPLE_API_KEY` is stored as raw key text in secrets.
-- The workflow writes it to a temporary `AuthKey_<id>.p8` file at runtime.
-- The workflow decodes `MACOS_PROVISIONING_PROFILE`, validates it with `security cms`, and passes it
-  to the desktop packager.
-- In-app browser passkeys depend on the same profile. The packager adds each entitlement only when
-  the profile grants it, because macOS will not launch an app that claims more than its profile
-  allows. The build log reports which ones it enabled.
-  - `keychain-access-groups` (`<TEAM_ID>.com.madartools.madar.webauthn`) enables Touch ID passkeys.
-    Profiles that grant the team's keychain groups (`<TEAM_ID>.*`) cover it.
-  - `com.apple.developer.web-browser.public-key-credential` lets the system passkey sheet (iCloud
-    Keychain, password managers, phones, security keys) serve any site. Apple grants it as a
-    managed capability: the Account Holder requests it through the
-    [macOS Browsers Passkeys form](https://developer.apple.com/contact/request/macos-browsers-passkeys/).
-    After approval, regenerate the profile and update `MACOS_PROVISIONING_PROFILE`.
+The workflow writes `APPLE_API_KEY` to a temporary `AuthKey_<id>.p8` file at runtime.
 
 ## 3) Azure Trusted Signing setup (Windows)
 

@@ -2,7 +2,7 @@ import {
   type AuthEnvironmentScope,
   AuthStandardClientScopes,
   ExecutionEnvironmentDescriptor,
-  ORCHESTRATION_PROTOCOL_VERSION,
+  SERVER_PROTOCOL_VERSION,
   PortSchema,
 } from "@madar/contracts";
 import { resolveWorktreeMadarHome } from "@madar/shared/devHome";
@@ -82,7 +82,7 @@ export class IncompatibleServerProtocolError extends Schema.TaggedError<Incompat
 ) {
   override get message(): string {
     return [
-      `The running Madar server (${this.serverVersion}) speaks orchestration protocol ${String(this.serverProtocolVersion)}, but this CLI speaks protocol ${String(ORCHESTRATION_PROTOCOL_VERSION)}.`,
+      `The running Madar server (${this.serverVersion}) speaks server protocol ${String(this.serverProtocolVersion)}, but this CLI speaks protocol ${String(SERVER_PROTOCOL_VERSION)}.`,
       `Pair with the matching CLI instead: \`npx madar@${this.serverVersion} pair\`.`,
     ].join("\n");
   }
@@ -334,7 +334,6 @@ const makePairServerConfig = Effect.fn(function* (input: {
 
     desktopTelemetryControlFd: undefined,
     resourceMonitorPath: undefined,
-    autoBootstrapProjectFromCwd: false,
     logWebSocketEvents: false,
     tailscaleServeEnabled: false,
     tailscaleServePort: DEFAULT_TAILSCALE_SERVE_PORT,
@@ -488,8 +487,8 @@ export const pairCommand = Command.make("pair", {
       // Each protocol keeps auth in its own database, so a token minted here
       // for another protocol's server would never be accepted by it. Refuse
       // before any local layer opens (and migrates) that database.
-      const serverProtocolVersion = target.descriptor.orchestrationProtocolVersion ?? 1;
-      if (serverProtocolVersion !== ORCHESTRATION_PROTOCOL_VERSION) {
+      const serverProtocolVersion = target.descriptor.protocolVersion ?? 1;
+      if (serverProtocolVersion !== SERVER_PROTOCOL_VERSION) {
         return yield* new IncompatibleServerProtocolError({
           serverVersion: target.descriptor.serverVersion,
           serverProtocolVersion,

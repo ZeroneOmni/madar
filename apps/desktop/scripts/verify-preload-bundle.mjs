@@ -6,12 +6,7 @@ import * as NodeURL from "node:url";
 import * as NodeVM from "node:vm";
 import { parse } from "acorn";
 
-const expectedDesktopBridgeApis = [
-  "getClientPlatform",
-  "getLocalEnvironmentBootstraps",
-  "getPathForFile",
-  "pickFolder",
-];
+const expectedDesktopBridgeApis = ["getClientPlatform", "getLocalEnvironmentBootstraps"];
 const preloadExecutionTimeoutMs = 1_000;
 const desktopPackage = JSON.parse(
   NodeFS.readFileSync(new URL("../package.json", import.meta.url), "utf8"),

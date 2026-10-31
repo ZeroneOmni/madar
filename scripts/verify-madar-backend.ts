@@ -61,7 +61,7 @@ try {
   NodeAssert.equal(descriptor.status, 200);
   const metadata: unknown = await descriptor.json();
   NodeAssert.ok(metadata && typeof metadata === "object" && "capabilities" in metadata);
-  NodeAssert.deepEqual(metadata.capabilities, { repositoryIdentity: false });
+  NodeAssert.deepEqual(metadata.capabilities, {});
   const token = await fetch(`${origin}/oauth/token`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },

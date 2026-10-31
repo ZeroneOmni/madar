@@ -208,10 +208,10 @@ describe("theme files", () => {
         update: "lab(60% 40 30)",
         messageAction: "lch(60% 50 120)",
         sidebar: "oklab(0.6 0.1 -0.1)",
-        terminalCursor: "color(display-p3 0.8 0.2 0.3)",
-        terminalSelection: "rebeccapurple",
-        terminalScrollbar: "transparent",
-        terminalScrollbarHover: "rgb(10 20 30 / none)",
+        toolbarControl: "color(display-p3 0.8 0.2 0.3)",
+        surface: "rebeccapurple",
+        border: "transparent",
+        toolbarControlHover: "rgb(10 20 30 / none)",
       },
     });
 
@@ -219,16 +219,16 @@ describe("theme files", () => {
     expect(theme.colors.accent).toBe(canonical("#abcd"));
     expect(themeColorToHex(theme.colors.accent)).toBe("#aabbccdd");
     expect(themeColorToHex(theme.colors.focus)).toBe("#0a141e80");
-    expect(themeColorToHex(theme.colors.terminalSelection)).toBe("#663399");
-    expect(theme.colors.terminalScrollbar).toBe("oklch(0 0 0 / 0)");
-    expect(themeColorToHex(theme.colors.terminalScrollbarHover)).toBe("#0a141e00");
+    expect(themeColorToHex(theme.colors.surface)).toBe("#663399");
+    expect(theme.colors.border).toBe("oklch(0 0 0 / 0)");
+    expect(themeColorToHex(theme.colors.toolbarControlHover)).toBe("#0a141e00");
     for (const role of [
       "error",
       "warning",
       "update",
       "messageAction",
       "sidebar",
-      "terminalCursor",
+      "toolbarControl",
     ] as const) {
       expect(theme.colors[role]).toMatch(/^oklch\(/);
     }
