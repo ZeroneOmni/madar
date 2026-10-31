@@ -116,7 +116,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       const sessions = yield* SessionStore.SessionStore;
       const token = "reusable-dev-auth-token-that-is-long-enough";
       const devExchange = yield* serverAuth.createBrowserSession(token, requestMetadata);
-      const pairing = yield* serverAuth.issuePairingCredential({ scopes: ["orchestration:read"] });
+      const pairing = yield* serverAuth.issuePairingCredential({ scopes: ["diagnostics:read"] });
       const scopedExchange = yield* serverAuth.createBrowserSession(
         pairing.credential,
         requestMetadata,
@@ -135,7 +135,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       expect(devExchange.cookieName).toMatch(/^t3_dev_session_/);
       expect(devExchange.expireNormalCookie).toBe(true);
       expect(devExchange.response).toMatchObject(authScopeResponse(AuthStandardClientScopes));
-      expect(authenticated.scopes).toEqual(["orchestration:read"]);
+      expect(authenticated.scopes).toEqual(["diagnostics:read"]);
     }).pipe(
       Effect.provide(
         layerEnvironmentAuth({
@@ -153,7 +153,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       const sessions = yield* SessionStore.SessionStore;
       const token = "reusable-dev-auth-token-that-is-long-enough";
       const devExchange = yield* serverAuth.createBrowserSession(token, requestMetadata);
-      const pairing = yield* serverAuth.issuePairingCredential({ scopes: ["orchestration:read"] });
+      const pairing = yield* serverAuth.issuePairingCredential({ scopes: ["diagnostics:read"] });
       const scopedExchange = yield* serverAuth.createBrowserSession(
         pairing.credential,
         requestMetadata,
@@ -216,26 +216,26 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       const token = "reusable-dev-auth-token-that-is-long-enough";
       const exchanged = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         token,
-        ["orchestration:read"],
+        ["diagnostics:read"],
         requestMetadata,
       );
 
       expect(exchanged.access_token).not.toBe(token);
-      expect(exchanged.scope).toBe("orchestration:read");
+      expect(exchanged.scope).toBe("diagnostics:read");
       const dpop = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         token,
-        ["orchestration:read"],
+        ["diagnostics:read"],
         requestMetadata,
         { proofKeyThumbprint: "test-proof-key" },
       );
       expect(dpop.access_token).not.toBe(token);
       expect(dpop.access_token).not.toBe(exchanged.access_token);
       expect(dpop.token_type).toBe("DPoP");
-      expect(dpop.scope).toBe("orchestration:read");
+      expect(dpop.scope).toBe("diagnostics:read");
 
       const secondBearer = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         token,
-        ["orchestration:read"],
+        ["diagnostics:read"],
         requestMetadata,
       );
       const firstSession = yield* serverAuth.authenticateHttpRequest(
@@ -248,10 +248,6 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       expect(secondSession.subject).toBe("reusable-dev-token-child");
       expect((yield* sessions.verify(token)).subject).toBe("reusable-dev-token");
       const before = yield* serverAuth.listClientSessions(firstSession.sessionId);
-      const denied = yield* serverAuth
-        .exchangeBootstrapCredentialForAccessToken(token, ["review:write"], requestMetadata)
-        .pipe(Effect.flip);
-      expect(denied._tag).toBe("ServerAuthScopeNotGrantedError");
       const empty = yield* serverAuth
         .exchangeBootstrapCredentialForAccessToken(token, [], requestMetadata)
         .pipe(Effect.flip);
@@ -314,7 +310,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
     Effect.gen(function* () {
       const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
       const pairingCredential = yield* serverAuth.issuePairingCredential({
-        scopes: ["orchestration:read", "orchestration:operate"],
+        scopes: ["diagnostics:read", "settings:write"],
       });
 
       const error = yield* serverAuth
@@ -333,22 +329,22 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
 
       const token = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         pairingCredential.credential,
-        ["orchestration:read"],
+        ["diagnostics:read"],
         requestMetadata,
       );
       const session = yield* serverAuth.authenticateHttpRequest(
         makeBearerRequest(token.access_token),
       );
 
-      expect(token.scope).toBe("orchestration:read");
-      expect(session.scopes).toEqual(["orchestration:read"]);
+      expect(token.scope).toBe("diagnostics:read");
+      expect(session.scopes).toEqual(["diagnostics:read"]);
       expect((yield* serverAuth.listPairingLinks()).map((link) => link.id)).not.toContain(
         pairingCredential.id,
       );
       const reused = yield* serverAuth
         .exchangeBootstrapCredentialForAccessToken(
           pairingCredential.credential,
-          ["orchestration:read"],
+          ["diagnostics:read"],
           requestMetadata,
         )
         .pipe(Effect.flip);
@@ -360,13 +356,13 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
     { label: "omits scope", requestedScopes: undefined },
     {
       label: "requests unsupported permissions alongside a granted one",
-      requestedScopes: ["orchestration:read", "access:write"] as const,
+      requestedScopes: ["diagnostics:read", "access:write"] as const,
     },
   ])("inherits a constrained pairing grant when token exchange $label", ({ requestedScopes }) =>
     Effect.gen(function* () {
       const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
       const pairingCredential = yield* serverAuth.issuePairingCredential({
-        scopes: ["orchestration:read"],
+        scopes: ["diagnostics:read"],
       });
 
       const token = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
@@ -375,7 +371,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
         requestMetadata,
       );
 
-      expect(token.scope).toBe("orchestration:read");
+      expect(token.scope).toBe("diagnostics:read");
     }).pipe(Effect.provide(layerEnvironmentAuth())),
   );
 
@@ -384,15 +380,15 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
       const token = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         "desktop-bootstrap-token",
-        ["orchestration:read"],
+        ["diagnostics:read"],
         requestMetadata,
       );
       const session = yield* serverAuth.authenticateHttpRequest(
         makeBearerRequest(token.access_token),
       );
 
-      expect(token.scope).toBe("orchestration:read");
-      expect(session.scopes).toEqual(["orchestration:read"]);
+      expect(token.scope).toBe("diagnostics:read");
+      expect(session.scopes).toEqual(["diagnostics:read"]);
     }).pipe(
       Effect.provide(layerEnvironmentAuth({ desktopBootstrapToken: "desktop-bootstrap-token" })),
     ),
@@ -656,7 +652,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       const other = makeDpopKey();
       const exchanged = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         "desktop-bootstrap-token",
-        ["orchestration:read"],
+        ["diagnostics:read"],
         requestMetadata,
         { proofKeyThumbprint: key.thumbprint },
       );
@@ -722,7 +718,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       const key = makeDpopKey();
       const exchanged = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         "desktop-bootstrap-token",
-        ["orchestration:read"],
+        ["diagnostics:read"],
         requestMetadata,
         { proofKeyThumbprint: key.thumbprint },
       );

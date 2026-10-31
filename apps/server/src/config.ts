@@ -1,5 +1,4 @@
 import * as Context from "effect/Context";
-import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -9,7 +8,6 @@ import type * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 
 import type { OtlpEndpointSource } from "@madar/contracts";
-import { sweepStalePendingAttachments } from "./attachmentStore.ts";
 import { DEFAULT_SIGNAL_EXPORT, type SignalExport } from "@madar/shared/observability";
 import * as OtelEnvironment from "@madar/shared/otelEnvironment";
 import packageJson from "../package.json" with { type: "json" };
@@ -25,18 +23,10 @@ export type StartupPresentation = typeof StartupPresentation.Type;
 export interface ServerDerivedPaths {
   readonly stateDir: string;
   readonly dbPath: string;
-  readonly keybindingsConfigPath: string;
   readonly settingsPath: string;
   readonly environmentThemesDir: string;
-  readonly providerStatusCacheDir: string;
-  readonly worktreesDir: string;
-  readonly attachmentsDir: string;
-  readonly browserArtifactsDir: string;
   readonly logsDir: string;
   readonly serverTracePath: string;
-  readonly providerLogsDir: string;
-  readonly providerEventLogPath: string;
-  readonly terminalLogsDir: string;
   readonly anonymousIdPath: string;
   readonly environmentIdPath: string;
   readonly serverRuntimeStatePath: string;
@@ -89,7 +79,6 @@ export class ServerConfig extends Context.Service<
     readonly desktopTelemetryControlFd?: number | undefined;
 
     readonly resourceMonitorPath?: string | undefined;
-    readonly autoBootstrapProjectFromCwd: boolean;
     readonly logWebSocketEvents: boolean;
     readonly tailscaleServeEnabled: boolean;
     readonly tailscaleServePort: number;
@@ -130,25 +119,14 @@ export const deriveServerPaths = Effect.fn(function* (
     devUrl !== undefined && !options.baseDirIsExplicit ? "dev" : "userdata",
   );
   const dbPath = join(stateDir, "madar.sqlite");
-  const attachmentsDir = join(stateDir, "attachments");
   const logsDir = join(stateDir, "logs");
-  const providerLogsDir = join(logsDir, "provider");
-  const providerStatusCacheDir = join(baseDir, "caches");
   return {
     stateDir,
     dbPath,
-    keybindingsConfigPath: join(stateDir, "keybindings.json"),
     settingsPath: join(stateDir, "settings.json"),
     environmentThemesDir: join(stateDir, "themes"),
-    providerStatusCacheDir,
-    worktreesDir: join(baseDir, "worktrees"),
-    attachmentsDir,
-    browserArtifactsDir: join(stateDir, "browser-artifacts"),
     logsDir,
     serverTracePath: join(logsDir, "server.trace.ndjson"),
-    providerLogsDir,
-    providerEventLogPath: join(providerLogsDir, "events.log"),
-    terminalLogsDir: join(logsDir, "terminals"),
     anonymousIdPath: join(stateDir, "anonymous-id"),
     environmentIdPath: join(stateDir, "environment-id"),
     serverRuntimeStatePath: join(stateDir, "server-runtime.json"),
@@ -164,23 +142,12 @@ export const ensureServerDirectories = Effect.fn(function* (derivedPaths: Server
     [
       fs.makeDirectory(derivedPaths.stateDir, { recursive: true }),
       fs.makeDirectory(derivedPaths.logsDir, { recursive: true }),
-      fs.makeDirectory(derivedPaths.terminalLogsDir, { recursive: true }),
-      fs.makeDirectory(derivedPaths.attachmentsDir, { recursive: true }),
-      fs.makeDirectory(path.dirname(derivedPaths.keybindingsConfigPath), { recursive: true }),
       fs.makeDirectory(path.dirname(derivedPaths.settingsPath), { recursive: true }),
       fs.makeDirectory(path.dirname(derivedPaths.anonymousIdPath), { recursive: true }),
       fs.makeDirectory(path.dirname(derivedPaths.serverRuntimeStatePath), { recursive: true }),
     ],
     { concurrency: "unbounded" },
   );
-
-  const swept = sweepStalePendingAttachments({
-    attachmentsDir: derivedPaths.attachmentsDir,
-    nowMs: yield* Clock.currentTimeMillis,
-  });
-  if (swept.deleted > 0) {
-    yield* Effect.logInfo("Removed expired attachment uploads.", { deleted: swept.deleted });
-  }
 });
 
 const makeTest = Effect.fn("ServerConfig.makeTest")(function* (
@@ -216,7 +183,6 @@ const makeTest = Effect.fn("ServerConfig.makeTest")(function* (
     baseDir,
     ...derivedPaths,
     mode: "web",
-    autoBootstrapProjectFromCwd: false,
     logWebSocketEvents: false,
     tailscaleServeEnabled: false,
     tailscaleServePort: 443,

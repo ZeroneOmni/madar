@@ -1,5 +1,4 @@
 // @effect-diagnostics nodeBuiltinImport:off - Tests use Node's glob matcher to verify electron-builder exclusions.
-import * as NodeCrypto from "node:crypto";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
 
@@ -24,22 +23,13 @@ import {
   DesktopBuildManifestRestoreError,
   BundleNotSelfContainedError,
   BuildCommandFailedError,
-  parseWslRuntimeArchiveMembers,
   readWorkspaceConfig,
   createBuildConfig,
-  InvalidMacPasskeyRpDomainError,
-  InvalidMacPasskeyPublishableKeyError,
   UnsupportedDesktopBuildArchitectureError,
-  MacPasskeySigningConfigurationResolutionError,
-  MissingMacPasskeyProvisioningProfileError,
   packWindowsServerAsar,
   preflightWindowsDesktopBuild,
-  renderMacPasskeyEntitlements,
-  resolveMacWebAuthnEntitlements,
-  resolveMacPasskeySigningConfiguration,
   resolveMergedStageDependencies,
   resolveBuildOptions,
-  stageWslRuntimeArchive,
   ancestorNodeModulesPaths,
   copyDirectoryPreservingSymlinks,
   validateWindowsPackagedPayload,
@@ -48,11 +38,6 @@ import {
   WindowsPackagedPayloadValidationError,
   WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT,
   WINDOWS_SERVER_ASAR_RESOURCE,
-  WSL_RUNTIME_ARCHIVE_EXTRA_RESOURCE,
-  WSL_RUNTIME_ARCHIVE_HASH_EXTRA_RESOURCE,
-  WSL_RUNTIME_ARCHIVE_HASH_NAME,
-  WSL_RUNTIME_ARCHIVE_NAME,
-  wslRuntimeArchiveStem,
 } from "./build-desktop-artifact.ts";
 import {
   ReleasePackageManifestError,
@@ -65,40 +50,6 @@ const encodeModuleUrl = Schema.encodeEffect(Schema.fromJsonString(Schema.String)
 const decodePackageVersion = Schema.decodeUnknownEffect(
   Schema.fromJsonString(Schema.Struct({ version: Schema.String })),
 );
-
-const makeLinuxCliArchiveFixture = Effect.fn("test.makeLinuxCliArchiveFixture")(function* (input: {
-  readonly root: string;
-  readonly stem: string;
-  readonly extraMembers?: ReadonlyArray<string>;
-  readonly omitMembers?: ReadonlyArray<string>;
-}) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-  const contentRoot = path.join(input.root, "content");
-  const members = [
-    `${input.stem}/madar`,
-    `${input.stem}/client/index.html`,
-    `${input.stem}/node_modules/@napi-rs/keyring/package.json`,
-    `${input.stem}/node_modules/@napi-rs/keyring/native.node`,
-    ...(input.extraMembers ?? []),
-  ].filter((member) => !(input.omitMembers ?? []).includes(member));
-  for (const member of members) {
-    const memberPath = path.join(contentRoot, member);
-    yield* fs.makeDirectory(path.dirname(memberPath), { recursive: true });
-    yield* fs.writeFileString(memberPath, member);
-  }
-  const archivePath = path.join(input.root, `${input.stem}.tar.gz`);
-  const tar = yield* spawner.spawn(
-    ChildProcess.make("tar", ["-czf", archivePath, "-C", contentRoot, "."], {
-      stdin: "ignore",
-      stdout: "ignore",
-      stderr: "pipe",
-    }),
-  );
-  assert.equal(Number(yield* tar.exitCode), 0);
-  return archivePath;
-});
 
 function mockProcess(exitCode: number, stdout = "") {
   const encodedStdout = new TextEncoder().encode(stdout);
@@ -117,13 +68,9 @@ function mockProcess(exitCode: number, stdout = "") {
   });
 }
 
-const WINDOWS_PAYLOAD_FIXTURE_VERSION = "1.2.3";
-
 const makeWindowsPayloadFixture = Effect.fn("test.makeWindowsPayloadFixture")(function* (input: {
   readonly copyUnpackedNatives: boolean;
   readonly serverEntrySource?: string;
-  readonly wslRuntime?: "valid" | "loose-server-tree" | "bad-digest";
-  readonly targetArch?: "x64" | "arm64";
 }) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -160,31 +107,6 @@ const makeWindowsPayloadFixture = Effect.fn("test.makeWindowsPayloadFixture")(fu
   yield* fs.writeFileString(path.join(packagedAppDir, appExecutableName), "electron");
   yield* fs.writeFileString(path.join(packagedAppDir, "chrome_crashpad_handler.exe"), "crashpad");
 
-  if (input.wslRuntime !== undefined) {
-    const stem = wslRuntimeArchiveStem(WINDOWS_PAYLOAD_FIXTURE_VERSION, input.targetArch ?? "x64");
-    const sourceArchivePath =
-      input.wslRuntime === "loose-server-tree"
-        ? yield* makeLinuxCliArchiveFixture({
-            root: path.join(tempDir, "wsl-runtime"),
-            stem: "apps",
-            omitMembers: ["apps/madar", "apps/client/index.html"],
-            extraMembers: [
-              "apps/server/dist/bin.mjs",
-              "node_modules/@napi-rs/keyring/package.json",
-            ],
-          })
-        : yield* makeLinuxCliArchiveFixture({
-            root: path.join(tempDir, "wsl-runtime"),
-            stem,
-          });
-    const archivePath = path.join(resourcesDir, WSL_RUNTIME_ARCHIVE_NAME);
-    const hashPath = path.join(resourcesDir, WSL_RUNTIME_ARCHIVE_HASH_NAME);
-    yield* stageWslRuntimeArchive({ sourceArchivePath, archivePath, hashPath });
-    if (input.wslRuntime === "bad-digest") {
-      yield* fs.writeFileString(hashPath, `${"0".repeat(64)}\n`);
-    }
-  }
-
   return {
     stageDistDir,
     packagedAppDir,
@@ -195,6 +117,15 @@ const makeWindowsPayloadFixture = Effect.fn("test.makeWindowsPayloadFixture")(fu
 });
 
 it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
+  it.effect("does not register macOS as a web browser", () =>
+    Effect.gen(function* () {
+      const config = yield* createBuildConfig("mac", "dmg", "1.2.3", false, false, undefined);
+      assert.notNestedProperty(config, "mac.extendInfo.CFBundleDocumentTypes");
+      assert.deepNestedPropertyVal(config, "mac.protocols", [
+        { name: "Madar", schemes: ["madar", "madar-dev"] },
+      ]);
+    }),
+  );
   it.effect("rejects overlapping builds from another process until restoration finishes", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
@@ -465,17 +396,8 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         false,
         false,
         undefined,
-        undefined,
       );
-      const release = yield* createBuildConfig(
-        "mac",
-        "dmg",
-        "0.0.33",
-        false,
-        false,
-        undefined,
-        undefined,
-      );
+      const release = yield* createBuildConfig("mac", "dmg", "0.0.33", false, false, undefined);
 
       const previewChannel = yield* createBuildConfig(
         "mac",
@@ -483,7 +405,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         "0.0.41-preview.20260912.1589",
         false,
         false,
-        undefined,
         undefined,
       );
 
@@ -536,13 +457,13 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         },
         desktopDependencies: {
           "@napi-rs/keyring": "1.3.0",
-          "@clerk/electron-passkeys": "1.0.0",
+          "electron-updater": "1.0.0",
         },
         arch: "arm64",
       }),
       {
         "@napi-rs/keyring": "1.3.0",
-        "@clerk/electron-passkeys": "1.0.0",
+        "electron-updater": "1.0.0",
       },
     );
 
@@ -550,11 +471,11 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       resolveMergedStageDependencies({
         platform: "linux",
         serverDependencies: { effect: "4.0.5" },
-        desktopDependencies: { "@clerk/electron-passkeys": "1.0.0" },
+        desktopDependencies: { "electron-updater": "1.0.0" },
         arch: "x64",
       }),
       {
-        "@clerk/electron-passkeys": "1.0.0",
+        "electron-updater": "1.0.0",
       },
     );
   });
@@ -580,7 +501,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         );
         const error = yield* preflightWindowsDesktopBuild({
           arch: "x64",
-          bundlesWslRuntime: true,
         }).pipe(
           Effect.provide(
             Layer.merge(
@@ -621,7 +541,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
 
         yield* preflightWindowsDesktopBuild({
           arch: "x64",
-          bundlesWslRuntime: true,
         }).pipe(
           Effect.provide(
             Layer.merge(
@@ -639,6 +558,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         );
 
         assert.notInclude(commands, "powershell.exe");
+        assert.notInclude(commands, "tar.exe");
       }),
     ),
   );
@@ -669,7 +589,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         );
         const error = yield* preflightWindowsDesktopBuild({
           arch: "x64",
-          bundlesWslRuntime: false,
         }).pipe(
           Effect.provide(
             Layer.merge(
@@ -703,7 +622,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           stageDistDir: fixture.stageDistDir,
           appExecutableName: fixture.appExecutableName,
           targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
         });
 
         const secondAsarPath = path.join(path.dirname(fixture.generatedAsarPath), "second.asar");
@@ -725,89 +643,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     ).pipe(Effect.provideService(HostProcess.Platform, "linux")),
   );
 
-  it.effect.each(["x64", "arm64"] as const)(
-    "accepts a Linux %s CLI archive without a terminal dependency",
-    (targetArch) =>
-      Effect.scoped(
-        Effect.gen(function* () {
-          const fixture = yield* makeWindowsPayloadFixture({
-            copyUnpackedNatives: true,
-            wslRuntime: "valid",
-            targetArch,
-          });
-          const result = yield* validateWindowsPackagedPayload({
-            stageDistDir: fixture.stageDistDir,
-            appExecutableName: fixture.appExecutableName,
-            targetArch,
-            appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
-            expectWslRuntime: true,
-          });
-
-          assert.equal(result.packagedAppDir, fixture.packagedAppDir);
-        }),
-      ).pipe(Effect.provideService(HostProcess.Platform, "linux")),
-  );
-
-  it.effect("rejects an embedded archive built for a different release version", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const fixture = yield* makeWindowsPayloadFixture({
-          copyUnpackedNatives: true,
-          wslRuntime: "valid",
-        });
-        const error = yield* validateWindowsPackagedPayload({
-          stageDistDir: fixture.stageDistDir,
-          appExecutableName: fixture.appExecutableName,
-          targetArch: "x64",
-          appVersion: "9.9.9",
-          expectWslRuntime: true,
-        }).pipe(Effect.flip);
-
-        assert.instanceOf(error, WindowsPackagedPayloadValidationError);
-        assert.equal(error.reason, "wsl-runtime-invalid");
-      }),
-    ),
-  );
-
-  it.effect("rejects a Windows package missing its expected WSL runtime", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const fixture = yield* makeWindowsPayloadFixture({ copyUnpackedNatives: true });
-        const error = yield* validateWindowsPackagedPayload({
-          stageDistDir: fixture.stageDistDir,
-          appExecutableName: fixture.appExecutableName,
-          targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
-          expectWslRuntime: true,
-        }).pipe(Effect.flip);
-
-        assert.instanceOf(error, WindowsPackagedPayloadValidationError);
-        assert.equal(error.reason, "wsl-runtime-missing");
-      }),
-    ),
-  );
-
-  it.effect("rejects an emitted WSL archive whose sidecar digest does not match", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const fixture = yield* makeWindowsPayloadFixture({
-          copyUnpackedNatives: true,
-          wslRuntime: "bad-digest",
-        });
-        const error = yield* validateWindowsPackagedPayload({
-          stageDistDir: fixture.stageDistDir,
-          appExecutableName: fixture.appExecutableName,
-          targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
-          expectWslRuntime: true,
-        }).pipe(Effect.flip);
-
-        assert.instanceOf(error, WindowsPackagedPayloadValidationError);
-        assert.equal(error.reason, "wsl-runtime-invalid");
-      }),
-    ),
-  );
-
   it.effect("rejects a packaged sidecar whose ASAR-unpacked native is missing", () =>
     Effect.scoped(
       Effect.gen(function* () {
@@ -816,7 +651,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           stageDistDir: fixture.stageDistDir,
           appExecutableName: fixture.appExecutableName,
           targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
         }).pipe(Effect.flip);
 
         assert.instanceOf(error, WindowsPackagedPayloadValidationError);
@@ -845,7 +679,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           stageDistDir: fixture.stageDistDir,
           appExecutableName: fixture.appExecutableName,
           targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
         }).pipe(Effect.flip);
         assert.instanceOf(nativeError, WindowsPackagedPayloadValidationError);
         assert.equal(nativeError.reason, "unpacked-native-missing");
@@ -866,7 +699,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           stageDistDir: fixture.stageDistDir,
           appExecutableName: fixture.appExecutableName,
           targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
         }).pipe(Effect.flip);
         assert.instanceOf(resourceMonitorError, WindowsPackagedPayloadValidationError);
         assert.equal(resourceMonitorError.reason, "resource-monitor-missing");
@@ -885,7 +717,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           stageDistDir: fixture.stageDistDir,
           appExecutableName: fixture.appExecutableName,
           targetArch: "x64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
           fileLimit: 2,
         }).pipe(Effect.flip);
 
@@ -926,7 +757,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           stageDistDir: fixture.stageDistDir,
           appExecutableName: fixture.appExecutableName,
           targetArch: "arm64",
-          appVersion: WINDOWS_PAYLOAD_FIXTURE_VERSION,
         });
       }),
     ).pipe(
@@ -939,188 +769,10 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     ),
   );
 
-  it("derives macOS passkey signing configuration from the Clerk publishable key", () => {
-    const configuration = resolveMacPasskeySigningConfiguration({
-      MADAR_APPLE_TEAM_ID: "abc1234567",
-      MADAR_MACOS_PROVISIONING_PROFILE: "/tmp/madar.provisionprofile",
-      MADAR_CLERK_PUBLISHABLE_KEY: `pk_test_${btoa("example.clerk.accounts.dev$")}`,
-    });
-
-    assert.deepStrictEqual(configuration, {
-      appId: "io.github.husseinbaraja.madar",
-      teamId: "ABC1234567",
-      rpDomains: ["example.clerk.accounts.dev"],
-      provisioningProfilePath: "/tmp/madar.provisionprofile",
-    });
-  });
-
-  it("normalizes explicit macOS passkey RP domains and renders required entitlements", () => {
-    const configuration = resolveMacPasskeySigningConfiguration({
-      MADAR_APPLE_TEAM_ID: "ABC1234567",
-      MADAR_MACOS_PROVISIONING_PROFILE: "/tmp/madar.provisionprofile",
-      MADAR_CLERK_PASSKEY_RP_DOMAINS:
-        " Clerk.Example.com,example.clerk.accounts.dev,clerk.example.com ",
-    });
-    const entitlements = renderMacPasskeyEntitlements(configuration, {
-      touchIdKeychainAccessGroup: undefined,
-      browserPasskeys: false,
-    });
-
-    assert.deepStrictEqual(configuration.rpDomains, [
-      "clerk.example.com",
-      "example.clerk.accounts.dev",
-    ]);
-    assert.include(entitlements, "<string>ABC1234567.io.github.husseinbaraja.madar</string>");
-    assert.include(entitlements, "<string>webcredentials:clerk.example.com</string>");
-    assert.include(entitlements, "<string>webcredentials:example.clerk.accounts.dev</string>");
-    assert.include(entitlements, "<key>com.apple.security.cs.allow-jit</key>");
-    assert.match(entitlements, /<key>com\.apple\.security\.device\.camera<\/key>\s*<true\/>/u);
-    assert.match(entitlements, /<key>com\.apple\.security\.device\.audio-input<\/key>\s*<true\/>/u);
-    assert.notInclude(entitlements, "keychain-access-groups");
-    assert.notInclude(entitlements, "com.apple.developer.web-browser.public-key-credential");
-  });
-
-  it("grants in-app browser passkey entitlements only when the provisioning profile does", () => {
-    const configuration = { appId: "io.github.husseinbaraja.madar", teamId: "ABC1234567" };
-    const profile = (entitlements: string, outside = "") =>
-      `0\x82\x1f\x9a\x06\t*\x86H<?xml version="1.0"?><plist version="1.0"><dict>${outside}<key>Entitlements</key><dict>${entitlements}</dict></dict></plist>\x00\x01`;
-    const teamWildcardGroups = `<key>keychain-access-groups</key>
-      <array>
-        <string>ABC1234567.*</string>
-        <string>com.apple.token</string>
-      </array>`;
-
-    assert.deepStrictEqual(resolveMacWebAuthnEntitlements(profile(""), configuration), {
-      touchIdKeychainAccessGroup: undefined,
-      browserPasskeys: false,
-    });
-    assert.deepStrictEqual(
-      resolveMacWebAuthnEntitlements(
-        profile("<key>keychain-access-groups</key><array><string>OTHERTEAM1.*</string></array>"),
-        configuration,
-      ),
-      { touchIdKeychainAccessGroup: undefined, browserPasskeys: false },
-    );
-    assert.deepStrictEqual(
-      resolveMacWebAuthnEntitlements(
-        profile(
-          `<!-- ${teamWildcardGroups}
-          <key>com.apple.developer.web-browser.public-key-credential</key><true/> -->
-          <key>com.apple.developer.web-browser.public-key-credential</key><false/>`,
-          teamWildcardGroups,
-        ),
-        configuration,
-      ),
-      { touchIdKeychainAccessGroup: undefined, browserPasskeys: false },
-    );
-    assert.deepStrictEqual(
-      resolveMacWebAuthnEntitlements(
-        profile(
-          `${teamWildcardGroups}
-          <key>com.apple.developer.web-browser.public-key-credential</key>
-          <true/>`,
-        ),
-        configuration,
-      ),
-      {
-        touchIdKeychainAccessGroup: "ABC1234567.io.github.husseinbaraja.madar.webauthn",
-        browserPasskeys: true,
-      },
-    );
-
-    const entitlements = renderMacPasskeyEntitlements(
-      { ...configuration, rpDomains: ["clerk.example.com"], provisioningProfilePath: "" },
-      resolveMacWebAuthnEntitlements(
-        profile(
-          `${teamWildcardGroups}<key>com.apple.developer.web-browser.public-key-credential</key><true/>`,
-        ),
-        configuration,
-      ),
-    );
-    assert.match(
-      entitlements,
-      /<key>keychain-access-groups<\/key>\s*<array>\s*<string>ABC1234567\.io\.github\.husseinbaraja\.madar\.webauthn<\/string>\s*<\/array>/u,
-    );
-    assert.match(
-      entitlements,
-      /<key>com\.apple\.developer\.web-browser\.public-key-credential<\/key>\s*<true\/>/u,
-    );
-  });
-
-  it("rejects incomplete macOS passkey signing configuration", () => {
-    const captureError = (env: Readonly<Record<string, string | undefined>>) => {
-      try {
-        resolveMacPasskeySigningConfiguration(env);
-      } catch (error) {
-        return error;
-      }
-      return assert.fail("Expected passkey signing configuration to fail.");
-    };
-
-    const missingProfileError = captureError({
-      MADAR_APPLE_TEAM_ID: "ABC1234567",
-      MADAR_CLERK_PASSKEY_RP_DOMAINS: "example.clerk.accounts.dev",
-    });
-    assert.instanceOf(missingProfileError, MissingMacPasskeyProvisioningProfileError);
-    assert.equal(
-      missingProfileError.message,
-      "MADAR_MACOS_PROVISIONING_PROFILE must point to an Associated Domains provisioning profile.",
-    );
-
-    const unsafeDomain =
-      "https://domain-user:domain-secret@example.clerk.accounts.dev/path?token=query-secret";
-    const invalidDomainError = captureError({
-      MADAR_APPLE_TEAM_ID: "ABC1234567",
-      MADAR_MACOS_PROVISIONING_PROFILE: "/tmp/madar.provisionprofile",
-      MADAR_CLERK_PASSKEY_RP_DOMAINS: unsafeDomain,
-    });
-    assert.instanceOf(invalidDomainError, InvalidMacPasskeyRpDomainError);
-    assert.equal(invalidDomainError.reason, "scheme-not-allowed");
-    assert.equal(invalidDomainError.inputLength, unsafeDomain.length);
-    assert.equal(invalidDomainError.message, "Invalid passkey RP domain (scheme-not-allowed).");
-    assert.notProperty(invalidDomainError, "domain");
-    assert.notProperty(invalidDomainError, "cause");
-    const serializedInvalidDomainError = JSON.stringify(invalidDomainError);
-    assert.notInclude(serializedInvalidDomainError, unsafeDomain);
-    assert.notInclude(serializedInvalidDomainError, "domain-user");
-    assert.notInclude(serializedInvalidDomainError, "domain-secret");
-    assert.notInclude(serializedInvalidDomainError, "query-secret");
-    assert.throws(
-      () =>
-        resolveMacPasskeySigningConfiguration({
-          MADAR_APPLE_TEAM_ID: "ABC1234567",
-          MADAR_MACOS_PROVISIONING_PROFILE: "/tmp/madar.provisionprofile",
-          MADAR_CLERK_PASSKEY_RP_DOMAINS: "example.clerk.accounts.dev:8443",
-        }),
-      /Invalid passkey RP domain/u,
-    );
-    const invalidPublishableKeyError = captureError({
-      MADAR_APPLE_TEAM_ID: "ABC1234567",
-      MADAR_MACOS_PROVISIONING_PROFILE: "/tmp/madar.provisionprofile",
-      MADAR_CLERK_PUBLISHABLE_KEY: "pk_test_%",
-    });
-    assert.instanceOf(invalidPublishableKeyError, InvalidMacPasskeyPublishableKeyError);
-    assert.ok(invalidPublishableKeyError.cause);
-    assert.equal(invalidPublishableKeyError.message, "MADAR_CLERK_PUBLISHABLE_KEY is invalid.");
-    assert.notProperty(invalidPublishableKeyError, "publishableKey");
-    assert.notInclude(invalidPublishableKeyError.message, "pk_test_%");
-  });
-
-  it("wraps unknown passkey signing configuration defects without copying cause text", () => {
-    const secret = "pk_test_do-not-retain";
-    const cause = new Error(secret);
-    const error = MacPasskeySigningConfigurationResolutionError.fromCause(cause);
-
-    assert.instanceOf(error, MacPasskeySigningConfigurationResolutionError);
-    assert.strictEqual(error.cause, cause);
-    assert.equal(error.message, "Failed to resolve macOS passkey signing configuration.");
-    assert.notInclude(error.message, secret);
-  });
-
   it.effect("signs Windows builds with signtool on Windows and the jsign hook elsewhere", () =>
     Effect.gen(function* () {
       const signedWinConfig = (hostPlatform: string) =>
-        createBuildConfig("win", "nsis", "1.2.3", true, false, undefined, undefined).pipe(
+        createBuildConfig("win", "nsis", "1.2.3", true, false, undefined).pipe(
           Effect.map((config) => config.win as Record<string, unknown>),
           Effect.provideService(HostProcess.Platform, hostPlatform),
         );
@@ -1151,42 +803,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     ),
   );
 
-  it("parses Windows bsdtar member listings with CRLF line endings", () => {
-    assert.deepStrictEqual(
-      parseWslRuntimeArchiveMembers(
-        "./madar-1.2.3-linux-x64/madar\r\nmadar-1.2.3-linux-x64/client/\r\n",
-      ),
-      ["madar-1.2.3-linux-x64/madar", "madar-1.2.3-linux-x64/client"],
-    );
-  });
-
-  it.effect("stages the Linux CLI archive verbatim with its SHA-256 sidecar", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem;
-        const path = yield* Path.Path;
-        const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-wsl-runtime-stage-" });
-        const sourceArchivePath = yield* makeLinuxCliArchiveFixture({
-          root,
-          stem: "madar-1.2.3-linux-x64",
-        });
-        const stageAppDir = path.join(root, "app");
-        const archivePath = path.join(stageAppDir, WSL_RUNTIME_ARCHIVE_EXTRA_RESOURCE.from);
-        const hashPath = path.join(stageAppDir, WSL_RUNTIME_ARCHIVE_HASH_EXTRA_RESOURCE.from);
-
-        yield* stageWslRuntimeArchive({ sourceArchivePath, archivePath, hashPath });
-
-        const [source, staged] = yield* Effect.all([
-          fs.readFile(sourceArchivePath),
-          fs.readFile(archivePath),
-        ]);
-        assert.deepStrictEqual(staged, source);
-        const hash = yield* fs.readFileString(hashPath);
-        assert.equal(hash, `${NodeCrypto.createHash("sha256").update(source).digest("hex")}\n`);
-      }),
-    ),
-  );
-
   it.effect("rejects universal builds on Linux and Windows before staging binaries", () =>
     Effect.gen(function* () {
       for (const platform of ["linux", "win"] as const) {
@@ -1203,7 +819,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
             verbose: Option.none(),
             mockUpdates: Option.none(),
             mockUpdateServerPort: Option.none(),
-            wslRuntime: Option.none(),
           }),
         );
 
@@ -1227,7 +842,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         verbose: Option.some(false),
         mockUpdates: Option.some(false),
         mockUpdateServerPort: Option.none(),
-        wslRuntime: Option.none(),
       }).pipe(
         Effect.provide(
           ConfigProvider.layer(

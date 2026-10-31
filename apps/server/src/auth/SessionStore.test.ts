@@ -249,30 +249,23 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
     }),
   );
 
-  it.effect("carries a runtime-mode ceiling only on sessions issued with one", () =>
-    Effect.gen(function* () {
-      const sessions = yield* SessionStore.SessionStore;
-      const capped = yield* sessions.issue({
-        subject: "mcp-client",
-        method: "bearer-access-token",
-        runtimeModeCeiling: "auto",
-      });
-      const uncapped = yield* sessions.issue({ method: "bearer-access-token" });
-
-      expect((yield* sessions.verify(capped.token)).runtimeModeCeiling).toBe("auto");
-      expect((yield* sessions.verify(uncapped.token)).runtimeModeCeiling).toBeUndefined();
-    }).pipe(Effect.provide(layerSessionStore())),
-  );
-  it.effect("keeps recorded scopes unchanged for both token versions", () =>
+  it.effect("keeps current grants from stored credentials after retiring developer scopes", () =>
     Effect.gen(function* () {
       const sessions = yield* SessionStore.SessionStore;
       const secrets = yield* ServerSecretStore.ServerSecretStore;
-      const legacyScopes = ["orchestration:read", "terminal:operate", "review:write"] as const;
+      const legacyScopes = ["diagnostics:read", "environment:maintain", "access:read"] as const;
       const issued = yield* sessions.issue({ subject: "one-time-token", scopes: legacyScopes });
       const [encodedPayload] = issued.token.split(".");
       const currentClaims = base64UrlDecodeUtf8(encodedPayload!);
       expect(currentClaims).toContain('"v":1');
-      const legacyPayload = base64UrlEncode(currentClaims.replace('"v":1', '"v":2'));
+      const storedScopes = [...legacyScopes, "orchestration:read", "terminal:operate"];
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`UPDATE auth_sessions SET scopes = ${JSON.stringify(storedScopes)} WHERE session_id = ${issued.sessionId}`;
+      const legacyPayload = base64UrlEncode(
+        currentClaims
+          .replace('"v":1', '"v":2')
+          .replace(JSON.stringify(legacyScopes), JSON.stringify(storedScopes)),
+      );
       const secret = yield* secrets.getOrCreateRandom("server-signing-key", 32);
       const legacyToken = `${legacyPayload}.${signPayload(legacyPayload, secret)}`;
 
@@ -282,7 +275,7 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
       Effect.provide(
         SessionStore.layer.pipe(
           Layer.provideMerge(ServerSecretStore.layer),
-          Layer.provide(SqlitePersistence.layerMemory),
+          Layer.provideMerge(SqlitePersistence.layerMemory),
           Layer.provide(layerServerEnvironment(EnvironmentId.make("test-environment"))),
           Layer.provide(layerServerConfig()),
         ),
@@ -389,7 +382,7 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
         const error = yield* sessions
           .issue({
             subject: "replacement-pairing",
-            scopes: ["orchestration:read"],
+            scopes: ["diagnostics:read"],
             replaceSessionId: previous.sessionId,
           })
           .pipe(Effect.flip);
@@ -432,7 +425,7 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
       const sessions = yield* SessionStore.SessionStore;
       const administrative = yield* sessions.issue({
         subject: "desktop-bootstrap",
-        scopes: ["orchestration:read", "access:write"],
+        scopes: ["diagnostics:read", "access:write"],
         client: {
           label: "Desktop app",
           deviceType: "desktop",
@@ -442,7 +435,7 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
       });
       const client = yield* sessions.issue({
         subject: "one-time-token",
-        scopes: ["orchestration:read"],
+        scopes: ["diagnostics:read"],
         client: {
           label: "Julius iPhone",
           deviceType: "mobile",

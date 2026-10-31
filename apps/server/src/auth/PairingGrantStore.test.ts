@@ -70,7 +70,7 @@ it.layer(NodeServices.layer)("PairingGrantStore.layer", (it) => {
         Array.from({ length: 8 }, () =>
           Effect.result(
             bootstrapCredentials.consume(token.credential, {
-              requestedScopes: ["orchestration:read"],
+              requestedScopes: ["diagnostics:read"],
             }),
           ),
         ),
@@ -96,7 +96,7 @@ it.layer(NodeServices.layer)("PairingGrantStore.layer", (it) => {
       const bootstrapCredentials = yield* PairingGrantStore.PairingGrantStore;
       const token = yield* bootstrapCredentials.issueOneTimeToken({
         proofKeyThumbprint: "client-proof-key-thumbprint",
-        scopes: ["orchestration:read"],
+        scopes: ["diagnostics:read"],
       });
 
       const missing = yield* Effect.flip(bootstrapCredentials.consume(token.credential));
@@ -114,7 +114,7 @@ it.layer(NodeServices.layer)("PairingGrantStore.layer", (it) => {
       );
       const consumed = yield* bootstrapCredentials.consume(token.credential, {
         proofKeyThumbprint: "client-proof-key-thumbprint",
-        requestedScopes: ["orchestration:read"],
+        requestedScopes: ["diagnostics:read"],
       });
 
       expect(missing.message).toContain("proof key mismatch");

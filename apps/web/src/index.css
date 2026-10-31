@@ -14,17 +14,6 @@
   }
 }
 
-@keyframes madar-mobile-draft-headline-exit {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-}
-
 :root {
   --app-scrollbar-width: 6px;
   --appearance-contrast-base: 100%;
@@ -49,9 +38,7 @@
   --command-shell-inset: 0.5rem;
   --command-content-inset: 1rem;
   --floating-content-inset: 0.75rem;
-  /* App layer order: the bottom terminal drawer (45, above the timeline minimap),
-     docked sheets, then the floating preview player (47–49, see
-     previewMiniPlayerLayout.ts), then dialogs and popovers (50 and up). */
+
   --z-sheet: 46;
   --glass-blur: 12px;
   --glass-opacity: 80%;
@@ -66,9 +53,7 @@
   --workspace-titlebar-control-gap: 0.75rem;
   --workspace-titlebar-scroll-fade-height: 1.5rem;
 
-  --thread-details-panel-width: 17.5rem;
-  /* The prompt on phones: iOS zooms into any input under 16px on focus. */
-  --font-size-prompt-touch: max(var(--font-size-prompt, 1rem), 16px);
+  --details-panel-width: 17.5rem;
   /* Horizontal gutter shared by the page header and the chat column, clear of
      the device's safe area. */
   --workspace-gutter: 0.75rem;
@@ -101,9 +86,7 @@
   );
 }
 
-/* The font tokens are declared outside the inline theme so utilities reference
-   the variables and Settings -> Appearance can override them at runtime. The
-   default stacks are mirrored in `appearanceFonts.ts`. */
+/* Font variables remain overridable by appearance settings. */
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono:
@@ -125,36 +108,10 @@
   --text-5xs: 0.4375rem;
   --text-5xs--line-height: 1;
   /* Motion. drawer is the decelerating curve for surfaces that slide or pop in
-     (composer context, pills). */
+     (dialogs, popovers). */
   --inset-shadow-control-highlight: 0 1px rgb(255 255 255 / 16%);
   --inset-shadow-control-pressed: 0 1px rgb(0 0 0 / 8%);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  /* The composer's elevation: a soft drop pulled in under the surface, shared
-     by the composer, its context strip and attached banners. */
-  --shadow-composer: 0 12px 28px -18px rgb(0 0 0 / 40%);
-  --shadow-composer-dark: 0 14px 32px -18px rgb(0 0 0 / 75%);
-  /* Overlap the lower toolbar backdrop by one pixel to cover the composer seam. */
-  --spacing-composer-seam: calc(var(--spacing) * 4 - 1px);
-  /* Dark-mode shade where an attached surface meets the composer: 10px of
-     shadow fading away from the seam. Inline, so the offsets resolve on the
-     element. below: the context strip under the composer (1rem seam, faint
-     white fill). above: an attached banner over it (its tint on top). */
-  --background-image-composer-seam-below:
-    linear-gradient(
-      to bottom,
-      transparent 0 1rem,
-      rgb(0 0 0 / 18%) 1rem,
-      transparent calc(1rem + 10px)
-    ),
-    linear-gradient(rgb(255 255 255 / 1%), rgb(255 255 255 / 1%));
-  --background-image-composer-seam-above:
-    linear-gradient(var(--chat-composer-attached-tint), var(--chat-composer-attached-tint)),
-    linear-gradient(
-      to top,
-      transparent 0 var(--chat-composer-attachment-overlap),
-      rgb(0 0 0 / 18%) var(--chat-composer-attachment-overlap),
-      transparent calc(var(--chat-composer-attachment-overlap) + 10px)
-    );
   --color-zinc-25: oklch(99.2% 0 0);
   --animate-skeleton: skeleton 2.4s infinite;
   /* Duty-cycled indicator animations: long holds with stepped ramps, so the
@@ -173,15 +130,8 @@
   --color-update-surface: var(--update-surface);
   --color-success-foreground: var(--success-foreground);
   --color-success: var(--success);
-  --color-diff-addition: var(--diff-addition);
-  --color-diff-deletion: var(--diff-deletion);
-  --color-diff-addition-foreground: var(--diff-addition-foreground);
-  --color-diff-deletion-foreground: var(--diff-deletion-foreground);
   --color-info-foreground: var(--info-foreground);
   --color-info: var(--info);
-  --color-guest: var(--guest);
-  --color-guest-foreground: var(--guest-foreground);
-  --color-guest-surface: var(--guest-surface);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-ring: var(--ring);
   --color-input: var(--contrast-input);
@@ -445,134 +395,13 @@
   }
 }
 
-@keyframes live-tool-shine {
-  from {
-    background-position:
-      -4.5rem 0,
-      0 0;
-  }
-  to {
-    background-position:
-      calc(100% + 4.5rem) 0,
-      0 0;
-  }
-}
-
-@utility live-tool-shine {
-  @media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
-    color: transparent;
-    background-image:
-      linear-gradient(to right, transparent, var(--contrast-foreground), transparent),
-      linear-gradient(var(--contrast-secondary-label), var(--contrast-secondary-label));
-    background-size:
-      4.5rem 100%,
-      100% 100%;
-    background-repeat: no-repeat;
-    background-clip: text;
-    animation: live-tool-shine 2.2s steps(30) infinite;
-    animation-play-state: var(--visible-animation-state, paused);
-  }
-}
-
 @utility visible-animate-spin {
   animation: var(--animate-spin);
   animation-play-state: var(--visible-animation-state, paused);
   will-change: var(--visible-animation-will-change, auto);
 }
 
-@keyframes live-activity-focus {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes live-activity-focus-counter {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-100%);
-  }
-}
-
-@utility live-activity-focus {
-  --live-activity-focus-width: 4.5rem;
-
-  right: auto;
-  left: calc(-1 * var(--live-activity-focus-width));
-  width: calc(100% + var(--live-activity-focus-width) + var(--live-activity-focus-width));
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    rgb(0 0 0 / 12%) 0.675rem,
-    rgb(0 0 0 / 55%) 1.575rem,
-    black 2.25rem,
-    rgb(0 0 0 / 55%) 2.925rem,
-    rgb(0 0 0 / 12%) 3.825rem,
-    transparent var(--live-activity-focus-width),
-    transparent 100%
-  );
-  -webkit-mask-repeat: no-repeat;
-  mask-image: linear-gradient(
-    to right,
-    transparent 0,
-    rgb(0 0 0 / 12%) 0.675rem,
-    rgb(0 0 0 / 55%) 1.575rem,
-    black 2.25rem,
-    rgb(0 0 0 / 55%) 2.925rem,
-    rgb(0 0 0 / 12%) 3.825rem,
-    transparent var(--live-activity-focus-width),
-    transparent 100%
-  );
-  mask-repeat: no-repeat;
-  animation: live-activity-focus 2.2s steps(30) infinite;
-  animation-play-state: var(--visible-animation-state, paused);
-  will-change: var(--visible-animation-will-change, auto);
-
-  @media (prefers-reduced-motion: reduce), (forced-colors: active) {
-    animation: none;
-    opacity: 0;
-    will-change: auto;
-  }
-}
-
-@utility live-activity-focus-counter {
-  width: 100%;
-  animation: live-activity-focus-counter 2.2s steps(30) infinite;
-  animation-play-state: var(--visible-animation-state, paused);
-  will-change: var(--visible-animation-will-change, auto);
-
-  @media (prefers-reduced-motion: reduce), (forced-colors: active) {
-    animation: none;
-    will-change: auto;
-  }
-}
-
-@utility live-activity-focus-aligned {
-  width: calc(100% - var(--live-activity-focus-width) - var(--live-activity-focus-width));
-  margin-left: var(--live-activity-focus-width);
-}
-
-@property --assistant-citation-highlight-opacity {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 0;
-}
-
 @layer base {
-  ::highlight(madar-assistant-citation) {
-    background-color: color-mix(
-      in oklab,
-      var(--primary) calc(var(--assistant-citation-highlight-opacity) * 100%),
-      transparent
-    );
-  }
-  ::highlight(madar-assistant-citation-comment) {
-    background-color: color-mix(in oklab, var(--primary) 45%, transparent);
-  }
   :root {
     /* Keep the original Madar artwork palettes as the defaults. Built-in
        themes override them with their own pigments in the components layer. */
@@ -781,17 +610,6 @@
     @apply flex h-10 min-h-10 shrink-0 items-center border-b border-border/60 bg-background;
   }
 
-  [data-preview-panel-mode="inline"] [data-right-panel-surface-content] [data-surface-subheader] {
-    height: calc(var(--spacing) * 7);
-    min-height: calc(var(--spacing) * 7);
-    margin-bottom: calc(var(--spacing) * 3);
-    border-bottom-color: transparent;
-  }
-
-  .messages-timeline-row-frame {
-    padding-inline: 0;
-  }
-
   .settings-slider {
     --settings-slider-progress: 0%;
     --settings-slider-fill-offset: 0.5rem;
@@ -986,10 +804,6 @@
   --destructive-foreground: var(--error-foreground);
   --info: var(--color-blue-500);
   --info-foreground: var(--color-blue-700);
-  /* Messages from a guest link, and the sidebar Request status. */
-  --guest: var(--color-fuchsia-500);
-  --guest-foreground: var(--color-fuchsia-600);
-  --guest-surface: color-mix(in srgb, var(--guest) 14%, var(--message-surface));
   --success: var(--color-emerald-500);
   --success-foreground: var(--color-emerald-700);
   --warning: var(--color-amber-500);
@@ -1037,7 +851,6 @@
     --border: --alpha(var(--color-white) / 6%);
     --input: --alpha(var(--color-white) / 8%);
     --info-foreground: var(--color-blue-400);
-    --guest-foreground: var(--color-fuchsia-300);
     --success-foreground: var(--color-emerald-400);
     --warning-foreground: var(--color-amber-400);
     --warning-surface: color-mix(in srgb, var(--warning) 16%, transparent);
@@ -1506,25 +1319,4 @@ code {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--app-scrollbar-thumb-hover);
-}
-
-:root {
-  --diff-addition: var(--success);
-  --diff-deletion: var(--destructive);
-  --diff-addition-foreground: light-dark(var(--color-emerald-600), var(--color-emerald-400));
-  --diff-deletion-foreground: light-dark(var(--color-red-600), var(--color-red-400));
-}
-
-:root[data-diff-color-scheme="blue-orange"] {
-  --diff-addition: light-dark(var(--color-blue-600), var(--color-blue-400));
-  --diff-deletion: light-dark(var(--color-orange-600), var(--color-orange-400));
-  --diff-addition-foreground: var(--diff-addition);
-  --diff-deletion-foreground: var(--diff-deletion);
-
-  --trees-status-added-override: var(--diff-addition);
-  --trees-status-deleted-override: var(--diff-deletion);
-  --trees-status-untracked-override: var(--diff-addition);
-  --trees-git-added-color-override: var(--diff-addition);
-  --trees-git-deleted-color-override: var(--diff-deletion);
-  --trees-git-untracked-color-override: var(--diff-addition);
 }

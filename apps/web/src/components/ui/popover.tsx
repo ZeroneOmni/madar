@@ -78,7 +78,7 @@ function PopoverPopup({
         className={cn(
           "h-(--positioner-height) w-(--positioner-width) max-w-(--available-width) transition-transform data-instant:transition-none",
           variant === "panel"
-            ? "z-(--z-sheet) w-[min(calc(var(--thread-details-panel-width)+--spacing(4)),calc(var(--anchor-width)---spacing(2)))] transition-[top] duration-150 ease-out data-instant:transition-[top] motion-reduce:transition-none motion-reduce:data-instant:transition-none"
+            ? "z-(--z-sheet) w-[min(calc(var(--details-panel-width)+--spacing(4)),calc(var(--anchor-width)---spacing(2)))] transition-[top] duration-150 ease-out data-instant:transition-[top] motion-reduce:transition-none motion-reduce:data-instant:transition-none"
             : "z-[130]",
         )}
         data-slot="popover-positioner"

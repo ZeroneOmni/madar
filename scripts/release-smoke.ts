@@ -21,7 +21,6 @@ const workspaceFiles = [
   "packages/client-runtime/package.json",
   "packages/contracts/package.json",
   "packages/shared/package.json",
-  "packages/ssh/package.json",
   "packages/tailscale/package.json",
   "scripts/package.json",
 ] as const;

@@ -1,9 +1,5 @@
 import * as React from "react";
 import * as Schema from "effect/Schema";
-import {
-  COMPOSER_CONTEXT_CLIPBOARD_MIME,
-  encodeComposerContextClipboardHtml,
-} from "@madar/shared/composerContextClipboard";
 import { useStableCallback } from "./useStableCallback";
 
 export class ClipboardApiUnavailableError extends Schema.TaggedError<ClipboardApiUnavailableError>()(
@@ -112,17 +108,6 @@ export async function writeTextToClipboard(
       Object.entries(extraFlavors).filter(([type]) => type !== "text/plain"),
     );
   }
-  const contextFragment = extraFlavors?.[COMPOSER_CONTEXT_CLIPBOARD_MIME];
-  if (contextFragment)
-    extraFlavors = {
-      ...extraFlavors,
-      "text/html": encodeComposerContextClipboardHtml(
-        value,
-        contextFragment,
-        extraFlavors?.["text/html"],
-      ),
-    };
-
   if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
     if (writeTextWithExecCommand(value, extraFlavors)) return true;
     throw new ClipboardApiUnavailableError({

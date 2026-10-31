@@ -10,6 +10,8 @@ import * as SqlSchema from "effect/sql/SqlSchema";
 import {
   AuthClientMetadataDeviceType,
   AuthEnvironmentScopes,
+  AuthEnvironmentScope,
+  ForwardCompatibleArray,
   AuthSessionId,
   ClientSurface,
   ServerAuthSessionMethod,
@@ -136,7 +138,7 @@ export class AuthSessionRepository extends Context.Service<
 const AuthSessionDbRow = Schema.Struct({
   sessionId: AuthSessionId,
   subject: Schema.String,
-  scopes: Schema.fromJsonString(AuthEnvironmentScopes),
+  scopes: Schema.fromJsonString(ForwardCompatibleArray(AuthEnvironmentScope)),
   method: ServerAuthSessionMethod,
   clientLabel: Schema.NullOr(Schema.String),
   clientIpAddress: Schema.NullOr(Schema.String),

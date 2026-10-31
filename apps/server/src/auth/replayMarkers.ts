@@ -8,7 +8,6 @@ import * as Path from "effect/Path";
 import * as Schedule from "effect/Schedule";
 
 import * as ServerConfig from "../config.ts";
-import { forkParked } from "../serverActivation.ts";
 import { DPOP_REPLAY_MARKER_PREFIX } from "./dpop.ts";
 
 const REPLAY_MARKER_PREFIXES = [DPOP_REPLAY_MARKER_PREFIX];
@@ -55,7 +54,7 @@ export const pruneExpiredReplayMarkers = Effect.fn("replayMarkers.pruneExpired")
 });
 
 export const layer = Layer.effectDiscard(
-  forkParked(
+  Effect.forkScoped(
     pruneExpiredReplayMarkers().pipe(
       Effect.catch((cause) =>
         Effect.logWarning("Failed to prune expired replay markers", { cause }),

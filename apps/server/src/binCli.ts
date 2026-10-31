@@ -9,7 +9,6 @@ import * as NetService from "@madar/shared/Net";
 import packageJson from "../package.json" with { type: "json" };
 
 import { authCommand } from "./cli/auth.ts";
-import { appCommand } from "./cli/app.ts";
 
 import { pairCommand } from "./cli/pair.ts";
 import { extendConnectionAttemptTimeout, keepOutboundFetchOnHttp1 } from "./outboundHttp.ts";
@@ -19,7 +18,6 @@ import { runDefaultServerCommand, serveCommand, startCommand } from "./cli/serve
 import { updateCommand } from "./cli/update.ts";
 import { uninstallCommand } from "./cli/uninstall.ts";
 import { serviceLauncherCommand } from "./cli/serviceLauncher.ts";
-import { sshHelperCommand } from "./cli/sshHelper.ts";
 import { serviceCommand } from "./cli/service.ts";
 import { servicePreflightCommand } from "./cli/servicePreflight.ts";
 import { themeCommand } from "./cli/theme.ts";
@@ -27,7 +25,7 @@ import { traceCommand } from "./cli/trace.ts";
 
 const layerCliRuntime = Layer.mergeAll(NodeServices.layer, NetService.layer);
 
-export const makeCli = () =>
+const makeCli = () =>
   Command.make("madar", { ...sharedServerCommandFlags }).pipe(
     Command.withDescription("Run the Madar server."),
     Command.withHandler(runDefaultServerCommand),
@@ -41,7 +39,6 @@ export const makeCli = () =>
 
       startCommand,
       serveCommand,
-      appCommand,
       pairCommand,
       authCommand,
 
@@ -49,7 +46,6 @@ export const makeCli = () =>
       updateCommand,
       uninstallCommand,
       serviceLauncherCommand,
-      sshHelperCommand,
 
       servicePreflightCommand,
       themeCommand,

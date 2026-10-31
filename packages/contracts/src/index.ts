@@ -1,38 +1,16 @@
 export * from "./baseSchemas.ts";
-export * from "./composerContext.ts";
-export * from "./composerContextClipboard.ts";
 export * from "./background.ts";
-export * from "./acpRegistry.ts";
+
 export * from "./auth.ts";
 export * from "./environment.ts";
 export * from "./environmentHttp.ts";
 export * from "./desktopBootstrap.ts";
-export * from "./desktopAppActivation.ts";
 export * from "./remoteAccess.ts";
 export * from "./ipc.ts";
-export * from "./providerInstance.ts";
-export * from "./providerRuntime.ts";
-export * from "./providerUsageLimits.ts";
-export * from "./usageLimitSourceId.ts";
-export * from "./providerPolicy.ts";
-export * from "./modelSelection.ts";
-export * from "./chatAttachment.ts";
-export * from "./model.ts";
-export * from "./keybindings.ts";
+
 export * from "./server.ts";
 export * from "./settings.ts";
-export * from "./vcs.ts";
-export * from "./sourceControl.ts";
-export * from "./pullRequest.ts";
-export * from "./orchestrationProject.ts";
-export * from "./orchestrationV2.ts";
-export * from "./guestShare.ts";
-export * from "./threadPullRequest.ts";
-export * from "./threadSearch.ts";
+
 export * from "./externalLauncher.ts";
-export * from "./project.ts";
-export * from "./assets.ts";
-export * from "./browserProfile.ts";
-export * from "./preview.ts";
-export * from "./resourceTelemetry.ts";
+
 export * from "./resourceTelemetry.ts";

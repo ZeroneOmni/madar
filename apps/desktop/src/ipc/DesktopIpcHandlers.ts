@@ -1,13 +1,7 @@
 import * as Effect from "effect/Effect";
 
 import * as DesktopIpc from "./DesktopIpc.ts";
-import { installNotificationBadge } from "./methods/notificationBadge.ts";
 import { getClientSettings, setClientSettings } from "./methods/clientSettings.ts";
-import {
-  clearConnectionCatalog,
-  getConnectionCatalog,
-  setConnectionCatalog,
-} from "./methods/connectionCatalog.ts";
 import {
   getLocalEnvironmentEnabled,
   setLocalEnvironmentEnabled,
@@ -30,15 +24,10 @@ import {
   openSystemSettings,
   pasteAsText,
   revealWindow,
-  pickFolder,
-  pickProjectFavicon,
-  pickThemeFiles,
   setTheme,
   showContextMenu,
 } from "./methods/window.ts";
 
-import * as AppActivationIpc from "./methods/appActivation.ts";
-import * as WebLinksIpc from "./methods/webLinks.ts";
 import {
   getCliCommandState,
   installCliCommand,
@@ -47,11 +36,6 @@ import {
 
 export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers")(function* () {
   const ipc = yield* DesktopIpc.DesktopIpc;
-  yield* installNotificationBadge();
-
-  yield* ipc.handle(AppActivationIpc.setReady);
-  yield* ipc.handle(AppActivationIpc.complete);
-  yield* ipc.handle(WebLinksIpc.setReady);
 
   yield* ipc.handleSync(getAppBranding);
   yield* ipc.handleSync(getRelayTelemetryEnabled);
@@ -64,14 +48,7 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
 
   yield* ipc.handle(getClientSettings);
   yield* ipc.handle(setClientSettings);
-  yield* ipc.handle(getConnectionCatalog);
 
-  yield* ipc.handle(setConnectionCatalog);
-  yield* ipc.handle(clearConnectionCatalog);
-
-  yield* ipc.handle(pickFolder);
-  yield* ipc.handle(pickProjectFavicon);
-  yield* ipc.handle(pickThemeFiles);
   yield* ipc.handle(setTheme);
   yield* ipc.handle(showContextMenu);
   yield* ipc.handle(openExternal);

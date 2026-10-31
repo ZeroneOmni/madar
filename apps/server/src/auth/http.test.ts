@@ -133,7 +133,7 @@ it.effect("sets the selected browser session cookies through the HTTP route", ()
           const pairingResponse = await environmentA.handler(
             postJson(
               "/api/auth/pairing-token",
-              { scopes: ["orchestration:read"] },
+              { scopes: ["diagnostics:read"] },
               { cookie: devCookieHeader },
             ),
             requestContext,

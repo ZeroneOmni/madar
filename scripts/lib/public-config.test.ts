@@ -15,40 +15,26 @@ afterEach(() => {
 });
 
 describe("loadRepoEnv", () => {
+  it("does not publish retired authentication settings to frontend aliases", () => {
+    const repoRoot = makeTemporaryDirectory();
+    expect(
+      loadRepoEnv({ baseEnv: { MADAR_CLERK_PUBLISHABLE_KEY: "retired" }, repoRoot }),
+    ).not.toHaveProperty("VITE_CLERK_PUBLISHABLE_KEY");
+  });
   it("applies process, root local, and root precedence in that order", () => {
     const repoRoot = makeTemporaryDirectory();
     NodeFS.writeFileSync(
       NodePath.join(repoRoot, ".env"),
-      "MADAR_CLERK_PUBLISHABLE_KEY=pk_root\nMADAR_CLERK_JWT_TEMPLATE=template_root\nMADAR_CLERK_CLI_OAUTH_CLIENT_ID=oauth_root\nMADAR_RELAY_URL=https://root.example.test\n",
+      "MADAR_TEST_VALUE=root\nMADAR_ROOT_ONLY=kept\n",
     );
-    NodeFS.writeFileSync(
-      NodePath.join(repoRoot, ".env.local"),
-      "MADAR_CLERK_PUBLISHABLE_KEY=pk_local\nMADAR_CLERK_JWT_TEMPLATE=template_local\nMADAR_CLERK_CLI_OAUTH_CLIENT_ID=oauth_local\nMADAR_RELAY_URL=https://local.example.test\n",
-    );
-
-    expect(loadRepoEnv({ baseEnv: {}, repoRoot }).MADAR_RELAY_URL).toBe(
-      "https://local.example.test",
-    );
-    expect(
-      loadRepoEnv({
-        baseEnv: {
-          MADAR_CLERK_PUBLISHABLE_KEY: "pk_ci",
-          MADAR_CLERK_JWT_TEMPLATE: "template_ci",
-          MADAR_CLERK_CLI_OAUTH_CLIENT_ID: "oauth_ci",
-          MADAR_RELAY_URL: "https://ci.example.test",
-        },
-        repoRoot,
-      }),
-    ).toMatchObject({
-      MADAR_CLERK_PUBLISHABLE_KEY: "pk_ci",
-      MADAR_CLERK_CLI_OAUTH_CLIENT_ID: "oauth_ci",
-      VITE_CLERK_PUBLISHABLE_KEY: "pk_ci",
-      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_ci",
-      MADAR_CLERK_JWT_TEMPLATE: "template_ci",
-      VITE_CLERK_JWT_TEMPLATE: "template_ci",
-      EXPO_PUBLIC_CLERK_JWT_TEMPLATE: "template_ci",
-      MADAR_RELAY_URL: "https://ci.example.test",
-      VITE_MADAR_RELAY_URL: "https://ci.example.test",
+    NodeFS.writeFileSync(NodePath.join(repoRoot, ".env.local"), "MADAR_TEST_VALUE=local\n");
+    expect(loadRepoEnv({ baseEnv: {}, repoRoot })).toMatchObject({
+      MADAR_TEST_VALUE: "local",
+      MADAR_ROOT_ONLY: "kept",
+    });
+    expect(loadRepoEnv({ baseEnv: { MADAR_TEST_VALUE: "process" }, repoRoot })).toMatchObject({
+      MADAR_TEST_VALUE: "process",
+      MADAR_ROOT_ONLY: "kept",
     });
   });
 });

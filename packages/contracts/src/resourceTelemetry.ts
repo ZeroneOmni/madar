@@ -26,8 +26,6 @@ export type ResourceTelemetryIoSemantics = typeof ResourceTelemetryIoSemantics.T
 export const ResourceTelemetryProcessCategory = Schema.Literals([
   "server",
   "server-child",
-  "provider-root",
-  "terminal-root",
   "electron-main",
   "electron-renderer",
   "electron-gpu",
@@ -372,7 +370,7 @@ export const ResourceTelemetryGroups = Schema.Struct({
   backend: ResourceTelemetryAggregate,
   electron: ResourceTelemetryAggregate,
   monitor: ResourceTelemetryAggregate,
-  allT3: ResourceTelemetryAggregate,
+  allMadar: ResourceTelemetryAggregate,
 });
 export type ResourceTelemetryGroups = typeof ResourceTelemetryGroups.Type;
 

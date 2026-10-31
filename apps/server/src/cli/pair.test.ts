@@ -5,7 +5,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { AuthStandardClientScopes, ORCHESTRATION_PROTOCOL_VERSION } from "@madar/contracts";
+import { AuthStandardClientScopes, SERVER_PROTOCOL_VERSION } from "@madar/contracts";
 import * as NetService from "@madar/shared/Net";
 import * as HostProcess from "@madar/shared/HostProcess";
 import { assert, describe, expect, it } from "@effect/vitest";
@@ -89,8 +89,8 @@ const testDescriptor = {
   label: "pair-test",
   platform: { os: "linux", arch: "x64" },
   serverVersion: "0.0.1",
-  orchestrationProtocolVersion: ORCHESTRATION_PROTOCOL_VERSION,
-  capabilities: { repositoryIdentity: true },
+  protocolVersion: SERVER_PROTOCOL_VERSION,
+  capabilities: {},
 };
 
 const withDescriptorServer = <A, E, R>(
@@ -364,7 +364,7 @@ describe("madar pair", () => {
           }
         }),
       "127.0.0.1",
-      { ...testDescriptor, serverVersion: "0.0.45", orchestrationProtocolVersion: 1 },
+      { ...testDescriptor, serverVersion: "0.0.45", protocolVersion: 1 },
     ).pipe(Effect.provide(NodeServices.layer)),
   );
 
@@ -441,11 +441,11 @@ describe("auth scope options", () => {
             baseDir,
             "--json",
             "--scope",
-            "orchestration:read",
+            "diagnostics:read",
             "--scope",
             "access:read",
             "--scope",
-            "orchestration:read",
+            "diagnostics:read",
           ]),
         );
         const issued = JSON.parse(output) as { readonly scopes: ReadonlyArray<string> };
@@ -456,7 +456,7 @@ describe("auth scope options", () => {
           readonly scopes: ReadonlyArray<string>;
         }>;
 
-        assert.deepEqual(issued.scopes, ["orchestration:read", "access:read"]);
+        assert.deepEqual(issued.scopes, ["diagnostics:read", "access:read"]);
         assert.lengthOf(listed, 1);
         assert.deepEqual(listed[0]?.scopes, issued.scopes);
       }),
@@ -472,7 +472,7 @@ describe("auth scope options", () => {
       const error = yield* runCli([
         ...command,
         "--scope",
-        "orchestration:read",
+        "diagnostics:read",
         "--scope",
         "admin",
       ]).pipe(Effect.provide(layerCliRuntime), Effect.flip);

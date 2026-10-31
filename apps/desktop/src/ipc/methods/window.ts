@@ -3,18 +3,12 @@ import {
   DesktopAppBrandingSchema,
   DesktopEnvironmentBootstrapSchema,
   DesktopThemeSchema,
-  PickedThemeFileSchema,
-  PickFolderOptionsSchema,
   PRIMARY_LOCAL_ENVIRONMENT_ID,
   SystemSettingsPaneSchema,
   type DesktopEnvironmentBootstrap,
-  type PickedThemeFile,
 } from "@madar/contracts";
-import { PROJECT_FAVICON_EXTENSIONS } from "@madar/shared/projectFavicon";
 import * as HostProcess from "@madar/shared/HostProcess";
 import { isRelayTracingEnabled } from "@madar/shared/otelEnvironment";
-import * as FileSystem from "effect/FileSystem";
-import * as Path from "effect/Path";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -23,9 +17,7 @@ import * as DesktopBackendConfiguration from "../../backend/DesktopBackendConfig
 import * as DesktopBackendPool from "../../backend/DesktopBackendPool.ts";
 import * as DesktopLocalEnvironmentAuth from "../../backend/DesktopLocalEnvironmentAuth.ts";
 import * as DesktopEnvironment from "../../app/DesktopEnvironment.ts";
-import * as DesktopAppSettings from "../../settings/DesktopAppSettings.ts";
 import * as ElectronApp from "../../electron/ElectronApp.ts";
-import * as ElectronDialog from "../../electron/ElectronDialog.ts";
 import * as ElectronMenu from "../../electron/ElectronMenu.ts";
 import * as ElectronShell from "../../electron/ElectronShell.ts";
 import * as ElectronTheme from "../../electron/ElectronTheme.ts";
@@ -113,18 +105,15 @@ export const getLocalEnvironmentBootstraps = DesktopIpc.makeSyncIpcMethod({
         bootstraps.push({
           id: instance.id,
           label: yield* instance.label,
-          runningDistro: null,
           httpBaseUrl: null,
           wsBaseUrl: null,
         });
         continue;
       }
       const { bootstrap, httpBaseUrl } = config.value;
-      const runningDistro = null;
       bootstraps.push({
         id: instance.id,
         label: yield* instance.label,
-        runningDistro,
         httpBaseUrl: httpBaseUrl.href,
         wsBaseUrl: toWebSocketBaseUrl(httpBaseUrl),
         // Use the current window's derived token; the launch config's token may be stale.
@@ -146,58 +135,6 @@ export const getLocalEnvironmentBearerToken = DesktopIpc.makeIpcMethod({
   handler: Effect.fn("desktop.ipc.window.getLocalEnvironmentBearerToken")(function* () {
     const localAuth = yield* DesktopLocalEnvironmentAuth.DesktopLocalEnvironmentAuth;
     return yield* localAuth.getBearerToken;
-  }),
-});
-
-export const pickFolder = DesktopIpc.makeIpcMethod({
-  channel: IpcChannels.PICK_FOLDER_CHANNEL,
-  payload: Schema.UndefinedOr(PickFolderOptionsSchema),
-  result: Schema.NullOr(Schema.String),
-  handler: Effect.fn("desktop.ipc.window.pickFolder")(function* (options) {
-    const dialog = yield* ElectronDialog.ElectronDialog;
-    const electronWindow = yield* ElectronWindow.ElectronWindow;
-    const environment = yield* DesktopEnvironment.DesktopEnvironment;
-    const appSettings = yield* DesktopAppSettings.DesktopAppSettings;
-    const settings = yield* appSettings.get;
-    // A picked path only means something to a backend on this machine.
-    if (!settings.localEnvironmentEnabled) {
-      return null;
-    }
-    const defaultPath = environment.resolvePickFolderDefaultPath(options);
-    const selectedPath = yield* dialog.pickFolder({
-      owner: yield* electronWindow.focusedMainOrFirst,
-      defaultPath,
-    });
-    if (Option.isNone(selectedPath)) {
-      return null;
-    }
-    return selectedPath.value;
-  }),
-});
-
-export const pickProjectFavicon = DesktopIpc.makeIpcMethod({
-  channel: IpcChannels.PICK_PROJECT_FAVICON_CHANNEL,
-  payload: Schema.UndefinedOr(Schema.String),
-  result: Schema.NullOr(Schema.String),
-  handler: Effect.fn("desktop.ipc.window.pickProjectFavicon")(function* (initialPath) {
-    const dialog = yield* ElectronDialog.ElectronDialog;
-    const electronWindow = yield* ElectronWindow.ElectronWindow;
-    const appSettings = yield* DesktopAppSettings.DesktopAppSettings;
-    if (!(yield* appSettings.get).localEnvironmentEnabled) {
-      return null;
-    }
-    const paths = yield* dialog.pickFiles({
-      owner: yield* electronWindow.focusedMainOrFirst,
-      defaultPath: Option.fromNullishOr(initialPath),
-      multiple: false,
-      filters: [
-        {
-          name: "Images",
-          extensions: PROJECT_FAVICON_EXTENSIONS.map((extension) => extension.slice(1)),
-        },
-      ],
-    });
-    return paths[0] ?? null;
   }),
 });
 
@@ -302,44 +239,5 @@ export const revealWindow = DesktopIpc.makeIpcMethod({
       return;
     }
     yield* electronWindow.reveal(window.value);
-  }),
-});
-
-const PICKED_THEME_FILE_MAX_BYTES = 256 * 1024;
-
-export const pickThemeFiles = DesktopIpc.makeIpcMethod({
-  channel: IpcChannels.PICK_THEME_FILES_CHANNEL,
-  payload: Schema.Undefined,
-  result: Schema.NullOr(Schema.Array(PickedThemeFileSchema)),
-  handler: Effect.fn("desktop.ipc.window.pickThemeFiles")(function* () {
-    const dialog = yield* ElectronDialog.ElectronDialog;
-    const electronWindow = yield* ElectronWindow.ElectronWindow;
-    const fileSystem = yield* FileSystem.FileSystem;
-    const path = yield* Path.Path;
-    const extensionsDir = path.join(yield* HostProcess.HomeDirectory, ".vscode", "extensions");
-    const defaultPath = yield* fileSystem
-      .exists(extensionsDir)
-      .pipe(Effect.orElseSucceed(() => false));
-    const paths = yield* dialog.pickFiles({
-      owner: yield* electronWindow.focusedMainOrFirst,
-      defaultPath: defaultPath ? Option.some(extensionsDir) : Option.none(),
-      filters: [{ name: "JSON", extensions: ["json"] }],
-      multiple: true,
-    });
-    if (paths.length === 0) {
-      return null;
-    }
-    return yield* Effect.forEach(paths, (filePath) => {
-      const name = path.basename(filePath);
-      return Effect.gen(function* () {
-        const info = yield* fileSystem.stat(filePath);
-        const size = Number(info.size);
-        if (size > PICKED_THEME_FILE_MAX_BYTES) {
-          return { name, size, text: "" } satisfies PickedThemeFile;
-        }
-        const text = yield* fileSystem.readFileString(filePath);
-        return { name, size, text } satisfies PickedThemeFile;
-      }).pipe(Effect.orElseSucceed((): PickedThemeFile => ({ name, size: 0, text: "" })));
-    });
   }),
 });

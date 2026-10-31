@@ -26,11 +26,7 @@ import {
   AuthWebSocketTicketResult,
   ServerAuthSessionMethod,
 } from "./auth.ts";
-import {
-  ExecutionEnvironmentDescriptor,
-  ORCHESTRATION_PROTOCOL_HEADER,
-  ORCHESTRATION_PROTOCOL_VERSION_TEXT,
-} from "./environment.ts";
+import { ExecutionEnvironmentDescriptor } from "./environment.ts";
 import { DpopFailureReason, AuthSessionId, TrimmedNonEmptyString } from "./baseSchemas.ts";
 
 const OptionalBearerHeaders = Schema.Struct({
@@ -45,9 +41,6 @@ const OptionalDpopProofHeaders = Schema.Struct({
 export const EnvironmentRequestInvalidReason = Schema.Literals([
   "invalid_scope",
   "scope_not_granted",
-  "invalid_command",
-  "invalid_history_cursor",
-  "thread_transcript_too_large",
 ]);
 export type EnvironmentRequestInvalidReason = typeof EnvironmentRequestInvalidReason.Type;
 
@@ -73,12 +66,7 @@ export const EnvironmentInternalErrorReason = Schema.Literals([
   "pairing_link_revoke_failed",
   "client_sessions_load_failed",
   "client_session_revoke_failed",
-  "project_snapshot_failed",
-  "project_mutation_failed",
-  "orchestration_snapshot_failed",
-  "orchestration_thread_snapshot_failed",
-  "orchestration_thread_bounded_snapshot_failed",
-  "orchestration_thread_history_failed",
+
   "internal_error",
 ]);
 export type EnvironmentInternalErrorReason = typeof EnvironmentInternalErrorReason.Type;

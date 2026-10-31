@@ -5,7 +5,6 @@ import { isPrivateNetworkHost, isSharedAddressSpaceHost } from "@madar/shared/ho
 import { QrCode } from "@madar/shared/qrCode";
 import * as Effect from "effect/Effect";
 import { HttpServer } from "effect/http";
-import * as NetAddress from "effect/net/NetAddress";
 
 import * as ServerConfig from "./config.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
@@ -44,14 +43,14 @@ export const formatHostForUrl = (host: string): string =>
  * host bridge such as `br0` or Proxmox's `vmbr0` carries the LAN address, so
  * it stays listed.
  */
-export const VIRTUAL_INTERFACE =
+const VIRTUAL_INTERFACE =
   /^(docker|br-|veth|virbr|vmnet|vboxnet|vEthernet|podman|cni|flannel|cali|lxcbr|lxdbr|bridge[1-9]\d\d)/;
 
 /**
  * Loopback or private-range IPv4 (LAN, tailnet, CGNAT), not link-local, in
  * plain or IPv4-mapped IPv6 form.
  */
-export const isPrivateNetworkAddress = (address: string): boolean => {
+const isPrivateNetworkAddress = (address: string): boolean => {
   const ipv4 = address.replace(/^::ffff:/i, "");
   return NodeNet.isIPv4(ipv4) && !ipv4.startsWith("169.254.") && isPrivateNetworkHost(ipv4);
 };

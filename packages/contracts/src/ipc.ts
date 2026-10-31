@@ -1,13 +1,6 @@
 import * as Schema from "effect/Schema";
 
-import { EnvironmentId } from "./baseSchemas.ts";
-
 import { type ClientSettings, type QuitConfirmationMode } from "./settings.ts";
-
-import type {
-  DesktopAppActivationRequest,
-  DesktopAppActivationResponse,
-} from "./desktopAppActivation.ts";
 
 export interface ContextMenuItem<T extends string = string> {
   id: T;
@@ -188,11 +181,8 @@ export const DesktopUpdateCheckResultSchema = Schema.Struct({
 export const PRIMARY_LOCAL_ENVIRONMENT_ID = "primary";
 
 export interface DesktopEnvironmentBootstrap {
-  // Stable backend identity used to reopen routed projects.
   id: string;
   label: string;
-  // Actual distro for this run; id stays wsl:default when tracking the default.
-  runningDistro?: string | null;
   httpBaseUrl: string | null;
   wsBaseUrl: string | null;
   bootstrapToken?: string;
@@ -201,116 +191,10 @@ export interface DesktopEnvironmentBootstrap {
 export const DesktopEnvironmentBootstrapSchema = Schema.Struct({
   id: Schema.String,
   label: Schema.String,
-  runningDistro: Schema.optionalKey(Schema.NullOr(Schema.String)),
   httpBaseUrl: Schema.NullOr(Schema.String),
   wsBaseUrl: Schema.NullOr(Schema.String),
   bootstrapToken: Schema.optionalKey(Schema.String),
 });
-
-export const DesktopSshEnvironmentTargetSchema = Schema.Struct({
-  alias: Schema.String,
-  hostname: Schema.String,
-  username: Schema.NullOr(Schema.String),
-  port: Schema.NullOr(Schema.Number),
-});
-export type DesktopSshEnvironmentTarget = typeof DesktopSshEnvironmentTargetSchema.Type;
-
-export type DesktopSshHostSource = "ssh-config" | "known-hosts";
-export const DesktopSshHostSourceSchema = Schema.Literals(["ssh-config", "known-hosts"]);
-
-export interface DesktopDiscoveredSshHost extends DesktopSshEnvironmentTarget {
-  source: DesktopSshHostSource;
-}
-
-export const DesktopDiscoveredSshHostSchema = Schema.Struct({
-  alias: Schema.String,
-  hostname: Schema.String,
-  username: Schema.NullOr(Schema.String),
-  port: Schema.NullOr(Schema.Number),
-  source: DesktopSshHostSourceSchema,
-});
-
-export interface DesktopSshEnvironmentBootstrap {
-  target: DesktopSshEnvironmentTarget;
-  httpBaseUrl: string;
-  wsBaseUrl: string;
-  pairingToken: string | null;
-  remotePort?: number;
-  remoteServerKind?: "external" | "managed";
-}
-
-export const DesktopSshEnvironmentBootstrapSchema = Schema.Struct({
-  target: DesktopSshEnvironmentTargetSchema,
-  httpBaseUrl: Schema.String,
-  wsBaseUrl: Schema.String,
-  pairingToken: Schema.NullOr(Schema.String),
-  remotePort: Schema.optionalKey(Schema.Number),
-  remoteServerKind: Schema.optionalKey(Schema.Literals(["external", "managed"])),
-});
-
-export interface DesktopSshPasswordPromptRequest {
-  requestId: string;
-  destination: string;
-  username: string | null;
-  prompt: string;
-  expiresAt: string;
-}
-
-const DesktopSshPasswordPromptCancelledType = "ssh-password-prompt-cancelled" as const;
-
-export const DesktopSshPasswordPromptCancelledResultSchema = Schema.Struct({
-  type: Schema.Literal(DesktopSshPasswordPromptCancelledType),
-  message: Schema.String,
-});
-
-export const DesktopSshEnvironmentEnsureOptionsSchema = Schema.Struct({
-  issuePairingToken: Schema.optionalKey(Schema.Boolean),
-});
-
-export const DesktopSshEnvironmentEnsureInputSchema = Schema.Struct({
-  target: DesktopSshEnvironmentTargetSchema,
-  options: Schema.optionalKey(DesktopSshEnvironmentEnsureOptionsSchema),
-});
-
-export const DesktopSshEnvironmentEnsureResultSchema = Schema.Union([
-  DesktopSshEnvironmentBootstrapSchema,
-  DesktopSshPasswordPromptCancelledResultSchema,
-]);
-
-export const DesktopSshHttpBaseUrlInputSchema = Schema.Struct({
-  httpBaseUrl: Schema.String,
-});
-
-export const DesktopSshBearerRequestInputSchema = Schema.Struct({
-  httpBaseUrl: Schema.String,
-  bearerToken: Schema.String,
-});
-
-export const DesktopSshBearerBootstrapInputSchema = Schema.Struct({
-  httpBaseUrl: Schema.String,
-  credential: Schema.String,
-});
-
-export const DesktopSshPasswordPromptResolutionInputSchema = Schema.Struct({
-  requestId: Schema.String,
-  password: Schema.NullOr(Schema.String),
-});
-
-export const PersistedSavedEnvironmentRecordSchema = Schema.Struct({
-  environmentId: EnvironmentId,
-  label: Schema.String,
-  wsBaseUrl: Schema.String,
-  httpBaseUrl: Schema.String,
-  createdAt: Schema.String,
-  lastConnectedAt: Schema.NullOr(Schema.String),
-  desktopSsh: Schema.optionalKey(DesktopSshEnvironmentTargetSchema),
-  relayManaged: Schema.optionalKey(
-    Schema.Struct({
-      relayUrl: Schema.String,
-    }),
-  ),
-});
-export type PersistedSavedEnvironmentRecord = typeof PersistedSavedEnvironmentRecordSchema.Type;
 
 export type DesktopServerExposureMode = "local-only" | "network-accessible";
 
@@ -335,69 +219,6 @@ export const DesktopServerExposureStateSchema = Schema.Struct({
   tailscaleServePort: Schema.Number,
 });
 
-export interface PickFolderOptions {
-  initialPath?: string | null;
-  targetEnvironmentId?: string;
-}
-
-export const PickFolderOptionsSchema = Schema.Struct({
-  initialPath: Schema.optionalKey(Schema.NullOr(Schema.String)),
-  targetEnvironmentId: Schema.optionalKey(Schema.String),
-});
-
-/** Oversized files have empty text so the main process never loads their contents. */
-export interface PickedThemeFile {
-  name: string;
-  size: number;
-  text: string;
-}
-
-export const PickedThemeFileSchema = Schema.Struct({
-  name: Schema.String,
-  size: Schema.Number,
-  text: Schema.String,
-});
-
-export interface PickedElementStackFrame {
-  functionName: string | null;
-  fileName: string | null;
-  lineNumber: number | null;
-  columnNumber: number | null;
-}
-
-export const PickedElementStackFrameSchema: Schema.Codec<PickedElementStackFrame> = Schema.Struct({
-  functionName: Schema.NullOr(Schema.String),
-  fileName: Schema.NullOr(Schema.String),
-  lineNumber: Schema.NullOr(Schema.Number),
-  columnNumber: Schema.NullOr(Schema.Number),
-});
-
-export interface PickedElementPayload {
-  pageUrl: string;
-  pageTitle: string | null;
-  tagName: string;
-  selector: string | null;
-  htmlPreview: string;
-  componentName: string | null;
-  source: PickedElementStackFrame | null;
-  stack: ReadonlyArray<PickedElementStackFrame>;
-  styles: string;
-  pickedAt: string;
-}
-
-export const PickedElementPayloadSchema: Schema.Codec<PickedElementPayload> = Schema.Struct({
-  pageUrl: Schema.String,
-  pageTitle: Schema.NullOr(Schema.String),
-  tagName: Schema.String,
-  selector: Schema.NullOr(Schema.String),
-  htmlPreview: Schema.String,
-  componentName: Schema.NullOr(Schema.String),
-  source: Schema.NullOr(PickedElementStackFrameSchema),
-  stack: Schema.Array(PickedElementStackFrameSchema),
-  styles: Schema.String,
-  pickedAt: Schema.String,
-});
-
 /** Apply zoom and color scheme at creation to avoid flashing browser defaults. */
 
 export const SystemSettingsPaneSchema = Schema.Literals(["full-disk-access"]);
@@ -406,10 +227,7 @@ export type SystemSettingsPane = typeof SystemSettingsPaneSchema.Type;
 export interface DesktopBridge {
   getAppBranding: () => DesktopAppBranding | null;
   getRelayTelemetryEnabled?: () => boolean;
-  getPathForFile?: (file: File) => string;
   getClientPlatform?: () => string;
-  setNotificationBadge?: (badge: { count: number; image: string | null }) => Promise<void>;
-  onNotificationBadgeClear?: (listener: () => void) => () => void;
   onTrackpadScrollEnd?: (listener: () => void) => () => void;
   /**
    * Renderer `window.focus()` cannot raise an Electron window, and on Wayland
@@ -429,12 +247,6 @@ export interface DesktopBridge {
   getLocalEnvironmentBearerToken: () => Promise<string>;
   getClientSettings: () => Promise<ClientSettings | null>;
   setClientSettings: (settings: ClientSettings) => Promise<void>;
-  getConnectionCatalog?: () => Promise<string | null>;
-  setConnectionCatalog?: (catalog: string) => Promise<boolean>;
-  clearConnectionCatalog?: () => Promise<void>;
-  pickFolder: (options?: PickFolderOptions) => Promise<string | null>;
-  pickProjectFavicon?: (initialPath?: string) => Promise<string | null>;
-  pickThemeFiles?: () => Promise<readonly PickedThemeFile[] | null>;
   setTheme: (theme: DesktopTheme) => Promise<void>;
   showContextMenu: <T extends string>(
     items: readonly ContextMenuItem<T>[],
@@ -461,44 +273,5 @@ export interface DesktopBridge {
     getState: () => Promise<DesktopCliCommandState>;
     install: () => Promise<DesktopCliCommandState>;
     uninstall: () => Promise<DesktopCliCommandState>;
-  };
-  webLinks?: {
-    setReady: (ready: boolean) => Promise<void>;
-    onOpen: (listener: (url: string) => void) => () => void;
-  };
-  appActivation?: {
-    setReady: (ready: boolean) => Promise<void>;
-    complete: (response: DesktopAppActivationResponse) => Promise<void>;
-    onRequest: (listener: (request: DesktopAppActivationRequest) => void) => () => void;
-  };
-}
-
-/** Renderer callback invoked by Electron with a fresh user gesture before display-media capture. */
-
-export type ConfirmDialogVariant = "default" | "destructive";
-
-export interface ConfirmDialogOptions {
-  readonly variant?: ConfirmDialogVariant;
-}
-
-export interface LocalApi {
-  dialogs: {
-    pickFolder: (options?: PickFolderOptions) => Promise<string | null>;
-    confirm: (message: string, options?: ConfirmDialogOptions) => Promise<boolean>;
-  };
-  shell: {
-    openExternal: (url: string) => Promise<void>;
-    openSystemSettings: (pane: SystemSettingsPane) => Promise<void>;
-  };
-  contextMenu: {
-    show: <T extends string>(
-      items: readonly ContextMenuItem<T>[],
-      position?: { x: number; y: number },
-    ) => Promise<T | null>;
-    close: () => Promise<void>;
-  };
-  persistence: {
-    getClientSettings: () => Promise<ClientSettings | null>;
-    setClientSettings: (settings: ClientSettings) => Promise<void>;
   };
 }

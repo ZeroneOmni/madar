@@ -1,13 +1,12 @@
 import {
   AuthSessionId,
   AuthStandardClientScopes,
-  AuthEnvironmentScopes,
+  AuthEnvironmentScope,
+  ForwardCompatibleArray,
   type AuthClientMetadata,
   type AuthClientSession,
-  type AuthEnvironmentScope,
   AuthWebSocketTicketUse,
   type ClientSurface,
-  RuntimeMode,
   type ServerAuthSessionMethod,
 } from "@madar/contracts";
 import * as Context from "effect/Context";
@@ -59,7 +58,6 @@ export interface VerifiedSession {
   readonly subject: string;
   readonly scopes: ReadonlyArray<AuthEnvironmentScope>;
   readonly proofKeyThumbprint?: string;
-  readonly runtimeModeCeiling?: RuntimeMode;
 }
 
 export interface VerifiedWebSocketTicket extends VerifiedSession {
@@ -380,7 +378,6 @@ export class SessionStore extends Context.Service<
       readonly scopes?: ReadonlyArray<AuthEnvironmentScope>;
       readonly client?: AuthClientMetadata;
       readonly proofKeyThumbprint?: string;
-      readonly runtimeModeCeiling?: RuntimeMode;
       readonly replaceActiveForSubjectAndMethod?: boolean;
       readonly replaceSessionId?: AuthSessionId;
     }) => Effect.Effect<IssuedSession, SessionCredentialInternalError>;
@@ -437,10 +434,9 @@ const SessionClaims = Schema.Struct({
   kind: Schema.Literal("session"),
   sid: AuthSessionId,
   sub: Schema.String,
-  scopes: AuthEnvironmentScopes,
+  scopes: ForwardCompatibleArray(AuthEnvironmentScope),
   method: Schema.Literals(["browser-session-cookie", "bearer-access-token", "dpop-access-token"]),
   jkt: Schema.optionalKey(Schema.String),
-  rtc: Schema.optionalKey(RuntimeMode),
   iat: Schema.Number,
   exp: Schema.Number,
 });
@@ -678,7 +674,6 @@ const make = Effect.gen(function* () {
         scopes: input?.scopes ?? AuthStandardClientScopes,
         method: input?.method ?? "browser-session-cookie",
         ...(input?.proofKeyThumbprint ? { jkt: input.proofKeyThumbprint } : {}),
-        ...(input?.runtimeModeCeiling ? { rtc: input.runtimeModeCeiling } : {}),
         iat: issuedAt.epochMilliseconds,
         exp: expiresAt.epochMilliseconds,
       };
@@ -859,7 +854,6 @@ const make = Effect.gen(function* () {
         subject: claims.sub,
         scopes: claims.scopes,
         ...(claims.jkt ? { proofKeyThumbprint: claims.jkt } : {}),
-        ...(claims.rtc ? { runtimeModeCeiling: claims.rtc } : {}),
       } satisfies VerifiedSession;
     },
   );

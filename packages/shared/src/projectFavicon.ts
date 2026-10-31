@@ -1,3 +1,0 @@
-import { WORKSPACE_IMAGE_PREVIEW_EXTENSIONS } from "./filePreview.ts";
-
-export const PROJECT_FAVICON_EXTENSIONS = [...WORKSPACE_IMAGE_PREVIEW_EXTENSIONS, ".icns"] as const;
