@@ -166,6 +166,12 @@ export const make = Effect.gen(function* () {
             click: checkForUpdatesClick,
           },
           { type: "separator" },
+          {
+            label: "Settings...",
+            accelerator: "CmdOrCtrl+,",
+            click: () => runMenuEffect("open-settings", dispatchMenuAction("open-settings")),
+          },
+          { type: "separator" },
           { role: "services" },
           { type: "separator" },
           { role: "hide", label: `Hide ${environment.displayName}` },
@@ -180,7 +186,19 @@ export const make = Effect.gen(function* () {
     template.push(
       {
         label: "File",
-        submenu: [{ role: environment.platform === "darwin" ? "close" : "quit" }],
+        submenu: [
+          ...(environment.platform === "darwin"
+            ? []
+            : [
+                {
+                  label: "Settings...",
+                  accelerator: "CmdOrCtrl+,",
+                  click: () => runMenuEffect("open-settings", dispatchMenuAction("open-settings")),
+                },
+                { type: "separator" as const },
+              ]),
+          { role: environment.platform === "darwin" ? "close" : "quit" },
+        ],
       },
       {
         label: "Edit",
