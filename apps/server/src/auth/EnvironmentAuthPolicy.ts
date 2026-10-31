@@ -1,4 +1,4 @@
-import { AuthEnvironmentMaintainScope, type ServerAuthDescriptor } from "@t3tools/contracts";
+import { AuthEnvironmentMaintainScope, type ServerAuthDescriptor } from "@madar/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -12,7 +12,7 @@ export class EnvironmentAuthPolicy extends Context.Service<
   {
     readonly getDescriptor: () => Effect.Effect<ServerAuthDescriptor>;
   }
->()("t3/auth/EnvironmentAuthPolicy") {}
+>()("madar/auth/EnvironmentAuthPolicy") {}
 
 /** @public */
 export const make = Effect.gen(function* () {

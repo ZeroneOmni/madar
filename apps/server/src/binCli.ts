@@ -5,7 +5,7 @@ import * as Layer from "effect/Layer";
 import { Command } from "effect/cli";
 import * as CliError from "effect/cli/CliError";
 
-import * as NetService from "@t3tools/shared/Net";
+import * as NetService from "@madar/shared/Net";
 import packageJson from "../package.json" with { type: "json" };
 
 import { authCommand } from "./cli/auth.ts";
@@ -28,14 +28,14 @@ import { traceCommand } from "./cli/trace.ts";
 const layerCliRuntime = Layer.mergeAll(NodeServices.layer, NetService.layer);
 
 export const makeCli = () =>
-  Command.make("t3", { ...sharedServerCommandFlags }).pipe(
-    Command.withDescription("Run the T3 Code server."),
+  Command.make("madar", { ...sharedServerCommandFlags }).pipe(
+    Command.withDescription("Run the Madar server."),
     Command.withHandler(runDefaultServerCommand),
     Command.withSubcommands([
       Command.make("help").pipe(
         Command.withDescription("Show command help."),
         Command.withHandler(() =>
-          Effect.fail(new CliError.ShowHelp({ commandPath: ["t3"], errors: [] })),
+          Effect.fail(new CliError.ShowHelp({ commandPath: ["madar"], errors: [] })),
         ),
       ),
 

@@ -131,7 +131,7 @@ if ($version -match '-preview\.') {
   }
 }
 
-$stem = "t3-$version-win32-$arch"
+$stem = "madar-$version-win32-$arch"
 $archive = "$stem.zip"
 $versionsDir = Join-Path $madarHome "runtime\versions"
 $targetDir = Join-Path $versionsDir $version
@@ -176,7 +176,7 @@ if ((Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $version)) {
     Get-ChildItem (Join-Path $staging $stem) | Move-Item -Destination $staging
     Remove-Item (Join-Path $staging $stem), (Join-Path $staging $archive), (Join-Path $staging "SHA256SUMS") -Recurse -Force
 
-    & (Join-Path $staging "t3.exe") --version | Out-Null
+    & (Join-Path $staging "madar.exe") --version | Out-Null
     if ($LASTEXITCODE -ne 0) { Fail "the downloaded executable does not run" }
     Set-Content -Path (Join-Path $staging ".install-complete") -Value $version -NoNewline
 
@@ -193,7 +193,7 @@ New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 $shim = Join-Path $binDir "madar.cmd"
 # UTF-8 without a BOM: cmd.exe reads the shim as-is, and ASCII would corrupt
 # non-ASCII characters in the user's home path.
-[System.IO.File]::WriteAllText($shim, "@echo off`r`n`"$(Join-Path $targetDir 't3.exe')`" %*", (New-Object System.Text.UTF8Encoding $false))
+[System.IO.File]::WriteAllText($shim, "@echo off`r`n`"$(Join-Path $targetDir 'madar.exe')`" %*", (New-Object System.Text.UTF8Encoding $false))
 # Pruning keeps what this shim points at; a background service cannot see $binDir otherwise.
 $launchers = Join-Path $madarHome "runtime\launchers"
 $shimPath = (Resolve-Path $shim).Path

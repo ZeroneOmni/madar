@@ -3,7 +3,6 @@ import * as Schema from "effect/Schema";
 import { EnvironmentId } from "./baseSchemas.ts";
 
 import { type ClientSettings, type QuitConfirmationMode } from "./settings.ts";
-import type { EditorId } from "./editor.ts";
 
 import type {
   DesktopAppActivationRequest,
@@ -444,8 +443,6 @@ export interface DesktopBridge {
   openExternal: (url: string) => Promise<boolean>;
   openSystemSettings?: (pane: SystemSettingsPane) => Promise<boolean>;
 
-  /** Older builds lack this; fall back to VS Code only. */
-  probeRemoteEditors?: () => Promise<readonly EditorId[]>;
   pasteAsText?: () => Promise<void>;
   onMenuAction: (listener: (action: string) => void) => () => void;
 

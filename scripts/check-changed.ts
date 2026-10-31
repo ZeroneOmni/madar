@@ -77,7 +77,7 @@ const inputKey = () => {
     "node_modules",
     ".git",
     ".repos",
-    ".t3",
+    ".madar",
     ".vite-plus",
     "dist",
     "dist-electron",
@@ -193,7 +193,7 @@ const runPatchCheck = files.some(
 // Resolve without the lockfile in a temp copy to preserve the working tree and lockfile.
 // Cached registry metadata limits this to patches stranded by local changes, not registry drift.
 const checkPatches = (): boolean => {
-  const temp = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-patch-check-"));
+  const temp = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "madar-patch-check-"));
   try {
     const copy = (relative: string) => {
       const dest = NodePath.join(temp, relative);

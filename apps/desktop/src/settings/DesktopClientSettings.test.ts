@@ -1,11 +1,11 @@
-import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
+import { symlinksSupported } from "@madar/shared/testing/symlinks";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
 import {
   ClientSettingsSchema,
   DEFAULT_CLIENT_SETTINGS,
   type ClientSettings,
-} from "@t3tools/contracts";
+} from "@madar/contracts";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -105,7 +105,7 @@ const withClientSettings = <A, E, R>(
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
     const baseDir = yield* fileSystem.makeTempDirectoryScoped({
-      prefix: "t3-desktop-client-settings-test-",
+      prefix: "madar-desktop-client-settings-test-",
     });
     return yield* effect.pipe(Effect.provide(layer(baseDir)));
   }).pipe(Effect.provide(NodeServices.layer), Effect.scoped);
@@ -120,7 +120,7 @@ describe("DesktopClientSettings", () => {
           const fileSystem = yield* FileSystem.FileSystem;
           const settings = yield* DesktopClientSettings.DesktopClientSettings;
           const dotfiles = yield* fileSystem.makeTempDirectoryScoped({
-            prefix: "t3-desktop-client-settings-dotfiles-",
+            prefix: "madar-desktop-client-settings-dotfiles-",
           });
           const linkedSettingsPath = `${dotfiles}/client-settings.json`;
           yield* fileSystem.writeFileString(linkedSettingsPath, "{}\n");

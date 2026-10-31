@@ -17,7 +17,7 @@ Prefer a container? See [Dev container](../internals/devcontainer.md) for VS Cod
 
 ## GitCafe mirror (optional)
 
-GitHub is the source of truth. [git.cafe/pingdotgg/t3code](https://git.cafe/pingdotgg/t3code) is a
+GitHub is the source of truth. [git.cafe/ZeroneOmni/madar](https://git.cafe/ZeroneOmni/madar) is a
 two-way synced mirror with much higher API rate limits, which helps when many agents read PRs and
 issues at once. You never need it to contribute.
 
@@ -26,11 +26,11 @@ code: push branches and open PRs on GitHub, where CI runs. GitCafe mirrors a new
 minute, and from then on you can work with it through either forge.
 
 ```sh
-git remote set-url origin https://git.cafe/pingdotgg/t3code.git
-git remote add github https://github.com/pingdotgg/t3code.git
+git remote set-url origin https://git.cafe/ZeroneOmni/madar.git
+git remote add github https://github.com/ZeroneOmni/madar.git
 # The GitHub remote you push to: `github`, or your fork's remote.
 git config remote.pushDefault github
-gh repo set-default pingdotgg/t3code
+gh repo set-default ZeroneOmni/madar
 bun install -g @gitcafe/cli   # `cafe` needs Bun 1.2 or newer
 cafe auth login && cafe auth http setup
 cafe skills install --global  # optional: cafe-* skills for coding agents
@@ -61,20 +61,20 @@ With `origin` on git.cafe:
 Use `vp run dev` for server and web, or `vp run dev:desktop` for the Electron client.
 `dev:server` and `dev:web` start those processes separately.
 
-Flags go directly after the task name, for example `vp run dev --home-dir /tmp/t3code-dev`.
+Flags go directly after the task name, for example `vp run dev --home-dir /tmp/madar-dev`.
 Add `--browser` to open a browser automatically.
 
 ### State and ports
 
-Linked worktrees default to their own `.t3/userdata`, even when `T3CODE_HOME` is set.
-The main checkout defaults to `~/.t3/dev`. An explicit `--home-dir` wins in both cases.
+Linked worktrees default to their own `.madar/userdata`, even when `MADAR_HOME` is set.
+The main checkout defaults to `~/.madar/dev`. An explicit `--home-dir` wins in both cases.
 The first start in a worktree seeds its empty database from a read-only copy of
-`~/.t3/userdata`; `--no-seed` or `T3CODE_DEV_SEED=0` skips that.
-Never run a development server against the live `~/.t3/userdata`.
+`~/.madar/userdata`; `--no-seed` or `MADAR_DEV_SEED=0` skips that.
+Never run a development server against the live `~/.madar/userdata`.
 See [test data](../../AGENTS.md#test-data) for copying a consistent database snapshot.
 
 Read ports from the `[dev-runner]` output. Worktrees derive stable preferences from their paths,
-but occupied ports can shift them. `T3CODE_PORT_OFFSET` or `T3CODE_DEV_INSTANCE` can select a
+but occupied ports can shift them. `MADAR_PORT_OFFSET` or `MADAR_DEV_INSTANCE` can select a
 different preference when needed.
 
 ### Sharing and remote debugging
@@ -87,7 +87,7 @@ Leave `VITE_HTTP_URL` and `VITE_WS_URL` unset. Vite proxies the backend through 
 origin so the same build works over localhost and remote connections.
 
 Shared runs enable bundled dev to avoid a network round trip for each import level.
-`T3CODE_BUNDLED_DEV=0` opts out when debugging bundler differences. Two reload traps matter
+`MADAR_BUNDLED_DEV=0` opts out when debugging bundler differences. Two reload traps matter
 when changing this setup:
 
 - The web entry must dynamically import the app so React refresh initializes before application
@@ -114,7 +114,7 @@ reloads by itself. The license manifest is not generated in this mode. `--built`
 
 Use this only on a hostname where you trust every service. Browsers send cookies to all ports
 on that hostname. Any service you visit there can receive the reusable admin credential,
-including services unrelated to T3 Code. If you run untrusted services on that hostname, keep
+including services unrelated to Madar. If you run untrusted services on that hostname, keep
 normal per-environment pairing instead.
 
 To use one browser profile across web dev worktrees on the same hostname, generate one fixed
@@ -127,16 +127,16 @@ openssl rand -hex 32
 Put that value in the main checkout's gitignored `.env`:
 
 ```dotenv
-T3CODE_DEV_AUTH_TOKEN=<the value generated above>
+MADAR_DEV_AUTH_TOKEN=<the value generated above>
 ```
 
-The `t3.json` Setup Worktree action links that file to each worktree's `.env`. The dev runner reads repository env files at startup. `.env.local` and inherited process
+The `madar.json` Setup Worktree action links that file to each worktree's `.env`. The dev runner reads repository env files at startup. `.env.local` and inherited process
 environment values override `.env`, so no per-worktree export is needed after setup.
 
 For a manual worktree or launcher without that link, export the same fixed value instead:
 
 ```sh
-export T3CODE_DEV_AUTH_TOKEN="<the value generated above>"
+export MADAR_DEV_AUTH_TOKEN="<the value generated above>"
 ```
 
 Do not generate a new value at startup. Start or restart `vp run dev --share` after configuration,

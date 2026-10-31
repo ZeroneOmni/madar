@@ -4,7 +4,7 @@ import { ChatAttachment } from "./chatAttachment.ts";
 import { GuestMessageId, GuestShareId, IsoDateTime, TrimmedNonEmptyString } from "./baseSchemas.ts";
 
 /**
- * A guest share lets one unauthenticated browser watch a thread over T3 Connect and propose
+ * A guest share lets one unauthenticated browser watch a thread over Madar Connect and propose
  * messages the owner must send or dismiss. The thread projection holds this public state; the
  * credentials are derived from the share id with a server key and never stored.
  */
@@ -33,7 +33,7 @@ export type ThreadGuestMessage = typeof ThreadGuestMessage.Type;
 
 export const ThreadGuestShare = Schema.Struct({
   id: GuestShareId,
-  /** The T3 Connect tunnel hostname the link points at. Guest routes require it to still serve. */
+  /** The Madar Connect tunnel hostname the link points at. Guest routes require it to still serve. */
   host: TrimmedNonEmptyString,
   createdAt: IsoDateTime,
   expiresAt: IsoDateTime,

@@ -163,7 +163,7 @@ case "$version" in
     ;;
 esac
 
-stem="t3-${version}-${platform}-${arch}"
+stem="madar-${version}-${platform}-${arch}"
 archive="${stem}.tar.gz"
 versions_dir="${madar_home}/runtime/versions"
 target_dir="${versions_dir}/${version}"
@@ -199,7 +199,7 @@ else
   step "Extracting Madar..."
   tar -xzf "${staging}/${archive}" -C "$staging" --strip-components=1
   rm -f "${staging}/${archive}" "${staging}/SHA256SUMS"
-  "${staging}/t3" --version >/dev/null || fail "the downloaded executable does not run"
+  "${staging}/madar" --version >/dev/null || fail "the downloaded executable does not run"
   printf '%s\n' "$version" > "${staging}/.install-complete"
 
   rm -rf "$target_dir"
@@ -209,7 +209,7 @@ fi
 
 step "Setting up the madar command..."
 mkdir -p "$bin_dir"
-ln -sfn "${target_dir}/t3" "${bin_dir}/madar"
+ln -sfn "${target_dir}/madar" "${bin_dir}/madar"
 # Pruning keeps what this launcher points at; a background service cannot see bin_dir otherwise.
 launcher="$(CDPATH='' cd -P -- "$bin_dir" && pwd)/madar"
 launchers="${madar_home}/runtime/launchers"

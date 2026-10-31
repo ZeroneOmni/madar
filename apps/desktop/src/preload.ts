@@ -1,20 +1,8 @@
-import type { DesktopBridge } from "@t3tools/contracts";
+import type { DesktopBridge } from "@madar/contracts";
 import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
-import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
-
-// Runs before any app script reads localStorage. See DesktopLegacyLocalStorage.
-try {
-  const legacyItems: unknown = ipcRenderer.sendSync(IpcChannels.TAKE_LEGACY_LOCAL_STORAGE_CHANNEL);
-  if (typeof legacyItems === "object" && legacyItems !== null) {
-    if (mergeLegacyLocalStorage(window.localStorage, legacyItems as Record<string, string>)) {
-      void ipcRenderer.invoke(IpcChannels.COMPLETE_LEGACY_LOCAL_STORAGE_CHANNEL);
-    }
-  }
-} catch {}
-
-// oxlint-disable-next-line t3code/no-global-process-runtime -- Electron exposes the client platform in its sandboxed preload process.
+// oxlint-disable-next-line madar/no-global-process-runtime -- Electron exposes the client platform in its sandboxed preload process.
 const clientPlatform = process.platform;
 
 if (clientPlatform === "darwin") {
@@ -93,7 +81,6 @@ contextBridge.exposeInMainWorld("desktopBridge", {
 
   openSystemSettings: (pane: string) =>
     ipcRenderer.invoke(IpcChannels.OPEN_SYSTEM_SETTINGS_CHANNEL, pane),
-  probeRemoteEditors: () => ipcRenderer.invoke(IpcChannels.PROBE_REMOTE_EDITORS_CHANNEL, undefined),
   pasteAsText: () => ipcRenderer.invoke(IpcChannels.PASTE_AS_TEXT_CHANNEL, undefined),
   onMenuAction: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, action: unknown) => {

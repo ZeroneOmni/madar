@@ -3,7 +3,7 @@ import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as HostProcess from "@madar/shared/HostProcess";
 import { expect, it } from "vite-plus/test";
 
 it.skipIf(HostProcess.Platform.defaultValue() !== "win32")(
@@ -19,7 +19,7 @@ it.skipIf(HostProcess.Platform.defaultValue() !== "win32")(
       NodeFS.mkdirSync(t3Home);
       NodeFS.writeFileSync(NodePath.join(t3Home, "untouched"), "original T3 data");
       NodeFS.writeFileSync(NodePath.join(runtime, ".install-complete"), "1.2.3");
-      NodeFS.copyFileSync(process.execPath, NodePath.join(runtime, "t3.exe"));
+      NodeFS.copyFileSync(process.execPath, NodePath.join(runtime, "madar.exe"));
       const env = {
         ...process.env,
         MADAR_HOME: madarHome,

@@ -57,8 +57,8 @@ const fakePowerShell = (initial: string) => {
       const env = options.env ?? {};
       let exitCode = 0;
       let stdout = "";
-      if (env.T3_SET === "1") {
-        registry.path = env.T3_PATH ?? "";
+      if (env.MADAR_SET === "1") {
+        registry.path = env.MADAR_PATH ?? "";
         registry.writes += 1;
       } else if (registry.failReads) {
         exitCode = 1;
@@ -99,7 +99,7 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       const home = yield* fs.makeTempDirectoryScoped();
       const command = yield* commandIn({ home });
       const link = path.join(home, ".local", "bin", "madar");
-      const originalT3 = path.join(home, ".local", "bin", "t3");
+      const originalT3 = path.join(home, ".local", "bin", "madar");
       yield* fs.makeDirectory(path.dirname(originalT3), { recursive: true });
       yield* fs.writeFileString(originalT3, "existing T3 installation\n");
 
@@ -124,30 +124,30 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
       const command = yield* commandIn({ home });
       const theirs = path.join(home, ".local", "bin", "madar");
       yield* fs.makeDirectory(path.dirname(theirs), { recursive: true });
-      yield* fs.writeFileString(theirs, "npm's t3\n");
+      yield* fs.writeFileString(theirs, "npm's madar\n");
       yield* fs.makeDirectory(path.join(home, "bin"), { recursive: true });
       yield* fs.symlink(path.join(home, "gone"), path.join(home, "bin", "madar"));
 
       const error = yield* Effect.flip(command.install);
       expect(error.message).toContain("Another madar command is already installed");
       yield* command.uninstall;
-      expect(yield* fs.readFileString(theirs)).toBe("npm's t3\n");
+      expect(yield* fs.readFileString(theirs)).toBe("npm's madar\n");
       expect(yield* fs.readLink(path.join(home, "bin", "madar"))).toBe(path.join(home, "gone"));
     }).pipe(Effect.scoped),
   );
 
-  it.effect("finds and removes a link left by a previous T3 home", () =>
+  it.effect("finds and removes a link left by a previous Madar home", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const home = yield* fs.makeTempDirectoryScoped();
-      const before = yield* commandIn({ home, baseDir: path.join(home, "old-t3") });
+      const before = yield* commandIn({ home, baseDir: path.join(home, "old-madar") });
       const link = (yield* before.install).installedPath;
 
-      const after = yield* commandIn({ home, baseDir: path.join(home, "new-t3") });
+      const after = yield* commandIn({ home, baseDir: path.join(home, "new-madar") });
       expect((yield* after.state).installedPath).toBe(link);
       expect((yield* after.install).installedPath).toBe(link);
-      expect(yield* fs.readLink(link!)).toBe(path.join(home, "new-t3", "bin", "madar"));
+      expect(yield* fs.readLink(link!)).toBe(path.join(home, "new-madar", "bin", "madar"));
       yield* after.uninstall;
       expect(yield* fs.exists(path.join(home, ".local", "bin", "madar"))).toBe(false);
       expect(yield* fs.exists(path.join(home, "bin", "madar"))).toBe(false);

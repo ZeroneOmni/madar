@@ -1,4 +1,4 @@
-import { KeybindingRule, KeybindingsConfig } from "@t3tools/contracts";
+import { KeybindingRule, KeybindingsConfig } from "@madar/contracts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -17,7 +17,7 @@ const layerKeybindings = () => {
     Layer.provideMerge(
       Layer.fresh(
         ServerConfig.layerTest(process.cwd(), {
-          prefix: "t3code-keybindings-test-",
+          prefix: "madar-keybindings-test-",
         }),
       ),
     ),

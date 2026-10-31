@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as HostProcess from "@madar/shared/HostProcess";
 
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -173,7 +173,7 @@ describe("DesktopPreReadyPlatform", () => {
       vi.stubEnv("VITE_DEV_SERVER_URL", "");
       vi.stubEnv("XDG_DATA_HOME", "/xdg");
       vi.stubEnv("APPIMAGE", "/Applications/current.AppImage");
-      vi.stubEnv("T3CODE_DESKTOP_LAUNCHER_PATH", " /opt/Madar Desktop/madar ");
+      vi.stubEnv("MADAR_DESKTOP_LAUNCHER_PATH", " /opt/Madar Desktop/madar ");
       getSwitchValueMock.mockReturnValue("");
 
       return Effect.scoped(

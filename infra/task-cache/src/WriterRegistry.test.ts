@@ -19,10 +19,13 @@ it.effect("loads the private writer registry as deployment configuration", () =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const home = yield* fs.makeTempDirectoryScoped();
-    yield* fs.makeDirectory(`${home}/.config/t3-task-cache`, { recursive: true });
-    yield* fs.writeFileString(`${home}/.config/t3-task-cache/writers.json`, '{"maria":"digest"}');
+    yield* fs.makeDirectory(`${home}/.config/madar-task-cache`, { recursive: true });
     yield* fs.writeFileString(
-      `${home}/.config/t3-task-cache/readers.json`,
+      `${home}/.config/madar-task-cache/writers.json`,
+      '{"maria":"digest"}',
+    );
+    yield* fs.writeFileString(
+      `${home}/.config/madar-task-cache/readers.json`,
       '{"ci-reader":"digest"}',
     );
     const keys = yield* readKeys.pipe(
@@ -62,7 +65,7 @@ it.live("rejects reserved writer names without modifying credential stores", () 
     const fs = yield* FileSystem.FileSystem;
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
     const home = yield* fs.makeTempDirectoryScoped();
-    const state = `${home}/.config/t3-task-cache`;
+    const state = `${home}/.config/madar-task-cache`;
     yield* fs.makeDirectory(state, { recursive: true });
     const writers = '{"maria":"digest"}';
     const credentials = '{"https://cache.example":{"name":"maria","token":"secret"}}';
@@ -92,7 +95,7 @@ it.effect("writes credentials for the supplied deployed worker endpoint", () =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const home = yield* fs.makeTempDirectoryScoped();
-    const endpoint = "https://preview-cache.example/projects/t3code";
+    const endpoint = "https://preview-cache.example/projects/madar";
     const file = yield* WriterRegistry.WriterRegistry.pipe(
       Effect.flatMap((registry) => registry.update("maria", false, endpoint, true)),
       Effect.provide(
@@ -101,7 +104,7 @@ it.effect("writes credentials for the supplied deployed worker endpoint", () =>
         ),
       ),
     );
-    expect(file).toBe(`${home}/.config/t3-task-cache/maria.json`);
+    expect(file).toBe(`${home}/.config/madar-task-cache/maria.json`);
     if (!file) return yield* Effect.die("Expected a credential file");
     const credential = JSON.parse(yield* fs.readFileString(file));
     expect(credential.endpoint).toBe(endpoint);
@@ -113,7 +116,7 @@ it.effect("refuses a concurrent registry update without changing committed crede
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const home = yield* fs.makeTempDirectoryScoped();
-    const state = `${home}/.config/t3-task-cache`;
+    const state = `${home}/.config/madar-task-cache`;
     yield* fs.makeDirectory(`${state}/writers.lock`, { recursive: true });
     yield* fs.writeFileString(`${state}/writers.json`, '{"maria":"digest"}');
     const result = yield* WriterRegistry.WriterRegistry.pipe(
@@ -135,7 +138,7 @@ it.effect("keeps the committed registry intact if a replacement write fails", ()
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const home = yield* fs.makeTempDirectoryScoped();
-    const state = `${home}/.config/t3-task-cache`;
+    const state = `${home}/.config/madar-task-cache`;
     yield* fs.makeDirectory(state, { recursive: true });
     const original = '{"maria":"digest"}';
     yield* fs.writeFileString(`${state}/writers.json`, original);
@@ -208,7 +211,7 @@ it.effect("refuses to initialize a missing writer registry implicitly", () =>
       Effect.exit,
     );
     expect(Exit.isFailure(result)).toBe(true);
-    expect(yield* fs.exists(`${home}/.config/t3-task-cache/writers.json`)).toBe(false);
+    expect(yield* fs.exists(`${home}/.config/madar-task-cache/writers.json`)).toBe(false);
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );
 
@@ -216,7 +219,7 @@ it.effect("keeps existing authorization if credential publication fails", () =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const home = yield* fs.makeTempDirectoryScoped();
-    const state = `${home}/.config/t3-task-cache`;
+    const state = `${home}/.config/madar-task-cache`;
     yield* fs.makeDirectory(state, { recursive: true });
     const original = '{"maria":"old-digest"}';
     yield* fs.writeFileString(`${state}/writers.json`, original);

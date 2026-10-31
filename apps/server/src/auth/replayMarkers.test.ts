@@ -64,7 +64,7 @@ it.layer(NodeServices.layer)("replayMarkers", (it) => {
       Effect.provide(
         ServerSecretStore.layer.pipe(
           Layer.provideMerge(
-            ServerConfig.layerTest(process.cwd(), { prefix: "t3-replay-cleanup-test-" }),
+            ServerConfig.layerTest(process.cwd(), { prefix: "madar-replay-cleanup-test-" }),
           ),
         ),
       ),
@@ -111,7 +111,7 @@ it.layer(NodeServices.layer)("replayMarkers", (it) => {
       Effect.provide(
         ServerSecretStore.layer.pipe(
           Layer.provideMerge(
-            ServerConfig.layerTest(process.cwd(), { prefix: "t3-replay-markers-test-" }),
+            ServerConfig.layerTest(process.cwd(), { prefix: "madar-replay-markers-test-" }),
           ),
         ),
       ),

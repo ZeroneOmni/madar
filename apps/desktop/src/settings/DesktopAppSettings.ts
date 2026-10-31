@@ -1,6 +1,6 @@
-import { DesktopUpdateChannelSchema, type DesktopUpdateChannel } from "@t3tools/contracts";
-import { fromLenientJson } from "@t3tools/shared/schemaJson";
-import { resolveSymlinkTarget } from "@t3tools/shared/symlink";
+import { DesktopUpdateChannelSchema, type DesktopUpdateChannel } from "@madar/contracts";
+import { fromLenientJson } from "@madar/shared/schemaJson";
+import { resolveSymlinkTarget } from "@madar/shared/symlink";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
@@ -131,7 +131,7 @@ export class DesktopAppSettings extends Context.Service<
       channel: DesktopUpdateChannel,
     ) => Effect.Effect<DesktopSettingsChange, DesktopSettingsWriteError>;
   }
->()("@t3tools/desktop/settings/DesktopAppSettings") {}
+>()("@madar/desktop/settings/DesktopAppSettings") {}
 
 export function resolveDefaultDesktopSettings(appVersion: string): DesktopSettings {
   return {

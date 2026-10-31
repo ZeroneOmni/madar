@@ -53,11 +53,11 @@ try {
   const bootstrap = child.stdio[3];
   NodeAssert.ok(bootstrap && "write" in bootstrap);
   bootstrap.end(
-    `${JSON.stringify({ mode: "desktop", noBrowser: true, port, host: "127.0.0.1", t3Home: home, desktopBootstrapToken: credential, tailscaleServeEnabled: false, tailscaleServePort: 443 })}\n`,
+    `${JSON.stringify({ mode: "desktop", noBrowser: true, port, host: "127.0.0.1", madarHome: home, desktopBootstrapToken: credential, tailscaleServeEnabled: false, tailscaleServePort: 443 })}\n`,
   );
   await ready;
   const origin = `http://127.0.0.1:${port}`;
-  const descriptor = await fetch(`${origin}/.well-known/t3/environment`);
+  const descriptor = await fetch(`${origin}/.well-known/madar/environment`);
   NodeAssert.equal(descriptor.status, 200);
   const metadata: unknown = await descriptor.json();
   NodeAssert.ok(metadata && typeof metadata === "object" && "capabilities" in metadata);
@@ -68,7 +68,7 @@ try {
     body: new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
       subject_token: credential,
-      subject_token_type: "urn:t3:params:oauth:token-type:environment-bootstrap",
+      subject_token_type: "urn:madar:params:oauth:token-type:environment-bootstrap",
       requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
     }),
   });
