@@ -6,6 +6,12 @@ import * as NodeURL from "node:url";
 
 const root = NodeURL.fileURLToPath(new URL("../", import.meta.url));
 const retiredPaths = [
+  "apps/server/src/environmentTheme.ts",
+  "apps/server/src/cli/theme.ts",
+  "apps/server/scripts/madar-sqlite-state.ts",
+  "apps/server/scripts/madar-sqlite-state.test.ts",
+  "apps/web/src/themePalette.ts",
+  "packages/shared/src/themePalettes.ts",
   "packages/contracts/src/project.ts",
   "packages/contracts/src/acpRegistry.ts",
   "packages/contracts/src/providerInstance.ts",
@@ -124,4 +130,26 @@ for (const relative of [
 }
 const ipc = NodeFS.readFileSync(NodePath.join(root, "packages/contracts/src/ipc.ts"), "utf8");
 NodeAssert.doesNotMatch(ipc, /DesktopSsh|DesktopDiscoveredSsh|runningDistro/);
+for (const [relative, pattern] of [
+  ["packages/contracts/src/auth.ts", /AuthMcp|WebSocket/],
+  ["apps/server/src/auth/SessionStore.ts", /WebSocket/],
+  ["apps/web/src/index.css", /data-theme-id|stage-art-|stage-night-|--message-/],
+  ["pnpm-workspace.yaml", /clerk|webauthn|opencode|mdast|micromark|remark-|rehype-|unified/],
+  [
+    "apps/server/src/observability/Metrics.ts",
+    /t3_|providerSessions|providerTurns|orchestrationEffect|gitCommands|secretRefs/,
+  ],
+  [
+    "apps/server/src/persistence/Errors.ts",
+    /threadId|Orchestration|ProviderSession|PullRequest|ProjectionRepository/,
+  ],
+  ["apps/web/index.html", /CUSTOM_THEMES|LEGACY_THEME|theme-halves/],
+  ["apps/desktop/src/permissions/MacPermission.ts", /screen-recording|accessibility/],
+] as const) {
+  NodeAssert.doesNotMatch(
+    NodeFS.readFileSync(NodePath.join(root, relative), "utf8"),
+    pattern,
+    relative,
+  );
+}
 console.log("PASS: retired helpers, contracts, SSH/WSL integration and desktop IPC remain absent");

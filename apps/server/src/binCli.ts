@@ -20,7 +20,6 @@ import { uninstallCommand } from "./cli/uninstall.ts";
 import { serviceLauncherCommand } from "./cli/serviceLauncher.ts";
 import { serviceCommand } from "./cli/service.ts";
 import { servicePreflightCommand } from "./cli/servicePreflight.ts";
-import { themeCommand } from "./cli/theme.ts";
 import { traceCommand } from "./cli/trace.ts";
 
 const layerCliRuntime = Layer.mergeAll(NodeServices.layer, NetService.layer);
@@ -48,7 +47,6 @@ const makeCli = () =>
       serviceLauncherCommand,
 
       servicePreflightCommand,
-      themeCommand,
       traceCommand,
     ]),
   );

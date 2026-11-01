@@ -43,7 +43,7 @@ shared component. A new composer banner or notice uses the `ComposerBanner` slot
 V8 gives every closure created in one render a single shared scope. A memoized handler keeps
 the scope of the render that created it, and that scope holds the other memoized values of that
 render. When handlers in one component change at different times, each keeps an older scope that
-holds older handlers, and old renders, with their server config and thread data, stay in memory
+holds older handlers, and old renders, with their server configuration and application data, stay in memory
 for as long as the component is mounted. React Compiler's memoized closures do the same.
 
 In large, long-lived components such as `ChatView` and `ChatComposer`, write handlers as plain

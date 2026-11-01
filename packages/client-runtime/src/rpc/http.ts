@@ -5,7 +5,6 @@ import {
   type EnvironmentInternalError,
   type EnvironmentOperationForbiddenError,
   type EnvironmentRequestInvalidError,
-  type EnvironmentResourceNotFoundError,
   type EnvironmentScopeRequiredError,
 } from "@madar/contracts";
 import * as HttpObservability from "@madar/shared/httpObservability";
@@ -20,9 +19,7 @@ import * as HttpApiClient from "effect/http-api/HttpApiClient";
 
 const isEnvironmentHttpCommonError = Schema.is(EnvironmentHttpCommonError);
 
-export class RemoteEnvironmentAuthFetchError extends Data.TaggedError(
-  "RemoteEnvironmentAuthFetchError",
-)<{
+class RemoteEnvironmentAuthFetchError extends Data.TaggedError("RemoteEnvironmentAuthFetchError")<{
   readonly message: string;
   readonly cause: unknown;
 }> {}
@@ -34,7 +31,7 @@ class RemoteEnvironmentAuthInvalidJsonError extends Data.TaggedError(
   readonly cause: unknown;
 }> {}
 
-export class RemoteEnvironmentAuthUndeclaredStatusError extends Data.TaggedError(
+class RemoteEnvironmentAuthUndeclaredStatusError extends Data.TaggedError(
   "RemoteEnvironmentAuthUndeclaredStatusError",
 )<{
   readonly message: string;
@@ -50,7 +47,7 @@ export class RemoteEnvironmentAuthUndeclaredStatusError extends Data.TaggedError
   }
 }
 
-export class RemoteEnvironmentAuthTimeoutError extends Data.TaggedError(
+class RemoteEnvironmentAuthTimeoutError extends Data.TaggedError(
   "RemoteEnvironmentAuthTimeoutError",
 )<{
   readonly message: string;
@@ -71,7 +68,6 @@ export type RemoteEnvironmentRequestError =
   | EnvironmentAuthInvalidError
   | EnvironmentScopeRequiredError
   | EnvironmentOperationForbiddenError
-  | EnvironmentResourceNotFoundError
   | EnvironmentInternalError
   | RemoteEnvironmentAuthFetchError
   | RemoteEnvironmentAuthInvalidJsonError
@@ -107,11 +103,6 @@ export const makeEnvironmentHttpApiGroupClient = <
       baseUrl: remoteApiBaseUrl(httpBaseUrl),
     }),
   );
-
-export const makeEnvironmentHttpApiUrlBuilder = (httpBaseUrl: string) =>
-  HttpApiClient.urlBuilder(EnvironmentHttpApi, {
-    baseUrl: remoteApiBaseUrl(httpBaseUrl),
-  });
 
 const failRemoteRequest = (
   requestUrl: string,

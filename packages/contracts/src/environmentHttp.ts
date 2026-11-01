@@ -22,8 +22,6 @@ import {
   AuthEnvironmentScope,
   AuthTokenExchangeRequest,
   AuthSessionState,
-  AuthWebSocketTicketParams,
-  AuthWebSocketTicketResult,
   ServerAuthSessionMethod,
 } from "./auth.ts";
 import { ExecutionEnvironmentDescriptor } from "./environment.ts";
@@ -60,7 +58,6 @@ export const EnvironmentInternalErrorReason = Schema.Literals([
   "browser_session_issuance_failed",
   "browser_session_cookie_failed",
   "access_token_issuance_failed",
-  "websocket_ticket_issuance_failed",
   "pairing_credential_issuance_failed",
   "pairing_links_load_failed",
   "pairing_link_revoke_failed",
@@ -163,33 +160,11 @@ export class EnvironmentInternalError extends Schema.TaggedError<EnvironmentInte
   }
 }
 
-export const EnvironmentResourceNotFoundReason = Schema.Literals(["thread_not_found"]);
-export type EnvironmentResourceNotFoundReason = typeof EnvironmentResourceNotFoundReason.Type;
-
-export class EnvironmentResourceNotFoundError extends Schema.TaggedError<EnvironmentResourceNotFoundError>()(
-  "EnvironmentResourceNotFoundError",
-  {
-    code: Schema.Literal("not_found"),
-    reason: EnvironmentResourceNotFoundReason,
-    traceId: TrimmedNonEmptyString,
-  },
-  { httpApiStatus: 404 },
-) {
-  [HttpServerRespondable.symbol]() {
-    return HttpServerResponse.schemaJson(EnvironmentResourceNotFoundError)(this, { status: 404 });
-  }
-
-  override get message(): string {
-    return `The environment could not find what this request named (${this.reason}).`;
-  }
-}
-
 export const EnvironmentHttpCommonError = Schema.Union([
   EnvironmentRequestInvalidError,
   EnvironmentAuthInvalidError,
   EnvironmentScopeRequiredError,
   EnvironmentOperationForbiddenError,
-  EnvironmentResourceNotFoundError,
   EnvironmentInternalError,
 ]);
 export type EnvironmentHttpCommonError = typeof EnvironmentHttpCommonError.Type;
@@ -345,21 +320,6 @@ class EnvironmentAuthHttpApi extends HttpApiGroup.make("auth")
       success: AuthAccessTokenResult,
       error: EnvironmentTokenExchangeErrors,
     }),
-  )
-  .add(
-    HttpApiEndpoint.post("webSocketTicket", "/api/auth/websocket-ticket", {
-      headers: OptionalBearerHeaders,
-      success: AuthWebSocketTicketResult,
-      error: [EnvironmentInternalError],
-    }).middleware(EnvironmentAuthenticatedAuth),
-  )
-  .add(
-    HttpApiEndpoint.post("webSocketTicketFor", "/api/auth/websocket-ticket/:use", {
-      headers: OptionalBearerHeaders,
-      params: AuthWebSocketTicketParams,
-      success: AuthWebSocketTicketResult,
-      error: [EnvironmentInternalError],
-    }).middleware(EnvironmentAuthenticatedAuth),
   )
   .add(
     HttpApiEndpoint.post("pairingCredential", "/api/auth/pairing-token", {

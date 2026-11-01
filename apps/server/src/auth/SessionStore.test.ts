@@ -167,9 +167,9 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
         const sessions = yield* SessionStore.SessionStore;
         const dev = yield* sessions.verify(token);
         const local = yield* sessions.issue({ subject: "environment-a" });
-        const ticket = yield* sessions.issueWebSocketToken(local.sessionId);
+
         yield* sessions.revoke(dev.sessionId);
-        return { dev, local, ticket };
+        return { dev, local };
       }).pipe(Effect.provide(layerA), Effect.scoped);
 
       const layerB = yield* makeDiskSessionStoreLayer(baseB, token);
@@ -180,9 +180,6 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
         expect((yield* Effect.flip(sessions.verify(fromA.local.token)))._tag).toBe(
           "InvalidSessionTokenSignatureError",
         );
-        expect((yield* Effect.flip(sessions.verifyWebSocketToken(fromA.ticket.token)))._tag).toBe(
-          "InvalidWebSocketTokenSignatureError",
-        );
       }).pipe(Effect.provide(layerB), Effect.scoped);
 
       const layerReopenedB = yield* makeDiskSessionStoreLayer(baseB, token);
@@ -190,8 +187,6 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
         const sessions = yield* SessionStore.SessionStore;
         const dev = yield* sessions.verify(token);
         expect(dev.sessionId).toBe(fromA.dev.sessionId);
-        const ticket = yield* sessions.issueWebSocketToken(dev.sessionId);
-        expect((yield* sessions.verifyWebSocketToken(ticket.token)).sessionId).toBe(dev.sessionId);
       }).pipe(Effect.provide(layerReopenedB), Effect.scoped);
 
       const layerReopenedA = yield* makeDiskSessionStoreLayer(baseA, token);
@@ -202,7 +197,7 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
     }),
   );
 
-  it.effect("invalidates old dev credentials and tickets after rotation or removal", () =>
+  it.effect("invalidates old dev credentials after rotation or removal", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "madar-dev-auth-rotation-" });
@@ -212,8 +207,8 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
       const old = yield* Effect.gen(function* () {
         const sessions = yield* SessionStore.SessionStore;
         const dev = yield* sessions.verify(oldToken);
-        const ticket = yield* sessions.issueWebSocketToken(dev.sessionId);
-        return { dev, ticket };
+
+        return { dev };
       }).pipe(Effect.provide(layerInitial), Effect.scoped);
 
       const layerRotated = yield* makeDiskSessionStoreLayer(baseDir, newToken);
@@ -222,15 +217,12 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
         expect((yield* Effect.flip(sessions.verify(oldToken)))._tag).toBe(
           "MalformedSessionTokenError",
         );
-        expect((yield* Effect.flip(sessions.verifyWebSocketToken(old.ticket.token)))._tag).toBe(
-          "UnknownWebSocketSessionError",
-        );
         expect(
           (yield* sessions.listActive()).some((row) => row.sessionId === old.dev.sessionId),
         ).toBe(true);
         const dev = yield* sessions.verify(newToken);
-        const ticket = yield* sessions.issueWebSocketToken(dev.sessionId);
-        return { dev, ticket };
+
+        return { dev };
       }).pipe(Effect.provide(layerRotated), Effect.scoped);
 
       const layerRemoved = yield* makeDiskSessionStoreLayer(baseDir);
@@ -238,9 +230,6 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
         const sessions = yield* SessionStore.SessionStore;
         expect((yield* Effect.flip(sessions.verify(newToken)))._tag).toBe(
           "MalformedSessionTokenError",
-        );
-        expect((yield* Effect.flip(sessions.verifyWebSocketToken(rotated.ticket.token)))._tag).toBe(
-          "UnknownWebSocketSessionError",
         );
         expect(
           (yield* sessions.listActive()).some((row) => row.sessionId === rotated.dev.sessionId),
@@ -396,30 +385,6 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
       }).pipe(Effect.provide(Layer.mergeAll(layerSessionStore(), SqlitePersistence.layerMemory))),
   );
 
-  it.effect("rejects websocket tokens once the parent session has expired", () =>
-    Effect.gen(function* () {
-      const sessions = yield* SessionStore.SessionStore;
-      const issued = yield* sessions.issue({
-        method: "bearer-access-token",
-        subject: "short-lived",
-        ttl: Duration.seconds(1),
-      });
-      const websocket = yield* sessions.issueWebSocketToken(issued.sessionId);
-
-      yield* TestClock.adjust(Duration.seconds(2));
-
-      const error = yield* Effect.flip(sessions.verifyWebSocketToken(websocket.token));
-      expect(error._tag).toBe("WebSocketSessionExpiredError");
-      if (error._tag === "WebSocketSessionExpiredError") {
-        expect(error.sessionId).toBe(issued.sessionId);
-        expect(error.expiresAt.epochMilliseconds).toBe(issued.expiresAt.epochMilliseconds);
-        expect(error.observedAt.epochMilliseconds).toBeGreaterThan(
-          error.expiresAt.epochMilliseconds,
-        );
-      }
-    }).pipe(Effect.provide(Layer.merge(layerSessionStore(), TestClock.layer()))),
-  );
-
   it.effect("lists active sessions, tracks connectivity, and revokes other sessions", () =>
     Effect.gen(function* () {
       const sessions = yield* SessionStore.SessionStore;
@@ -444,16 +409,12 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
           ipAddress: "192.168.1.88",
         },
       });
-      const clientWebSocket = yield* sessions.issueWebSocketToken(client.sessionId);
 
       yield* sessions.markConnected(client.sessionId);
       const beforeRevoke = yield* sessions.listActive();
       const revokedCount = yield* sessions.revokeAllExcept(administrative.sessionId);
       const afterRevoke = yield* sessions.listActive();
       const revokedClient = yield* Effect.flip(sessions.verify(client.token));
-      const revokedClientWebSocket = yield* Effect.flip(
-        sessions.verifyWebSocketToken(clientWebSocket.token),
-      );
 
       expect(beforeRevoke).toHaveLength(2);
       expect(beforeRevoke.find((entry) => entry.sessionId === client.sessionId)?.connected).toBe(
@@ -473,11 +434,6 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
       if (revokedClient._tag === "SessionTokenRevokedError") {
         expect(revokedClient.sessionId).toBe(client.sessionId);
         expect(revokedClient.revokedAt.epochMilliseconds).toBeGreaterThanOrEqual(0);
-      }
-      expect(revokedClientWebSocket._tag).toBe("WebSocketSessionRevokedError");
-      if (revokedClientWebSocket._tag === "WebSocketSessionRevokedError") {
-        expect(revokedClientWebSocket.sessionId).toBe(client.sessionId);
-        expect(revokedClientWebSocket.revokedAt.epochMilliseconds).toBeGreaterThanOrEqual(0);
       }
     }).pipe(Effect.provide(layerSessionStore())),
   );

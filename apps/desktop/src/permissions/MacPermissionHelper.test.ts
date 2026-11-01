@@ -3,7 +3,6 @@ import { MacPermissionHelper } from "./MacPermissionHelper.ts";
 import type { SettingsWindow } from "./MacSettingsWindow.ts";
 
 const mocks = vi.hoisted(() => ({
-  granted: false,
   createFromPath: vi.fn(),
   startDrag: vi.fn(),
   showItemInFolder: vi.fn(),
@@ -69,10 +68,6 @@ vi.mock("electron", async () => {
       getCursorScreenPoint: () => ({ x: 10, y: 10 }),
       getDisplayNearestPoint: () => ({ workArea: { x: -1200, y: 0, width: 1200, height: 900 } }),
     },
-    systemPreferences: {
-      getMediaAccessStatus: () => (mocks.granted ? "granted" : "denied"),
-      isTrustedAccessibilityClient: () => mocks.granted,
-    },
     shell: { showItemInFolder: mocks.showItemInFolder },
   };
 });
@@ -94,7 +89,6 @@ let helper: MacPermissionHelper;
 beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
-  mocks.granted = false;
   const icon = { toDataURL: () => "data:image/png;base64,abc" };
   mocks.createFromPath.mockReturnValue({ isEmpty: () => false, resize: () => icon });
   mocks.loadURL.mockResolvedValue(undefined);
@@ -107,7 +101,7 @@ afterEach(() => {
 });
 const iconPaths = ["/bundle/prod-resources/icon.png"];
 const open = () =>
-  helper.show("accessibility", "/bundle/mac-permission-preload.cjs", null, iconPaths);
+  helper.show("full-disk-access", "/bundle/mac-permission-preload.cjs", null, iconPaths);
 it("does not reopen a superseded helper when its initial probe completes", async () => {
   const pending = Promise.withResolvers<boolean>();
   const first = helper.show(

@@ -31,15 +31,11 @@ describe("ClientSettings quit confirmation", () => {
 });
 
 describe("ServerSettings retained preferences", () => {
-  it("preserves theme publication and observability values through storage", () => {
+  it("preserves observability values through storage", () => {
     const parsed = decodeServerSettings({
-      defaultTheme: "ocean",
-      defaultThemeSetAt: "2026-10-31T00:00:00.000Z",
       observability: { otlpTracesUrl: "  https://collector.example.com/v1/traces  " },
     });
     expect(encodeServerSettings(parsed)).toEqual({
-      defaultTheme: "ocean",
-      defaultThemeSetAt: "2026-10-31T00:00:00.000Z",
       observability: {
         otlpTracesUrl: "https://collector.example.com/v1/traces",
         otlpMetricsUrl: "",

@@ -87,6 +87,17 @@ try {
   for (const resource of ["/api/orchestration/shell", "/api/projects", "/ws"]) {
     NodeAssert.equal((await fetch(`${origin}${resource}`)).status, 404, resource);
   }
+  for (const resource of [
+    "/api/auth/websocket-ticket",
+    "/api/auth/websocket-ticket/rpc",
+    "/api/auth/websocket-ticket/media",
+  ]) {
+    NodeAssert.equal(
+      (await fetch(`${origin}${resource}`, { method: "POST" })).status,
+      404,
+      resource,
+    );
+  }
   for (const filename of ["state.sqlite", "statev2.sqlite"]) {
     NodeAssert.equal(
       await NodeFSP.readFile(NodePath.join(stateDir, filename), "utf8"),

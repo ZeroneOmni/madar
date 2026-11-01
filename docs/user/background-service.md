@@ -16,7 +16,7 @@ run these commands on the machine that will host Madar:
 | Restart                         | `madar service restart`   |
 | Stop and remove from startup    | `madar service uninstall` |
 
-Uninstalling the service leaves your projects, threads, and settings intact.
+Uninstalling the service leaves your local data and settings intact.
 Running `madar service install` again repairs a service that `madar service status`
 reports as broken.
 
@@ -36,8 +36,7 @@ updates, so the installer and `madar update` ask for confirmation before
 installing one.
 
 `madar uninstall` removes the background service, the `madar` launcher, and the
-downloaded versions after showing you the list and asking once. Your projects,
-threads, and settings under `~/.madar/userdata` are kept, along with `service.env`
+downloaded versions after showing you the list and asking once. Your local data and settings under `~/.madar/userdata` are kept, along with `service.env`
 under Madar home. Pass `--yes` from a script.
 
 ## Local network access
@@ -87,9 +86,6 @@ service is still installed and will start at the next login.
 
 Windows background services are not supported.
 
-Madar Connect can offer service installation during setup, but the two are managed
-separately. Signing out of Madar Connect does not stop or uninstall the service.
-
 ## Troubleshooting
 
 Start with `madar service status` on the host. It prints the log path and, on Linux,
@@ -110,8 +106,7 @@ ssh -t your-server 'sudo loginctl enable-linger "$(id -un)"'
 ```
 
 Then retry service setup as your normal user. Run only the `loginctl` command
-with sudo; running Madar as root creates a separate installation and Connect
-identity. Without administrator access, run `madar serve` in a terminal and keep
+with sudo; running Madar as root creates a separate installation and local identity. Without administrator access, run `madar serve` in a terminal and keep
 that session open.
 
 | Status problem                          | Next step                                                                                                                      |
@@ -122,36 +117,7 @@ that session open.
 | `restart-pending`                       | A newer version is installed but the service still runs the previous one. Run `madar service restart`.                         |
 
 On macOS, check **System Settings → General → Login Items** if the service no
-longer starts at login. If agent work cannot access Desktop, Documents, or
+longer starts at login. If Madar cannot access Desktop, Documents, or
 Downloads, it may need Full Disk Access for the `madar` executable listed in
 `ProgramArguments` in
 `~/Library/LaunchAgents/com.madartools.madar.service.plist`.
-
-## Reclaim database space
-
-Madar removes superseded internal history on its own while it runs; your
-conversations are kept. Databases created before this shrank automatically
-still hold the freed space on disk until a one-time offline repair returns it
-and turns on automatic shrinking. Settings > Storage (web and desktop) or
-Settings > Maintenance (mobile) suggests the repair when at least 1 GiB can be
-reclaimed.
-
-Run `madar doctor` on the machine that hosts the environment. It reports the
-database size and the space it can reclaim, then asks which repairs to run;
-pass `--fix` to run the recommended ones without a prompt (for scripts), or
-`--dry-run` to only report. An installed background service for the same data
-directory is stopped for the repair and started again afterwards, also when
-the repair fails. Quit a server you started by hand, or the desktop app, first:
-the repair refuses to touch a database that is in use. Use `--base-dir` for a
-different data directory.
-
-The repair can take several minutes on a large database. It rebuilds the
-database through a temporary copy, so it needs free space of about the
-database's size twice over: once in the system temporary directory (`TMPDIR`
-or `/tmp` on Linux and macOS) and once next to the database for its
-write-ahead log.
-
-If you upgraded from a version before 0.1.0, its database (`state.sqlite`) is
-still kept next to the current one so you can roll back. `madar doctor` offers to
-delete it, but never selects that repair for you and `--fix` skips it: once it
-is gone, a version before 0.1.0 starts with no threads or settings.

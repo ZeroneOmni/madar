@@ -3,10 +3,6 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./themePalettes": {
-      "types": "./src/themePalettes.ts",
-      "import": "./src/themePalettes.ts"
-    },
     "./advertisedEndpoint": {
       "types": "./src/advertisedEndpoint.ts",
       "import": "./src/advertisedEndpoint.ts"

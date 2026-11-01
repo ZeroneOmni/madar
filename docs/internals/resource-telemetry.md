@@ -11,14 +11,7 @@ protocol. A missing or failed collector leaves the server running.
 The native child owns sampling and bounded in-memory history. It samples on a timer
 only while diagnostics has live subscribers. With none, the server sends a sample
 interval of 0 and the child samples only on request, so an idle server never walks
-the process table. The exception is OTLP metrics export: a server exporting metrics
-requests one sample a minute and exports process totals by group
-([`ProcessGroupMetrics`](../../apps/server/src/resourceTelemetry/ProcessGroupMetrics.ts)),
-because the user asked for continuous telemetry. Groups are a fixed set named after
-the server's direct children, never process IDs or threads, so the series count
-stays bounded as agents come and go. History therefore covers only time with a live
-subscriber, plus on-demand and export samples. Consuming host power for background scheduling must not retain
-live diagnostics. There is no telemetry database or recurring shell-probe fallback.
+the process table. There is no telemetry database or recurring shell-probe fallback.
 
 History has independent bounds for age, snapshot count, process rows, and retained
 bytes. A count limit alone cannot bound memory when command lines vary in size.
@@ -37,8 +30,7 @@ unconstrained states. Headless servers leave unavailable power data unknown.
 
 - Process identity includes start time because operating systems reuse PIDs.
   Electron and native start times have different precision, so merging allows a
-  small tolerance. Process signaling rechecks the native identity with a fresh
-  sample.
+  small tolerance.
 - Snapshot sequence numbers belong to a monitor generation. Comparing them across
   restarts would discard the new monitor's samples until its sequence caught up.
 - Sampling can miss a process that starts and exits between samples. Cumulative

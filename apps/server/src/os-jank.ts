@@ -24,7 +24,7 @@ function hydratePosixPath(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): vo
     try {
       // mise's record of the PATH entries it added. It must travel with the
       // shell's PATH, or `mise x` can rebuild PATH behind a same-named wrapper
-      // (`exec mise x claude -- claude`) that then re-runs itself forever.
+      // a shell wrapper that then re-runs itself forever.
       shellEnvironment = readEnvironmentFromLoginShell(shell, ["PATH", "__MISE_DIFF", "JAVA_HOME"]);
     } catch (error) {
       logPathHydrationWarning(`Failed to read PATH from login shell ${shell}.`, error);

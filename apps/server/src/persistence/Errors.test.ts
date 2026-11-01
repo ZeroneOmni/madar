@@ -21,9 +21,7 @@ it.effect("names a real SQLite condition without copying query data", () =>
     yield* sql`CREATE TABLE error_test (private_column TEXT PRIMARY KEY)`;
     yield* sql`INSERT INTO error_test VALUES (${payload})`;
     const cause = yield* Effect.flip(sql`INSERT INTO error_test VALUES (${payload})`);
-    const error = toPersistenceSqlError("OrchestrationCommandReceiptRepository.upsert:query")(
-      cause,
-    );
+    const error = toPersistenceSqlError("AuthSessionRepository.create:query")(cause);
 
     assert.equal(error.detail, "SQLITE(1555) constraint failed");
     assert.equal(error.cause, cause);
@@ -52,11 +50,11 @@ it.effect("maps schema errors without copying rejected payloads into diagnostics
       }),
     );
     const error = PersistenceDecodeError.fromSchemaError(
-      "ProviderSessionRuntimeRepository.list:decodeRows",
+      "AuthSessionRepository.list:decodeRows",
       cause,
     );
 
-    assert.equal(error.operation, "ProviderSessionRuntimeRepository.list:decodeRows");
+    assert.equal(error.operation, "AuthSessionRepository.list:decodeRows");
     assert.equal(error.cause, cause);
     assert.notInclude(error.issue, rejectedPayload);
     assert.notInclude(error.message, rejectedPayload);

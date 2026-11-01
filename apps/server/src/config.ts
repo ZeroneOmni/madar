@@ -24,7 +24,6 @@ export interface ServerDerivedPaths {
   readonly stateDir: string;
   readonly dbPath: string;
   readonly settingsPath: string;
-  readonly environmentThemesDir: string;
   readonly logsDir: string;
   readonly serverTracePath: string;
   readonly anonymousIdPath: string;
@@ -124,7 +123,6 @@ export const deriveServerPaths = Effect.fn(function* (
     stateDir,
     dbPath,
     settingsPath: join(stateDir, "settings.json"),
-    environmentThemesDir: join(stateDir, "themes"),
     logsDir,
     serverTracePath: join(logsDir, "server.trace.ndjson"),
     anonymousIdPath: join(stateDir, "anonymous-id"),

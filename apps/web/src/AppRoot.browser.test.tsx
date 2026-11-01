@@ -1,4 +1,4 @@
-import { expect, it } from "vite-plus/test";
+import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "../test/render";
 import { AppRoot } from "./AppRoot";
@@ -26,4 +26,20 @@ it("opens Settings, applies appearance, and returns to the greeting", async () =
   await userEvent.keyboard("{Escape}");
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   await expect.element(screen.getByRole("heading", { name: "Hello world" })).toBeVisible();
+});
+
+it("shows a failed appearance save and recovers when storage works again", async () => {
+  await using screen = await render(<AppRoot />);
+  await screen.getByRole("button", { name: "Settings", exact: true }).click();
+  using _storage = vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
+    throw new Error("Storage unavailable");
+  });
+  await page.getByRole("button", { name: "Dark", exact: true }).click();
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("Could not save your appearance. Please try again.");
+  await page.getByRole("button", { name: "Dark", exact: true }).click();
+  await expect.element(page.getByRole("alert")).not.toBeInTheDocument();
+  expect(document.documentElement.classList.contains("dark")).toBe(true);
+  await page.getByRole("button", { name: "System", exact: true }).click();
 });

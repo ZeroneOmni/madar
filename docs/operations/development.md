@@ -68,8 +68,7 @@ Add `--browser` to open a browser automatically.
 
 Linked worktrees default to their own `.madar/userdata`, even when `MADAR_HOME` is set.
 The main checkout defaults to `~/.madar/dev`. An explicit `--home-dir` wins in both cases.
-The first start in a worktree seeds its empty database from a read-only copy of
-`~/.madar/userdata`; `--no-seed` or `MADAR_DEV_SEED=0` skips that.
+The runtime creates a fresh `madar.sqlite` authentication database. It does not import legacy chat history.
 Never run a development server against the live `~/.madar/userdata`.
 See [test data](../../AGENTS.md#test-data) for copying a consistent database snapshot.
 

@@ -12,8 +12,6 @@ import {
   EnvironmentOperationForbiddenError,
   EnvironmentRequestInvalidError,
   type EnvironmentRequestInvalidReason,
-  EnvironmentResourceNotFoundError,
-  type EnvironmentResourceNotFoundReason,
   EnvironmentScopeRequiredError,
   EnvironmentAuthenticatedAuth,
   EnvironmentAuthenticatedPrincipal,
@@ -147,12 +145,6 @@ function failEnvironmentOperationForbidden(reason: "current_session_revoke_not_a
     ),
   );
 }
-
-/**
- * `<img>` and WebSocket cannot set headers, so media routes (device hub, preview stream)
- * authenticate the way the `/ws` upgrade does: a cookie for browser sessions, or a short-lived
- * `wsTicket` minted over authenticated HTTP for bearer and DPoP clients.
- */
 
 const failEnvironmentInternal =
   /* Request instrumentation already owns the span; keep this helper in that context. */
@@ -378,34 +370,6 @@ export const layer = HttpApiBuilder.group(
           ),
           Effect.catchIf(EnvironmentAuth.isServerAuthInternalError, (error) =>
             failEnvironmentInternal("access_token_issuance_failed", error),
-          ),
-        ),
-      )
-      .handle(
-        "webSocketTicket",
-        Effect.fn("environment.auth.webSocketTicket")(
-          function* (args) {
-            yield* annotateEnvironmentRequest(args.endpoint.name);
-            const session = yield* EnvironmentAuthenticatedPrincipal;
-            yield* appendCredentialResponseHeaders;
-            return yield* serverAuth.issueWebSocketTicket(session);
-          },
-          Effect.catchIf(EnvironmentAuth.isServerAuthInternalError, (error) =>
-            failEnvironmentInternal("websocket_ticket_issuance_failed", error),
-          ),
-        ),
-      )
-      .handle(
-        "webSocketTicketFor",
-        Effect.fn("environment.auth.webSocketTicketFor")(
-          function* (args) {
-            yield* annotateEnvironmentRequest(args.endpoint.name);
-            const session = yield* EnvironmentAuthenticatedPrincipal;
-            yield* appendCredentialResponseHeaders;
-            return yield* serverAuth.issueWebSocketTicket(session, { use: args.params.use });
-          },
-          Effect.catchIf(EnvironmentAuth.isServerAuthInternalError, (error) =>
-            failEnvironmentInternal("websocket_ticket_issuance_failed", error),
           ),
         ),
       )

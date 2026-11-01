@@ -209,7 +209,7 @@ export const sharedServerCommandFlags = {
   baseDir: baseDirFlag,
   cwd: Argument.String("cwd").pipe(
     Argument.withDescription(
-      "Working directory for provider sessions (defaults to the current directory).",
+      "Working directory for the server (defaults to the current directory).",
     ),
     Argument.optional,
   ),

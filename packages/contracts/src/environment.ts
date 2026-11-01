@@ -53,7 +53,6 @@ export type ServerSelfUpdateCapability = typeof ServerSelfUpdateCapability.Type;
 export const ExecutionEnvironmentCapabilities = Schema.Struct({
   databaseStorage: Schema.optionalKey(Schema.Boolean),
   otlpEndpointCheck: Schema.optionalKey(Schema.Boolean),
-  environmentThemes: Schema.optionalKey(Schema.Boolean),
   serverSelfUpdate: Schema.optionalKey(ServerSelfUpdateCapability),
   serverInstallation: ForwardCompatibleOptional(ServerInstallation),
   serverSelfUpdateProgress: Schema.optionalKey(Schema.Boolean),
