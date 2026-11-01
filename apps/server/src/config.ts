@@ -24,7 +24,6 @@ export interface ServerDerivedPaths {
   readonly stateDir: string;
   readonly dbPath: string;
   readonly settingsPath: string;
-  readonly environmentThemesDir: string;
   readonly logsDir: string;
   readonly serverTracePath: string;
   readonly anonymousIdPath: string;
@@ -79,7 +78,6 @@ export class ServerConfig extends Context.Service<
     readonly desktopTelemetryControlFd?: number | undefined;
 
     readonly resourceMonitorPath?: string | undefined;
-    readonly logWebSocketEvents: boolean;
     readonly tailscaleServeEnabled: boolean;
     readonly tailscaleServePort: number;
   }
@@ -124,7 +122,6 @@ export const deriveServerPaths = Effect.fn(function* (
     stateDir,
     dbPath,
     settingsPath: join(stateDir, "settings.json"),
-    environmentThemesDir: join(stateDir, "themes"),
     logsDir,
     serverTracePath: join(logsDir, "server.trace.ndjson"),
     anonymousIdPath: join(stateDir, "anonymous-id"),
@@ -183,7 +180,6 @@ const makeTest = Effect.fn("ServerConfig.makeTest")(function* (
     baseDir,
     ...derivedPaths,
     mode: "web",
-    logWebSocketEvents: false,
     tailscaleServeEnabled: false,
     tailscaleServePort: 443,
     port: 0,

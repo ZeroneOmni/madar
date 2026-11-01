@@ -39,7 +39,7 @@ type TypeOfServiceSocket = {
 // Bundled undici calls this from a socket callback without catching. On macOS,
 // EINVAL after a peer reset must not exit the server over an optional QoS hint.
 export function ignoreMacosTypeOfServiceEinval(
-  // oxlint-disable-next-line madar/no-global-process-runtime -- Runs before ACP dispatch without loading the Effect graph.
+  // oxlint-disable-next-line madar/no-global-process-runtime -- Runs before CLI startup without loading the Effect graph.
   platform = process.platform,
   socketPrototype: TypeOfServiceSocket = NodeNet.Socket.prototype as TypeOfServiceSocket,
 ): void {
@@ -58,8 +58,7 @@ export function ignoreMacosTypeOfServiceEinval(
 
 /**
  * Node's 250 ms Happy Eyeballs attempt timeout abandons a working-but-slow IPv4
- * connect when IPv6 is advertised but unroutable, which broke the ACP registry
- * fetch. A larger `--network-family-autoselection-attempt-timeout` still wins.
+ * connect when IPv6 is advertised but unroutable. A larger `--network-family-autoselection-attempt-timeout` still wins.
  */
 export function extendConnectionAttemptTimeout(): void {
   NodeNet.setDefaultAutoSelectFamilyAttemptTimeout(

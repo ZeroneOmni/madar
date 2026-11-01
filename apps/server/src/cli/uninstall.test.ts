@@ -12,6 +12,7 @@ it.layer(NodeServices.layer)("madar uninstall launcher", (it) => {
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
+      const platform = yield* HostProcess.Platform;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "madar-uninstall-" });
       const versionsDir = path.join(root, "runtime/versions");
       const exe = path.join(versionsDir, "1.0.0/madar");
@@ -21,17 +22,29 @@ it.layer(NodeServices.layer)("madar uninstall launcher", (it) => {
         yield* fs.makeDirectory(path.dirname(file), { recursive: true });
         yield* fs.writeFileString(file, "");
       }
-      const ours = path.join(root, "bin/madar");
-      const theirs = path.join(root, "other/bin/madar");
+      const launcherName = platform === "win32" ? "madar.cmd" : "madar";
+      const ours = path.join(root, "bin", launcherName);
+      const theirs = path.join(root, "other/bin", launcherName);
       yield* fs.makeDirectory(path.dirname(ours), { recursive: true });
       yield* fs.makeDirectory(path.dirname(theirs), { recursive: true });
-      yield* fs.symlink(exe, ours);
-      yield* fs.symlink(otherExe, theirs);
+      if (platform === "win32") {
+        yield* fs.writeFileString(ours, `@echo off\r\n"${exe}" %*`);
+        yield* fs.writeFileString(theirs, `@echo off\r\n"${otherExe}" %*`);
+      } else {
+        yield* fs.symlink(exe, ours);
+        yield* fs.symlink(otherExe, theirs);
+      }
+      const findLauncher = (launchedAs: string | undefined) =>
+        findOwnedLauncher({ launchedAs, versionsDir }).pipe(
+          Effect.provideService(HostProcess.Environment, {
+            PATH: [path.dirname(ours), path.dirname(theirs)].join(";"),
+          }),
+        );
 
-      assert.equal(yield* findOwnedLauncher({ launchedAs: ours, versionsDir }), ours);
-      assert.isUndefined(yield* findOwnedLauncher({ launchedAs: theirs, versionsDir }));
-      assert.isUndefined(yield* findOwnedLauncher({ launchedAs: copy, versionsDir }));
-      assert.isUndefined(yield* findOwnedLauncher({ launchedAs: undefined, versionsDir }));
-    }).pipe(Effect.scoped, Effect.provideService(HostProcess.Platform, "linux")),
+      assert.equal(yield* findLauncher(platform === "win32" ? exe : ours), ours);
+      assert.isUndefined(yield* findLauncher(platform === "win32" ? otherExe : theirs));
+      assert.isUndefined(yield* findLauncher(copy));
+      assert.isUndefined(yield* findLauncher(undefined));
+    }).pipe(Effect.scoped),
   );
 });

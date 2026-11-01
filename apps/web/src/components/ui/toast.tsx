@@ -23,7 +23,7 @@ import {
 } from "./toast.logic";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./tooltip";
 
-export type ThreadToastData = {
+export type AppToastData = {
   leadingIcon?: ReactNode;
   tooltipStyle?: boolean;
   onClose?: (() => void) | undefined;
@@ -56,10 +56,10 @@ export type ThreadToastData = {
     | "secondary";
 };
 
-const toastManager = Toast.createToastManager<ThreadToastData>();
-const anchoredToastManager = Toast.createToastManager<ThreadToastData>();
+const toastManager = Toast.createToastManager<AppToastData>();
+const anchoredToastManager = Toast.createToastManager<AppToastData>();
 type ToastId = ReturnType<typeof toastManager.add>;
-const threadToastVisibleTimeoutRemainingMs = new Map<ToastId, number>();
+const appToastVisibleTimeoutRemainingMs = new Map<ToastId, number>();
 
 const TOAST_ICONS = {
   error: CircleAlertIcon,
@@ -162,7 +162,7 @@ function ToastDescriptionAndExpandable({
   toastDescription,
   toastType,
 }: {
-  toastData: ThreadToastData | undefined;
+  toastData: AppToastData | undefined;
   toastDescription: unknown;
   toastType: unknown;
 }) {
@@ -248,8 +248,8 @@ type ToastIconComponent = (typeof TOAST_ICONS)[keyof typeof TOAST_ICONS];
 interface ToastBodyDescriptor {
   readonly Icon: ToastIconComponent | null | undefined;
   readonly stackedActionLayout: boolean;
-  readonly actionVariant: NonNullable<ThreadToastData["actionVariant"]>;
-  readonly secondaryActionVariant: NonNullable<ThreadToastData["secondaryActionVariant"]>;
+  readonly actionVariant: NonNullable<AppToastData["actionVariant"]>;
+  readonly secondaryActionVariant: NonNullable<AppToastData["secondaryActionVariant"]>;
   readonly copyErrorText: string | null;
   readonly hasTrailingControls: boolean;
   readonly inlineContentEndPad: string;
@@ -259,14 +259,14 @@ function deriveToastBodyDescriptor(toast: {
   readonly type?: string | undefined;
   readonly description?: unknown;
   readonly actionProps?: unknown;
-  readonly data?: ThreadToastData | undefined;
+  readonly data?: AppToastData | undefined;
 }): ToastBodyDescriptor {
   const Icon = toast.type ? TOAST_ICONS[toast.type as keyof typeof TOAST_ICONS] : null;
   const stackedActionLayout =
     hasVisibleToastAction(toast.actionProps) && toast.data?.actionLayout === "stacked-end";
-  const actionVariant: NonNullable<ThreadToastData["actionVariant"]> =
+  const actionVariant: NonNullable<AppToastData["actionVariant"]> =
     toast.data?.actionVariant ?? "default";
-  const secondaryActionVariant: NonNullable<ThreadToastData["secondaryActionVariant"]> =
+  const secondaryActionVariant: NonNullable<AppToastData["secondaryActionVariant"]> =
     toast.data?.secondaryActionVariant ?? "outline";
   const copyErrorText =
     toast.type === "error" && typeof toast.description === "string" && !toast.data?.hideCopyButton
@@ -293,7 +293,7 @@ function deriveToastBodyDescriptor(toast: {
 
 interface ToastBodyContentProps extends ToastBodyDescriptor {
   readonly actionProps: { readonly children?: ReactNode } | undefined;
-  readonly toastData: ThreadToastData | undefined;
+  readonly toastData: AppToastData | undefined;
   readonly toastDescription: unknown;
   readonly toastType: unknown;
 }
@@ -406,7 +406,7 @@ interface ToastProviderProps extends Toast.Provider.Props {
   position?: ToastPosition;
 }
 
-function ThreadToastVisibleAutoDismiss({
+function AppToastVisibleAutoDismiss({
   toastId,
   dismissAfterVisibleMs,
 }: {
@@ -417,7 +417,7 @@ function ThreadToastVisibleAutoDismiss({
     if (!dismissAfterVisibleMs || dismissAfterVisibleMs <= 0) return;
     if (typeof window === "undefined" || typeof document === "undefined") return;
 
-    let remainingMs = threadToastVisibleTimeoutRemainingMs.get(toastId) ?? dismissAfterVisibleMs;
+    let remainingMs = appToastVisibleTimeoutRemainingMs.get(toastId) ?? dismissAfterVisibleMs;
     let startedAtMs: number | null = null;
     let timeoutId: number | null = null;
     let closed = false;
@@ -431,7 +431,7 @@ function ThreadToastVisibleAutoDismiss({
     const closeToast = () => {
       if (closed) return;
       closed = true;
-      threadToastVisibleTimeoutRemainingMs.delete(toastId);
+      appToastVisibleTimeoutRemainingMs.delete(toastId);
       toastManager.close(toastId);
     };
 
@@ -440,7 +440,7 @@ function ThreadToastVisibleAutoDismiss({
       remainingMs = Math.max(0, remainingMs - (Date.now() - startedAtMs));
       startedAtMs = null;
       clearTimer();
-      threadToastVisibleTimeoutRemainingMs.set(toastId, remainingMs);
+      appToastVisibleTimeoutRemainingMs.set(toastId, remainingMs);
     };
 
     const start = () => {
@@ -494,16 +494,16 @@ function ToastProvider({ children, position = "top-right", ...props }: ToastProv
 }
 
 function Toasts({ position }: { position: ToastPosition }) {
-  const { toasts } = Toast.useToastManager<ThreadToastData>();
+  const { toasts } = Toast.useToastManager<AppToastData>();
   const isTop = position.startsWith("top");
   const visibleToasts = toasts;
   const visibleToastLayout = buildVisibleToastLayout(visibleToasts);
 
   useEffect(() => {
     const activeToastIds = new Set(toasts.map((toast) => toast.id));
-    for (const toastId of threadToastVisibleTimeoutRemainingMs.keys()) {
+    for (const toastId of appToastVisibleTimeoutRemainingMs.keys()) {
       if (!activeToastIds.has(toastId)) {
-        threadToastVisibleTimeoutRemainingMs.delete(toastId);
+        appToastVisibleTimeoutRemainingMs.delete(toastId);
       }
     }
   }, [toasts]);
@@ -593,7 +593,7 @@ function Toasts({ position }: { position: ToastPosition }) {
               }
               toast={toast}
             >
-              <ThreadToastVisibleAutoDismiss
+              <AppToastVisibleAutoDismiss
                 dismissAfterVisibleMs={toast.data?.dismissAfterVisibleMs}
                 toastId={toast.id}
               />
@@ -648,7 +648,7 @@ function AnchoredToastProvider({ children, ...props }: Toast.Provider.Props) {
 }
 
 function AnchoredToasts() {
-  const { toasts } = Toast.useToastManager<ThreadToastData>();
+  const { toasts } = Toast.useToastManager<AppToastData>();
 
   return (
     <Toast.Portal data-slot="toast-portal-anchored">
@@ -733,8 +733,8 @@ function AnchoredToasts() {
   );
 }
 
-export { stackedThreadToast } from "./toastHelpers";
-export type { StackedThreadToastOptions } from "./toastHelpers";
+export { stackedAppToast } from "./toastHelpers";
+export type { StackedAppToastOptions } from "./toastHelpers";
 
 export {
   ToastProvider,

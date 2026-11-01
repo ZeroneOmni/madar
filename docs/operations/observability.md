@@ -9,8 +9,7 @@ Madar has one server-side observability model:
 - traces, metrics, and logs can also be exported over OTLP to a real backend like Grafana LGTM
 
 The local trace file is the persisted source of truth for normal local launches. Those launches do not
-write a separate server log file, but SSH-managed launches also persist the remote process's
-stdout/stderr at `~/.madar/ssh-launch/<state>/server.log`.
+write a separate server log file.
 
 ## Where To Find Things
 
@@ -21,7 +20,6 @@ Logs are human-facing:
 - destination: stdout
 - format: `Logger.consolePretty()`
 - normal local persistence: none
-- SSH-managed launch persistence: `~/.madar/ssh-launch/<state>/server.log`
 - remote export: OTLP only, when configured
 
 If you want a log message to show up in the trace file, emit it inside an active span with `Effect.log...`. `Logger.tracerLogger` will attach it as a span event.
@@ -29,8 +27,7 @@ If you want a log message to show up in the trace file, emit it inside an active
 Configuring a logs endpoint takes over that job. The server then exports log records, which cover
 every message instead of only the ones inside an active span and carry the trace and span ids so
 they still line up with the trace. `Logger.tracerLogger` is dropped in that mode, so the same
-message is not exported twice and the trace file stops carrying log messages. stdout output and
-SSH-managed launch persistence stay unchanged either way.
+message is not exported twice and the trace file stops carrying log messages. stdout output stays unchanged.
 
 ### Traces
 
@@ -99,8 +96,7 @@ If OTLP is not configured, metrics still exist in-process, but you will not have
 `apps/server/src/observability/EventLoopMonitor.ts` samples the server's event loop every 30 s. When
 the loop stalled for more than 2 s since the previous sample, it records a root
 `server.eventLoop.stall` span with a warning. The span has trace level `Warn`, so it stays when
-`MADAR_TRACE_MIN_LEVEL` is `Warn`. The warning shows in Settings > Diagnostics unless OTLP logs are
-on. The span time is when the sample ran, not when the stall happened.
+`MADAR_TRACE_MIN_LEVEL` is `Warn`. The span time is when the sample ran, not when the stall happened.
 
 The trace file rotates in well under an hour on a busy server, so each stall is also appended as one
 NDJSON line to `event-loop-stalls.ndjson`, next to the trace file. A line has `time` and the span
@@ -116,7 +112,7 @@ Some delay is not recorded:
   the loop was busy, not waiting for events, for at least `delayMaxMs`. Busy time covers the whole
   window, so a short sleep in an otherwise busy window can still record a false stall. The span then
   shows CPU time far below `delayMaxMs`.
-- The first sample after launch is skipped. Startup work such as migrations and projection bootstrap
+- The first sample after launch is skipped. Startup work such as migrations
   can block the loop for seconds on a large database.
 
 CPU times and page faults cover the whole process over the whole window since the previous sample.
@@ -131,460 +127,9 @@ waiting. Read CPU together with page faults:
   file writes.
 - Many `involuntaryContextSwitches` mean other processes were competing for the CPU.
 
-### Related Artifacts
+## Configure instrumentation
 
-Provider event NDJSON files still exist for provider runtime streams. Those are separate from the main server trace file.
-
-## Run The Server In Instrumented Mode
-
-There are two useful modes:
-
-- local-only: stdout + local `server.trace.ndjson`
-- full local observability: stdout + local trace file + OTLP export to Grafana/Tempo/Prometheus
-
-The local trace file is always on. OTLP export is opt-in.
-
-### Option 1: Local Traces Only
-
-You do not need any extra env vars. Just run the app normally and inspect `server.trace.ndjson`.
-
-Examples:
-
-```bash
-npx madar
-```
-
-```bash
-node --run dev
-```
-
-```bash
-node --run dev:desktop
-```
-
-### Option 2: Run With A Local LGTM Stack
-
-#### 1. Start Grafana LGTM
-
-```bash
-docker run --name lgtm \
-  -p 3000:3000 \
-  -p 4317:4317 \
-  -p 4318:4318 \
-  --rm -ti \
-  grafana/otel-lgtm
-```
-
-Then open `http://localhost:3000`.
-
-Default Grafana login:
-
-- username: `admin`
-- password: `admin`
-
-#### 2. Export OTLP env vars
-
-In a worktree, use `vp run dev` instead of `npx madar` to keep state isolated.
-
-```bash
-export MADAR_OTLP_TRACES_URL=http://localhost:4318/v1/traces
-export MADAR_OTLP_METRICS_URL=http://localhost:4318/v1/metrics
-export MADAR_OTLP_LOGS_URL=http://localhost:4318/v1/logs
-export OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=development
-```
-
-Optional:
-
-```bash
-export MADAR_TRACE_MIN_LEVEL=Info
-export MADAR_TRACE_TIMING_ENABLED=true
-```
-
-#### 3. Launch the app from that same shell
-
-CLI:
-
-```bash
-npx madar
-```
-
-Monorepo web/server dev:
-
-```bash
-node --run dev
-```
-
-Monorepo desktop dev:
-
-```bash
-node --run dev:desktop
-```
-
-Packaged desktop app:
-
-Launch the actual app executable from the same shell so the desktop app and embedded backend inherit `MADAR_OTLP_*`.
-
-macOS app bundle example:
-
-```bash
-MADAR_OTLP_TRACES_URL=http://localhost:4318/v1/traces \
-MADAR_OTLP_METRICS_URL=http://localhost:4318/v1/metrics \
-MADAR_OTLP_LOGS_URL=http://localhost:4318/v1/logs \
-"/Applications/Madar.app/Contents/MacOS/Madar"
-```
-
-Direct binary example:
-
-```bash
-MADAR_OTLP_TRACES_URL=http://localhost:4318/v1/traces \
-MADAR_OTLP_METRICS_URL=http://localhost:4318/v1/metrics \
-MADAR_OTLP_LOGS_URL=http://localhost:4318/v1/logs \
-./path/to/your/desktop-app-binary
-```
-
-Do not rely on launching from Finder, Spotlight, the dock, or the Start menu after setting shell env vars. Those launches usually will not pick them up.
-
-#### 4. Fully restart after changing env
-
-The backend reads observability config at process start. If you change OTLP env vars, stop the app completely and start it again.
-
-## How To Use Traces And Metrics To Debug The Server
-
-### Start With The Local Trace File
-
-The trace file is the fastest way to inspect raw span data.
-
-Resolve the path for the launch mode once. Production and explicitly configured homes store runtime
-state under the base directory's `userdata` folder:
-
-```bash
-TRACE_FILE="${MADAR_HOME:-$HOME/.madar}/userdata/logs/server.trace.ndjson"
-```
-
-A dev server started from a linked worktree defaults to that worktree's local home:
-
-```bash
-TRACE_FILE="$WORKTREE/.madar/userdata/logs/server.trace.ndjson"
-```
-
-Only an implicit dev run outside a linked worktree uses the shared dev directory:
-
-```bash
-TRACE_FILE="$HOME/.madar/dev/logs/server.trace.ndjson"
-```
-
-Tail the selected file:
-
-```bash
-tail -f "$TRACE_FILE"
-```
-
-Show failed spans:
-
-```bash
-jq -c 'select(.type == "effect-span" and .exit._tag != "Success") | {
-  name,
-  durationMs,
-  exit,
-  attributes
-}' "$TRACE_FILE"
-```
-
-Show slow spans:
-
-```bash
-jq -c 'select(.durationMs > 1000) | {
-  name,
-  durationMs,
-  traceId,
-  spanId
-}' "$TRACE_FILE"
-```
-
-Inspect embedded log events:
-
-```bash
-jq -c 'select(any(.events[]?; .attributes["effect.logLevel"] != null)) | {
-  name,
-  durationMs,
-  events: [
-    .events[]
-    | select(.attributes["effect.logLevel"] != null)
-    | {
-        message: .name,
-        level: .attributes["effect.logLevel"]
-      }
-  ]
-}' "$TRACE_FILE"
-```
-
-Follow one trace:
-
-```bash
-jq -r 'select(.traceId == "TRACE_ID_HERE") | [
-  .name,
-  .spanId,
-  (.parentSpanId // "-"),
-  .durationMs
-] | @tsv' "$TRACE_FILE"
-```
-
-Filter orchestration commands:
-
-```bash
-jq -c 'select(.attributes["orchestration_v2.command_type"] != null) | {
-  name,
-  durationMs,
-  commandType: .attributes["orchestration_v2.command_type"],
-  threadId: .attributes["orchestration_v2.thread_id"]
-}' "$TRACE_FILE"
-```
-
-Filter git activity:
-
-```bash
-jq -c 'select(.attributes["git.operation"] != null) | {
-  name,
-  durationMs,
-  operation: .attributes["git.operation"],
-  cwd: .attributes["git.cwd"],
-  hookEvents: [
-    .events[]
-    | select(.name == "git.hook.started" or .name == "git.hook.finished")
-  ]
-}' "$TRACE_FILE"
-```
-
-### Use Tempo When You Need A Real Trace Viewer
-
-Tempo is better than raw NDJSON when you want to:
-
-- search across many traces
-- inspect parent/child relationships visually
-- compare many slow traces
-- drill into one failing request without hand-joining by `traceId`
-
-Recommended flow in Grafana:
-
-1. Open `Explore`.
-2. Pick the `Tempo` data source.
-3. Set the time range to something recent like `Last 15 minutes`.
-4. Start broad. Do not begin with a very narrow query.
-5. Look for spans from the `madar-server` or `madar-desktop` service, then narrow by span name or
-   attributes.
-
-Good first searches:
-
-- service name `madar-server` or `madar-desktop`, plus a resource attribute such as
-  `deployment.environment.name`
-- span names like `sendTurn` or a Git operation such as `GitVcsDriver.statusDetails.status`
-- Git spans whose `git.operation` attribute identifies the operation
-- orchestration spans with attributes like `orchestration_v2.command_type`
-
-Once you know traces are arriving, narrower TraceQL queries for names such as `sendTurn` or Git
-operation names become useful.
-
-### Use Metrics To See Systemic Problems
-
-Traces are best for one request. Metrics are best for trends.
-
-Good metric families to watch:
-
-- `t3_rpc_request_duration`
-- `t3_provider_turn_duration` (how long the provider adapter takes to start a turn, not the turn's run time)
-- `t3_git_command_duration`
-
-Counters tell you volume and failure rate:
-
-- `t3_rpc_requests_total`
-- `t3_provider_turns_total`
-- `t3_git_commands_total`
-
-Webhooks have their own families:
-
-- `t3_webhook_deliveries_total` by `outcome` and `source` (`relay` or `direct`). Beyond what the
-  sender sees, `queue_full` means a task already had its limit of deliveries waiting,
-  `prompt_too_long` means the filled-in prompt passed the provider limit, and `duplicate` means
-  the relay delivered a request this environment had already run.
-- `t3_webhook_runs_total` by `outcome` (`started`, `skipped`, `failed`) for the runs those
-  deliveries start, which happen after the sender has its answer.
-- `t3_webhook_held_delay` for how long requests the relay held waited before arriving.
-
-- `t3_secret_requests_total` by `status` (`saved`, `declined`, `cancelled`, `timed_out`) for secrets
-  agents asked users for, and `t3_secret_refs_consumed_total` by `result` (`used`, `rejected`) for
-  tools redeeming them. Neither ever carries a value.
-
-`ScheduledTaskService.triggerWebhook` spans carry the same outcome per request, and each run
-started from a delivery is its own `ScheduledTaskService.runWebhookDelivery` trace. For a request
-the relay forwarded, the span also goes to the Madar Connect trace export as a child of the relay's
-span; requests that reach the environment directly never join a sender's trace.
-
-Use metrics when the question is:
-
-- "is this always slow?"
-- "did this get worse after a change?"
-- "which command type is failing most often?"
-
-Use traces when the question is:
-
-- "what happened in this specific request?"
-- "which child span caused this one slow interaction?"
-- "what logs were emitted inside the failing flow?"
-
-## Common Workflows
-
-### "Why did this request fail?"
-
-1. Start with the local NDJSON file.
-2. Find `effect-span` records where `exit._tag != "Success"`.
-3. Group by `traceId`.
-4. Inspect sibling spans and span events.
-5. If needed, move to Tempo for the full trace tree.
-
-### "Why is the UI feeling slow?"
-
-1. Search for slow top-level spans in the trace file or Tempo.
-2. Check child spans for sqlite, git, provider, or terminal work.
-3. Look at the matching duration metrics to see whether the slowness is systemic.
-
-### "Are git hooks causing latency?"
-
-1. Filter `git.operation` spans.
-2. Inspect `git.hook.started` and `git.hook.finished` events.
-3. Compare hook timing to the enclosing git span duration.
-
-### "Why do I have spans locally but nothing in Grafana?"
-
-Usually one of these is true:
-
-- `MADAR_OTLP_TRACES_URL` was not set
-- the app was launched from a different environment than the one where you exported the vars
-- the app was not fully restarted after changing env
-- Grafana is looking at the wrong time range or service name
-
-If the local NDJSON file is updating, local tracing is working. The problem is almost always OTLP export configuration or process startup.
-
-## How To Think About Adding Tracing To Future Code
-
-### Prefer Boundaries Over Tiny Helpers
-
-Good span boundaries:
-
-- RPC methods
-- orchestration command handling
-- provider adapter calls
-- external process calls
-- persistence writes
-- queue handoffs
-
-Avoid tracing every tiny helper. Most helpers should inherit the active span rather than create a new one.
-
-### Reuse `Effect.fn(...)` Where It Already Exists
-
-The codebase already uses `Effect.fn("name")` heavily. That should usually be your first tracing boundary.
-
-For ad hoc work:
-
-```ts
-import { Effect } from "effect";
-
-const runThing = Effect.gen(function* () {
-  yield* Effect.annotateCurrentSpan({
-    "thing.id": "abc123",
-    "thing.kind": "example",
-  });
-
-  yield* Effect.logInfo("starting thing");
-  return yield* doWork();
-}).pipe(Effect.withSpan("thing.run"));
-```
-
-### Put High-Cardinality Detail On Spans
-
-Use span annotations for IDs, paths, and other detailed context:
-
-```ts
-yield *
-  Effect.annotateCurrentSpan({
-    "provider.thread_id": input.threadId,
-    "provider.request_id": input.requestId,
-    "git.cwd": input.cwd,
-  });
-```
-
-### Keep Metric Labels Low Cardinality
-
-Good metric labels:
-
-- operation kind
-- method name
-- provider kind
-- aggregate kind
-- outcome
-
-Bad metric labels:
-
-- raw thread IDs
-- command IDs
-- file paths
-- cwd
-- full prompts
-- full model strings when a normalized family label would do
-
-Detailed context belongs on spans, not metrics.
-
-### Use Logs As Span Events
-
-Logs inside a span become part of the trace story:
-
-```ts
-yield * Effect.logInfo("starting provider turn");
-yield * Effect.logDebug("waiting for approval response");
-```
-
-Those messages show up as span events because `Logger.tracerLogger` is installed.
-
-### Use The Pipeable Metrics API
-
-`withMetrics(...)` is the default way to attach a counter and timer to an effect:
-
-```ts
-import { someCounter, someDuration, withMetrics } from "../observability/Metrics.ts";
-
-const program = doWork().pipe(
-  withMetrics({
-    counter: someCounter,
-    timer: someDuration,
-    attributes: {
-      operation: "work",
-    },
-  }),
-);
-```
-
-## Detailed API Reference
-
-### Runtime Wiring
-
-The server observability layer is assembled in `apps/server/src/observability/Observability.ts`.
-
-It provides:
-
-- pretty stdout logger
-- `Logger.tracerLogger`
-- local NDJSON tracer
-- optional OTLP trace exporter
-- optional OTLP metrics exporter
-- optional OTLP log exporter
-- Effect trace-level and timing refs
-
-The desktop main process is a second producer, assembled in
-`apps/desktop/src/app/DesktopObservability.ts`. It reads the same `MADAR_OTLP_*` names and the same
-Settings entries as the backend it supervises, and covers work the backend cannot see: app startup,
-window and menu handling, backend supervision, and updates. It reports as service
-`madar-desktop`, so a collector shows it alongside the backend rather than mixed into it. It
-exports traces and logs only; the main process records no metrics, so the metrics endpoint applies
-to the backend alone.
+Use `vp run dev` with an isolated home for local development. Configure OTLP endpoints in the server environment and restart the server after changing them.
 
 ### Env Vars
 
@@ -652,28 +197,7 @@ just that signal, overriding an OTEL endpoint and the Settings endpoint. A `MADA
 wins for its signal. `otlp` is the default, and any other exporter name, such as `console` or
 `prometheus`, is ignored with a startup warning.
 
-### What Is Instrumented Today
-
-Current high-value span and metric boundaries include:
-
-- WebSocket RPC request spans (`ws.rpc.<method>`) and metrics in
-  `apps/server/src/observability/RpcInstrumentation.ts`
-- startup phases
-- orchestration command processing
-- provider session and turn operations
-- git command execution and git hook events
-- terminal session lifecycle
-- sqlite query execution, except the statements inside `orchestrationV2.EventSink.write`, which
-  its `sql.transaction` span times as one
-- event loop stalls (`server.eventLoop.stall`)
-
-### Current Constraints
-
-- logs outside spans are not persisted in the trace file; SSH-managed launch stdout/stderr is still
-  captured in its launcher log
-- metrics are not snapshotted locally
-
-## Heap Snapshots
+## Heap snapshots
 
 To see what a long-running server holds in memory, send it `SIGUSR2`. The server writes a V8 heap
 snapshot to its logs dir and logs the path. This works for desktop, `npx madar`, and service installs
@@ -707,5 +231,5 @@ Before you take one:
   takes another snapshot after the first one finishes.
 - The write needs about as much free memory as the heap uses. On a machine that is already
   swapping, it can make the problem worse or crash the server.
-- The file contains everything in server memory, including tokens, secrets, and thread content. Do
+- The file contains everything in server memory, including tokens, secrets, and application data. Do
   not share it publicly. Delete it when you are done, because storage cleanup does not remove it.

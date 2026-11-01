@@ -96,7 +96,7 @@ export const uninstallCommand = Command.make("uninstall", {
   ),
 }).pipe(
   Command.withDescription(
-    "Remove madar from this machine: the background service, the launcher, and every downloaded version. Your projects and threads are kept.",
+    "Remove madar from this machine: the background service, the launcher, and every downloaded version. Your local data are kept.",
   ),
   Command.withHandler((flags) =>
     Effect.gen(function* () {
@@ -136,7 +136,7 @@ const runUninstall = Effect.fn("cli.uninstall.run")(function* (input: {
     yield* Console.log(`  every downloaded version under ${plan.runtimeDir}`);
   }
   yield* Console.log(
-    `Your projects, threads, and settings under ${plan.userdataDir} are kept. Delete that directory yourself if you want them gone too.`,
+    `Your local data and settings under ${plan.userdataDir} are kept. Delete that directory yourself if you want them gone too.`,
   );
 
   if (!input.assumeYes) {

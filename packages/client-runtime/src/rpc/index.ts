@@ -1,1 +1,1 @@
-export * from "./http.ts";
+export type { RemoteEnvironmentRequestError } from "./http.ts";

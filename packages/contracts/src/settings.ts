@@ -19,11 +19,6 @@ const LegacyConfirmQuit = Schema.Boolean.pipe(
 
 const QuitConfirmationModeSetting = Schema.Union([QuitConfirmationMode, LegacyConfirmQuit]);
 
-/** Clients apply each environment theme set once; later local choices persist until the next set. Empty clears it. */
-export const DefaultThemePreference = Schema.String.check(Schema.isMaxLength(64));
-// Excluded from RPC patches so madar theme set can validate syntax and resolvability.
-export type DefaultThemePreference = typeof DefaultThemePreference.Type;
-
 export const ClientSettingsSchema = Schema.Struct({
   confirmQuit: QuitConfirmationModeSetting.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_QUIT_CONFIRMATION_MODE)),
@@ -41,11 +36,6 @@ export const ObservabilitySettings = Schema.Struct({
 export type ObservabilitySettings = typeof ObservabilitySettings.Type;
 
 export const ServerSettings = Schema.Struct({
-  defaultTheme: DefaultThemePreference.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
-  /** Distinguishes repeated sets of the same theme so clients apply each one. */
-  defaultThemeSetAt: Schema.String.check(Schema.isMaxLength(64)).pipe(
-    Schema.withDecodingDefault(Effect.succeed("")),
-  ),
   observability: ObservabilitySettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
 });
 export type ServerSettings = typeof ServerSettings.Type;

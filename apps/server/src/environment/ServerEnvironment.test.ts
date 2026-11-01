@@ -53,7 +53,6 @@ const makeServerConfig = Effect.fn(function* (baseDir: string) {
     cwd: process.cwd(),
     baseDir,
     mode: "web",
-    logWebSocketEvents: false,
     tailscaleServeEnabled: false,
     tailscaleServePort: 443,
     port: 0,

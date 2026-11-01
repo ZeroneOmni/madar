@@ -15,8 +15,6 @@ import {
   authScopeResponse,
   type ServerAuthDescriptor,
   type ServerAuthSessionMethod,
-  type AuthWebSocketTicketResult,
-  type AuthWebSocketTicketUse,
   DpopFailureReason,
   type DpopFailureReason as DpopFailureReasonType,
 } from "@madar/contracts";
@@ -27,7 +25,6 @@ import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 
@@ -65,8 +62,8 @@ export interface IssuedBearerSession {
   readonly expiresAt: DateTime.Utc;
 }
 
-// MCP client tokens are restricted to /mcp; HTTP API and WebSocket RPC would bypass their access cap.
-const MCP_CLIENT_SUBJECT = "mcp-client";
+// Previously limited tool credentials must never gain general API access.
+const RETIRED_CLIENT_SUBJECT = "mcp-client";
 
 export interface AuthenticatedSession {
   readonly sessionId: AuthSessionId;
@@ -202,17 +199,6 @@ export class ServerAuthOtherSessionsRevocationError extends Schema.TaggedError<S
   }
 }
 
-export class ServerAuthWebSocketTokenIssueError extends Schema.TaggedError<ServerAuthWebSocketTokenIssueError>()(
-  "ServerAuthWebSocketTokenIssueError",
-  {
-    ...serverAuthInternalErrorContext,
-  },
-) {
-  override get message(): string {
-    return "Failed to issue websocket token.";
-  }
-}
-
 export class ServerAuthDpopReplayStateRecordError extends Schema.TaggedError<ServerAuthDpopReplayStateRecordError>()(
   "ServerAuthDpopReplayStateRecordError",
   {
@@ -329,7 +315,6 @@ export const ServerAuthInternalError = Schema.Union([
   ServerAuthSessionsListError,
   ServerAuthSessionRevocationError,
   ServerAuthOtherSessionsRevocationError,
-  ServerAuthWebSocketTokenIssueError,
   ServerAuthDpopReplayStateRecordError,
   ServerAuthDpopReplayKeyCalculationError,
   ServerAuthLinkedCloudAccountVerificationError,
@@ -499,14 +484,6 @@ export class EnvironmentAuth extends Context.Service<
     readonly authenticateHttpRequest: (
       request: HttpServerRequest.HttpServerRequest,
     ) => Effect.Effect<AuthenticatedSession, ServerAuthCredentialError | ServerAuthInternalError>;
-    readonly authenticateWebSocketUpgrade: (
-      request: HttpServerRequest.HttpServerRequest,
-      use: AuthWebSocketTicketUse,
-    ) => Effect.Effect<AuthenticatedSession, ServerAuthCredentialError | ServerAuthInternalError>;
-    readonly issueWebSocketTicket: (
-      session: Pick<AuthenticatedSession, "sessionId" | "proofKeyThumbprint">,
-      input?: { readonly use?: AuthWebSocketTicketUse },
-    ) => Effect.Effect<AuthWebSocketTicketResult, ServerAuthInternalError>;
     readonly issueStartupPairingUrl: (
       baseUrl: string,
     ) => Effect.Effect<string, ServerAuthInternalError>;
@@ -528,8 +505,6 @@ type BootstrapExchangeResult = {
 
 const AUTHORIZATION_PREFIX = "Bearer ";
 const DPOP_AUTHORIZATION_PREFIX = "DPoP ";
-const WEBSOCKET_TICKET_QUERY_PARAM = "wsTicket";
-const WEBSOCKET_PROOF_QUERY_PARAM = "dpop";
 
 const bySessionPriority = (left: AuthClientSession, right: AuthClientSession) => {
   const leftCanManage = left.scopes.includes(AuthAccessWriteScope);
@@ -555,13 +530,13 @@ function toBootstrapExchangeError(
   });
 }
 
-const rejectMcpClientAudience = <S extends { readonly subject: string }>(session: S) =>
-  session.subject === MCP_CLIENT_SUBJECT
+const rejectRetiredClientAudience = <S extends { readonly subject: string }>(session: S) =>
+  session.subject === RETIRED_CLIENT_SUBJECT
     ? Effect.fail(
         new ServerAuthInvalidCredentialError({
-          diagnostic: "MCP client sessions are only accepted by the MCP endpoint.",
+          diagnostic: "This client session is no longer supported.",
         }),
-      ).pipe(Effect.tap(() => Effect.logWarning("Rejected an MCP client session outside /mcp.")))
+      ).pipe(Effect.tap(() => Effect.logWarning("Rejected a retired client session.")))
     : Effect.succeed(session);
 
 const mapSessionVerificationErrors = <A, R>(
@@ -682,7 +657,7 @@ export const make = Effect.gen(function* () {
           : Effect.void,
       ),
       mapSessionVerificationErrors,
-      Effect.flatMap(rejectMcpClientAudience),
+      Effect.flatMap(rejectRetiredClientAudience),
       Effect.map((session) => ({
         sessionId: session.sessionId,
         subject: session.subject,
@@ -1151,90 +1126,10 @@ export const make = Effect.gen(function* () {
       Effect.withSpan("EnvironmentAuth.issueStartupPairingUrl"),
     );
 
-  // Only the RPC socket's ticket is bound to the client's proof key. The media
-  // routes reuse one ticket across <img>, EventSource and several sockets, and
-  // each of those would need its own single-use proof.
-  const issueWebSocketTicket: EnvironmentAuth["Service"]["issueWebSocketTicket"] = (
-    session,
-    input,
-  ) =>
-    sessions
-      .issueWebSocketToken(session.sessionId, {
-        ...(input?.use ? { audience: input.use } : {}),
-        ...(input?.use === "rpc" && session.proofKeyThumbprint
-          ? { proofKeyThumbprint: session.proofKeyThumbprint }
-          : {}),
-      })
-      .pipe(
-        Effect.mapError((cause) => new ServerAuthWebSocketTokenIssueError({ cause })),
-        Effect.map(
-          (issued) =>
-            ({
-              ticket: issued.token,
-              expiresAt: DateTime.toUtc(issued.expiresAt),
-            }) satisfies AuthWebSocketTicketResult,
-        ),
-        Effect.withSpan("EnvironmentAuth.issueWebSocketTicket"),
-      );
-
   const authenticateHttpRequest: EnvironmentAuth["Service"]["authenticateHttpRequest"] = (
     request,
   ) =>
     authenticateRequest(request).pipe(Effect.withSpan("EnvironmentAuth.authenticateHttpRequest"));
-
-  const authenticateWebSocketUpgrade: EnvironmentAuth["Service"]["authenticateWebSocketUpgrade"] =
-    Effect.fn("EnvironmentAuth.authenticateWebSocketUpgrade")(function* (request, use) {
-      const requestUrl = HttpServerRequest.toURL(request);
-      if (Option.isSome(requestUrl)) {
-        const websocketTicket = requestUrl.value.searchParams.get(WEBSOCKET_TICKET_QUERY_PARAM);
-        if (websocketTicket && websocketTicket.trim().length > 0) {
-          const session = yield* sessions
-            .verifyWebSocketToken(websocketTicket)
-            .pipe(mapSessionVerificationErrors, Effect.flatMap(rejectMcpClientAudience));
-          if (session.audience !== undefined && session.audience !== use) {
-            return yield* new ServerAuthInvalidCredentialError({
-              diagnostic: `WebSocket ticket was issued for the ${session.audience} route.`,
-            });
-          }
-          if (session.proofKeyThumbprint) {
-            // WebSocket clients cannot set headers, so the proof travels in the query.
-            // The proof hashes the ticket; consuming its jti prevents replay after first use.
-            // Only encrypted transport prevents an active interceptor from racing that use.
-            const proof =
-              request.headers.dpop ??
-              requestUrl.value.searchParams.get(WEBSOCKET_PROOF_QUERY_PARAM) ??
-              undefined;
-            if (!proof) {
-              return yield* new ServerAuthInvalidCredentialError({
-                diagnostic: "DPoP-bound WebSocket ticket requires a DPoP proof.",
-                dpopFailureReason: "invalid_proof",
-              });
-            }
-            yield* verifyRequestDpopProof({
-              request,
-              proof,
-              expectedThumbprint: session.proofKeyThumbprint,
-              expectedAccessToken: websocketTicket,
-            }).pipe(
-              Effect.provideService(ServerSecretStore.ServerSecretStore, secretStore),
-              Effect.provideService(Crypto.Crypto, crypto),
-            );
-          }
-          return {
-            sessionId: session.sessionId,
-            subject: session.subject,
-            method: session.method,
-            scopes: session.scopes,
-            ...(session.proofKeyThumbprint
-              ? { proofKeyThumbprint: session.proofKeyThumbprint }
-              : {}),
-            ...(session.expiresAt ? { expiresAt: session.expiresAt } : {}),
-          };
-        }
-      }
-
-      return yield* authenticateRequest(request);
-    });
 
   const authenticateBrowserSession: EnvironmentAuth["Service"]["authenticateBrowserSession"] = (
     request,
@@ -1271,8 +1166,6 @@ export const make = Effect.gen(function* () {
     revokeClientSession,
     revokeOtherClientSessions,
     authenticateHttpRequest,
-    authenticateWebSocketUpgrade,
-    issueWebSocketTicket,
     issueStartupPairingUrl,
 
     authenticateBrowserSession,

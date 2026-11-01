@@ -122,7 +122,7 @@ const makeHarness = Effect.fn("test.make_boot_service_harness")(function* (
       return {
         stdout:
           input.args[0] === "--version"
-            ? `madar v${/versions\/([^/]+)\//.exec(input.command)?.[1] ?? "1.2.3"}\n`
+            ? `madar v${/versions[\\/]([^\\/]+)[\\/]/.exec(input.command)?.[1] ?? "1.2.3"}\n`
             : input.command === "loginctl" && input.args[0] === "show-user"
               ? `${control.linger}\n`
               : input.args[1] === "is-enabled"
@@ -297,7 +297,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
 
   it.effect("installs, reports current state, and uninstalls", () =>
     Effect.gen(function* () {
-      const { service, fs, statePath, timeouts, runtime } = yield* makeHarness();
+      const { service, fs, statePath, timeouts, runtime, baseDir } = yield* makeHarness();
       const plan = yield* service.install();
 
       expect(parseServiceState(yield* fs.readFileString(statePath))).toEqual({
@@ -305,8 +305,8 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
         activeVersion: "1.2.3",
       });
       expect(plan.program).toEqual([runtime.entryPath, "__service-launcher"]);
-      expect(yield* fs.readFileString(plan.unitPath)).toContain(
-        `ExecStart=${runtime.entryPath} __service-launcher`,
+      expect(BootService.bootServiceBaseDirOf(yield* fs.readFileString(plan.unitPath))).toBe(
+        baseDir,
       );
       expect(yield* service.status).toMatchObject({
         current: true,
@@ -468,7 +468,10 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
           protocol: SERVICE_LAUNCHER_PROTOCOL,
           activeVersion: "1.2.4",
         });
-        expect(yield* fs.readFileString(plan.unitPath)).toContain("versions/1.2.4/madar");
+        expect(BootService.bootServiceBaseDirOf(yield* fs.readFileString(plan.unitPath))).toBe(
+          baseDir,
+        );
+        expect(plan.program[0]).toBe(path.join(baseDir, "runtime", "versions", "1.2.4", "madar"));
         expect(
           commands.filter(
             (command) =>

@@ -170,9 +170,6 @@ catalogs:
     '@noble/hashes':
       specifier: 1.8.0
       version: 1.8.0
-    '@types/plist':
-      specifier: 3.0.5
-      version: 3.0.5
     '@types/react':
       specifier: ~19.3.0
       version: 19.3.0
@@ -182,9 +179,6 @@ catalogs:
     jose:
       specifier: 6.2.2
       version: 6.2.2
-    plist:
-      specifier: 3.1.1
-      version: 3.1.1
     react:
       specifier: 19.3.0
       version: 19.3.0
@@ -199,8 +193,6 @@ catalogs:
       version: 8.11.2
 
 overrides:
-  mdast-util-math: 3.0.0
-  micromark-extension-llm-math: 3.1.0
   alchemy: 2.0.0-beta.80
   app-builder-lib: 26.16.1
   '@exodus/bytes>@noble/hashes': 1.8.0
@@ -208,35 +200,17 @@ overrides:
   '@alchemy.run/sigil>react-reconciler': '-'
   '@alchemy.run/sigil>scheduler': '-'
   alchemy>@prisma/dev: '-'
-  '@clerk/backend': 3.25.0
-  '@clerk/clerk-js': 6.40.0
-  '@clerk/clerk-js>@base-org/account': '-'
-  '@clerk/clerk-js>@coinbase/wallet-sdk': '-'
-  '@clerk/clerk-js>@solana/wallet-adapter-base': '-'
-  '@clerk/clerk-js>@solana/wallet-adapter-react': '-'
-  '@clerk/clerk-js>@solana/wallet-standard': '-'
-  '@clerk/clerk-js>@wallet-standard/core': '-'
-  '@clerk/electron': 0.1.3
-  '@clerk/electron-passkeys': 0.0.3
-  '@clerk/react': 6.18.0
-  '@clerk/shared': 4.41.0
   '@effect/atom-react': 4.0.5
   '@effect/platform-node': 4.0.5
   '@effect/platform-node-shared': 4.0.5
   '@effect/vitest': 4.0.5
   '@effect/vitest>vitest': '-'
-  remark-math>micromark-extension-math: npm:micromark-extension-llm-math@3.1.0
-  micromark-extension-gfm-table: 2.1.1
   '@tailwindcss/node': 4.3.3
   '@tailwindcss/oxide': 4.3.3
   '@tailwindcss/vite': 4.3.3
   '@types/node': 24.12.4
   effect: 4.0.5
-  '@opencode/protocol>effect': 4.0.5
-  '@opencode/schema>effect': 4.0.5
   node-abi: 4.33.0
-  electron-webauthn>@electron-webauthn/macos: 1.3.1
-  '@electron-webauthn/macos>objc-js': 1.5.0
   lightningcss: 1.33.0
   tailwindcss: 4.3.3
   '@types/ws@^8': 8.18.2
@@ -372,9 +346,6 @@ importers:
       '@effect/atom-react':
         specifier: 4.0.5
         version: 4.0.5(effect@4.0.5)(react@19.3.0)(scheduler@0.28.0)
-      '@madar/client-runtime':
-        specifier: workspace:*
-        version: link:../../packages/client-runtime
       '@madar/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -387,9 +358,6 @@ importers:
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
-      culori:
-        specifier: ^4.0.2
-        version: 4.0.2
       effect:
         specifier: 4.0.5
         version: 4.0.5
@@ -418,9 +386,6 @@ importers:
       '@types/compression':
         specifier: ^1.8.1
         version: 1.8.1
-      '@types/culori':
-        specifier: ^4.0.1
-        version: 4.0.1
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0
@@ -3749,6 +3714,7 @@ packages:
   '@smithy/core@3.34.1':
     resolution: {integrity: sha512-dLcOUxz8YCv1RZUMKq6GbyUf95pLbrqh34bPvpCZ1+CByFF31BEAFewZjsGCnVsZTKdThNENfGyAgk2TJqVwSw==}
     engines: {node: '>=18.0.0'}
+    deprecated: Deprecated due to a bug in custom logger data redaction. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.3.8':
     resolution: {integrity: sha512-5cAM+KZC02sTqDt6NaLXyu50M/GNMd1eTzDVR8Lb0BBsVtu7RWHo47VPPEEv1vt3Yub6uzr+M5FHC+GtoT0USg==}
@@ -3982,9 +3948,6 @@ packages:
   '@types/connect@3.4.38':
     resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
 
-  '@types/culori@4.0.1':
-    resolution: {integrity: sha512-43M51r/22CjhbOXyGT361GZ9vncSVQ39u62x5eJdBQFviI8zWp2X5jzqg7k4M6PVgDQAClpy2bUe2dtwEgEDVQ==}
-
   '@types/debug@4.1.13':
     resolution: {integrity: sha512-KSVgmQmzMwPlmtljOomayoR89W4FynCAi3E8PPs7vmDVPe84hT+vGPKkJfThkmXs0x0jAaa9U8uW8bbfyS2fWw==}
 
@@ -4029,9 +3992,6 @@ packages:
 
   '@types/node@24.12.4':
     resolution: {integrity: sha512-GUUEShf+PBCGW2KaXwcIt3Yk+e3pkKwWKb9GSyM9WQVE+ep2jzmHdGsHzu4wgcZy5fN9FBdVzjpBQsYlpfpgLA==}
-
-  '@types/plist@3.0.5':
-    resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
 
   '@types/qs@6.15.1':
     resolution: {integrity: sha512-GZHUBZR9hckSUhrxmp1nG6NwdpM9fCunJwyThLW1X3AyHgd9IlHb6VANpQQqDr2o/qQp6McZ3y/IA2rVzKzSbw==}
@@ -4863,10 +4823,6 @@ packages:
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
-
-  culori@4.0.2:
-    resolution: {integrity: sha512-1+BhOB8ahCn4O0cep0Sh2l9KCOfOdY+BXJnKMHFFzDEouSr/el18QwXEMRlOj9UY5nCeA8UN3a/82rUWRBeyBw==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   data-urls@7.0.0:
     resolution: {integrity: sha512-23XHcCF+coGYevirZceTVD7NdJOqVn+49IHyxgszm+JIiHLoB2TkmPtsYkNWT1pvRSGkc35L6NHs0yHkN2SumA==}
@@ -11286,8 +11242,6 @@ snapshots:
     dependencies:
       '@types/node': 24.12.4
 
-  '@types/culori@4.0.1': {}
-
   '@types/debug@4.1.13':
     dependencies:
       '@types/ms': 2.1.0
@@ -11341,11 +11295,6 @@ snapshots:
   '@types/node@24.12.4':
     dependencies:
       undici-types: 7.16.0
-
-  '@types/plist@3.0.5':
-    dependencies:
-      '@types/node': 24.12.4
-      xmlbuilder: 15.1.1
 
   '@types/qs@6.15.1': {}
 
@@ -12299,8 +12248,6 @@ snapshots:
     optional: true
 
   csstype@3.2.3: {}
-
-  culori@4.0.2: {}
 
   data-urls@7.0.0(@noble/hashes@1.8.0):
     dependencies:

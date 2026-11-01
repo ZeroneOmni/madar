@@ -1,25 +1,25 @@
 import type { ToastManagerAddOptions } from "@base-ui/react/toast";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
-import type { ThreadToastData } from "./toast";
+import type { AppToastData } from "./toast";
 
-export type StackedThreadToastOptions = {
+export type StackedAppToastOptions = {
   type: "error" | "warning" | "success" | "info" | "loading";
   title: ReactNode;
   description?: ReactNode;
   timeout?: number;
   priority?: "low" | "high";
   actionProps?: ComponentPropsWithoutRef<"button">;
-  actionVariant?: ThreadToastData["actionVariant"];
-  data?: Omit<ThreadToastData, "actionLayout">;
+  actionVariant?: AppToastData["actionVariant"];
+  data?: Omit<AppToastData, "actionLayout">;
 };
 
-export function stackedThreadToast(
-  options: StackedThreadToastOptions,
-): ToastManagerAddOptions<ThreadToastData> {
+export function stackedAppToast(
+  options: StackedAppToastOptions,
+): ToastManagerAddOptions<AppToastData> {
   const { type, title, description, timeout, priority, actionProps, actionVariant, data } = options;
 
-  const mergedData: ThreadToastData = {
+  const mergedData: AppToastData = {
     ...(data !== undefined ? data : {}),
     actionLayout: "stacked-end",
   };
@@ -27,7 +27,7 @@ export function stackedThreadToast(
     mergedData.actionVariant = actionVariant;
   }
 
-  const payload: ToastManagerAddOptions<ThreadToastData> = {
+  const payload: ToastManagerAddOptions<AppToastData> = {
     type,
     title,
     data: mergedData,
