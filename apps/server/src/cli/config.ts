@@ -33,7 +33,7 @@ const modeFlag = Flag.Literals("mode", ServerConfig.RuntimeMode.literals).pipe(
 );
 const portFlag = Flag.Int("port").pipe(
   Flag.withSchema(PortSchema),
-  Flag.withDescription("Port for the HTTP/WebSocket server."),
+  Flag.withDescription("Port for the HTTP server."),
   Flag.optional,
 );
 const hostFlag = Flag.String("host").pipe(
@@ -58,13 +58,6 @@ const noBrowserFlag = Flag.Boolean("no-browser").pipe(
 const bootstrapFdFlag = Flag.Int("bootstrap-fd").pipe(
   Flag.withSchema(Schema.Int),
   Flag.withDescription("Read one-time bootstrap secrets from the given file descriptor."),
-  Flag.optional,
-);
-const logWebSocketEventsFlag = Flag.Boolean("log-websocket-events").pipe(
-  Flag.withDescription(
-    "Emit server-side logs for outbound WebSocket push traffic (equivalent to MADAR_LOG_WS_EVENTS).",
-  ),
-  Flag.withAlias("log-ws-events"),
   Flag.optional,
 );
 const tailscaleServeFlag = Flag.Boolean("tailscale-serve").pipe(
@@ -140,10 +133,6 @@ const EnvServerConfig = Config.all({
     Config.option,
     Config.map(Option.getOrUndefined),
   ),
-  logWebSocketEvents: Config.Boolean("MADAR_LOG_WS_EVENTS").pipe(
-    Config.option,
-    Config.map(Option.getOrUndefined),
-  ),
   tailscaleServeEnabled: Config.Boolean("MADAR_TAILSCALE_SERVE").pipe(
     Config.option,
     Config.map(Option.getOrUndefined),
@@ -183,7 +172,6 @@ export interface CliServerFlags {
   readonly devUrl: Option.Option<URL>;
   readonly noBrowser: Option.Option<boolean>;
   readonly bootstrapFd: Option.Option<number>;
-  readonly logWebSocketEvents: Option.Option<boolean>;
   readonly tailscaleServeEnabled: Option.Option<boolean>;
   readonly tailscaleServePort: Option.Option<number>;
 }
@@ -216,7 +204,6 @@ export const sharedServerCommandFlags = {
   devUrl: devUrlFlag,
   noBrowser: noBrowserFlag,
   bootstrapFd: bootstrapFdFlag,
-  logWebSocketEvents: logWebSocketEventsFlag,
   tailscaleServeEnabled: tailscaleServeFlag,
   tailscaleServePort: tailscaleServePortFlag,
 } as const;
@@ -257,7 +244,6 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
     devUrl: flags.devUrl ?? Option.none(),
     noBrowser: flags.noBrowser ?? Option.none(),
     bootstrapFd: flags.bootstrapFd ?? Option.none(),
-    logWebSocketEvents: flags.logWebSocketEvents ?? Option.none(),
     tailscaleServeEnabled: flags.tailscaleServeEnabled ?? Option.none(),
     tailscaleServePort: flags.tailscaleServePort ?? Option.none(),
   } satisfies CliServerFlags;
@@ -354,13 +340,6 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
   const desktopTelemetryControlFd = bootstrap?.desktopTelemetryControlFd;
 
   const resourceMonitorPath = bootstrap?.resourceMonitorPath;
-  const logWebSocketEvents = Option.getOrElse(
-    resolveOptionPrecedence(
-      normalizedFlags.logWebSocketEvents,
-      Option.fromUndefinedOr(env.logWebSocketEvents),
-    ),
-    () => Boolean(devUrl),
-  );
   const tailscaleServeEnabled = Option.getOrElse(
     resolveOptionPrecedence(
       normalizedFlags.tailscaleServeEnabled,
@@ -474,7 +453,6 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
     desktopTelemetryControlFd,
 
     resourceMonitorPath,
-    logWebSocketEvents,
     tailscaleServeEnabled,
     tailscaleServePort,
   };
@@ -496,7 +474,6 @@ export const resolveCliAuthConfig = (
       devUrl: flags.devUrl ?? Option.none(),
       noBrowser: Option.none(),
       bootstrapFd: Option.none(),
-      logWebSocketEvents: Option.none(),
       tailscaleServeEnabled: Option.none(),
       tailscaleServePort: Option.none(),
     },

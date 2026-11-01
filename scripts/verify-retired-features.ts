@@ -133,6 +133,8 @@ NodeAssert.doesNotMatch(ipc, /DesktopSsh|DesktopDiscoveredSsh|runningDistro/);
 for (const [relative, pattern] of [
   ["packages/contracts/src/auth.ts", /AuthMcp|WebSocket/],
   ["apps/server/src/auth/SessionStore.ts", /WebSocket/],
+  ["apps/server/src/cli/config.ts", /logWebSocketEvents|LOG_WS_EVENTS|log-websocket-events/],
+  ["scripts/dev-runner.ts", /logWebSocketEvents|LOG_WS_EVENTS|log-websocket-events/],
   ["apps/web/src/index.css", /data-theme-id|stage-art-|stage-night-|--message-/],
   ["pnpm-workspace.yaml", /clerk|webauthn|opencode|mdast|micromark|remark-|rehype-|unified/],
   [

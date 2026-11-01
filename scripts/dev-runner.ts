@@ -284,7 +284,6 @@ interface CreateDevRunnerEnvInput {
   readonly webOffset: number;
   readonly madarHome: string | undefined;
   readonly browser: boolean | undefined;
-  readonly logWebSocketEvents: boolean | undefined;
   readonly host: string | undefined;
   readonly port: number | undefined;
   readonly devUrl: URL | undefined;
@@ -297,7 +296,6 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
   webOffset,
   madarHome,
   browser,
-  logWebSocketEvents,
   host,
   port,
   devUrl,
@@ -371,12 +369,6 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
 
   if (!isDesktopMode) {
     output.MADAR_NO_BROWSER = browser === true ? "0" : "1";
-  }
-
-  if (logWebSocketEvents !== undefined) {
-    output.MADAR_LOG_WS_EVENTS = logWebSocketEvents ? "1" : "0";
-  } else {
-    delete output.MADAR_LOG_WS_EVENTS;
   }
 
   if (mode === "dev") {
@@ -612,7 +604,6 @@ interface DevRunnerCliInput {
   readonly mode: DevMode;
   readonly madarHome: string | undefined;
   readonly browser: boolean | undefined;
-  readonly logWebSocketEvents: boolean | undefined;
   readonly host: string | undefined;
   readonly port: number | undefined;
   readonly devUrl: URL | undefined;
@@ -682,7 +673,6 @@ export const runDevRunnerWithInput = Effect.fn("dev-runner.runDevRunnerWithInput
     webOffset,
     madarHome: resolvedMadarHome,
     browser: input.browser,
-    logWebSocketEvents: input.logWebSocketEvents,
     host: input.host,
     port: input.port,
     devUrl: input.devUrl,
@@ -855,11 +845,6 @@ const devRunnerCli = Command.make("dev-runner", {
   browser: Flag.Boolean("browser").pipe(
     Flag.withDescription("Open a browser automatically (disabled by default for web dev)."),
     Flag.withDefault(false),
-  ),
-  logWebSocketEvents: Flag.Boolean("log-websocket-events").pipe(
-    Flag.withDescription("WebSocket event logging toggle (equivalent to MADAR_LOG_WS_EVENTS)."),
-    Flag.withAlias("log-ws-events"),
-    Flag.withFallbackConfig(optionalBooleanConfig("MADAR_LOG_WS_EVENTS")),
   ),
   host: Flag.String("host").pipe(
     Flag.withDescription("Server host/interface override (forwards to MADAR_HOST)."),
