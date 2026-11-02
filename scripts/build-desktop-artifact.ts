@@ -857,9 +857,6 @@ interface StagePackageJson {
 export const STAGE_INSTALL_ARGS = ["install", "--prod"] as const;
 export const DESKTOP_ELECTRON_LANGUAGES = ["en-US"] as const;
 export const DESKTOP_FILE_EXCLUSIONS = [
-  // Cursor walks from argv[1] to platform assets; helpers and native addons need real paths outside ASAR.
-  // The installed Claude CLI is supplied explicitly; exclude optional bundled executables, retaining SDK JavaScript.
-  "!**/node_modules/@anthropic-ai/claude-agent-sdk-*/**/*",
   "!**/*.map",
   "!**/*.d.cts",
 
@@ -883,8 +880,6 @@ export const WINDOWS_SERVER_ASAR_UNPACK_GLOBS = [
 ] as const;
 // Keep sidecar exclusions aligned with the app; .bin symlinks are unused and unsupported by ASAR extraction.
 export const WINDOWS_SERVER_ASAR_IGNORE_GLOBS = [
-  "**/node_modules/@anthropic-ai/claude-agent-sdk-*",
-  "**/node_modules/@anthropic-ai/claude-agent-sdk-*/**",
   "**/node_modules/.bin",
   "**/node_modules/.bin/**",
   "**/*.map",

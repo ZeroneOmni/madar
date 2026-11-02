@@ -58,16 +58,13 @@ describe("withLocalTracing", () => {
             withLocalTracing,
           ),
         ),
-        Effect.withSpan("environment.orchestration.threadSnapshot"),
+        Effect.withSpan("environment.auth.session"),
         withRelayClientTracing,
         Effect.provideService(RelayClientTracer, Option.some(productTracer)),
         Effect.withTracer(localTracer),
       );
 
-      expect(productSpans).toEqual([
-        "relay.connection.nested",
-        "environment.orchestration.threadSnapshot",
-      ]);
+      expect(productSpans).toEqual(["relay.connection.nested", "environment.auth.session"]);
       expect(localSpans).toEqual(["sql.execute", "ServerSecretStore.get"]);
     }),
   );

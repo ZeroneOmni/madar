@@ -1,3 +1,3 @@
 # Server
 
-Node.js WebSocket server for the Madar app.
+Node.js HTTP server for the Madar app.

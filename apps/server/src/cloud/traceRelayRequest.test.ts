@@ -58,10 +58,10 @@ describe("relay request tracing boundary", () => {
           },
         });
       const request = HttpServerRequest.fromWeb(
-        new Request("https://environment.example.test/api/orchestration/threads/thread-1"),
+        new Request("https://environment.example.test/api/auth/session"),
       );
 
-      const handler = Effect.fn("environment.orchestration.threadSnapshot")(function* () {
+      const handler = Effect.fn("environment.auth.session")(function* () {
         yield* Effect.void.pipe(
           Effect.withSpan("sql.execute"),
           Effect.withSpan("ServerSecretStore.get"),
@@ -78,7 +78,7 @@ describe("relay request tracing boundary", () => {
       expect(productSpans).toEqual([
         "environment.relay.request",
         "EnvironmentAuth.authenticateHttpRequest",
-        "environment.orchestration.threadSnapshot",
+        "environment.auth.session",
       ]);
       expect(localSpans).toEqual(["ServerSecretStore.get", "sql.execute"]);
     }),

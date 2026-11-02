@@ -246,7 +246,7 @@ describe("DesktopShellEnvironment", () => {
         platform: "linux",
         handler: () =>
           envOutput({
-            PATH: "/home/me/.local/bin:/mise/installs/claude/latest:/mise/shims",
+            PATH: "/home/me/.local/bin:/mise/installs/node/latest:/mise/shims",
             __MISE_DIFF: "mise-diff",
           }),
       });

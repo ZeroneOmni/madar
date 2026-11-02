@@ -31,14 +31,10 @@
         "src/compileCache.ts",
         "src/serverLogger.ts",
       ],
-      "ignoreIssues": {
-        "**/*.graphql.ts": ["exports", "types", "namespaceMembers"],
-      },
       "ignoreDependencies": ["@effect/platform-node-shared", "@madar/web", "@napi-rs/keyring"],
     },
     "apps/desktop": {
       "entry": [
-        "src/electron/WindowsForegroundFocusWorker.ts!",
         "src/boot.ts!",
         "src/compileCache.ts!",
         "src/main.ts!",

@@ -4,7 +4,7 @@
 #
 #   gh workflow run windows-tests.yml --ref <branch> -f package=packages/shared
 #   gh workflow run windows-tests.yml --ref <branch> -f package=apps/server \
-#     -f files="src/process/externalLauncher.test.ts src/cli/theme.test.ts"
+#     -f files="src/process/externalLauncher.test.ts src/auth/dpop.test.ts"
 #   gh run watch && gh run view --log-failed
 name: Windows Tests
 

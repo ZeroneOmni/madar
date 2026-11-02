@@ -354,9 +354,6 @@ export const make = Effect.gen(function* () {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
-
-        // Guest fullscreen propagates to the embedder; both must opt out to keep it inside the webview.
-        disableHtmlFullscreenWindowResize: true,
       },
     });
     if (yield* Ref.get(desktopState.quitting)) {

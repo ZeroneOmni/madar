@@ -91,11 +91,11 @@ describe("DesktopBackendPool", () => {
   it.effect("unregister stops the registered instance", () =>
     Effect.scoped(
       Effect.gen(function* () {
-        const id = DesktopBackendPool.BackendInstanceId("wsl:Ubuntu");
+        const id = DesktopBackendPool.BackendInstanceId("fixture-backend");
         const pool = yield* DesktopBackendPool.DesktopBackendPool;
         const instance = yield* pool.register({
           id,
-          label: Effect.succeed("WSL (Ubuntu)"),
+          label: Effect.succeed("Fixture backend"),
           configResolve: Effect.succeed({
             executablePath: "/electron",
             args: [],
@@ -116,7 +116,7 @@ describe("DesktopBackendPool", () => {
             extendEnv: true,
             httpBaseUrl: new URL("http://127.0.0.1:3774"),
             captureOutput: false,
-            preflightFailure: Option.some({ reason: "WSL starting", fatal: false }),
+            preflightFailure: Option.some({ reason: "Backend starting", fatal: false }),
           } satisfies DesktopBackendStartConfig),
         });
         yield* instance.start;

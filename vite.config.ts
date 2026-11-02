@@ -28,11 +28,6 @@ const RESTRICTED_IMPORT_PATHS = [
     message:
       "Import from an explicit @madar/client-runtime/* subpath. The package has no root export.",
   },
-  {
-    name: "@pierre/diffs/react",
-    importNames: ["CodeView"],
-    message: "Use StyledDiffCodeView so web diff surfaces share styling and virtualized geometry.",
-  },
 ];
 
 const RESTRICTED_UI_VARIANT_PATTERNS = [
@@ -123,7 +118,6 @@ export default defineConfig({
       "*.tsbuildinfo",
       "**/routeTree.gen.ts",
       "**/*.graphql.ts",
-      "packages/source-control-github/schema/**",
       "apps/server/schema/**",
       "*.icon/**",
     ],
@@ -152,7 +146,6 @@ export default defineConfig({
       "*.tsbuildinfo",
       "**/routeTree.gen.ts",
       "**/*.graphql.ts",
-      "packages/source-control-github/schema/**",
       "apps/server/schema/**",
     ],
     plugins: ["eslint", "oxc", "react", "unicorn", "typescript"],
@@ -199,11 +192,9 @@ export default defineConfig({
       "madar/no-native-title-tooltip": "error",
       // Test files only (the rule checks the filename).
       "madar/no-polling-loop-in-tests": "error",
-      "madar/no-raw-mcp-registration": "error",
       "madar/no-real-time-wait-in-tests": "error",
       "madar/no-test-in-loop": "error",
       "madar/no-test-timeout-or-unreasoned-skip": "error",
-      "madar/no-rpc-permission-bypass": ["error", { allowRawClientAccess: true }],
       "madar/no-unscoped-has": "error",
       "madar/no-wall-clock-in-tests": "error",
       "madar/namespace-node-imports": "error",
@@ -217,7 +208,6 @@ export default defineConfig({
         files: [
           "**/*.{test,spec,testkit}.{ts,tsx}",
           "**/{test,tests,testkit,testing,fixtures,integration}/**",
-          "packages/provider-testing/**",
         ],
         rules: { "madar/prefer-effect-fn": "off" },
       },
@@ -233,21 +223,7 @@ export default defineConfig({
         // Burn-down list: these files still have polling loops, so they stay at "warn".
         // Remove a file when you convert its loops. New polling loops in all other
         // test files fail lint. Do not add new files to this list.
-        files: [
-          "apps/server/src/background/HostPowerMonitor.test.ts",
-          "apps/server/src/orchestration-v2/Adapters/AcpAdapterV2.test.ts",
-          "apps/server/src/orchestration-v2/FoundationPersistence.test.ts",
-          "apps/server/src/project/ProjectEnrichmentService.test.ts",
-          "apps/server/src/project/ProjectService.test.ts",
-          "apps/server/src/scheduledTasks/ScheduledTaskService.webhook.test.ts",
-          "apps/server/src/usage/UsageService.test.ts",
-          "packages/client-runtime/src/connection/supervisor.test.ts",
-          "packages/client-runtime/src/rpc/client.test.ts",
-          "packages/client-runtime/src/rpc/session.test.ts",
-          "packages/client-runtime/src/state/shell-sync.test.ts",
-          "packages/client-runtime/src/state/threads-sync.test.ts",
-          "packages/shared/src/atomicWrite.test.ts",
-        ],
+        files: ["packages/shared/src/atomicWrite.test.ts"],
         rules: { "madar/no-polling-loop-in-tests": "warn" },
       },
       {
@@ -256,48 +232,8 @@ export default defineConfig({
         rules: { "madar/no-dom-test-environment": "error" },
       },
       {
-        files: ["packages/client-runtime/src/state/**", "apps/{web,desktop}/src/**"],
-        rules: { "madar/no-rpc-permission-bypass": ["error", { allowRawClientAccess: false }] },
-      },
-      {
-        files: [
-          "packages/client-runtime/src/state/runtime.ts",
-          "packages/client-runtime/src/state/vcsAction.ts",
-        ],
-        rules: {
-          "madar/no-rpc-permission-bypass": [
-            "error",
-            { allowGuardInstallation: true, allowRawClientAccess: false },
-          ],
-        },
-      },
-      {
-        files: [
-          "apps/web/src/components/settings/AuthorizedClientsSettings.tsx",
-          "apps/web/src/components/settings/ConnectionsSettings.tsx",
-          "apps/web/src/components/device/DevicePhoneViewport.tsx",
-          "apps/web/src/components/device/DeviceDuoViewport.tsx",
-        ],
-        rules: { "madar/no-rpc-permission-bypass": ["error", { allowRawClientAccess: true }] },
-      },
-      {
-        files: ["packages/client-runtime/src/connection/outdatedHostUpdate.ts"],
-        rules: { "madar/no-rpc-permission-bypass": "off" },
-      },
-      {
-        files: [
-          "packages/client-runtime/src/rpc/**",
-          "**/*.{test,spec}.{ts,tsx,js,jsx,mts,cts,mjs,cjs}",
-        ],
-        rules: { "madar/no-rpc-permission-bypass": "off" },
-      },
-      {
         files: ["packages/shared/src/HostProcess.ts"],
         rules: { "madar/no-global-process-runtime": "off" },
-      },
-      {
-        files: ["apps/server/src/mcp/McpHttpServer.ts"],
-        rules: { "madar/no-raw-mcp-registration": "off" },
       },
       {
         files: ["apps/web/src/**"],
@@ -308,66 +244,6 @@ export default defineConfig({
             {
               paths: RESTRICTED_IMPORT_PATHS,
               patterns: RESTRICTED_UI_VARIANT_PATTERNS,
-            },
-          ],
-        },
-      },
-      {
-        // The server and every client load a forge's shared definition, so a UI runtime
-        // imported there would break the server; client-only forge code goes in `src/client/`.
-        files: ["packages/source-control-*/src/shared/**"],
-        rules: {
-          "eslint/no-restricted-imports": [
-            "error",
-            {
-              paths: RESTRICTED_IMPORT_PATHS,
-              patterns: [
-                {
-                  group: [
-                    "react",
-                    "react/*",
-                    "react-*",
-                    "expo",
-                    "expo-*",
-                    "lucide-react",
-                    "@madar/client-runtime",
-                    "@madar/client-runtime/*",
-                    "../client/*",
-                    "../server/*",
-                    "../../client/*",
-                    "../../server/*",
-                    "../../../client/*",
-                    "../../../server/*",
-                    "@madar/source-control-*/client/*",
-                    "@madar/source-control-*/server/*",
-                  ],
-                  message:
-                    "Shared forge definitions load on the server and every client; keep UI and server code out.",
-                },
-              ],
-            },
-          ],
-        },
-      },
-      {
-        files: ["apps/server/src/**", "packages/source-control-*/src/server/**"],
-        rules: {
-          "eslint/no-restricted-imports": [
-            "error",
-            {
-              paths: RESTRICTED_IMPORT_PATHS,
-              patterns: [
-                {
-                  group: [
-                    "@madar/source-control-*/client/*",
-                    "../client/*",
-                    "../../client/*",
-                    "../../../client/*",
-                  ],
-                  message:
-                    "A forge's client entry is UI-only; the server reads its `shared/definition`.",
-                },
-              ],
             },
           ],
         },
@@ -403,11 +279,6 @@ export default defineConfig({
         rules: { "shadcn/no-raw-colors": "error" },
       },
       {
-        // Third-party marks must retain their exact colors.
-        files: ["apps/web/src/components/Icons.tsx", "apps/web/src/components/JetBrainsIcons.tsx"],
-        rules: { "shadcn/no-raw-colors": "off" },
-      },
-      {
         files: ["apps/web/src/**"],
         excludeFiles: ["apps/web/src/components/ui/**"],
         rules: {
@@ -426,12 +297,6 @@ export default defineConfig({
                 "rounded-[25%]",
                 "text-[length:80cqh]",
                 "bg-[Highlight]",
-                "fill-[#26251E]",
-                "fill-[#EDECEC]",
-                "fill-[#0F0F0F]",
-                "fill-[#F5F5F5]",
-                "fill-[#d97757]",
-                "text-[#d97757]",
               ],
             },
           ],
@@ -464,7 +329,7 @@ export default defineConfig({
           "react/preserve-manual-memoization": "error",
           // oxlint 1.88 treats `new Date()` as impure (oxc#26894) and also flags it inside event
           // handlers (oxc#27309). The compiler we ship (oxc-transform-react) still compiles
-          // those files, and reactCompilerCoverage.test.ts fails on real bailouts.
+          // those files, and compiler coverage checks fail on real bailouts.
           "react/purity": "warn",
           "react/refs": "error",
           "react/set-state-in-effect": "error",
@@ -473,11 +338,6 @@ export default defineConfig({
           "react/unsupported-syntax": "error",
           "madar/no-manual-memo": "error",
         },
-      },
-      {
-        // The sign-in masthead is T3 brand artwork: fixed gradients, not theme surfaces.
-        files: ["apps/web/src/components/auth/AuthSurfaceShell.tsx"],
-        rules: { "shadcn/no-arbitrary-values": "off" },
       },
       {
         // React Compiler caches use* functions only if they call a hook.

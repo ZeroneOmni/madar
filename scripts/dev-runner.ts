@@ -198,11 +198,6 @@ const optionalStringConfig = (name: string): Config.Config<string | undefined> =
     Config.option,
     Config.map((value) => Option.getOrUndefined(value)),
   );
-const optionalBooleanConfig = (name: string): Config.Config<boolean | undefined> =>
-  Config.Boolean(name).pipe(
-    Config.option,
-    Config.map((value) => Option.getOrUndefined(value)),
-  );
 const optionalPortConfig = (name: string): Config.Config<number | undefined> =>
   Config.Port(name).pipe(
     Config.option,
@@ -320,7 +315,7 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
     delete output.MADAR_HOME;
   }
 
-  // Managed T3 service shells leak launcher variables that make dev servers fail version checks.
+  // Managed service shells leak launcher variables that make dev servers fail version checks.
   // Dev-runner servers are never launcher-managed (serviceLauncherClient.ts resolveStartup).
   delete output.MADAR_SERVICE_LAUNCHER_CONTEXT;
   delete output.MADAR_BOOT_SERVICE_UNIT;
@@ -329,34 +324,14 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
   // install of the developer's real accounts. Set it explicitly to opt in.
   output.MADAR_TELEMETRY_ENABLED = baseEnv.MADAR_TELEMETRY_ENABLED ?? "false";
 
+  output.MADAR_PORT = String(serverPort);
+  delete output.VITE_HTTP_URL;
+  delete output.VITE_WS_URL;
+  delete output.MADAR_SINGLE_ORIGIN_DEV;
   if (!isDesktopMode) {
-    output.MADAR_PORT = String(serverPort);
-    // An inherited HOST pins Vite's HMR socket via explicitHost in apps/web/vite.config.ts.
-    // Only desktop mode should set it.
+    // Browser HMR follows the page origin; only Electron needs an explicit host.
     delete output.HOST;
-    if (mode === "dev" || mode === "dev:web") {
-      // Browser dev is single-origin: everything (including /ws) is proxied
-      // through Vite, so the client must resolve its backend from
-      // window.location.origin rather than a baked-in localhost URL.
-      delete output.VITE_HTTP_URL;
-      delete output.VITE_WS_URL;
-      // Deleting is not enough on its own: vite.config.ts calls loadRepoEnv,
-      // which merges `.env`/`.env.local` *under* this env, so a developer
-      // with either URL in their `.env` would get it back and silently lose
-      // single-origin mode.
-      output.MADAR_SINGLE_ORIGIN_DEV = "1";
-    } else {
-      output.VITE_HTTP_URL = `http://localhost:${serverPort}`;
-      output.VITE_WS_URL = `ws://localhost:${serverPort}`;
-      delete output.MADAR_SINGLE_ORIGIN_DEV;
-    }
   } else {
-    output.MADAR_PORT = String(serverPort);
-    output.VITE_HTTP_URL = `http://${DESKTOP_DEV_LOOPBACK_HOST}:${serverPort}`;
-    output.VITE_WS_URL = `ws://${DESKTOP_DEV_LOOPBACK_HOST}:${serverPort}`;
-    // Desktop pins the renderer to loopback on purpose; an ambient marker
-    // must not make Vite drop those URLs.
-    delete output.MADAR_SINGLE_ORIGIN_DEV;
     delete output.MADAR_MODE;
     delete output.MADAR_NO_BROWSER;
     delete output.MADAR_HOST;

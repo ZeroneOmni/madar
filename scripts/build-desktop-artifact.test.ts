@@ -451,9 +451,8 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       resolveMergedStageDependencies({
         platform: "mac",
         serverDependencies: {
-          "@anthropic-ai/claude-agent-sdk": "^0.3.170",
-          "@opencode-ai/sdk": "^1.3.15",
-          "@pierre/diffs": "1.3.0",
+          effect: "4.0.5",
+          undici: "8.11.2",
         },
         desktopDependencies: {
           "@napi-rs/keyring": "1.3.0",

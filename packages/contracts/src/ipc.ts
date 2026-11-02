@@ -184,7 +184,6 @@ export interface DesktopEnvironmentBootstrap {
   id: string;
   label: string;
   httpBaseUrl: string | null;
-  wsBaseUrl: string | null;
   bootstrapToken?: string;
 }
 
@@ -192,7 +191,6 @@ export const DesktopEnvironmentBootstrapSchema = Schema.Struct({
   id: Schema.String,
   label: Schema.String,
   httpBaseUrl: Schema.NullOr(Schema.String),
-  wsBaseUrl: Schema.NullOr(Schema.String),
   bootstrapToken: Schema.optionalKey(Schema.String),
 });
 

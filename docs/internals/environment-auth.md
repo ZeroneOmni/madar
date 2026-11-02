@@ -21,22 +21,8 @@ model. DPoP binds a token to a client's proof key; an invalid proof must fail
 rather than fall back to bearer authentication. The OAuth token-exchange
 vocabulary gives these grants a familiar meaning.
 
-Legacy sessions with subject `mcp-client` remain invalid for HTTP and WebSocket authentication.
-The retired MCP audience must not gain access to those broader APIs.
-
-Bearer and DPoP clients obtain short-lived WebSocket tickets through authenticated
-HTTP so long-lived tokens stay out of socket URLs. A ticket names the route it
-opens. A DPoP
-client's RPC ticket is bound to its proof key and the upgrade carries a fresh
-proof in the `dpop` query parameter, since a WebSocket cannot set headers; a
-ticket captured on a plain HTTP LAN route is useless without the key, and the
-proof's `jti` is consumed like any other. Media tickets stay bearer because each
-media request would need its own proof. Clients that predate this mint unbound
-tickets that open either route. Browser sessions can authenticate the upgrade
-with their cookie. A successful handshake grants no
-extra authority: [every RPC declares a required
-scope](../../apps/server/src/auth/RpcAuthorization.ts), and the WebSocket RPC
-group's `RpcScopeAuthorization` middleware checks it before any handler runs.
+Legacy sessions with subject `mcp-client` remain invalid for HTTP authentication.
+The retired audience must not gain access to current APIs.
 
 Scope changes must not prevent older clients from connecting. Token exchange
 intersects recognized requests with the pairing grant; retired and unknown names
@@ -67,7 +53,7 @@ Each environment hashes the value and seeds its own database record at startup.
 Environments do not share SQLite data, signing keys, environment IDs, session
 records, pairing grants, or revocation state. Local revocation persists after
 restart and does not affect another worktree. Removing or rotating the value
-and restarting invalidates the old credential and its WebSocket tickets.
+and restarting invalidates the old credential.
 
 Normal credentials keep precedence. A rejected normal credential never falls
 back to the reusable credential. OAuth exchanges create ordinary local bearer

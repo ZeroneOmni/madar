@@ -38,12 +38,6 @@ const ContextMenuInput = Schema.Struct({
   position: Schema.optionalKey(ContextMenuPosition),
 });
 
-function toWebSocketBaseUrl(httpBaseUrl: URL): string {
-  const url = new URL(httpBaseUrl.href);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  return url.href;
-}
-
 export const getAppBranding = DesktopIpc.makeSyncIpcMethod({
   channel: IpcChannels.GET_APP_BRANDING_CHANNEL,
   result: Schema.NullOr(DesktopAppBrandingSchema),
@@ -106,7 +100,6 @@ export const getLocalEnvironmentBootstraps = DesktopIpc.makeSyncIpcMethod({
           id: instance.id,
           label: yield* instance.label,
           httpBaseUrl: null,
-          wsBaseUrl: null,
         });
         continue;
       }
@@ -115,7 +108,6 @@ export const getLocalEnvironmentBootstraps = DesktopIpc.makeSyncIpcMethod({
         id: instance.id,
         label: yield* instance.label,
         httpBaseUrl: httpBaseUrl.href,
-        wsBaseUrl: toWebSocketBaseUrl(httpBaseUrl),
         // Use the current window's derived token; the launch config's token may be stale.
         ...(bootstrap.desktopBootstrapSecret
           ? { bootstrapToken: yield* configuration.currentBootstrapToken }

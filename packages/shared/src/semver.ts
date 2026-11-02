@@ -135,7 +135,6 @@ export function compareSemverVersions(left: string, right: string): number {
   return 0;
 }
 
-/** Keep plain JavaScript: SSH startup stringifies this for remote Node versions without known TS support. */
 export const satisfiesSemverRange: (rawVersion: string, range: string) => boolean =
   function satisfiesSemverRange(rawVersion, range) {
     const normalizedVersion = String(rawVersion).trim().replace(/^v/, "");

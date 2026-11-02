@@ -73,7 +73,7 @@ describe("TraceDiagnostics", () => {
         }),
         "not-json",
         record({
-          name: "orchestration.dispatch",
+          name: "auth.session",
           traceId: "trace-b",
           spanId: "span-b",
           startMs: 2_000,
@@ -88,7 +88,7 @@ describe("TraceDiagnostics", () => {
           ],
         }),
         record({
-          name: "orchestration.dispatch",
+          name: "auth.session",
           traceId: "trace-c",
           spanId: "span-c",
           startMs: 4_000,
@@ -134,12 +134,12 @@ describe("TraceDiagnostics", () => {
       assert.equal(diagnostics.slowSpanCount, 1);
       assert.equal(diagnostics.logLevelCounts.Error, 1);
       assert.equal(diagnostics.logLevelCounts.Warning, 1);
-      assert.equal(diagnostics.commonFailures[0]?.name, "orchestration.dispatch");
+      assert.equal(diagnostics.commonFailures[0]?.name, "auth.session");
       assert.equal(diagnostics.commonFailures[0]?.count, 2);
       assert.equal(diagnostics.latestFailures[0]?.traceId, "trace-c");
       assert.equal(diagnostics.slowestSpans[0]?.traceId, "trace-b");
       assert.equal(diagnostics.latestWarningAndErrorLogs[0]?.message, "status delayed");
-      assert.equal(diagnostics.topSpansByCount[0]?.name, "orchestration.dispatch");
+      assert.equal(diagnostics.topSpansByCount[0]?.name, "auth.session");
     }),
   );
 
@@ -158,7 +158,7 @@ describe("TraceDiagnostics", () => {
             }),
             "not-json",
             record({
-              name: "orchestration.dispatch",
+              name: "auth.session",
               traceId: "trace-b",
               spanId: "span-b",
               startMs: 2_000,
@@ -188,7 +188,7 @@ describe("TraceDiagnostics", () => {
             }),
             "",
             record({
-              name: "orchestration.dispatch",
+              name: "auth.session",
               traceId: "trace-d",
               spanId: "span-d",
               startMs: 4_000,

@@ -72,7 +72,7 @@ effectIt.effect("keeps mise's PATH record with the login shell PATH", () =>
         .mockReturnValue(
           [
             "__MADAR_ENV_PATH_START__",
-            "/home/me/.local/bin:/mise/installs/claude/latest:/mise/shims",
+            "/home/me/.local/bin:/mise/installs/node/latest:/mise/shims",
             "__MADAR_ENV_PATH_END__",
             "__MADAR_ENV___MISE_DIFF_START__",
             "mise-diff",
