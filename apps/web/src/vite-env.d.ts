@@ -3,8 +3,6 @@
 import type { DesktopBridge } from "@madar/contracts";
 
 interface ImportMetaEnv {
-  readonly VITE_HTTP_URL: string;
-  readonly VITE_WS_URL: string;
   readonly MADAR_DESKTOP_UPDATE_REPOSITORY: string;
   readonly APP_VERSION: string;
 }

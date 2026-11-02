@@ -14,7 +14,7 @@ resize handles, swatches, editor surfaces, anything whose behavior or geometry d
 Style with Tailwind classes in the component that renders the element.
 
 - Global CSS, in [`index.css`](../../apps/web/src/index.css) or any other stylesheet, is only for
-  what classes on the owning component can't express: generated Markdown or imperative DOM, custom
+  what classes on the owning component can't express: imperative DOM, custom
   elements and shadow roots, animations, runtime theme variables, and browser or Electron
   integration.
 - No `style={{ ... }}` or inline `<style>` for static values a class covers. Values computed at
@@ -23,20 +23,8 @@ Style with Tailwind classes in the component that renders the element.
 
 ## Composition
 
-The composer banners are the reference.
-
-- [`ComposerBanner.tsx`](../../apps/web/src/components/chat/ComposerBanner.tsx) exports one object
-  of small slots. Slots own their classes, take `className`, and spread the rest of their props,
-  merging classes with `cn`. Variants and density are props on `Root`. A slot that needs a control
-  renders `Button`.
-- [`ComposerBannerStack.tsx`](../../apps/web/src/components/chat/ComposerBannerStack.tsx) composes
-  the slots and owns only stack behavior: priority, expand and collapse, dismiss transitions.
-- Consumers are a few lines of slots, and the slots carry the styling:
-  [`ComposerActivityStatus.tsx`](../../apps/web/src/components/chat/ComposerActivityStatus.tsx).
-
-Build new UI the same way. Compose or extend a component instead of copying its markup and classes.
-When a call site repeats a treatment another one already uses, make it a variant or a slot on the
-shared component. A new composer banner or notice uses the `ComposerBanner` slots.
+Compose or extend existing components instead of copying markup and classes. When
+call sites repeat a treatment, put it in a variant or slot on the shared component.
 
 ## Handlers in large components
 
@@ -46,7 +34,7 @@ render. When handlers in one component change at different times, each keeps an 
 holds older handlers, and old renders, with their server configuration and application data, stay in memory
 for as long as the component is mounted. React Compiler's memoized closures do the same.
 
-In large, long-lived components such as `ChatView` and `ChatComposer`, write handlers as plain
+In large, long-lived components, write handlers as plain
 functions and wrap them with [`useStableCallback`](../../apps/web/src/hooks/useStableCallback.ts)
 only where they leave the component: props, hook dependency arrays, and effect or memo bodies.
 Calls inside the component keep the plain function, so work that resumes after an `await` still
@@ -70,7 +58,6 @@ before the hook, or the helper is inlined. A `use*` helper that calls no hook is
 plain function and caches nothing, so a derived-value helper reads its source hook itself instead
 of taking the value as an argument. `madar/no-hookless-use-function` rejects a `use*` function
 that calls no hook. Lint misses some bailouts, notably `try` with `finally` and
-`throw` inside `try`, so [`reactCompilerCoverage.test.ts`](../../apps/web/src/reactCompilerCoverage.test.ts)
-compiles every file and fails on any skip. Async handlers rarely need `try`: an
+`throw` inside `try`, so compiler coverage must include every source file. Async handlers rarely need `try`: an
 atom command settles into a result, so cleanup can follow the `await`. `useStableCallback` still
 marks handlers that leave a large component, as described above.

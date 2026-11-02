@@ -22,14 +22,9 @@ import { warmBundledDevPlugin } from "./vite/warmBundledDev";
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
 
-// Signal single-origin dev explicitly; loadRepoEnv can restore deleted URL keys from .env.
-const isSingleOriginDev = process.env.MADAR_SINGLE_ORIGIN_DEV === "1";
-
 const port = Number(process.env.PORT ?? 5733);
 const explicitHost = process.env.HOST?.trim();
 const host = explicitHost || "localhost";
-const configuredWsUrl = isSingleOriginDev ? undefined : process.env.VITE_WS_URL?.trim();
-const configuredHttpUrl = isSingleOriginDev ? undefined : process.env.VITE_HTTP_URL?.trim();
 const configuredAppVersion = process.env.APP_VERSION?.trim() || pkg.version;
 const configuredDesktopUpdateRepository =
   process.env.MADAR_DESKTOP_UPDATE_REPOSITORY?.trim() ||
@@ -97,37 +92,9 @@ const browserTestProject = {
   },
 } satisfies TestProjectInlineConfiguration;
 
-function resolveDevProxyTarget(
-  backendPort: string | undefined,
-  wsUrl: string | undefined,
-): string | undefined {
-  const port = Number(backendPort?.trim());
-  if (Number.isInteger(port) && port > 0) {
-    return `http://localhost:${port}/`;
-  }
-
-  // dev:desktop connects directly to the backend; derive its target from the explicit WebSocket URL.
-  if (!wsUrl) {
-    return undefined;
-  }
-
-  try {
-    const url = new URL(wsUrl);
-    if (url.protocol === "ws:") {
-      url.protocol = "http:";
-    } else if (url.protocol === "wss:") {
-      url.protocol = "https:";
-    }
-    url.pathname = "";
-    url.search = "";
-    url.hash = "";
-    return url.toString();
-  } catch {
-    return undefined;
-  }
-}
-
-const devProxyTarget = resolveDevProxyTarget(process.env.MADAR_PORT, configuredWsUrl);
+const backendPort = Number(process.env.MADAR_PORT?.trim());
+const devProxyTarget =
+  Number.isInteger(backendPort) && backendPort > 0 ? `http://localhost:${backendPort}/` : undefined;
 
 // Brotli quality 5 encodes in hundreds of ms; default quality 11 would replace transfer stalls with encode stalls.
 function devCompressionPlugin(): Plugin {
@@ -184,9 +151,6 @@ export default defineConfig(() => {
       include: ["effect/Array", "effect/Order", "react-dom/client"],
     },
     define: {
-      "import.meta.env.VITE_WS_URL": JSON.stringify(configuredWsUrl ?? ""),
-      // Override .env URLs with empty values in single-origin dev so clients use window.location.origin.
-      "import.meta.env.VITE_HTTP_URL": JSON.stringify(configuredHttpUrl ?? ""),
       "import.meta.env.MADAR_DESKTOP_UPDATE_REPOSITORY": JSON.stringify(
         configuredDesktopUpdateRepository,
       ),
@@ -218,7 +182,6 @@ export default defineConfig(() => {
                 {
                   target: devProxyTarget,
                   changeOrigin: !DEV_PROXIED_ORIGIN_PRESERVING_PREFIXES.has(prefix),
-                  ...(prefix === "/ws" || prefix === "/api" ? { ws: true } : {}),
                 },
               ]),
             ),

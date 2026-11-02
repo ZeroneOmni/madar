@@ -1,6 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off globalConsole:off
 // Runs CI's fast checks for this branch's changes: format and lint of the
-// changed files, knip, generated GraphQL operations, typecheck of the affected
+// changed files, knip, typecheck of the affected
 // packages and their dependents, and the test files beside the changed files.
 // A dependency change also gets the unused-patch install check below. CI still
 // runs the full test suites and the jobs listed in the summary.
@@ -229,13 +229,6 @@ const checkPatches = (): boolean => {
   }
 };
 
-// CI's Lint job checks that generated GraphQL operations match their sources.
-const graphql = ["packages/source-control-github"].filter(
-  (dir) =>
-    NodeFS.existsSync(NodePath.join(root, dir, "package.json")) &&
-    files.some((file) => file.startsWith(`${dir}/`)),
-);
-
 const filters = (names: ReadonlyArray<string>) => names.flatMap((name) => ["--filter", name]);
 const fileSteps = (name: string, prefix: string[], paths: string[]) => {
   if (paths.length === 0) return [];
@@ -261,10 +254,6 @@ const steps = [
   ...fileSteps("format", ["fmt", "--check", "--no-error-on-unmatched-pattern"], present),
   ...fileSteps("lint", ["lint"], code),
   ...(runKnip ? knipPasses : []),
-  ...graphql.map((dir) => ({
-    name: `graphql (${dir})`,
-    args: ["run", "--filter", `./${dir}`, "generate", "--check"],
-  })),
   affected.length > 0 && {
     name: `typecheck (${affected.length} packages)`,
     // `tsc --noEmit` writes nothing another package reads, so dependency order

@@ -86,41 +86,49 @@ it.effect.each([
   { platform: "darwin" as const, command: "open" },
   { platform: "linux" as const, command: "xdg-open" },
   {
+    platform: "linux" as const,
+    command: "xdg-open",
+    env: { WSL_DISTRO_NAME: "Ubuntu", WSL_INTEROP: "/run/WSL/1_interop" },
+  },
+  {
     platform: "win32" as const,
     command: "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
   },
-])("opens a browser on $platform without inheriting Electron mode", ({ platform, command }) =>
-  Effect.gen(function* () {
-    const spawned: ChildProcess.StandardCommand[] = [];
-    let unreferenced = false;
-    yield* Effect.gen(function* () {
-      const launcher = yield* ExternalLauncher.ExternalLauncher;
-      yield* launcher.launchBrowser("https://example.com/path?q=hello");
-    }).pipe(
-      Effect.provide(
-        layerTest({
-          platform,
-          onSpawn: (value) => spawned.push(value),
-          onUnref: () => {
-            unreferenced = true;
-          },
-        }),
-      ),
-      Effect.provideService(HostProcess.Environment, { ELECTRON_RUN_AS_NODE: "1", PATH: "/bin" }),
-    );
-    assert.equal(spawned.length, 1);
-    assert.equal(spawned[0]?.command, command);
-    assert.deepEqual(spawned[0]?.options.env, { PATH: "/bin" });
-    assert.equal(spawned[0]?.options.extendEnv, false);
-    assert.equal(unreferenced, true);
-    if (platform === "win32") {
-      const encoded = spawned[0]?.args.at(-1) ?? "";
-      assert.equal(
-        Buffer.from(encoded, "base64").toString("utf16le"),
-        "$ProgressPreference = 'SilentlyContinue'; Start 'https://example.com/path?q=hello'",
+])(
+  "opens a browser on $platform without inheriting Electron mode",
+  ({ platform, command, ...input }) =>
+    Effect.gen(function* () {
+      const spawned: ChildProcess.StandardCommand[] = [];
+      let unreferenced = false;
+      yield* Effect.gen(function* () {
+        const launcher = yield* ExternalLauncher.ExternalLauncher;
+        yield* launcher.launchBrowser("https://example.com/path?q=hello");
+      }).pipe(
+        Effect.provide(
+          layerTest({
+            platform,
+            ...input,
+            onSpawn: (value) => spawned.push(value),
+            onUnref: () => {
+              unreferenced = true;
+            },
+          }),
+        ),
+        Effect.provideService(HostProcess.Environment, { ELECTRON_RUN_AS_NODE: "1", PATH: "/bin" }),
       );
-    } else {
-      assert.deepEqual(spawned[0]?.args, ["https://example.com/path?q=hello"]);
-    }
-  }),
+      assert.equal(spawned.length, 1);
+      assert.equal(spawned[0]?.command, command);
+      assert.deepEqual(spawned[0]?.options.env, { PATH: "/bin" });
+      assert.equal(spawned[0]?.options.extendEnv, false);
+      assert.equal(unreferenced, true);
+      if (platform === "win32") {
+        const encoded = spawned[0]?.args.at(-1) ?? "";
+        assert.equal(
+          Buffer.from(encoded, "base64").toString("utf16le"),
+          "$ProgressPreference = 'SilentlyContinue'; Start 'https://example.com/path?q=hello'",
+        );
+      } else {
+        assert.deepEqual(spawned[0]?.args, ["https://example.com/path?q=hello"]);
+      }
+    }),
 );

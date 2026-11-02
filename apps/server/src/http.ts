@@ -149,7 +149,7 @@ const handleStaticAndDevRequest = Effect.fn("handleStaticAndDevRequest")(
     }
 
     const config = yield* ServerConfig.ServerConfig;
-    if (isDevProxiedPath(url.value.pathname)) {
+    if (isDevProxiedPath(url.value.pathname) || /^\/(?:ws|mcp)(?:\/|$)/.test(url.value.pathname)) {
       return HttpServerResponse.text("Not Found", { status: 404 });
     }
 

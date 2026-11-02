@@ -92,7 +92,13 @@ it.layer(
       const staticDir = yield* fs.makeTempDirectoryScoped({ prefix: "madar-retired-api-" });
       yield* fs.writeFileString(path.join(staticDir, "index.html"), "<main>Madar</main>");
       const request = yield* makeStaticRequest(staticDir);
-      for (const resource of ["/api/orchestration/shell", "/api/projects", "/ws"]) {
+      for (const resource of [
+        "/api/orchestration/shell",
+        "/api/projects",
+        "/ws",
+        "/mcp",
+        "/mcp/tools",
+      ]) {
         const response = yield* request(resource);
         expect(response.status).toBe(404);
       }

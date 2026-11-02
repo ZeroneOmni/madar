@@ -1,11 +1,9 @@
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-import * as SchemaGetter from "effect/SchemaGetter";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 
-// Hermes copies the string on every `trim()`, even when nothing changes.
-// Returning the original keeps repeated IDs shared after decode.
+// Preserve the original string when trimming changes nothing.
 const trim = (value: string) => {
   const trimmed = value.trim();
   return trimmed.length === value.length ? value : trimmed;
@@ -61,7 +59,6 @@ export const ForwardCompatibleOptional = <Value extends Schema.Top>(value: Value
   );
 };
 
-/** Prefer {@link ForwardCompatibleUnion} for tagged unions so malformed known members still fail. */
 export const ForwardCompatibleArray = <Element extends Schema.Top>(element: Element) =>
   Schema.Array(
     Schema.UndefinedOr(element).pipe(
@@ -104,100 +101,6 @@ export type ForwardCompatibleArray<Element extends Schema.Top> = Schema.Codec<
   Element["EncodingServices"]
 >;
 
-/** Class identity prevents decoded payloads from impersonating unknown members. */
-export class UnknownUnionMember<Tag extends string = string> {
-  readonly tag: Tag;
-  readonly value: string;
-  constructor(tag: Tag, value: string) {
-    this.tag = tag;
-    this.value = value;
-  }
-}
-
-/** Unknown members are decode-only; encoding one fails. */
-export const ForwardCompatibleUnion = <
-  const Members extends ReadonlyArray<Schema.Top & { readonly fields: object }>,
-  const Tag extends string,
->(
-  members: Members,
-  tag: Tag,
-) => {
-  const known = knownTags(members, tag);
-  const unknownMember = Schema.Struct({
-    [tag]: Schema.String.check(
-      Schema.makeFilter(
-        (value: string) => !known.has(value) || `A known ${tag} must decode in full.`,
-      ),
-    ),
-  } as Record<Tag, Schema.String>).pipe(
-    Schema.decodeTo(Schema.instanceOf(UnknownUnionMember<Tag>), {
-      decode: SchemaGetter.transform(
-        (raw: Record<string, string>) => new UnknownUnionMember(tag, raw[tag]!),
-      ),
-      encode: SchemaGetter.forbidden(() => `Unknown ${tag} values are never sent.`),
-    }),
-  );
-  return Schema.Union([...members, unknownMember]) as unknown as ForwardCompatibleUnion<
-    Members,
-    Tag
-  >;
-};
-export type ForwardCompatibleUnion<
-  Members extends ReadonlyArray<Schema.Top>,
-  Tag extends string,
-> = Schema.Codec<
-  Members[number]["Type"] | UnknownUnionMember<Tag>,
-  Members[number]["Encoded"],
-  Members[number]["DecodingServices"],
-  Members[number]["EncodingServices"]
->;
-
-export const isUnknownUnionMember = <A>(
-  value: A,
-): value is Extract<A, UnknownUnionMember<string>> => value instanceof UnknownUnionMember;
-
-export const ForwardCompatibleUnionArray = <
-  const Members extends ReadonlyArray<Schema.Top & { readonly fields: object }>,
-  const Tag extends string,
->(
-  members: Members,
-  tag: Tag,
-) =>
-  Schema.Array(ForwardCompatibleUnion(members, tag)).pipe(
-    Schema.decodeTo(
-      Schema.Array(Schema.toType(Schema.Union(members))),
-      SchemaTransformation.transform<
-        ReadonlyArray<Members[number]["Type"]>,
-        ReadonlyArray<Members[number]["Type"] | UnknownUnionMember<Tag>>
-      >({
-        decode: (values) =>
-          values.filter((value) => !isUnknownUnionMember(value)) as ReadonlyArray<
-            Members[number]["Type"]
-          >,
-        encode: (values) => values,
-      }),
-    ),
-  );
-
-const knownTags = (
-  members: ReadonlyArray<Schema.Top & { readonly fields: object }>,
-  tag: string,
-): ReadonlySet<string> => {
-  const tags = new Set<string>();
-  for (const member of members) {
-    const field = (member.fields as Record<string, unknown>)[tag] as
-      | { readonly literal?: unknown; readonly literals?: ReadonlyArray<unknown> }
-      | undefined;
-    for (const literal of field?.literals ?? [field?.literal]) {
-      if (typeof literal !== "string") {
-        throw new Error(`Every ForwardCompatibleUnion member needs a string literal ${tag}.`);
-      }
-      tags.add(literal);
-    }
-  }
-  return tags;
-};
-
 const makeEntityId = <Brand extends string>(brand: Parameters<typeof Schema.brand<Brand>>[0]) => {
   return TrimmedNonEmptyString.pipe(Schema.brand<Brand>(brand));
 };
@@ -206,29 +109,9 @@ export const EnvironmentId = makeEntityId("EnvironmentId");
 export type EnvironmentId = typeof EnvironmentId.Type;
 export const AuthSessionId = makeEntityId("AuthSessionId");
 export type AuthSessionId = typeof AuthSessionId.Type;
-export const RpcClientId = NonNegativeInt.pipe(Schema.brand("RpcClientId"));
-export type RpcClientId = typeof RpcClientId.Type;
 
 export const ClientSurface = Schema.Literals(["web", "desktop", "mobile", "cli"]);
 export type ClientSurface = typeof ClientSurface.Type;
 
-export const ClientOs = Schema.Literals([
-  "macOS",
-  "Windows",
-  "Linux",
-  "iOS",
-  "Android",
-  "ChromeOS",
-  "other",
-  "unknown",
-]);
-export type ClientOs = typeof ClientOs.Type;
-
-export const ClientDeviceType = Schema.Literals(["desktop", "phone", "tablet", "unknown"]);
-export type ClientDeviceType = typeof ClientDeviceType.Type;
-
 export const ClientWebDeployment = Schema.Literals(["hosted", "server"]);
 export type ClientWebDeployment = typeof ClientWebDeployment.Type;
-
-export const ClientConnectionMethod = Schema.Literals(["direct", "ssh", "relay", "unknown"]);
-export type ClientConnectionMethod = typeof ClientConnectionMethod.Type;

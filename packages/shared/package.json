@@ -3,10 +3,6 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./advertisedEndpoint": {
-      "types": "./src/advertisedEndpoint.ts",
-      "import": "./src/advertisedEndpoint.ts"
-    },
     "./logging": {
       "types": "./src/logging.ts",
       "import": "./src/logging.ts"

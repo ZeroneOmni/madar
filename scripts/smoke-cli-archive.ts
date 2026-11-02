@@ -142,7 +142,7 @@ const smokeCliArchive = Effect.fn("smokeCliArchive")(function* (input: {
     Effect.all([collect(server.stdout), collect(server.stderr)]),
   );
   const httpClient = yield* HttpClient.HttpClient;
-  // Probes can hang during server initialization; bound each request as SSH readiness does.
+  // Probes can hang during server initialization; bound each request.
   const probe = httpClient.execute(HttpClientRequest.get(`http://127.0.0.1:${String(port)}/`)).pipe(
     Effect.map((response) => response.status === 200),
     Effect.timeout(Duration.seconds(2)),

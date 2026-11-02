@@ -131,7 +131,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
       }),
     );
 
-    it.effect.each(["dev", "dev:web"] as const)(
+    it.effect.each(["dev", "dev:web", "dev:desktop", "dev:server"] as const)(
       "leaves the client backend URLs unset in %s mode",
       (mode) =>
         Effect.gen(function* () {
@@ -153,7 +153,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           assert.equal(env.VITE_HTTP_URL, undefined);
           assert.equal(env.VITE_WS_URL, undefined);
           assert.equal(env.MADAR_PORT, "13773");
-          assert.equal(env.MADAR_SINGLE_ORIGIN_DEV, "1");
+          assert.equal(env.MADAR_SINGLE_ORIGIN_DEV, undefined);
         }),
     );
 

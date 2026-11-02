@@ -13,12 +13,10 @@ import noManualEffectRuntimeInTests from "./rules/no-manual-effect-runtime-in-te
 import noNativeTitleTooltip from "./rules/no-native-title-tooltip.ts";
 import noOutsetStateIndicators from "./rules/no-outset-state-indicators.ts";
 import noPollingLoopInTests from "./rules/no-polling-loop-in-tests.ts";
-import noRawMcpRegistration from "./rules/no-raw-mcp-registration.ts";
 import noRawResizeObserver from "./rules/no-raw-resize-observer.ts";
 import noRealTimeWaitInTests from "./rules/no-real-time-wait-in-tests.ts";
 import noTestInLoop from "./rules/no-test-in-loop.ts";
 import noTestTimeoutOrUnreasonedSkip from "./rules/no-test-timeout-or-unreasoned-skip.ts";
-import noRpcPermissionBypass from "./rules/no-rpc-permission-bypass.ts";
 import noUnscopedHas from "./rules/no-unscoped-has.ts";
 import noWallClockInTests from "./rules/no-wall-clock-in-tests.ts";
 import preferCatchTags from "./rules/prefer-catch-tags.ts";
@@ -45,12 +43,10 @@ export default definePlugin({
     "no-native-title-tooltip": noNativeTitleTooltip,
     "no-outset-state-indicators": noOutsetStateIndicators,
     "no-polling-loop-in-tests": noPollingLoopInTests,
-    "no-raw-mcp-registration": noRawMcpRegistration,
     "no-raw-resize-observer": noRawResizeObserver,
     "no-real-time-wait-in-tests": noRealTimeWaitInTests,
     "no-test-in-loop": noTestInLoop,
     "no-test-timeout-or-unreasoned-skip": noTestTimeoutOrUnreasonedSkip,
-    "no-rpc-permission-bypass": noRpcPermissionBypass,
     "no-unscoped-has": noUnscopedHas,
     "no-wall-clock-in-tests": noWallClockInTests,
     "prefer-catch-tags": preferCatchTags,

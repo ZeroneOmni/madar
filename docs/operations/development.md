@@ -129,10 +129,10 @@ Put that value in the main checkout's gitignored `.env`:
 MADAR_DEV_AUTH_TOKEN=<the value generated above>
 ```
 
-The `madar.json` Setup Worktree action links that file to each worktree's `.env`. The dev runner reads repository env files at startup. `.env.local` and inherited process
-environment values override `.env`, so no per-worktree export is needed after setup.
+The dev runner reads env files from the current checkout at startup. `.env.local` and
+inherited process environment values override `.env`.
 
-For a manual worktree or launcher without that link, export the same fixed value instead:
+In another worktree, configure its own gitignored `.env` or export the same value:
 
 ```sh
 export MADAR_DEV_AUTH_TOKEN="<the value generated above>"
@@ -152,7 +152,7 @@ for the security model.
 ## Checks
 
 `vp run check:changed` runs CI's fast checks for your branch's changes: format and lint of the
-changed files, `knip:check` when code or a manifest changes, the generated GraphQL checks, typecheck
+changed files, `knip:check` when code or a manifest changes, typecheck
 of the affected packages and their dependents, and the test files beside the changed files. It maps
 files to packages with [ci-changes.cjs](../../.github/scripts/ci-changes.cjs), as CI does. It
 compares against the merge base with `origin/main`, or with a ref you pass. CI still runs the full

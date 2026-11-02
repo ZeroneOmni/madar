@@ -100,8 +100,8 @@ jobs:
       - name: Check unused code
         run: vp run knip:check
 
-      - name: Check generated GitHub GraphQL operations
-        run: vp run --filter @madar/source-control-github generate --check
+      - name: Check retired features
+        run: vp run verify:retired
 
       - name: Validate release guard
         run: node --test .github/scripts/madar-release.test.cjs
@@ -200,13 +200,6 @@ jobs:
             !/.repos/
           sparse-checkout-cone-mode: false
 
-      # ACP process-tree live tests soft-skip without `cc`; install it so they run in CI.
-      - name: Install C toolchain for process-tree fixtures
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential
-          command -v cc
-
       - uses: ./.github/actions/setup-apt-mirrors
 
       - name: Setup Vite+
@@ -224,9 +217,6 @@ jobs:
 
       - name: Ensure Electron runtime is installed
         run: vp run --filter @madar/desktop ensure:electron
-
-      - name: Test preview artifact validation
-        run: python3 -B .github/scripts/stage-preview-bundle.test.py
 
       - name: Test release checks
         run: node --test .github/scripts/check-nightly-release.test.cjs .github/scripts/madar-release.test.cjs

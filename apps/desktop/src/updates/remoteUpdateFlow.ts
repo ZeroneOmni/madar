@@ -41,7 +41,7 @@ export function nextRemoteDesktopUpdateStep(
       reason: disabledReason ?? "Automatic updates are disabled on this machine.",
     };
   }
-  // Reinstalling a failed version disrupts threads without updating; retries require the local user.
+  // Reinstalling a failed version interrupts the app without updating; retries require the local user.
   if (
     state.notAppliedVersion !== undefined &&
     (state.downloadedVersion ?? state.availableVersion) === state.notAppliedVersion

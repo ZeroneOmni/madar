@@ -24,14 +24,7 @@ const RUST = /^native\/(resource-monitor)\//;
 
 // These tests read other packages without declaring dependencies.
 const TEST_ONLY_DEPS = {
-  "@madar/provider-pi": ["@madar/client-runtime"],
-  "@madar/scripts": [
-    "@madar/desktop",
-
-    "@madar/web",
-    "madar",
-    "@madar/provider-cursor",
-  ],
+  "@madar/scripts": ["@madar/desktop", "@madar/web", "madar"],
 };
 // The server bundles the web build without importing it.
 const BUILD_ONLY_DEPS = { madar: ["@madar/web"] };

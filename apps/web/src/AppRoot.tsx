@@ -22,7 +22,7 @@ export function AppRoot() {
   const { appearanceMode, setAppearanceMode } = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
-  useEffect(() => installDesktopPasteAsText(window.desktopBridge, window), []);
+  useEffect(() => installDesktopPasteAsText(window.desktopBridge), []);
   useEffect(() => {
     const unsubscribe = window.desktopBridge?.onMenuAction((action) => {
       if (action === "open-settings") setSettingsOpen(true);
