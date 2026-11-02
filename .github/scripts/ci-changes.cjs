@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, "../..");
 
 const INERT = [
   /^docs\//,
-  /^\.(agents|cursor|vscode|devcontainer|macroscope|repos)\//,
+  /^\.(vscode|devcontainer|macroscope|repos)\//,
   /^[^/]+\.md$/,
   /^LICENSE$/,
 ];
@@ -20,7 +20,6 @@ const EXTRA_OWNERS = [
   // Vite configs and tsconfigs of these apps import scripts/lib directly.
   [/^scripts\/lib\//, ["@madar/desktop", "@madar/web", "madar"]],
 ];
-const RUST = /^native\/(resource-monitor)\//;
 
 // These tests read other packages without declaring dependencies.
 const TEST_ONLY_DEPS = {
@@ -77,8 +76,6 @@ function ownersOf(file, packages) {
   if (path.posix.basename(file) === "package.json") return null;
   if (RUNS_EVERYTHING.some((pattern) => pattern.test(file))) return null;
   const extra = EXTRA_OWNERS.flatMap(([pattern, names]) => (pattern.test(file) ? names : []));
-  // scripts/build-desktop-artifact.test.ts reads the crates' sources.
-  if (RUST.test(file)) return ["@madar/scripts", ...extra];
 
   const owner = packages
     .filter((pkg) => file.startsWith(`${pkg.dir}/`))
@@ -91,10 +88,8 @@ function decide(files, packages, full) {
   const all = new Set(packages.map((pkg) => pkg.name));
   let affected = new Set();
   let everything = full || files === null;
-  let rust = false;
 
   for (const file of files ?? []) {
-    if (RUST.test(file)) rust = true;
     const owners = ownersOf(file, packages);
     if (owners === null) {
       everything = true;
@@ -140,7 +135,6 @@ function decide(files, packages, full) {
       test_packages: everything ? "" : tested.map((pkg) => pkg.name).join(" "),
       test_web: has("@madar/web"),
       test_server: has("madar"),
-      rust: everything || rust,
       release_smoke: scriptsChanged,
     },
   };

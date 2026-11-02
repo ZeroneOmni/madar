@@ -16,7 +16,6 @@ export default defineConfig((ctx) => ({
       docstrings: { mode: "off" },
       override_requested_reviewers_only: isGated(ctx),
     },
-    path_filters: ["!.repos/**"],
     path_instructions: [
       {
         path: "{apps,packages,infra}/**/*.ts",

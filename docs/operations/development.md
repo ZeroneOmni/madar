@@ -219,54 +219,41 @@ options.
 ### Linux AppImage prerequisites
 
 Build on Linux because the browser-secret helper links against the host's libsecret. Install
-Rust, C/C++ build tools, libsecret development headers, pkg-config, and ImageMagick.
+C/C++ build tools, libsecret development headers, pkg-config, and ImageMagick.
 
 Ubuntu and Debian:
 
 ```sh
 sudo apt-get update
-sudo apt-get install cargo rustc build-essential libsecret-1-dev pkg-config imagemagick
+sudo apt-get install build-essential libsecret-1-dev pkg-config imagemagick
 ```
 
 Fedora:
 
 ```sh
-sudo dnf install rust cargo gcc gcc-c++ make libsecret-devel pkgconf-pkg-config ImageMagick
+sudo dnf install gcc gcc-c++ make libsecret-devel pkgconf-pkg-config ImageMagick
 ```
 
 Arch Linux:
 
 ```sh
-sudo pacman -S rust base-devel libsecret pkgconf imagemagick
+sudo pacman -S base-devel libsecret pkgconf imagemagick
 ```
 
 The C toolchain, pkg-config, and libsecret headers are also needed for Linux desktop development.
 
 ### macOS DMG prerequisites
 
-Install the Xcode Command Line Tools with `xcode-select --install` and install Rust.
-For a cross-architecture or universal build, add the requested Rust targets:
-
-```sh
-rustup target add aarch64-apple-darwin x86_64-apple-darwin
-```
+Install the Xcode Command Line Tools with `xcode-select --install`.
 
 ### Windows installer prerequisites
 
-Install Rust, Python 3, and Visual Studio Build Tools with **Desktop development with C++**.
+Install Python 3, and Visual Studio Build Tools with **Desktop development with C++**.
 Include the Windows SDK and the MSVC build tools and Spectre-mitigated libraries for the target
-architecture. Add its Rust target:
-
-```powershell
-rustup target add x86_64-pc-windows-msvc
-# For an ARM64 installer:
-rustup target add aarch64-pc-windows-msvc
-```
+architecture.
 
 NSIS is downloaded by electron-builder.
 
-### Signing and passkeys
+### Signing
 
-Add `--signed` after configuring the platform credentials in the
-[release runbook](./release.md). macOS passkeys need a signed, provisioned app; follow the
-[public build configuration](../../.env.example) for local signing and renderer HMR.
+Add `--signed` after configuring platform credentials in the [release runbook](./release.md).

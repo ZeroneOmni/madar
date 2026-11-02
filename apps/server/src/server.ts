@@ -1,7 +1,6 @@
 import * as Console from "effect/Console";
 import * as EventLoopMonitor from "./observability/EventLoopMonitor.ts";
 import * as Observability from "./observability/Observability.ts";
-import * as ResourceAttribution from "./resourceTelemetry/ResourceAttribution.ts";
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeHttp from "node:http";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
@@ -127,12 +126,7 @@ const layerServer = Layer.unwrap(
       Layer.provide(ExternalLauncher.layer),
       Layer.provide(ProcessRunner.layer),
       Layer.provide(NetService.layer),
-      Layer.provide(
-        EventLoopMonitor.layer.pipe(
-          Layer.provideMerge(Observability.layer),
-          Layer.provideMerge(ResourceAttribution.layer),
-        ),
-      ),
+      Layer.provide(EventLoopMonitor.layer.pipe(Layer.provideMerge(Observability.layer))),
       Layer.provide(FetchHttpClient.layer),
       Layer.provide(NodeServices.layer),
     );

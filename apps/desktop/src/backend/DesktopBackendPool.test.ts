@@ -10,7 +10,6 @@ import { ChildProcessSpawner } from "effect/process";
 
 import * as DesktopObservability from "../app/DesktopObservability.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
-import * as DesktopTelemetryPublisher from "../telemetry/DesktopTelemetryPublisher.ts";
 
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
@@ -43,18 +42,6 @@ function layerPool(labelRef: Ref.Ref<string>): Layer.Layer<DesktopBackendPool.De
               discardSession: Effect.void,
             } satisfies DesktopObservability.DesktopBackendOutputLogShape),
         } satisfies DesktopObservability.DesktopBackendOutputLogFactory["Service"]),
-        Layer.succeed(DesktopTelemetryPublisher.DesktopTelemetryPublisher, {
-          latest: Effect.succeedNone,
-          changes: Stream.empty,
-          encoded: Stream.empty,
-          handleControlForSource: () => Effect.void,
-          removeControlSource: () => Effect.void,
-          publishUpdateReport: () => Effect.void,
-          updateRequests: Stream.empty,
-          updateCommits: Stream.empty,
-          updateCancellations: Stream.empty,
-        }),
-
         Layer.succeed(DesktopBackendConfiguration.DesktopBackendConfiguration, {
           resolvePrimary: Effect.die("unexpected primary config resolve"),
           resolvePrimaryLabel: Ref.get(labelRef),

@@ -460,15 +460,15 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
           makeCookieRequest(sessions.cookieName, administrativeExchange.sessionToken),
         );
         const pairingCredential = yield* serverAuth.issuePairingCredential({
-          label: "Julius iPhone",
+          label: "Office browser",
         });
         const listedPairingLinks = yield* serverAuth.listPairingLinks();
         const clientExchange = yield* serverAuth.createBrowserSession(
           pairingCredential.credential,
           {
             ...requestMetadata,
-            deviceType: "mobile",
-            os: "iOS",
+            deviceType: "desktop",
+            os: "macOS",
             browser: "Safari",
             ipAddress: "192.168.1.88",
           },
@@ -488,7 +488,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
 
         expect(listedPairingLinks.map((entry) => entry.id)).toContain(pairingCredential.id);
         expect(listedPairingLinks.find((entry) => entry.id === pairingCredential.id)?.label).toBe(
-          "Julius iPhone",
+          "Office browser",
         );
         expect(clientsBeforeRevoke).toHaveLength(2);
         expect(
@@ -501,11 +501,11 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
         expect(
           clientsBeforeRevoke.find((entry) => entry.sessionId === clientSession.sessionId)?.client
             .label,
-        ).toBe("Julius iPhone");
+        ).toBe("Office browser");
         expect(
           clientsBeforeRevoke.find((entry) => entry.sessionId === clientSession.sessionId)?.client
             .deviceType,
-        ).toBe("mobile");
+        ).toBe("desktop");
         expect(revokedCount).toBe(1);
         expect(clientsAfterRevoke).toHaveLength(1);
         expect(clientsAfterRevoke[0]?.sessionId).toBe(administrativeSession.sessionId);

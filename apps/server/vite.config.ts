@@ -16,15 +16,6 @@ export { shouldBundleCliDependency };
 const cliBuildChannel = /^[^-+]+-(?:nightly|preview)\./.test(packageJson.version)
   ? "nightly"
   : "latest";
-// Official release workflows set the telemetry channel; local builds and forks use "dev".
-const TELEMETRY_CHANNELS = ["stable", "nightly", "preview", "dev"];
-const telemetryChannel = process.env.MADAR_TELEMETRY_CHANNEL?.trim() || "dev";
-if (!TELEMETRY_CHANNELS.includes(telemetryChannel)) {
-  throw new Error(
-    `MADAR_TELEMETRY_CHANNEL must be one of ${TELEMETRY_CHANNELS.join(", ")}, got "${telemetryChannel}".`,
-  );
-}
-
 // tsdown SEA needs one chunk (sourcemaps count) and Node >=25.7, so package separately.
 const packExecutable = process.env.MADAR_PACK_EXE === "1";
 const SEA_TARGETS = {
@@ -101,7 +92,6 @@ export default mergeConfig(
       },
       define: {
         __MADAR_BUILD_CHANNEL__: JSON.stringify(cliBuildChannel),
-        __MADAR_TELEMETRY_CHANNEL__: JSON.stringify(telemetryChannel),
       },
     },
     test: {

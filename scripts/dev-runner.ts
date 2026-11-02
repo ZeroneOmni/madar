@@ -320,10 +320,6 @@ export const createDevRunnerEnv = Effect.fn("dev-runner.createDevRunnerEnv")(fun
   delete output.MADAR_SERVICE_LAUNCHER_CONTEXT;
   delete output.MADAR_BOOT_SERVICE_UNIT;
 
-  // Each worktree has its own state, so a dev server would count as a new
-  // install of the developer's real accounts. Set it explicitly to opt in.
-  output.MADAR_TELEMETRY_ENABLED = baseEnv.MADAR_TELEMETRY_ENABLED ?? "false";
-
   output.MADAR_PORT = String(serverPort);
   delete output.VITE_HTTP_URL;
   delete output.VITE_WS_URL;

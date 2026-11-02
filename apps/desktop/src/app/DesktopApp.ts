@@ -27,10 +27,8 @@ import * as DesktopServerExposure from "../backend/DesktopServerExposure.ts";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopShellEnvironment from "../shell/DesktopShellEnvironment.ts";
 import * as DesktopState from "./DesktopState.ts";
-import * as DesktopRemoteUpdates from "../updates/DesktopRemoteUpdates.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
 
-import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
 import * as HostProcess from "@madar/shared/HostProcess";
 
 const DEFAULT_DESKTOP_BACKEND_PORT = 3773;
@@ -278,7 +276,6 @@ const startup = Effect.gen(function* () {
 
   yield* applicationMenu.configure;
   yield* updates.configure;
-  yield* DesktopRemoteUpdates.listen;
   yield* linuxUrlHandler.register;
   yield* bootstrap.pipe(Effect.catchCause((cause) => fatalStartupCause("bootstrap", cause)));
 }).pipe(Effect.withSpan("desktop.startup"));
@@ -290,14 +287,10 @@ const scopedProgram = Effect.scoped(
     yield* Effect.annotateCurrentSpan({ scope: "desktop", runId });
 
     const shutdown = yield* DesktopShutdown.DesktopShutdown;
-    const rendererHistory = yield* DesktopRendererHistory.DesktopRendererHistory;
 
     yield* Effect.addFinalizer(() =>
       // Quit can outrun layer finalizers; stop pooled backends here so they receive SIGTERM before OS teardown.
-      stopAllPoolInstances().pipe(
-        Effect.ensuring(rendererHistory.shutdown),
-        Effect.ensuring(shutdown.markComplete),
-      ),
+      stopAllPoolInstances().pipe(Effect.ensuring(shutdown.markComplete)),
     );
 
     yield* startup;

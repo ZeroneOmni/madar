@@ -110,8 +110,8 @@ export type EnvironmentId = typeof EnvironmentId.Type;
 export const AuthSessionId = makeEntityId("AuthSessionId");
 export type AuthSessionId = typeof AuthSessionId.Type;
 
-export const ClientSurface = Schema.Literals(["web", "desktop", "mobile", "cli"]);
+export const ClientSurface = Schema.Literals(["web", "desktop", "cli"]);
 export type ClientSurface = typeof ClientSurface.Type;
 
-export const ClientWebDeployment = Schema.Literals(["hosted", "server"]);
+export const ClientWebDeployment = Schema.Literals(["server"]);
 export type ClientWebDeployment = typeof ClientWebDeployment.Type;

@@ -6,6 +6,26 @@ import * as NodeURL from "node:url";
 
 const root = NodeURL.fileURLToPath(new URL("../", import.meta.url));
 const retiredPaths = [
+  ".repos",
+  ".cursor",
+  "CLAUDE.md",
+  "native/resource-monitor",
+  "apps/server/src/resourceTelemetry",
+  "apps/desktop/src/telemetry",
+  "apps/desktop/src/electron/ElectronPowerMonitor.ts",
+  "apps/desktop/src/updates/remoteUpdateFlow.ts",
+  "apps/desktop/src/updates/remoteUpdateFlow.test.ts",
+  "apps/desktop/src/updates/DesktopRemoteUpdates.ts",
+  "apps/desktop/src/updates/DesktopRemoteUpdates.test.ts",
+  "packages/contracts/src/resourceTelemetry.ts",
+  "packages/contracts/src/background.ts",
+  "scripts/sync-reference-repos.ts",
+  "scripts/sync-reference-repos.test.ts",
+  "scripts/lib/reference-repos.ts",
+  "docs/internals/resource-telemetry.md",
+  "apps/server/src/cloud/traceRelayRequest.ts",
+  "packages/shared/src/relayTracing.ts",
+  "packages/shared/src/telemetryId.ts",
   "oxlint-plugin-madar/rules/no-raw-mcp-registration.ts",
   "oxlint-plugin-madar/rules/no-raw-mcp-registration.test.ts",
   "oxlint-plugin-madar/rules/no-rpc-permission-bypass.ts",
@@ -96,6 +116,43 @@ const retiredPaths = [
 for (const retired of retiredPaths) {
   NodeAssert.equal(NodeFS.existsSync(NodePath.join(root, retired)), false, retired);
 }
+const retiredInfrastructure =
+  /resourceTelemetry|resource-monitor|resourceMonitor|DesktopTelemetry|desktopTelemetry|DesktopRendererHistory|ElectronPowerMonitor|DesktopRemoteUpdates|remoteUpdateFlow|MADAR_POSTHOG|MADAR_TELEMETRY|\.repos\//;
+for (const directory of [
+  "apps",
+  "packages",
+  "scripts",
+  "docs",
+  ".github",
+  ".devcontainer",
+  ".vscode",
+]) {
+  const pending = [NodePath.join(root, directory)];
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    for (const entry of NodeFS.readdirSync(current, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) continue;
+      const filename = NodePath.join(current, entry.name);
+      if (entry.isDirectory()) {
+        if (
+          !["node_modules", "dist", "dist-electron", "vendor", ".vite-plus"].includes(entry.name)
+        ) {
+          pending.push(filename);
+        }
+      } else if (
+        entry.isFile() &&
+        /\.(?:[cm]?[jt]sx?|jsonc?|ya?ml|md)$/.test(entry.name) &&
+        filename !== NodeURL.fileURLToPath(import.meta.url)
+      ) {
+        NodeAssert.equal(
+          retiredInfrastructure.test(NodeFS.readFileSync(filename, "utf8")),
+          false,
+          NodePath.relative(root, filename),
+        );
+      }
+    }
+  }
+}
 const preload = NodeFS.readFileSync(NodePath.join(root, "apps/desktop/src/preload.ts"), "utf8");
 const handlers = NodeFS.readFileSync(
   NodePath.join(root, "apps/desktop/src/ipc/DesktopIpcHandlers.ts"),
@@ -112,6 +169,7 @@ for (const method of [
   "pickFolder",
   "pickProjectFavicon",
   "pickThemeFiles",
+  "getRelayTelemetryEnabled",
 ]) {
   const pattern = new RegExp("\\b" + method + "\\b");
   NodeAssert.equal(pattern.test(preload), false, "preload: " + method);
@@ -168,7 +226,6 @@ for (const [relative, pattern] of [
     /COMPOSER|composer|DESKTOP_PASTE_AS_TEXT_EVENT|dispatchEvent/,
   ],
   ["apps/desktop/src/window/DesktopWindow.ts", /disableHtmlFullscreenWindowResize|webview/],
-  ["apps/desktop/src/updates/remoteUpdateFlow.ts", /disrupts threads/],
   ["packages/shared/src/semver.ts", /SSH startup/],
   [
     "packages/shared/src/shell.ts",

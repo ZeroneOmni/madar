@@ -143,7 +143,9 @@ const AuthSessionDbRow = Schema.Struct({
   clientLabel: Schema.NullOr(Schema.String),
   clientIpAddress: Schema.NullOr(Schema.String),
   clientUserAgent: Schema.NullOr(Schema.String),
-  clientDeviceType: Schema.Literals(["desktop", "mobile", "tablet", "bot", "unknown"]),
+  clientDeviceType: AuthClientMetadataDeviceType.pipe(
+    Schema.catchDecoding(() => Effect.succeedSome("unknown" as const)),
+  ),
   clientOs: Schema.NullOr(Schema.String),
   clientBrowser: Schema.NullOr(Schema.String),
   issuedAt: Schema.DateTimeUtcFromString,

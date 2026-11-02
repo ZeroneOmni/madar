@@ -25,7 +25,6 @@ source alone does not explain. Most code changes do not need an internal documen
 - [Architecture overview](./internals/overview.md)
 - [Glossary](./internals/glossary.md)
 - [Server updates](./internals/server-updates.md)
-- [Resource telemetry](./internals/resource-telemetry.md)
 - [Environment auth](./internals/environment-auth.md)
 
 ### Runbooks

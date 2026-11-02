@@ -3,7 +3,7 @@ name: Release desktop build
 # One desktop platform/arch build, called once per target from release.yml so
 # each target is its own job with its own `needs`. The JS bundle (server, web
 # client, Electron main) comes from the `js-bundle` artifact that build_bundle
-# produced; this job only packages it, builds the native helpers, and, where
+# produced; this job packages it and, where
 # `cli_archive` is set, the self-contained CLI archive for its platform.
 
 on:
@@ -49,12 +49,6 @@ on:
       arch:
         required: true
         type: string
-      rust_target:
-        required: true
-        type: string
-      resource_key:
-        required: true
-        type: string
       # Whether the job also builds the self-contained CLI archive for its own
       # platform/arch, on this runner, and smoke-tests it here. Every archive
       # is built on hardware of its own architecture.
@@ -94,9 +88,6 @@ jobs:
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 60
     steps:
-      # This repository is public, so Git needs no credentials. checkout's
-      # credential cleanup runs submodule foreach even with submodules disabled,
-      # which fails on the orphaned gitlinks in our vendored .repos tree.
       # checkout.workers=0 writes the files on every core. Alternating both ways
       # in one job on the Windows runners, it wrote the files about 10s faster
       # (about 40% on arm64).
@@ -110,7 +101,6 @@ jobs:
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           git fetch --no-tags --depth=1 origin "$CHECKOUT_REF"
-          git sparse-checkout set --no-cone '/*' '!/.repos/'
           git -c checkout.workers=0 checkout --detach FETCH_HEAD
 
       - name: Setup Vite+
@@ -134,20 +124,6 @@ jobs:
           pnpm_config_cache_dir: ${{ runner.temp }}/pnpm-metadata
         run: vp install --filter=@madar/desktop... --filter=madar... --filter=@madar/scripts...
 
-      - name: Cache resource monitor
-        id: resource_monitor_cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: native/resource-monitor/target/${{ inputs.rust_target }}/release/madar-resource-monitor${{ inputs.platform == 'win' && '.exe' || '' }}
-          key: resource-monitor-${{ inputs.rust_target }}-${{ hashFiles('native/resource-monitor/Cargo.lock', 'native/resource-monitor/Cargo.toml', 'native/resource-monitor/src/**') }}
-
-      - name: Setup Rust
-        if: steps.resource_monitor_cache.outputs.cache-hit != 'true'
-        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-        with:
-          toolchain: stable
-          targets: ${{ inputs.rust_target }}
-
       - name: Align package versions to release version
         run: node scripts/update-release-package-versions.ts "${{ inputs.version }}"
 
@@ -160,21 +136,6 @@ jobs:
           name: js-bundle
           path: apps
 
-      - name: Install cargo-xwin
-        if: inputs.platform == 'win' && steps.resource_monitor_cache.outputs.cache-hit != 'true'
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
-        with:
-          tool: cargo-xwin@0.23.1
-
-      # Built here rather than inside the desktop build so the CLI archive,
-      # which bundles the same binary, can be built and uploaded first.
-      - name: Build resource monitor
-        if: steps.resource_monitor_cache.outputs.cache-hit != 'true'
-        shell: bash
-        run: cargo ${{ inputs.platform == 'win' && 'xwin build' || 'build' }} --locked --release --manifest-path native/resource-monitor/Cargo.toml --target "${{ inputs.rust_target }}"
-
-      # Off Windows, scripts/lib/windows-jsign.ts signs through jsign instead of
-      # the TrustedSigning PowerShell module.
       - name: Install jsign
         if: inputs.platform == 'win'
         shell: bash
@@ -205,10 +166,6 @@ jobs:
       - name: Build CLI single-executable
         if: inputs.cli_archive
         shell: bash
-        env:
-          # The executable bundles the server again, so it needs the same stamp
-          # as release.yml's JS bundle.
-          MADAR_TELEMETRY_CHANNEL: ${{ github.repository == 'ZeroneOmni/madar' && inputs.release_channel || 'dev' }}
         run: node apps/server/scripts/cli.ts build-exe --verbose ${{ inputs.platform == 'win' && format('--target win-{0}', inputs.arch) || '' }}
 
       - name: Import macOS signing certificate for the CLI archive
@@ -242,19 +199,6 @@ jobs:
           echo "MADAR_CLI_MAC_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
           echo "macOS CLI signing enabled."
 
-      - name: Stage resource monitor for the CLI archive
-        if: inputs.cli_archive
-        shell: bash
-        run: |
-          set -euo pipefail
-          binary_name="madar-resource-monitor"
-          if [[ "${{ inputs.platform }}" == "win" ]]; then
-            binary_name="${binary_name}.exe"
-          fi
-          target_dir="$RUNNER_TEMP/cli-resource-monitor/${{ inputs.resource_key }}"
-          mkdir -p "$target_dir"
-          cp "native/resource-monitor/target/${{ inputs.rust_target }}/release/${binary_name}" "$target_dir/$binary_name"
-
       - name: Build CLI archive
         if: inputs.cli_archive
         shell: bash
@@ -279,7 +223,6 @@ jobs:
             --platform "${{ inputs.platform }}" \
             --arch "${{ inputs.arch }}" \
             --version "${{ inputs.version }}" \
-            --resource-monitor-dir "$RUNNER_TEMP/cli-resource-monitor" \
             --output-dir release-cli
 
       - name: Smoke-test CLI archive
@@ -317,7 +260,6 @@ jobs:
         shell: bash
         env:
           pnpm_config_cache_dir: ${{ runner.temp }}/pnpm-metadata
-          MADAR_DESKTOP_REUSE_RESOURCE_MONITOR: true
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
@@ -458,31 +400,11 @@ jobs:
             done
           fi
 
-      - name: Collect resource monitor
-        shell: bash
-        run: |
-          set -euo pipefail
-          binary_name="madar-resource-monitor"
-          if [[ "${{ inputs.platform }}" == "win" ]]; then
-            binary_name="${binary_name}.exe"
-          fi
-          source_path="native/resource-monitor/target/${{ inputs.rust_target }}/release/${binary_name}"
-          target_dir="resource-monitor-publish/${{ inputs.resource_key }}"
-          mkdir -p "$target_dir"
-          cp "$source_path" "$target_dir/$binary_name"
-
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: desktop-${{ inputs.platform }}-${{ inputs.arch }}
           path: release-publish/*
-          if-no-files-found: error
-
-      - name: Upload resource monitor
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: resource-monitor-${{ inputs.resource_key }}
-          path: resource-monitor-publish/${{ inputs.resource_key }}/*
           if-no-files-found: error
 
   verify:
@@ -518,47 +440,3 @@ jobs:
         if: inputs.cli_archive
         shell: bash
         run: node verify/smoke-cli-archive.mjs --archive release-cli/* --expect-version "${{ inputs.version }}"
-
-      # cargo-xwin links this binary on Linux, and nothing else runs it before users do.
-      # Node rather than pwsh: PowerShell on Windows ARM crashes intermittently
-      # (https://github.com/dotnet/runtime/issues/131636), which is why this
-      # target stopped building on Windows.
-      - name: Smoke-test resource monitor
-        shell: bash
-        env:
-          MONITOR: verify/${{ env.UNPACKED_DIR }}/resources/resource-monitor/madar-resource-monitor.exe
-          EXPECTED_ARCH: ${{ inputs.arch == 'arm64' && 'aarch64' || 'x86_64' }}
-        run: |
-          node --input-type=module <<'EOF'
-          import { spawn } from "node:child_process";
-          const monitor = spawn(process.env.MONITOR, { stdio: ["pipe", "pipe", "inherit"] });
-          monitor.stdout.setEncoding("utf8");
-          let output = "";
-          const exited = new Promise((resolve) => monitor.on("close", resolve));
-          const hello = await new Promise((resolve, reject) => {
-            monitor.on("error", reject);
-            monitor.on("close", () => reject(new Error(`Resource monitor exited before hello: ${output}`)));
-            monitor.stdout.on("data", (chunk) => {
-              output += chunk;
-              const end = output.indexOf("\n");
-              if (end !== -1) resolve(JSON.parse(output.slice(0, end)));
-            });
-          });
-          if (hello.type !== "hello" || hello.arch !== process.env.EXPECTED_ARCH) {
-            throw new Error(`Unexpected hello: ${JSON.stringify(hello)}`);
-          }
-          const send = (message) => monitor.stdin.write(`${JSON.stringify({ version: hello.version, ...message })}\n`);
-          send({ type: "configure", rootPid: process.pid, sampleIntervalMs: 1000 });
-          send({ type: "sampleNow", requestId: "verify" });
-          monitor.stdin.end();
-          const exitCode = await exited;
-          const sample = output
-            .split("\n")
-            .filter((line) => line.trim())
-            .map((line) => JSON.parse(line))
-            .find((message) => message.requestId === "verify");
-          if (exitCode !== 0 || sample?.type !== "snapshot" || !sample.processes.some((p) => p.pid === process.pid)) {
-            throw new Error(`Resource monitor exited ${exitCode} with: ${output}`);
-          }
-          console.log(`Resource monitor sampled ${sample.scannedProcessCount} processes.`);
-          EOF

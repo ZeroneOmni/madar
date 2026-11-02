@@ -36,10 +36,7 @@ design of the finished product.
 
 ## Project workflow
 
-For implementation, debugging, review, or resuming work in Madar, read
-[the project workflow](.agents/skills/madar-workflow/SKILL.md). It combines the installed Matt Pocock
-and poteto skills around observable outcomes, focused verification, and improvements grounded in
-recurring failures. This file owns repository constraints when a bundled skill differs.
+Define the observable outcome before implementation. Inspect current source, make the smallest coherent change, and verify it with focused checks and direct runtime evidence. Keep live state isolated and report verification gaps.
 
 ## Engineering priorities
 
@@ -154,12 +151,11 @@ Most code changes do not need an internal documentation change. Agents can read 
 
 ## Where code lives
 
-- `apps/server` - HTTP metadata, authentication, persistence, and runtime infrastructure. Effect-heavy: read [Effect services](docs/internals/effect-services.md) before adding server code, and `.repos/effect-smol/LLMS.md` for the Effect library itself.
+- `apps/server` - HTTP metadata, authentication, persistence, and runtime infrastructure. Effect-heavy: read [Effect services](docs/internals/effect-services.md) before adding server code.
 - `apps/web` - React/Vite UI. `apps/desktop` wraps it.
 - `packages/contracts` - Effect/Schema contracts plus small derived helpers. No heavy runtime logic.
 - `packages/shared` - shared runtime utils, subpath exports, no barrel.
 - `packages/client-runtime` - client state, connections, and RPC code used by the Electron web UI.
-- `.repos/` - vendored read-only references. Prefer their patterns over invented ones. Never edit or import from them. Sync with `vpr sync:repos` when bumping the matching dependency. If it is missing (sparse checkout), read a file with `git show origin/main:.repos/<path>`.
 
 ## Taste
 

@@ -13,7 +13,6 @@ import * as OtlpTracer from "effect/observability/OtlpTracer";
 import * as Statement from "effect/sql/Statement";
 
 import * as ServerConfig from "../config.ts";
-import * as ResourceAttribution from "../resourceTelemetry/ResourceAttribution.ts";
 import * as ServerLogger from "../serverLogger.ts";
 import * as BrowserTraceCollector from "./BrowserTraceCollector.ts";
 
@@ -26,7 +25,6 @@ export const layer = Layer.unwrap(
     // Keep serialization in context for the browser trace forwarder's exporter.
     const layerSerialization = SharedObservability.layerOtlpSerialization(traces.protocol);
     const resource = ServerConfig.otlpResource(config, yield* HostProcess.Hostname);
-    const attribution = yield* ResourceAttribution.ResourceAttribution;
 
     const layerTraceReferences = Layer.mergeAll(
       Layer.succeed(Tracer.MinimumTraceLevel, config.traceMinLevel),
@@ -43,14 +41,6 @@ export const layer = Layer.unwrap(
           maxBytes: config.traceMaxBytes,
           maxFiles: config.traceMaxFiles,
           batchWindowMs: config.traceBatchWindowMs,
-          onFlush: (stats) =>
-            attribution.record({
-              component: "server-trace",
-              operation: "append",
-              logicalWriteBytes: stats.logicalWriteBytes,
-              count: stats.count,
-              durationMs: stats.durationMs,
-            }),
         });
         const delegate =
           config.otlpTracesUrl === undefined

@@ -29,7 +29,6 @@ import {
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
-import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
 import { makeQuitShortcutHandler } from "./QuitHold.ts";
 import { copyContextMenuImage } from "./ContextMenuImage.ts";
 
@@ -74,8 +73,7 @@ type DesktopWindowRuntimeServices =
   | ElectronMenu.ElectronMenu
   | ElectronShell.ElectronShell
   | ElectronTheme.ElectronTheme
-  | ElectronWindow.ElectronWindow
-  | DesktopRendererHistory.DesktopRendererHistory;
+  | ElectronWindow.ElectronWindow;
 
 export type DesktopWindowError = ElectronWindow.ElectronWindowCreateError;
 
@@ -278,7 +276,6 @@ export const make = Effect.gen(function* () {
   const desktopSettings = yield* DesktopAppSettings.DesktopAppSettings;
   const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
   const electronApp = yield* ElectronApp.ElectronApp;
-  const rendererHistory = yield* DesktopRendererHistory.DesktopRendererHistory;
   const backendReadyRef = yield* Ref.make(false);
 
   const context = yield* Effect.context<DesktopWindowRuntimeServices>();
@@ -361,7 +358,6 @@ export const make = Effect.gen(function* () {
       return Option.none();
     }
 
-    yield* rendererHistory.register(window.webContents, { surface: "main" });
     if (environment.platform === "darwin") {
       window.setAutoHideCursor(false);
     }
