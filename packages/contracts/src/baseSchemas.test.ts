@@ -1,3 +1,4 @@
+import { ClientSurface, ClientWebDeployment } from "./baseSchemas.ts";
 import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Schema from "effect/Schema";
@@ -45,4 +46,9 @@ describe("ForwardCompatibleArray", () => {
       { name: "b" },
     ]);
   });
+});
+
+it("rejects retired native-mobile and hosted product surfaces", () => {
+  expect(() => Schema.decodeUnknownSync(ClientSurface)("mobile")).toThrow();
+  expect(() => Schema.decodeUnknownSync(ClientWebDeployment)("hosted")).toThrow();
 });

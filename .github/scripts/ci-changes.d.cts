@@ -20,7 +20,6 @@ export function decide(
     test_packages: string;
     test_web: boolean;
     test_server: boolean;
-    rust: boolean;
     release_smoke: boolean;
   };
 };

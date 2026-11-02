@@ -88,8 +88,6 @@ export const DesktopAppBrandingSchema = Schema.Struct({
   displayName: Schema.String,
 });
 
-/** `id` is absent for failures before a capture exists. */
-
 export interface DesktopRuntimeInfo {
   hostArch: DesktopRuntimeArch;
   appArch: DesktopRuntimeArch;
@@ -224,7 +222,6 @@ export type SystemSettingsPane = typeof SystemSettingsPaneSchema.Type;
 
 export interface DesktopBridge {
   getAppBranding: () => DesktopAppBranding | null;
-  getRelayTelemetryEnabled?: () => boolean;
   getClientPlatform?: () => string;
   onTrackpadScrollEnd?: (listener: () => void) => () => void;
   revealWindow?: () => Promise<void>;

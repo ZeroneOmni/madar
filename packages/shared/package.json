@@ -47,10 +47,6 @@
       "types": "./src/serverSettings.ts",
       "import": "./src/serverSettings.ts"
     },
-    "./relaySigning": {
-      "types": "./src/relaySigning.ts",
-      "import": "./src/relaySigning.ts"
-    },
     "./dpop": {
       "types": "./src/dpop.ts",
       "import": "./src/dpop.ts"
@@ -63,10 +59,6 @@
       "types": "./src/dpopCommon.ts",
       "import": "./src/dpopCommon.ts"
     },
-    "./telemetryId": {
-      "types": "./src/telemetryId.ts",
-      "import": "./src/telemetryId.ts"
-    },
     "./oauthScope": {
       "types": "./src/oauthScope.ts",
       "import": "./src/oauthScope.ts"
@@ -78,10 +70,6 @@
     "./symlink": {
       "types": "./src/symlink.ts",
       "import": "./src/symlink.ts"
-    },
-    "./relayTracing": {
-      "types": "./src/relayTracing.ts",
-      "import": "./src/relayTracing.ts"
     },
     "./imageDimensions": {
       "types": "./src/imageDimensions.ts",
@@ -126,6 +114,10 @@
     "./atomicWrite": {
       "types": "./src/atomicWrite.ts",
       "import": "./src/atomicWrite.ts"
+    },
+    "./stableJson": {
+      "types": "./src/stableJson.ts",
+      "import": "./src/stableJson.ts"
     }
   },
   "scripts": {

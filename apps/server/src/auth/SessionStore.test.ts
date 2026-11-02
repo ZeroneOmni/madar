@@ -402,9 +402,9 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
         subject: "one-time-token",
         scopes: ["diagnostics:read"],
         client: {
-          label: "Julius iPhone",
-          deviceType: "mobile",
-          os: "iOS",
+          label: "Office browser",
+          deviceType: "desktop",
+          os: "macOS",
           browser: "Safari",
           ipAddress: "192.168.1.88",
         },
@@ -421,7 +421,7 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
         true,
       );
       expect(beforeRevoke.find((entry) => entry.sessionId === client.sessionId)?.client.label).toBe(
-        "Julius iPhone",
+        "Office browser",
       );
       expect(
         beforeRevoke.find((entry) => entry.sessionId === administrative.sessionId)?.client
@@ -436,6 +436,26 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
         expect(revokedClient.revokedAt.epochMilliseconds).toBeGreaterThanOrEqual(0);
       }
     }).pipe(Effect.provide(layerSessionStore())),
+  );
+
+  it.effect("reads retired device metadata without changing the stored session", () =>
+    Effect.gen(function* () {
+      const sessions = yield* SessionStore.SessionStore;
+      const sql = yield* SqlClient.SqlClient;
+      const issued = yield* sessions.issue({ subject: "existing-client" });
+      yield* sql`
+        UPDATE auth_sessions SET client_device_type = 'mobile'
+        WHERE session_id = ${issued.sessionId}
+      `;
+
+      expect((yield* sessions.verify(issued.token)).client.deviceType).toBe("unknown");
+      expect((yield* sessions.listActive())[0]?.client.deviceType).toBe("unknown");
+      const stored = yield* sql<{ readonly deviceType: string }>`
+        SELECT client_device_type AS "deviceType" FROM auth_sessions
+        WHERE session_id = ${issued.sessionId}
+      `;
+      expect(stored[0]?.deviceType).toBe("mobile");
+    }).pipe(Effect.provide(Layer.mergeAll(layerSessionStore(), SqlitePersistence.layerMemory))),
   );
 
   it.effect("records client connection metadata without clearing prior values", () =>
@@ -456,16 +476,16 @@ it.layer(NodeServices.layer)("SessionStore.layer", (it) => {
       `;
 
       yield* sessions.recordClientConnection(issued.sessionId, {
-        surface: "mobile",
+        surface: "desktop",
         appVersion: "1.2.0",
       });
-      expect((yield* readRow)[0]).toEqual({ surface: "mobile", appVersion: "1.2.0" });
+      expect((yield* readRow)[0]).toEqual({ surface: "desktop", appVersion: "1.2.0" });
 
       yield* sessions.recordClientConnection(issued.sessionId, { appVersion: "1.3.0" });
-      expect((yield* readRow)[0]).toEqual({ surface: "mobile", appVersion: "1.3.0" });
+      expect((yield* readRow)[0]).toEqual({ surface: "desktop", appVersion: "1.3.0" });
 
       yield* sessions.recordClientConnection(issued.sessionId, {});
-      expect((yield* readRow)[0]).toEqual({ surface: "mobile", appVersion: "1.3.0" });
+      expect((yield* readRow)[0]).toEqual({ surface: "desktop", appVersion: "1.3.0" });
     }).pipe(Effect.provide(Layer.mergeAll(layerSessionStore(), SqlitePersistence.layerMemory))),
   );
 });

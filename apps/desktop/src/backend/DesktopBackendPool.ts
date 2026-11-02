@@ -15,7 +15,6 @@ import { ChildProcessSpawner } from "effect/process";
 import * as DesktopBackendConfiguration from "./DesktopBackendConfiguration.ts";
 import * as DesktopBackendManager from "./DesktopBackendManager.ts";
 import * as DesktopObservability from "../app/DesktopObservability.ts";
-import * as DesktopTelemetryPublisher from "../telemetry/DesktopTelemetryPublisher.ts";
 
 import * as DesktopWindow from "../window/DesktopWindow.ts";
 import * as ElectronDialog from "../electron/ElectronDialog.ts";
@@ -69,8 +68,7 @@ export type BackendInstanceFactoryRequirements =
   | FileSystem.FileSystem
   | ChildProcessSpawner.ChildProcessSpawner
   | HttpClient.HttpClient
-  | DesktopObservability.DesktopBackendOutputLogFactory
-  | DesktopTelemetryPublisher.DesktopTelemetryPublisher;
+  | DesktopObservability.DesktopBackendOutputLogFactory;
 
 interface ActiveRegisteredInstance {
   readonly _tag: "Active";

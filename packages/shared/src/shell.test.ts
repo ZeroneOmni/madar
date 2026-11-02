@@ -56,7 +56,7 @@ const withWindowsEnvironmentMocks = <A, E, R>(
   );
 
 describe("readEnvironmentFromLoginShell", () => {
-  // Opt in with an explicit binary, like the provider live probes; CI need not install Nu.
+  // Opt in with an explicit binary, for local shell verification; CI need not install Nu.
   it.runIf(process.env.MADAR_TEST_NU_PATH !== undefined)(
     "captures Nushell PATH and multiline values without external tools",
     () => {
@@ -487,12 +487,12 @@ effectIt.layer(NodeServices.layer)("resolveCommandPath", (it) => {
       const path = yield* Path.Path;
       const first = yield* fs.makeTempDirectoryScoped();
       const second = yield* fs.makeTempDirectoryScoped();
-      yield* fs.writeFileString(path.join(first, "cursor.CMD"), "");
-      yield* fs.writeFileString(path.join(second, "cursor.EXE"), "");
+      yield* fs.writeFileString(path.join(first, "sample.CMD"), "");
+      yield* fs.writeFileString(path.join(second, "sample.EXE"), "");
       const env = { PATH: `${first};${second}`, PATHEXT: ".EXE;.CMD" };
       const probed: Array<string> = [];
       yield* Effect.gen(function* () {
-        expect(yield* resolveCommandPath("cursor", { env })).toBe(path.join(first, "cursor.CMD"));
+        expect(yield* resolveCommandPath("sample", { env })).toBe(path.join(first, "sample.CMD"));
         expect(yield* isCommandAvailable("absent", { env })).toBe(false);
         yield* fs.writeFileString(path.join(second, "late.EXE"), "");
         yield* fs.utimes(second, 4_102_444_800, 4_102_444_800);
@@ -507,7 +507,7 @@ effectIt.layer(NodeServices.layer)("resolveCommandPath", (it) => {
           },
         }),
       );
-      expect(probed).toEqual([path.join(first, "cursor.CMD"), path.join(second, "late.EXE")]);
+      expect(probed).toEqual([path.join(first, "sample.CMD"), path.join(second, "late.EXE")]);
     }).pipe(
       Effect.provideService(HostProcess.Platform, "win32"),
       Effect.provideService(CommandResolutionCache, new Map()),

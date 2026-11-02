@@ -14,7 +14,6 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import * as ServerConfig from "./config.ts";
 import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
 import { annotateEnvironmentRequest } from "./auth/http.ts";
-import { traceRelayRequest } from "./cloud/traceRelayRequest.ts";
 import {
   browserApiCorsAllowedHeaders,
   browserApiCorsAllowedMethods,
@@ -70,7 +69,7 @@ export const layerServerEnvironmentHttpApi = HttpApiBuilder.group(
       Effect.fn("environment.metadata.descriptor")(function* (args) {
         yield* annotateEnvironmentRequest(args.endpoint.name);
         return yield* serverEnvironment.getDescriptor;
-      }, traceRelayRequest),
+      }),
     );
   }),
 );

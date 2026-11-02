@@ -317,20 +317,6 @@ export const load: Effect.Effect<OtelEnvironment> = Config.all({
   Effect.orDie,
 );
 
-export const isRelayTracingEnabled = (env: Readonly<Record<string, string | undefined>>) =>
-  Config.all({
-    ...sdkFlags,
-    telemetry: flag("MADAR_TELEMETRY_ENABLED", MADAR_TRUE, MADAR_FALSE, String),
-  }).pipe(
-    Effect.map(
-      ({ telemetry, madar, spec }) =>
-        telemetry.value !== false && !(madar.value ?? spec.value ?? false),
-    ),
-    Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnvRecord(env))),
-    Effect.orDie,
-    Effect.runSync,
-  );
-
 export type SignalName = "traces" | "metrics" | "logs";
 
 export interface SignalEndpoint {

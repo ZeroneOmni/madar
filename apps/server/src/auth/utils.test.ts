@@ -36,18 +36,18 @@ describe("deriveAuthClientMetadata", () => {
         },
       } as never,
       presented: {
-        label: "Madar Mobile",
-        deviceType: "mobile",
-        os: "iOS",
+        label: "Madar desktop",
+        deviceType: "desktop",
+        os: "macOS",
       },
     });
 
     expect(metadata).toMatchObject({
-      label: "Madar Mobile",
+      label: "Madar desktop",
       browser: "Electron",
-      deviceType: "mobile",
+      deviceType: "desktop",
       ipAddress: "192.168.213.72",
-      os: "iOS",
+      os: "macOS",
     });
     expect(metadata.userAgent).toContain("Electron/36.3.2");
   });

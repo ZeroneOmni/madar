@@ -31,11 +31,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
 
       # setup-vp's own cache restores a Linux-shaped store on Windows, which is
       # slower than no cache (see #7975). Cache pnpm's Windows store directly.

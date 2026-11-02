@@ -336,10 +336,7 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
   const desktopBootstrapToken = bootstrap?.desktopBootstrapToken;
   const desktopBootstrapSecret = bootstrap?.desktopBootstrapSecret;
   const shellEnvironmentPrepared = bootstrap?.shellEnvironmentPrepared;
-  const desktopTelemetryFd = bootstrap?.desktopTelemetryFd;
-  const desktopTelemetryControlFd = bootstrap?.desktopTelemetryControlFd;
 
-  const resourceMonitorPath = bootstrap?.resourceMonitorPath;
   const tailscaleServeEnabled = Option.getOrElse(
     resolveOptionPrecedence(
       normalizedFlags.tailscaleServeEnabled,
@@ -449,10 +446,7 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
     desktopBootstrapToken,
     ...(desktopBootstrapSecret === undefined ? {} : { desktopBootstrapSecret }),
     ...(shellEnvironmentPrepared === undefined ? {} : { shellEnvironmentPrepared }),
-    desktopTelemetryFd,
-    desktopTelemetryControlFd,
 
-    resourceMonitorPath,
     tailscaleServeEnabled,
     tailscaleServePort,
   };

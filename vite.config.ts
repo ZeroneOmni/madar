@@ -6,7 +6,6 @@ import { remoteCacheUrl } from "./infra/task-cache/src/remoteCache.ts";
 const DOM_TEST_ENVIRONMENT_ALLOWLIST: Array<string> = [];
 
 const TEST_EXCLUDE = [
-  "**/.repos/**",
   "**/.madar/**",
   "**/node_modules/**",
   "**/dist/**",
@@ -106,7 +105,6 @@ export default defineConfig({
   },
   fmt: {
     ignorePatterns: [
-      ".repos/**",
       "infra/task-cache/vendor/**",
       // Macroscope requires one glob per line; Markdown formatting corrupts it.
       ".macroscope/ignore.md",
@@ -133,8 +131,6 @@ export default defineConfig({
   },
   lint: {
     ignorePatterns: [
-      ".repos",
-      ".repos/**",
       // Imported skill tooling follows its upstream conventions, including through the Claude alias.
       ".agents/skills/**",
       ".claude/skills/**",

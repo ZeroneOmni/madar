@@ -27,7 +27,6 @@
         "scripts/cli.ts",
         "scripts/update-test-shard-weights.ts",
         "src/observability/*.ts",
-        "src/resourceTelemetry/*.ts",
         "src/compileCache.ts",
         "src/serverLogger.ts",
       ],

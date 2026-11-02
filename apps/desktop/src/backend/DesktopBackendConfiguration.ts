@@ -59,7 +59,6 @@ const DESKTOP_BACKEND_ENV_NAMES = [
   "MADAR_MODE",
   "MADAR_NO_BROWSER",
   "MADAR_HOST",
-  "MADAR_DESKTOP_WS_URL",
   "MADAR_DESKTOP_LAN_ACCESS",
   "MADAR_DESKTOP_LAN_HOST",
   "MADAR_DESKTOP_HTTPS_ENDPOINTS",
@@ -82,44 +81,6 @@ const logBackendObservabilitySettingsReadFailure = (
     }),
   );
 };
-
-function resourceMonitorBinaryName(platform: NodeJS.Platform): string {
-  return platform === "win32" ? "madar-resource-monitor.exe" : "madar-resource-monitor";
-}
-
-const resolveResourceMonitorPath = Effect.fn(
-  "desktop.backendConfiguration.resolveResourceMonitorPath",
-)(function* () {
-  const environment = yield* DesktopEnvironment.DesktopEnvironment;
-  const fileSystem = yield* FileSystem.FileSystem;
-  const binaryName = resourceMonitorBinaryName(environment.platform);
-  const candidates = environment.isDevelopment
-    ? [
-        environment.path.join(
-          environment.rootDir,
-          "native/resource-monitor/target/release",
-          binaryName,
-        ),
-        environment.path.join(
-          environment.rootDir,
-          "native/resource-monitor/target/debug",
-          binaryName,
-        ),
-      ]
-    : environment.isPackaged
-      ? [environment.path.join(environment.resourcesPath, "resource-monitor", binaryName)]
-      : environment.resolveResourcePathCandidates(
-          environment.path.join("resource-monitor", binaryName),
-        );
-
-  for (const candidate of candidates) {
-    if (yield* fileSystem.exists(candidate).pipe(Effect.orElseSucceed(() => false))) {
-      return Option.some(candidate);
-    }
-  }
-
-  return Option.none<string>();
-});
 
 const readPersistedBackendObservabilitySettings = Effect.gen(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
@@ -181,7 +142,6 @@ const buildObservabilityFragment = (observabilitySettings: BackendObservabilityS
 const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolvePrimary")(
   function* (
     input: SharedBootstrapInput & {
-      readonly resourceMonitorPath: Option.Option<string>;
       readonly cliPath: Option.Option<string>;
       readonly shellEnvironmentPrepared: boolean;
     },
@@ -205,19 +165,13 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
       shellEnvironmentPrepared: input.shellEnvironmentPrepared,
       tailscaleServeEnabled: false,
       tailscaleServePort: 443,
-      desktopTelemetryFd: 4,
-      desktopTelemetryControlFd: 5,
 
-      ...Option.match(input.resourceMonitorPath, {
-        onNone: () => ({}),
-        onSome: (resourceMonitorPath) => ({ resourceMonitorPath }),
-      }),
       ...buildObservabilityFragment(input.observabilitySettings),
     };
 
     return {
       executablePath: process.execPath,
-      // Packaged builds have a separate cache; --require prevents cache settings leaking to provider subprocesses.
+      // --require confines the packaged compile cache to this backend.
       args: [
         ...(environment.isPackaged ? ["--require", environment.compileCachePath] : []),
         environment.backendEntryPath,
@@ -281,10 +235,6 @@ const make = Effect.gen(function* () {
 
   const buildWindowsPrimaryConfig = Effect.gen(function* () {
     const shared = yield* sharedInputs;
-    const resourceMonitorPath = yield* resolveResourceMonitorPath().pipe(
-      Effect.provideService(FileSystem.FileSystem, fileSystem),
-      Effect.provideService(DesktopEnvironment.DesktopEnvironment, environment),
-    );
     const cliPath = yield* DesktopCliShim.install.pipe(
       Effect.provideService(FileSystem.FileSystem, fileSystem),
       Effect.provideService(DesktopEnvironment.DesktopEnvironment, environment),
@@ -292,7 +242,6 @@ const make = Effect.gen(function* () {
     const shellEnvironmentPrepared = yield* shellEnvironment.installIntoProcess;
     return yield* resolvePrimaryStartConfig({
       ...shared,
-      resourceMonitorPath,
       cliPath,
       shellEnvironmentPrepared,
     }).pipe(

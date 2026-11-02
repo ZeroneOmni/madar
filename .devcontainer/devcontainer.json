@@ -1,4 +1,4 @@
-// Dev container for Madar. Mirrors CI (ubuntu-24.04, Node 26, Rust stable)
+// Dev container for Madar. Mirrors CI (ubuntu-24.04, Node 26)
 // and the canonical setup in docs/operations/development.md: global `vp`, `vp i`.
 // Contributor doc: docs/internals/devcontainer.md
 {
@@ -8,9 +8,6 @@
     "ghcr.io/devcontainers/features/node:2": {
       "version": "26"
     },
-    // native/resource-monitor (edition 2024, needs stable >= 1.85). The server
-    // degrades gracefully without the binary, but CI checks cargo fmt + test.
-    "ghcr.io/devcontainers/features/rust:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "hostRequirements": {
@@ -53,16 +50,10 @@
       "openFiles": ["docs/internals/devcontainer.md"]
     },
     "vscode": {
-      "extensions": ["oxc.oxc-vscode", "rust-lang.rust-analyzer"],
+      "extensions": ["oxc.oxc-vscode"],
       "settings": {
-        // .repos is a large vendored read-only reference tree; watching it
-        // burns CPU and file handles.
         "files.watcherExclude": {
-          "**/.repos/**": true,
           "**/.madar/**": true
-        },
-        "search.exclude": {
-          "**/.repos": true
         }
       }
     }

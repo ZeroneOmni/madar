@@ -103,13 +103,7 @@ export const AuthBrowserSessionResult = Schema.Struct({
 });
 export type AuthBrowserSessionResult = typeof AuthBrowserSessionResult.Type;
 
-export const AuthClientMetadataDeviceType = Schema.Literals([
-  "desktop",
-  "mobile",
-  "tablet",
-  "bot",
-  "unknown",
-]);
+export const AuthClientMetadataDeviceType = Schema.Literals(["desktop", "bot", "unknown"]);
 export type AuthClientMetadataDeviceType = typeof AuthClientMetadataDeviceType.Type;
 
 export const AuthClientPresentationMetadata = Schema.Struct({

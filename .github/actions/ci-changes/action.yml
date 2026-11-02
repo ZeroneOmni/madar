@@ -13,8 +13,6 @@ outputs:
     value: ${{ steps.detect.outputs.test_web }}
   test_server:
     value: ${{ steps.detect.outputs.test_server }}
-  rust:
-    value: ${{ steps.detect.outputs.rust }}
   release_smoke:
     value: ${{ steps.detect.outputs.release_smoke }}
 runs:

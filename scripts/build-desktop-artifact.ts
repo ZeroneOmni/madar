@@ -132,26 +132,6 @@ interface PlatformConfig {
   readonly archChoices: ReadonlyArray<typeof BuildArch.Type>;
 }
 
-export function resolveResourceMonitorRustTargets(
-  platform: typeof BuildPlatform.Type,
-  arch: typeof BuildArch.Type,
-): ReadonlyArray<string> {
-  if (platform === "mac") {
-    if (arch === "universal") {
-      return ["aarch64-apple-darwin", "x86_64-apple-darwin"];
-    }
-    return [arch === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin"];
-  }
-  if (platform === "linux") {
-    return [arch === "arm64" ? "aarch64-unknown-linux-gnu" : "x86_64-unknown-linux-gnu"];
-  }
-  return [arch === "arm64" ? "aarch64-pc-windows-msvc" : "x86_64-pc-windows-msvc"];
-}
-
-export function resourceMonitorExecutableName(platform: typeof BuildPlatform.Type): string {
-  return platform === "win" ? "madar-resource-monitor.exe" : "madar-resource-monitor";
-}
-
 const PLATFORM_CONFIG: Record<typeof BuildPlatform.Type, PlatformConfig> = {
   mac: {
     cliFlag: "--mac",
@@ -297,8 +277,6 @@ export class BuildCommandFailedError extends Schema.TaggedError<BuildCommandFail
 }
 
 export const LINUX_DESKTOP_BUILD_PREREQUISITES = [
-  { id: "cargo", description: "Rust compiler and Cargo", packages: ["cargo", "rustc"] },
-  { id: "rust-target", description: "Requested Rust standard library", packages: [] },
   { id: "cc", description: "C/C++ build toolchain", packages: ["build-essential"] },
   { id: "make", description: "Make", packages: ["build-essential"] },
 
@@ -309,7 +287,6 @@ export class LinuxDesktopBuildPrerequisitesMissingError extends Schema.TaggedErr
   "LinuxDesktopBuildPrerequisitesMissingError",
   {
     missing: Schema.Array(Schema.String),
-    rustTarget: Schema.String,
   },
 ) {
   override get message(): string {
@@ -333,9 +310,6 @@ export class LinuxDesktopBuildPrerequisitesMissingError extends Schema.TaggedErr
       ...(packages.length > 0
         ? ["On Ubuntu/Debian, install them with:", `  sudo apt-get install ${packages.join(" ")}`]
         : []),
-      ...(this.missing.includes("rust-target")
-        ? ["Add the requested Rust target with:", `  rustup target add ${this.rustTarget}`]
-        : []),
       "",
       "For other distributions, see docs/operations/development.md#linux-appimage-prerequisites.",
       "Then rerun `vp run dist:desktop:linux`.",
@@ -344,7 +318,6 @@ export class LinuxDesktopBuildPrerequisitesMissingError extends Schema.TaggedErr
 }
 
 const MAC_DESKTOP_BUILD_PREREQUISITES = [
-  { id: "rust", description: "Rust/Cargo and the requested Rust target" },
   { id: "clang", description: "Xcode Command Line Tools (clang)" },
   { id: "make", description: "Xcode Command Line Tools (make)" },
   { id: "sips", description: "macOS image tool (sips)" },
@@ -356,7 +329,6 @@ export class MacDesktopBuildPrerequisitesMissingError extends Schema.TaggedError
   "MacDesktopBuildPrerequisitesMissingError",
   {
     missing: Schema.Array(Schema.String),
-    rustTargets: Schema.Array(Schema.String),
   },
 ) {
   override get message(): string {
@@ -371,8 +343,6 @@ export class MacDesktopBuildPrerequisitesMissingError extends Schema.TaggedError
       "",
       "Install Apple's build tools with:",
       "  xcode-select --install",
-      "Install Rust from https://rustup.rs, then add the requested target(s):",
-      `  rustup target add ${this.rustTargets.join(" ")}`,
       "",
       "Then rerun the desktop artifact command.",
     ].join("\n");
@@ -380,7 +350,6 @@ export class MacDesktopBuildPrerequisitesMissingError extends Schema.TaggedError
 }
 
 const WINDOWS_DESKTOP_BUILD_PREREQUISITES = [
-  { id: "rust", description: "Rust/Cargo and the requested MSVC Rust target" },
   { id: "python", description: "Python 3 for node-gyp" },
   {
     id: "msvc",
@@ -392,7 +361,6 @@ export class WindowsDesktopBuildPrerequisitesMissingError extends Schema.TaggedE
   "WindowsDesktopBuildPrerequisitesMissingError",
   {
     missing: Schema.Array(Schema.String),
-    rustTarget: Schema.String,
   },
 ) {
   override get message(): string {
@@ -405,27 +373,11 @@ export class WindowsDesktopBuildPrerequisitesMissingError extends Schema.TaggedE
       "Windows desktop build prerequisites are missing:",
       details,
       "",
-      "Install Rust from https://rustup.rs and add the requested target:",
-      `  rustup target add ${this.rustTarget}`,
       "Install Python 3 and the Visual Studio Build Tools components listed in",
       "docs/operations/development.md#windows-installer-prerequisites.",
       "",
       "Then rerun the desktop artifact command.",
     ].join("\n");
-  }
-}
-
-export class ResourceMonitorBuildOutputMissingError extends Schema.TaggedError<ResourceMonitorBuildOutputMissingError>()(
-  "ResourceMonitorBuildOutputMissingError",
-  {
-    binaryPath: Schema.String,
-    rustTarget: Schema.String,
-    platform: BuildPlatform,
-    arch: BuildArch,
-  },
-) {
-  override get message(): string {
-    return `Resource monitor build for ${this.rustTarget} did not produce ${this.binaryPath}.`;
   }
 }
 
@@ -631,7 +583,6 @@ const WindowsPackagedPayloadValidationReason = Schema.Literals([
   "sidecar-missing",
   "sidecar-invalid",
   "unpacked-native-missing",
-  "resource-monitor-missing",
   "file-limit-exceeded",
 ]);
 
@@ -652,9 +603,6 @@ export class WindowsPackagedPayloadValidationError extends Schema.TaggedError<Wi
     }
     if (this.reason === "unpacked-native-missing") {
       return `Windows server sidecar is missing ${String(this.missingFiles?.length ?? 0)} unpacked native files.`;
-    }
-    if (this.reason === "resource-monitor-missing") {
-      return "Windows packaged payload is missing the resource monitor executable.";
     }
     if (this.reason === "sidecar-invalid") {
       return "Windows packaged payload contains an invalid server.asar sidecar.";
@@ -894,13 +842,6 @@ export const WINDOWS_SERVER_EXTRA_RESOURCES = [
     filter: [WINDOWS_SERVER_ASAR_RESOURCE, `${WINDOWS_SERVER_ASAR_RESOURCE}.unpacked/**/*`],
   },
 ] as const;
-export const DESKTOP_EXTRA_RESOURCES = [
-  {
-    from: "apps/desktop/prod-resources/resource-monitor",
-    to: "resource-monitor",
-  },
-] as const;
-
 // macOS and Linux share one app.asar; stage the union of both bundles' external dependencies.
 export function resolveMergedStageDependencies(input: {
   readonly platform: "mac" | "linux";
@@ -1302,35 +1243,9 @@ const desktopBuildProbeSucceeds = Effect.fn("desktopBuildProbeSucceeds")(functio
   );
 });
 
-const rustTargetIsInstalled = Effect.fn("rustTargetIsInstalled")(function* (target: string) {
-  const fs = yield* FileSystem.FileSystem;
-  const result = yield* spawnAndCollectOutput(
-    ChildProcess.make("rustc", ["--print", "target-libdir", "--target", target]),
-  ).pipe(Effect.orElseSucceed(() => null));
-  if (result === null || result.exitCode !== 0) return false;
-
-  const targetLibDir = result.stdout.trim();
-  if (targetLibDir === "") return false;
-  const entries = yield* fs.readDirectory(targetLibDir).pipe(Effect.orElseSucceed(() => []));
-  return entries.some((entry) => entry.startsWith("libstd-") && entry.endsWith(".rlib"));
-});
-
-export const preflightLinuxDesktopBuild = Effect.fn("preflightLinuxDesktopBuild")(function* (
-  arch: typeof BuildArch.Type = "x64",
-) {
-  const reuseResourceMonitor = yield* Config.Boolean("MADAR_DESKTOP_REUSE_RESOURCE_MONITOR").pipe(
-    Config.withDefault(false),
-  );
-
-  const needsRust = !reuseResourceMonitor;
-  const rustTarget = resolveResourceMonitorRustTargets("linux", arch)[0]!;
-
+export const preflightLinuxDesktopBuild = Effect.fn("preflightLinuxDesktopBuild")(function* () {
   const checks = yield* Effect.all(
     {
-      cargo: needsRust
-        ? desktopBuildProbeSucceeds(ChildProcess.make("cargo", ["--version"]), "cargo")
-        : Effect.succeed(true),
-      "rust-target": needsRust ? rustTargetIsInstalled(rustTarget) : Effect.succeed(true),
       cc: desktopBuildProbeSucceeds(ChildProcess.make("cc", ["--version"]), "cc"),
       make: desktopBuildProbeSucceeds(ChildProcess.make("make", ["--version"]), "make"),
 
@@ -1346,27 +1261,15 @@ export const preflightLinuxDesktopBuild = Effect.fn("preflightLinuxDesktopBuild"
   ).map((requirement) => requirement.id);
 
   if (missing.length > 0) {
-    return yield* new LinuxDesktopBuildPrerequisitesMissingError({ missing, rustTarget });
+    return yield* new LinuxDesktopBuildPrerequisitesMissingError({ missing });
   }
 });
 
 export const preflightMacDesktopBuild = Effect.fn("preflightMacDesktopBuild")(function* (
   arch: typeof BuildArch.Type,
 ) {
-  const rustTargets = resolveResourceMonitorRustTargets("mac", arch);
-  const reuseResourceMonitor = yield* Config.Boolean("MADAR_DESKTOP_REUSE_RESOURCE_MONITOR").pipe(
-    Config.withDefault(false),
-  );
   const checks = yield* Effect.all(
     {
-      rust: reuseResourceMonitor
-        ? Effect.succeed(true)
-        : Effect.all([
-            desktopBuildProbeSucceeds(ChildProcess.make("cargo", ["--version"]), "cargo"),
-            Effect.forEach(rustTargets, rustTargetIsInstalled).pipe(
-              Effect.map((results) => results.every(Boolean)),
-            ),
-          ]).pipe(Effect.map(([cargo, targets]) => cargo && targets)),
       clang: desktopBuildProbeSucceeds(ChildProcess.make("clang", ["--version"]), "clang"),
       make: desktopBuildProbeSucceeds(ChildProcess.make("make", ["--version"]), "make"),
       sips: desktopBuildProbeSucceeds(ChildProcess.make("sips", ["--help"]), "sips"),
@@ -1385,7 +1288,7 @@ export const preflightMacDesktopBuild = Effect.fn("preflightMacDesktopBuild")(fu
     (requirement) => !checks[requirement.id],
   ).map((requirement) => requirement.id);
   if (missing.length > 0) {
-    return yield* new MacDesktopBuildPrerequisitesMissingError({ missing, rustTargets });
+    return yield* new MacDesktopBuildPrerequisitesMissingError({ missing });
   }
 });
 
@@ -1410,32 +1313,20 @@ function windowsVswherePrerequisiteScript(arch: typeof BuildArch.Type): string {
 
 export const preflightWindowsDesktopBuild = Effect.fn("preflightWindowsDesktopBuild")(
   function* (input: { readonly arch: typeof BuildArch.Type }) {
-    const rustTarget = resolveResourceMonitorRustTargets("win", input.arch)[0]!;
-    const reuseResourceMonitor = yield* Config.Boolean("MADAR_DESKTOP_REUSE_RESOURCE_MONITOR").pipe(
-      Config.withDefault(false),
-    );
     const python = yield* resolvePythonForNodeGyp();
     const checks = yield* Effect.all(
       {
-        rust: reuseResourceMonitor
-          ? Effect.succeed(true)
-          : Effect.all([
-              desktopBuildProbeSucceeds(ChildProcess.make("cargo", ["--version"]), "cargo"),
-              rustTargetIsInstalled(rustTarget),
-            ]).pipe(Effect.map(([cargo, target]) => cargo && target)),
         python: Effect.succeed(python !== undefined),
-        msvc: reuseResourceMonitor
-          ? Effect.succeed(true)
-          : desktopBuildProbeSucceeds(
-              ChildProcess.make("powershell.exe", [
-                "-NoLogo",
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                windowsVswherePrerequisiteScript(input.arch),
-              ]),
-              "Visual Studio Build Tools",
-            ),
+        msvc: desktopBuildProbeSucceeds(
+          ChildProcess.make("powershell.exe", [
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            windowsVswherePrerequisiteScript(input.arch),
+          ]),
+          "Visual Studio Build Tools",
+        ),
       },
       { concurrency: "unbounded" },
     );
@@ -1443,7 +1334,7 @@ export const preflightWindowsDesktopBuild = Effect.fn("preflightWindowsDesktopBu
       (requirement) => !checks[requirement.id],
     ).map((requirement) => requirement.id);
     if (missing.length > 0) {
-      return yield* new WindowsDesktopBuildPrerequisitesMissingError({ missing, rustTarget });
+      return yield* new WindowsDesktopBuildPrerequisitesMissingError({ missing });
     }
   },
 );
@@ -1672,89 +1563,6 @@ export const verifyPackagedBundleIsSelfContained = Effect.fn("verifyPackagedBund
     );
   },
 );
-
-export const stageResourceMonitor = Effect.fn("stageResourceMonitor")(function* (input: {
-  readonly repoRoot: string;
-  readonly stageResourcesDir: string;
-  readonly platform: typeof BuildPlatform.Type;
-  readonly arch: typeof BuildArch.Type;
-  readonly verbose: boolean;
-}) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const manifestPath = path.join(input.repoRoot, "native/resource-monitor/Cargo.toml");
-  const executableName = resourceMonitorExecutableName(input.platform);
-  const rustTargets = resolveResourceMonitorRustTargets(input.platform, input.arch);
-  const reuseResourceMonitor = yield* Config.Boolean("MADAR_DESKTOP_REUSE_RESOURCE_MONITOR").pipe(
-    Config.withDefault(false),
-  );
-  const builtBinaries: string[] = [];
-
-  for (const rustTarget of rustTargets) {
-    if (!reuseResourceMonitor) {
-      const spawnCommand = yield* resolveSpawnCommand("cargo", [
-        "build",
-        "--locked",
-        "--release",
-        "--manifest-path",
-        manifestPath,
-        "--target",
-        rustTarget,
-      ]);
-      yield* runCommand(
-        ChildProcess.make(spawnCommand.command, spawnCommand.args, {
-          cwd: input.repoRoot,
-          shell: spawnCommand.shell,
-        }),
-        {
-          label: `cargo build resource monitor (${rustTarget})`,
-          verbose: input.verbose,
-        },
-      );
-    }
-
-    const binaryPath = path.join(
-      input.repoRoot,
-      "native/resource-monitor/target",
-      rustTarget,
-      "release",
-      executableName,
-    );
-    if (!(yield* fs.exists(binaryPath))) {
-      return yield* new ResourceMonitorBuildOutputMissingError({
-        binaryPath,
-        rustTarget,
-        platform: input.platform,
-        arch: input.arch,
-      });
-    }
-    if (reuseResourceMonitor) {
-      yield* Effect.log(`[desktop-artifact] Reusing cached resource monitor (${rustTarget}).`);
-    }
-    builtBinaries.push(binaryPath);
-  }
-
-  const destinationDirectory = path.join(input.stageResourcesDir, "resource-monitor");
-  const destinationPath = path.join(destinationDirectory, executableName);
-  yield* fs.remove(destinationDirectory, { recursive: true, force: true }).pipe(Effect.ignore);
-  yield* fs.makeDirectory(destinationDirectory, { recursive: true });
-
-  if (builtBinaries.length === 1) {
-    yield* fs.copyFile(builtBinaries[0]!, destinationPath);
-  } else {
-    yield* runCommand(
-      ChildProcess.make("lipo", ["-create", ...builtBinaries, "-output", destinationPath]),
-      {
-        label: "lipo resource monitor universal binary",
-        verbose: input.verbose,
-      },
-    );
-  }
-
-  if (input.platform !== "win") {
-    yield* fs.chmod(destinationPath, 0o755);
-  }
-});
 
 const generateMacIconSet = Effect.fn("build-desktop-artifact.generateMacIconSet")(function* (
   sourcePng: string,
@@ -2080,11 +1888,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     ...(platform === "win"
       ? { asar: { smartUnpack: false }, asarUnpack: [WINDOWS_NATIVE_ASAR_UNPACK_GLOB] }
       : {}),
-    extraResources: [
-      ...DESKTOP_EXTRA_RESOURCES,
-
-      ...(platform === "win" ? WINDOWS_SERVER_EXTRA_RESOURCES : []),
-    ],
+    extraResources: [...(platform === "win" ? WINDOWS_SERVER_EXTRA_RESOURCES : [])],
   };
   const updateChannel = resolveDesktopUpdateChannel(version);
   // Missing publish config infers a GitHub feed from tokens; staging has no repository, so manifest generation would crash.
@@ -2519,19 +2323,6 @@ export const validateWindowsPackagedPayload = Effect.fn(
     });
   }
 
-  const resourceMonitorPath = path.join(
-    resourcesDir,
-    "resource-monitor",
-    resourceMonitorExecutableName("win"),
-  );
-  if (!(yield* isFile(resourceMonitorPath))) {
-    return yield* new WindowsPackagedPayloadValidationError({
-      reason: "resource-monitor-missing",
-      packagedAppDir,
-      missingFiles: ["resource-monitor/madar-resource-monitor.exe"],
-    });
-  }
-
   const fileCount = yield* countPayloadFiles(packagedAppDir);
   if (fileCount > fileLimit) {
     return yield* new WindowsPackagedPayloadValidationError({
@@ -2563,7 +2354,7 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   const fs = yield* FileSystem.FileSystem;
   const hostPlatform = yield* HostProcess.Platform;
   if (hostPlatform === "linux" && options.platform === "linux") {
-    yield* preflightLinuxDesktopBuild(options.arch);
+    yield* preflightLinuxDesktopBuild();
   }
   if (hostPlatform === "darwin" && options.platform === "mac") {
     yield* preflightMacDesktopBuild(options.arch);
@@ -2739,14 +2530,6 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   if (options.platform !== "win") {
     yield* fs.copy(distDirs.serverDist, path.join(stageAppDir, "apps/server/dist"));
   }
-  yield* stageResourceMonitor({
-    repoRoot,
-    stageResourcesDir,
-    platform: options.platform,
-    arch: options.arch,
-    verbose: options.verbose,
-  });
-
   yield* assertPlatformBuildResources(
     options.platform,
     stageResourcesDir,

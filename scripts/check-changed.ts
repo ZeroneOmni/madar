@@ -76,7 +76,6 @@ const inputKey = () => {
   const excluded = new Set([
     "node_modules",
     ".git",
-    ".repos",
     ".madar",
     ".vite-plus",
     "dist",
@@ -309,7 +308,6 @@ for (const result of results) {
 const ciOnly = Object.entries({
   "full test suites": outputs.test || outputs.test_web || outputs.test_server,
   build: outputs.build,
-  rust: outputs.rust,
   "release smoke": outputs.release_smoke,
 }).flatMap(([job, runs]) => (runs ? [job] : []));
 if (ciOnly.length > 0) summary.push(`  CI also runs: ${ciOnly.join(", ")}`);

@@ -1,3 +1,4 @@
+import { AuthClientMetadataDeviceType } from "./auth.ts";
 import { describe, expect, it } from "vite-plus/test";
 import * as Schema from "effect/Schema";
 import {
@@ -74,4 +75,8 @@ describe("authorization grants", () => {
       ),
     ).toBe(false);
   });
+});
+
+it.each(["mobile", "tablet"])("rejects retired native device type %s", (value) => {
+  expect(() => Schema.decodeUnknownSync(AuthClientMetadataDeviceType)(value)).toThrow();
 });

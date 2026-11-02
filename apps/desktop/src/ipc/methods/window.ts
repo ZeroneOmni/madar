@@ -7,8 +7,6 @@ import {
   SystemSettingsPaneSchema,
   type DesktopEnvironmentBootstrap,
 } from "@madar/contracts";
-import * as HostProcess from "@madar/shared/HostProcess";
-import { isRelayTracingEnabled } from "@madar/shared/otelEnvironment";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -44,14 +42,6 @@ export const getAppBranding = DesktopIpc.makeSyncIpcMethod({
   handler: Effect.fn("desktop.ipc.window.getAppBranding")(function* () {
     const environment = yield* DesktopEnvironment.DesktopEnvironment;
     return environment.branding;
-  }),
-});
-
-export const getRelayTelemetryEnabled = DesktopIpc.makeSyncIpcMethod({
-  channel: IpcChannels.GET_RELAY_TELEMETRY_ENABLED_CHANNEL,
-  result: Schema.Boolean,
-  handler: Effect.fn("desktop.ipc.window.getRelayTelemetryEnabled")(function* () {
-    return isRelayTracingEnabled(yield* HostProcess.Environment);
   }),
 });
 

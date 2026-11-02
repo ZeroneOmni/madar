@@ -30,7 +30,6 @@ jobs:
       test_packages: ${{ steps.detect.outputs.test_packages }}
       test_web: ${{ steps.detect.outputs.test_web }}
       test_server: ${{ steps.detect.outputs.test_server }}
-      rust: ${{ steps.detect.outputs.rust }}
       release_smoke: ${{ steps.detect.outputs.release_smoke }}
     steps:
       # Only the package manifests the script reads to build the dependency graph.
@@ -45,7 +44,6 @@ jobs:
             /.github/actions/ci-changes/
             /*/package.json
             /*/*/package.json
-            !/.repos/
           sparse-checkout-cone-mode: false
 
       - name: Detect affected jobs
@@ -66,11 +64,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
 
       - name: Reject repository-owned PR assets
         run: |
@@ -121,11 +114,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
 
       - uses: ./.github/actions/setup-apt-mirrors
         if: needs.changes.outputs.build != 'false'
@@ -194,11 +182,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
 
       - uses: ./.github/actions/setup-apt-mirrors
 
@@ -248,11 +231,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
 
       - name: Setup Vite+
         uses: ./.github/actions/setup-ci-deps
@@ -311,10 +289,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 2
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
 
       - name: Detect affected jobs
         id: changes
@@ -330,40 +304,6 @@ jobs:
         if: steps.changes.outputs.test_server != 'false'
         run: vp run --filter madar test --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
-  # Split out of Check and Test: both paid ~7-9s to install a Rust toolchain
-  # for checks that take under 3s, on the critical path of every PR.
-  rust:
-    name: Rust
-    needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.rust != 'false' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-
-      - name: Check Rust formatting
-        run: |
-          for crate in resource-monitor; do
-            cargo fmt --manifest-path "native/$crate/Cargo.toml" -- --check
-          done
-
-      - name: Test Rust crates
-        run: |
-          for crate in resource-monitor; do
-            cargo test --locked --manifest-path "native/$crate/Cargo.toml"
-          done
-
   release_smoke:
     permissions:
       contents: read
@@ -376,11 +316,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
 
       - name: Setup Vite+
         uses: ./.github/actions/setup-ci-deps
@@ -398,7 +333,7 @@ jobs:
   check:
     name: Check
     if: ${{ always() }}
-    needs: [changes, lint, build, test, test_web, test_server, rust, release_smoke]
+    needs: [changes, lint, build, test, test_web, test_server, release_smoke]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

@@ -49,7 +49,6 @@ break:
 - Any file marked unpacked in the ASAR header is absent from
   `resources/server.asar.unpacked`.
 - The isolated, extracted sidecar cannot load the server entry with plain Node.
-- The external Windows resource monitor is absent.
 - The unpacked Windows application contains more than 80 files.
 
 Cross-architecture Windows builds retain every structural and extracted-sidecar

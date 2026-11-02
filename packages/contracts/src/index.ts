@@ -1,5 +1,4 @@
 export * from "./baseSchemas.ts";
-export * from "./background.ts";
 
 export * from "./auth.ts";
 export * from "./environment.ts";
@@ -11,5 +10,3 @@ export * from "./server.ts";
 export * from "./settings.ts";
 
 export * from "./externalLauncher.ts";
-
-export * from "./resourceTelemetry.ts";

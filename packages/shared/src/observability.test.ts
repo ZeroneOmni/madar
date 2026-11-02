@@ -162,10 +162,7 @@ describe("observability", () => {
           const result = yield* Effect.gen(function* () {
             span = yield* Effect.currentSpan;
             return payload;
-          }).pipe(
-            Effect.withSpan("read-thread-projection"),
-            Effect.provideService(Tracer.Tracer, tracer),
-          );
+          }).pipe(Effect.withSpan("read-session"), Effect.provideService(Tracer.Tracer, tracer));
           assert.strictEqual(result, payload);
           assert.isDefined(span);
           for (const completed of [span!, ...delegates]) {

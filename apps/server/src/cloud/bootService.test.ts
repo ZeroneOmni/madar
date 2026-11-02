@@ -778,7 +778,6 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
     }),
   );
 
-  // regression: #8173 keep provider CLIs available in the macOS service
   it.effect("reconstructs a launch agent search path when the installer has no PATH", () =>
     Effect.gen(function* () {
       const { service, fs } = yield* makeHarness("darwin", "");
@@ -791,7 +790,7 @@ it.layer(NodeServices.layer)("boot service install", (it) => {
     }),
   );
 
-  it.effect("adds missing provider directories to a minimal installer PATH", () =>
+  it.effect("adds standard binary directories to a minimal installer PATH", () =>
     Effect.gen(function* () {
       const { service, fs } = yield* makeHarness("darwin", "/usr/bin:/bin");
       const plan = yield* service.install();
