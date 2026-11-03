@@ -222,6 +222,8 @@ export const SystemSettingsPaneSchema = Schema.Literals(["full-disk-access"]);
 export type SystemSettingsPane = typeof SystemSettingsPaneSchema.Type;
 
 export interface DesktopBridge {
+  pickThemeFiles?: () => Promise<readonly { name: string; size: number; text: string }[] | null>;
+  saveThemeFile?: (file: { name: string; text: string }) => Promise<boolean>;
   showNotification?: (input: DesktopNotificationInput) => Promise<DesktopNotificationResult>;
   notificationsSupported?: () => Promise<boolean>;
   onNotificationActivate?: (listener: (path: string) => void) => () => void;

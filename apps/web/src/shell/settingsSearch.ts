@@ -23,7 +23,7 @@ const SETTINGS_SEARCH_ITEMS = [
     id: "appearance",
     section: "appearance",
     title: "Appearance",
-    terms: "theme system light dark color",
+    terms: "theme system light dark color picker custom palette editor import export JSON",
   },
   {
     id: "privacy",

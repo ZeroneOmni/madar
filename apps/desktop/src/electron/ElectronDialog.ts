@@ -95,6 +95,10 @@ export class ElectronDialog extends Context.Service<
     readonly pickFiles: (
       input: ElectronDialogPickFilesInput,
     ) => Effect.Effect<readonly string[], ElectronDialogPickFilesError>;
+    readonly saveFile: (
+      name: string,
+      owner: Option.Option<Electron.BrowserWindow>,
+    ) => Effect.Effect<Option.Option<string>, ElectronDialogPickFilesError>;
     /** Pass `owner` to attach the box to that window so it cannot fall behind it. */
     readonly showMessageBox: (
       options: Electron.MessageBoxOptions,
@@ -106,6 +110,26 @@ export class ElectronDialog extends Context.Service<
 
 /** @public */
 export const make = ElectronDialog.of({
+  saveFile: Effect.fn("desktop.electron.dialog.saveFile")(function* (name, owner) {
+    const options: Electron.SaveDialogOptions = {
+      defaultPath: name,
+      filters: [{ name: "Theme JSON", extensions: ["json"] }],
+    };
+    const result = yield* Effect.tryPromise({
+      try: () =>
+        Option.match(owner, {
+          onNone: () => Electron.dialog.showSaveDialog(options),
+          onSome: (window) => Electron.dialog.showSaveDialog(window, options),
+        }),
+      catch: (cause) =>
+        new ElectronDialogPickFilesError({
+          ownerWindowId: Option.getOrNull(Option.map(owner, (window) => window.id)),
+          defaultPath: name,
+          cause,
+        }),
+    });
+    return result.canceled ? Option.none() : Option.fromNullishOr(result.filePath);
+  }),
   pickFolder: Effect.fn("desktop.electron.dialog.pickFolder")(function* (input) {
     const ownerWindowId = Option.match(input.owner, {
       onNone: () => null,

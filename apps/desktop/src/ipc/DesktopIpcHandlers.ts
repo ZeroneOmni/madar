@@ -2,6 +2,7 @@ import { notificationsSupported, showNotification } from "./methods/notification
 import * as Effect from "effect/Effect";
 
 import * as DesktopIpc from "./DesktopIpc.ts";
+import { pickThemeFiles, saveThemeFile } from "./methods/themeFiles.ts";
 import { getClientSettings, setClientSettings } from "./methods/clientSettings.ts";
 import {
   getLocalEnvironmentEnabled,
@@ -49,6 +50,8 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handle(setClientSettings);
 
   yield* ipc.handle(setTheme);
+  yield* ipc.handle(pickThemeFiles);
+  yield* ipc.handle(saveThemeFile);
   yield* ipc.handle(notificationsSupported);
   yield* ipc.handle(showNotification);
   yield* ipc.handle(showContextMenu);

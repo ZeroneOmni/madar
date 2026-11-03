@@ -18,6 +18,7 @@
     "@madar/shared": "workspace:*",
     "@tanstack/react-router": "^1.160.2",
     "class-variance-authority": "^0.7.1",
+    "culori": "^4.0.2",
     "effect": "catalog:",
     "lucide": "^0.564.0",
     "lucide-react": "^0.564.0",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
     "@types/compression": "^1.8.1",
+    "@types/culori": "^4.0.1",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^6.1.2",

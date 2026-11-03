@@ -1,5 +1,12 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useMediaQuery } from "./useMediaQuery";
+import { useCustomThemes } from "./useCustomThemes";
+import { useThemeSelection } from "../themeSelection";
+import {
+  applyThemePalette,
+  getThemePreviewAppearance,
+  subscribeToThemePreview,
+} from "../themePalette";
 
 type AppearanceMode = "system" | "light" | "dark";
 
@@ -38,6 +45,13 @@ function setAppearanceMode(mode: AppearanceMode): boolean {
 }
 
 export function useTheme() {
+  const themes = useCustomThemes();
+  const selection = useThemeSelection();
+  const preview = useSyncExternalStore(
+    subscribeToThemePreview,
+    getThemePreviewAppearance,
+    () => null,
+  );
   const appearanceMode = useSyncExternalStore<AppearanceMode>(
     subscribe,
     readAppearanceMode,
@@ -47,6 +61,11 @@ export function useTheme() {
   const dark = appearanceMode === "dark" || (appearanceMode === "system" && systemDark);
 
   useEffect(() => {
+    if (preview !== null) return;
+
+    const selectedId = selection[dark ? "dark" : "light"];
+    const selectedTheme = themes.find((theme) => theme.id === selectedId);
+    applyThemePalette(selectedTheme?.id ?? selectedId ?? "system", dark ? "dark" : "light");
     document.documentElement.classList.toggle("dark", dark);
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
     const background = dark ? "#0a0a0a" : "#ffffff";
@@ -56,7 +75,7 @@ export function useTheme() {
     void window.desktopBridge?.setTheme(appearanceMode).catch((error: unknown) => {
       console.error("Could not sync the desktop appearance.", error);
     });
-  }, [appearanceMode, dark]);
+  }, [appearanceMode, dark, selection, themes, preview]);
 
   return { appearanceMode, setAppearanceMode };
 }

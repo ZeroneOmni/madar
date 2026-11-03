@@ -1,4 +1,6 @@
 export const SET_THEME_CHANNEL = "desktop:set-theme";
+export const PICK_THEME_FILES_CHANNEL = "desktop:pick-theme-files";
+export const SAVE_THEME_FILE_CHANNEL = "desktop:save-theme-file";
 export const SHOW_NOTIFICATION_CHANNEL = "desktop:show-notification";
 export const NOTIFICATIONS_SUPPORTED_CHANNEL = "desktop:notifications-supported";
 export const NOTIFICATION_ACTIVATE_CHANNEL = "desktop:notification-activate";
