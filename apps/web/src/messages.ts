@@ -1,4 +1,5 @@
 export const arabic = {
+  Return: "رجوع",
   Settings: "الإعدادات",
   Overview: "نظرة عامة",
   Vouchers: "القسائم",
