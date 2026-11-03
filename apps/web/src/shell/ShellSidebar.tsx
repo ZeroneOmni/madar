@@ -174,7 +174,8 @@ export function ShellSidebar({
   onChange: (action: NavigationAction) => boolean;
 }) {
   const { t, direction } = useLocale();
-  const settingsPage = path === "/settings" || path.startsWith("/settings/");
+  const pathname = path.split("?")[0];
+  const settingsPage = pathname === "/settings" || pathname?.startsWith("/settings/");
   const [returnPath, setReturnPath] = useState("/overview");
   if (!settingsPage && path !== returnPath) setReturnPath(path);
   const [editing, setEditing] = useState(false);

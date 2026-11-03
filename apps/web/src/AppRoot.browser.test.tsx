@@ -222,3 +222,19 @@ it("replaces workspace navigation with settings and returns to the previous dest
     .element(screen.getByRole("navigation", { name: "Workspace", exact: true }))
     .toBeVisible();
 });
+
+it("uses settings navigation for a root settings deep link and returns to overview", async () => {
+  await page.viewport(1280, 900);
+  using _state = setup("/settings?focus=language");
+  await using screen = await render(<AppRoot />);
+  await expect
+    .element(screen.getByRole("navigation", { name: "Settings sections", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Language", exact: true }))
+    .toHaveFocus();
+  await screen.getByRole("button", { name: "Return", exact: true }).click();
+  await expect
+    .element(screen.getByRole("heading", { name: "Your User Manager workspace", exact: true }))
+    .toBeVisible();
+});
