@@ -1,3 +1,4 @@
+import { notificationsSupported, showNotification } from "./methods/notifications.ts";
 import * as Effect from "effect/Effect";
 
 import * as DesktopIpc from "./DesktopIpc.ts";
@@ -48,6 +49,8 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handle(setClientSettings);
 
   yield* ipc.handle(setTheme);
+  yield* ipc.handle(notificationsSupported);
+  yield* ipc.handle(showNotification);
   yield* ipc.handle(showContextMenu);
   yield* ipc.handle(openExternal);
   yield* ipc.handle(openSystemSettings);

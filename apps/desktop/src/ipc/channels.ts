@@ -1,4 +1,7 @@
 export const SET_THEME_CHANNEL = "desktop:set-theme";
+export const SHOW_NOTIFICATION_CHANNEL = "desktop:show-notification";
+export const NOTIFICATIONS_SUPPORTED_CHANNEL = "desktop:notifications-supported";
+export const NOTIFICATION_ACTIVATE_CHANNEL = "desktop:notification-activate";
 export const CONTEXT_MENU_CHANNEL = "desktop:context-menu";
 export const OPEN_EXTERNAL_CHANNEL = "desktop:open-external";
 export const OPEN_SYSTEM_SETTINGS_CHANNEL = "desktop:open-system-settings";

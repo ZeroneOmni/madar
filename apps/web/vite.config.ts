@@ -1,4 +1,4 @@
-import * as NodeZlib from "node:zlib";
+﻿import * as NodeZlib from "node:zlib";
 
 import react from "@vitejs/plugin-react";
 import compression from "compression";
@@ -66,7 +66,14 @@ const browserTestProject = {
   // Pre-bundled so a late first import does not trigger a mid-run reload. The
   // dependency scan misses autocomplete because tests reach it only through lazy imports.
   optimizeDeps: {
-    include: ["vite-plus/test/browser", "@base-ui/react/autocomplete", "@tanstack/react-router"],
+    include: [
+      "vite-plus/test/browser",
+      "@base-ui/react/autocomplete",
+      "@base-ui/react/input",
+      "@base-ui/react/select",
+      "@base-ui/react/switch",
+      "@tanstack/react-router",
+    ],
   },
   test: {
     name: "browser",
