@@ -18,6 +18,15 @@ if (clientPlatform === "darwin") {
 }
 
 contextBridge.exposeInMainWorld("desktopBridge", {
+  showNotification: (input) => ipcRenderer.invoke(IpcChannels.SHOW_NOTIFICATION_CHANNEL, input),
+  notificationsSupported: () => ipcRenderer.invoke(IpcChannels.NOTIFICATIONS_SUPPORTED_CHANNEL),
+  onNotificationActivate: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, path: unknown) => {
+      if (typeof path === "string" && /^\/[a-z0-9/-]*$/.test(path)) listener(path);
+    };
+    ipcRenderer.on(IpcChannels.NOTIFICATION_ACTIVATE_CHANNEL, handler);
+    return () => ipcRenderer.removeListener(IpcChannels.NOTIFICATION_ACTIVATE_CHANNEL, handler);
+  },
   getAppBranding: () => {
     const result = ipcRenderer.sendSync(IpcChannels.GET_APP_BRANDING_CHANNEL);
     if (typeof result !== "object" || result === null) {
