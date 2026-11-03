@@ -118,6 +118,10 @@
     "./stableJson": {
       "types": "./src/stableJson.ts",
       "import": "./src/stableJson.ts"
+    },
+    "./themePalettes": {
+      "types": "./src/themePalettes.ts",
+      "import": "./src/themePalettes.ts"
     }
   },
   "scripts": {

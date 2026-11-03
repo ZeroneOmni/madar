@@ -3,6 +3,7 @@ import { DEFAULT_CLIENT_SETTINGS, type QuitConfirmationMode } from "@madar/contr
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Switch } from "../components/ui/switch";
+import { ThemeSettings } from "../components/settings/ThemeSettings";
 import { useTheme } from "../hooks/useTheme";
 import { notifyShell } from "./notifications";
 import { SETTINGS_SECTIONS, resolveSettingsPath, searchSettings } from "./settingsSearch";
@@ -277,6 +278,7 @@ function AppearanceSettings() {
           Could not save your appearance. Please try again.
         </p>
       ) : null}
+      <ThemeSettings />
     </section>
   );
 }

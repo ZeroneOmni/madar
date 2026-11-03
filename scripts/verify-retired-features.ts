@@ -42,8 +42,6 @@ const retiredPaths = [
   "apps/server/src/cli/theme.ts",
   "apps/server/scripts/madar-sqlite-state.ts",
   "apps/server/scripts/madar-sqlite-state.test.ts",
-  "apps/web/src/themePalette.ts",
-  "packages/shared/src/themePalettes.ts",
   "packages/contracts/src/project.ts",
   "packages/contracts/src/acpRegistry.ts",
   "packages/contracts/src/providerInstance.ts",
@@ -168,7 +166,6 @@ for (const method of [
   "clearConnectionCatalog",
   "pickFolder",
   "pickProjectFavicon",
-  "pickThemeFiles",
   "getRelayTelemetryEnabled",
 ]) {
   const pattern = new RegExp("\\b" + method + "\\b");
@@ -246,7 +243,7 @@ for (const [relative, pattern] of [
   ["apps/server/src/auth/SessionStore.ts", /WebSocket/],
   ["apps/server/src/cli/config.ts", /logWebSocketEvents|LOG_WS_EVENTS|log-websocket-events/],
   ["scripts/dev-runner.ts", /logWebSocketEvents|LOG_WS_EVENTS|log-websocket-events/],
-  ["apps/web/src/index.css", /data-theme-id|stage-art-|stage-night-|--message-/],
+  ["apps/web/src/index.css", /stage-art-|stage-night-|--message-/],
   ["pnpm-workspace.yaml", /clerk|webauthn|opencode|mdast|micromark|remark-|rehype-|unified/],
   [
     "apps/server/src/observability/Metrics.ts",
