@@ -1,4 +1,5 @@
 import { Spinner } from "~/components/ui/spinner";
+import { useLocale } from "~/useLocale";
 
 import { Toast } from "@base-ui/react/toast";
 import {
@@ -80,7 +81,7 @@ function errorDescriptionClampClass(type: unknown, description: unknown): string
   return "line-clamp-4";
 }
 
-const toastCornerDismissClass = "absolute z-20 -top-1.5 -right-1.5";
+const toastCornerDismissClass = "absolute z-20 -top-1.5 -end-1.5";
 const toastCornerOrbClass = cn(
   "inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border/60 bg-popover/92 text-muted-foreground shadow-sm outline-none backdrop-blur-sm",
   "transition-[color,background-color,box-shadow] hover:bg-popover hover:text-foreground",
@@ -97,8 +98,9 @@ function handleToastDismissClick(
 }
 
 function CopyErrorButton({ text }: { text: string }) {
+  const { t } = useLocale();
   const { copyToClipboard, isCopied } = useCopyToClipboard({ target: "error-message" });
-  const label = isCopied ? "Copied error" : "Copy error";
+  const label = t(isCopied ? "Copied error" : "Copy error");
 
   return (
     <Tooltip>
@@ -124,7 +126,7 @@ function CopyErrorButton({ text }: { text: string }) {
 }
 
 const toastExpandablePanelClassName =
-  "mt-2 max-h-40 min-h-0 overflow-y-auto overscroll-contain pr-0.5 select-text";
+  "mt-2 max-h-40 min-h-0 overflow-y-auto overscroll-contain pe-0.5 select-text";
 
 function ToastExpandableSection({
   children,
@@ -133,15 +135,16 @@ function ToastExpandableSection({
   children: ReactNode;
   labels: { expand?: string; collapse?: string };
 }) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
-  const expandLabel = labels.expand ?? "Show details";
-  const collapseLabel = labels.collapse ?? "Hide details";
+  const expandLabel = labels.expand ?? t("Show details");
+  const collapseLabel = labels.collapse ?? t("Hide details");
 
   return (
     <div className="min-w-0">
       <button
         aria-expanded={open}
-        className="inline-flex cursor-pointer items-center gap-1 rounded-md py-0.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="inline-flex cursor-pointer items-center gap-1 rounded-md py-0.5 text-start text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         onClick={() => setOpen((prev) => !prev)}
         type="button"
       >
@@ -208,7 +211,7 @@ function ToastDescriptionAndExpandable({
               aria-label={open ? collapseLabel : expandLabel}
               aria-expanded={open}
               className={cn(
-                "group flex min-w-0 w-full cursor-pointer select-none items-start gap-1.5 rounded-sm text-left outline-none ring-offset-background",
+                "group flex min-w-0 w-full cursor-pointer select-none items-start gap-1.5 rounded-sm text-start outline-none ring-offset-background",
                 "transition-colors hover:bg-muted/40",
                 "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
               )}
@@ -279,7 +282,7 @@ function deriveToastBodyDescriptor(toast: {
     hasVisibleToastAction(toast.actionProps) ||
     hasAdditionalActions ||
     hasSecondaryAction;
-  const inlineContentEndPad = hasTrailingControls ? "pr-6" : "pr-3.5";
+  const inlineContentEndPad = hasTrailingControls ? "pe-6" : "pe-3.5";
   return {
     Icon,
     stackedActionLayout,
@@ -321,13 +324,13 @@ function ToastBodyContent({
       <div
         className={cn(
           "flex min-h-0 min-w-0 flex-col gap-0.5",
-          stackedActionLayout ? "pr-5" : "flex-1",
+          stackedActionLayout ? "pe-5" : "flex-1",
         )}
       >
         <div
           className={cn(
             "flex min-w-0 gap-2",
-            !stackedActionLayout && !hasTrailingControls && "pr-6",
+            !stackedActionLayout && !hasTrailingControls && "pe-6",
           )}
         >
           {leadingIcon ? (
@@ -494,6 +497,7 @@ function ToastProvider({ children, position = "top-right", ...props }: ToastProv
 }
 
 function Toasts({ position }: { position: ToastPosition }) {
+  const { t } = useLocale();
   const { toasts } = Toast.useToastManager<AppToastData>();
   const isTop = position.startsWith("top");
   const visibleToasts = toasts;
@@ -599,7 +603,7 @@ function Toasts({ position }: { position: ToastPosition }) {
               />
               <div className={toastCornerDismissClass}>
                 <button
-                  aria-label="Dismiss notification"
+                  aria-label={t("Dismiss notification")}
                   className={toastCornerOrbClass}
                   data-slot="toast-close"
                   onClick={() =>
@@ -614,9 +618,9 @@ function Toasts({ position }: { position: ToastPosition }) {
                 className={cn(
                   // overflow-x:clip preserves visible vertical overflow; hidden would force overflow-y:auto
                   // and clip detail panels.
-                  "pointer-events-auto min-h-0 overflow-y-visible pl-3.5 text-sm transition-opacity duration-250 [overflow-x:clip] data-expanded:opacity-100",
+                  "pointer-events-auto min-h-0 overflow-y-visible ps-3.5 text-sm transition-opacity duration-250 [overflow-x:clip] data-expanded:opacity-100",
                   stackedActionLayout
-                    ? "flex flex-col gap-2 py-2.5 pr-3.5"
+                    ? "flex flex-col gap-2 py-2.5 pe-3.5"
                     : cn("py-3", "flex items-center justify-between gap-1.5", inlineContentEndPad),
                   hideCollapsedContent &&
                     "not-data-expanded:pointer-events-none not-data-expanded:opacity-0",
@@ -648,6 +652,7 @@ function AnchoredToastProvider({ children, ...props }: Toast.Provider.Props) {
 }
 
 function AnchoredToasts() {
+  const { t } = useLocale();
   const { toasts } = Toast.useToastManager<AppToastData>();
 
   return (
@@ -687,7 +692,7 @@ function AnchoredToasts() {
                   <>
                     <div className={toastCornerDismissClass}>
                       <button
-                        aria-label="Dismiss notification"
+                        aria-label={t("Dismiss notification")}
                         className={toastCornerOrbClass}
                         data-slot="toast-close"
                         onClick={() =>
@@ -704,9 +709,9 @@ function AnchoredToasts() {
                     </div>
                     <Toast.Content
                       className={cn(
-                        "pointer-events-auto min-h-0 overflow-y-visible pl-3.5 text-sm [overflow-x:clip]",
+                        "pointer-events-auto min-h-0 overflow-y-visible ps-3.5 text-sm [overflow-x:clip]",
                         stackedActionLayout
-                          ? "flex flex-col gap-2 py-2.5 pr-3.5"
+                          ? "flex flex-col gap-2 py-2.5 pe-3.5"
                           : cn(
                               "py-3",
                               "flex items-center justify-between gap-1.5",

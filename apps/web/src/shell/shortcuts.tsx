@@ -1,3 +1,4 @@
+import { useLocale } from "../useLocale";
 import { useState, useSyncExternalStore } from "react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -72,6 +73,7 @@ function ShortcutEditor({
   shortcuts: ShellShortcuts;
   onSaved: () => void;
 }) {
+  const { t } = useLocale();
   const [draft, setDraft] = useState(current);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -80,16 +82,18 @@ function ShortcutEditor({
       saveShortcuts({ ...shortcuts, [command]: value.trim() });
       setDraft(value.trim());
       setError("");
-      setMessage("Saved.");
+      setMessage(t("Saved."));
       onSaved();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save the shortcut. Try again.");
+      setError(
+        cause instanceof Error ? cause.message : t("Could not save the shortcut. Try again."),
+      );
       setMessage("");
     }
   }
   return (
     <form
-      aria-label={`Shortcut ${COMMAND_LABELS[command]}`}
+      aria-label={t("Shortcut {name}", { name: t(COMMAND_LABELS[command]) })}
       onSubmit={(event) => {
         event.preventDefault();
         save(draft);
@@ -97,39 +101,40 @@ function ShortcutEditor({
       className="space-y-2 border-b py-4"
     >
       <label htmlFor={`shortcut-${command}`} className="text-sm font-medium">
-        {COMMAND_LABELS[command]}
+        {t(COMMAND_LABELS[command])}
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <div className="w-52">
           <Input
+            dir="ltr"
             id={`shortcut-${command}`}
             value={draft}
             onChange={(event) => {
               setDraft(event.target.value);
               setMessage("");
             }}
-            placeholder="Unassigned"
+            placeholder={t("Unassigned")}
             aria-invalid={!!error}
             aria-describedby={error ? `shortcut-error-${command}` : undefined}
           />
         </div>
         <Button type="submit" variant="outline">
-          Save
+          {t("Save")}
         </Button>
         <Button type="button" variant="ghost" onClick={() => save("")}>
-          Remove
+          {t("Remove")}
         </Button>
         <Button type="button" variant="ghost" onClick={() => save(DEFAULT_SHORTCUTS[command])}>
-          Reset
+          {t("Reset")}
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        {current === DEFAULT_SHORTCUTS[command] ? "Default" : "Custom"} · Active:{" "}
-        {current || "Unassigned"}
+        {current === DEFAULT_SHORTCUTS[command] ? t("Default") : t("Custom")} {" · "}
+        {t("Active")}: {current || t("Unassigned")}
       </p>
       {error ? (
         <p id={`shortcut-error-${command}`} role="alert" className="text-sm text-destructive">
-          {error}
+          {t(error)}
         </p>
       ) : message ? (
         <p role="status" className="text-sm text-muted-foreground">
@@ -140,18 +145,20 @@ function ShortcutEditor({
   );
 }
 export function ShortcutSettings() {
+  const { t } = useLocale();
   const { shortcuts, error } = useShellShortcuts();
   const [resetError, setResetError] = useState("");
   const [status, setStatus] = useState("");
   return (
-    <section aria-label="Keyboard shortcuts" className="space-y-4">
+    <section aria-label={t("Keyboard shortcuts")} className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Use Mod for Command on macOS or Control on Windows and Linux, for example Mod+Shift+H.
-        Shortcuts for navigation pause while typing. Desktop menu accelerators remain available.
+        {t(
+          "Use Mod for Command on macOS or Control on Windows and Linux, for example Mod+Shift+H. Shortcuts for navigation pause while typing. Desktop menu accelerators remain available.",
+        )}
       </p>
       {error ? (
         <p role="alert" className="text-sm text-destructive">
-          {error}
+          {t(error)}
         </p>
       ) : null}
       <Button
@@ -159,21 +166,21 @@ export function ShortcutSettings() {
         onClick={() => {
           try {
             saveShortcuts({ ...DEFAULT_SHORTCUTS });
-            setStatus("Default shortcuts restored.");
+            setStatus(t("Default shortcuts restored."));
             setResetError("");
           } catch {
-            setResetError("Could not reset shortcuts. Try again.");
+            setResetError(t("Could not reset shortcuts. Try again."));
           }
         }}
       >
-        Reset all shortcuts
+        {t("Reset all shortcuts")}
       </Button>
       <p role="status" className="text-sm text-muted-foreground">
-        {status}
+        {t(status)}
       </p>
       {resetError ? (
         <p role="alert" className="text-sm text-destructive">
-          {resetError}
+          {t(resetError)}
         </p>
       ) : null}
       {(Object.keys(COMMAND_LABELS) as ShellCommandId[]).map((command) => (
@@ -182,7 +189,7 @@ export function ShortcutSettings() {
           command={command}
           current={shortcuts[command]}
           shortcuts={shortcuts}
-          onSaved={() => setStatus("Shortcut saved.")}
+          onSaved={() => setStatus(t("Shortcut saved."))}
         />
       ))}
     </section>

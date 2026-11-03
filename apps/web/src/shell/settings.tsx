@@ -1,3 +1,5 @@
+import { LanguageSettings } from "../components/LanguageSettings";
+import { useLocale } from "../useLocale";
 import { useEffect, useState, type ReactNode } from "react";
 import { DEFAULT_CLIENT_SETTINGS, type QuitConfirmationMode } from "@madar/contracts";
 import { Button } from "../components/ui/button";
@@ -10,6 +12,7 @@ import { SETTINGS_SECTIONS, resolveSettingsPath, searchSettings } from "./settin
 import { resetOnboarding, saveSettings, usePrivacySettings } from "./settingsState";
 
 function DesktopQuitSettings() {
+  const { t } = useLocale();
   const [state, setState] = useState<{
     mode: QuitConfirmationMode;
     pending: boolean;
@@ -30,7 +33,7 @@ function DesktopQuitSettings() {
       setState((current) => ({
         ...current,
         pending: false,
-        error: "Could not load desktop settings.",
+        error: t("Could not load desktop settings."),
       }));
     }
   }
@@ -51,30 +54,30 @@ function DesktopQuitSettings() {
           setState((current) => ({
             ...current,
             pending: false,
-            error: "Could not load desktop settings.",
+            error: t("Could not load desktop settings."),
           }));
       },
     );
     return () => {
       active = false;
     };
-  }, [bridge]);
+  }, [bridge, t]);
   return (
     <section className="space-y-3" aria-busy={bridge ? state.pending : false}>
       <h3 id="setting-quit-confirmation" tabIndex={-1} className="font-medium">
-        Quit confirmation
+        {t("Quit confirmation")}
       </h3>
       {bridge ? (
         <>
           <p className="text-sm text-muted-foreground">
-            Choose how the desktop quit shortcut behaves.
+            {t("Choose how the desktop quit shortcut behaves.")}
           </p>
-          <div role="group" aria-label="Quit confirmation" className="flex flex-wrap gap-2">
+          <div role="group" aria-label={t("Quit confirmation")} className="flex flex-wrap gap-2">
             {(
               [
-                ["direct", "Quit immediately"],
-                ["hold", "Hold shortcut"],
-                ["double-click", "Press twice"],
+                ["direct", t("Quit immediately")],
+                ["hold", t("Hold shortcut")],
+                ["double-click", t("Press twice")],
               ] as const
             ).map(([mode, label]) => (
               <Button
@@ -100,7 +103,7 @@ function DesktopQuitSettings() {
                     setState((current) => ({
                       ...current,
                       pending: false,
-                      error: "Could not save desktop settings.",
+                      error: t("Could not save desktop settings."),
                     }));
                     notifyShell({
                       title: "Could not save quit confirmation",
@@ -110,13 +113,13 @@ function DesktopQuitSettings() {
                   }
                 }}
               >
-                {label}
+                {t(label)}
               </Button>
             ))}
           </div>
           {state.pending ? (
             <p role="status" className="text-sm text-muted-foreground">
-              Updating desktop settings...
+              {t("Updating desktop settings...")}
             </p>
           ) : null}
           {state.error ? (
@@ -125,14 +128,14 @@ function DesktopQuitSettings() {
                 {state.error}
               </p>
               <Button variant="outline" size="sm" onClick={() => void load()}>
-                Retry
+                {t("Retry")}
               </Button>
             </div>
           ) : null}
         </>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Quit confirmation is available in the Madar desktop app.
+          {t("Quit confirmation is available in the Madar desktop app.")}
         </p>
       )}
     </section>
@@ -140,6 +143,7 @@ function DesktopQuitSettings() {
 }
 
 function PrivacySettings() {
+  const { t } = useLocale();
   const { settings, maskSensitive, source, error } = usePrivacySettings();
   const [scope, setScope] = useState<"application" | "workspace">("workspace");
   const [failed, setFailed] = useState(false);
@@ -149,41 +153,44 @@ function PrivacySettings() {
   return (
     <section className="space-y-5">
       <h3 id="setting-privacy" tabIndex={-1} className="font-medium">
-        Mask sensitive text
+        {t("Mask sensitive text")}
       </h3>
       <p className="text-sm text-muted-foreground">
-        Hide sensitive values until you choose to reveal them. Copy still uses the original value.
+        {t(
+          "Hide sensitive values until you choose to reveal them. Copy still uses the original value.",
+        )}
       </p>
       {error ? (
         <div className="space-y-3">
           <p role="alert" className="text-sm text-destructive">
-            Could not read saved preferences. Sensitive values remain hidden. Restore defaults to
-            recover.
+            {t(
+              "Could not read saved preferences. Sensitive values remain hidden. Restore defaults to recover.",
+            )}
           </p>
           <Button variant="outline" onClick={() => save({}, true)}>
-            Restore local preferences
+            {t("Restore local preferences")}
           </Button>
         </div>
       ) : null}
-      <div role="group" aria-label="Privacy scope" className="flex flex-wrap gap-2">
+      <div role="group" aria-label={t("Privacy scope")} className="flex flex-wrap gap-2">
         <Button
           variant={scope === "application" ? "default" : "outline"}
           aria-pressed={scope === "application"}
           onClick={() => setScope("application")}
         >
-          Application defaults
+          {t("Application defaults")}
         </Button>
         <Button
           variant={scope === "workspace" ? "default" : "outline"}
           aria-pressed={scope === "workspace"}
           onClick={() => setScope("workspace")}
         >
-          This workspace
+          {t("This workspace")}
         </Button>
       </div>
       <div className="space-y-4 rounded-xl border p-4">
         <div className="flex items-center justify-between gap-4">
-          <label htmlFor="privacy-mask">Hide sensitive values by default</label>
+          <label htmlFor="privacy-mask">{t("Hide sensitive values by default")}</label>
           <Switch
             id="privacy-mask"
             checked={scope === "application" ? settings.maskSensitive : maskSensitive}
@@ -199,13 +206,18 @@ function PrivacySettings() {
         </div>
         <p role="status" className="text-sm text-muted-foreground">
           {scope === "application"
-            ? `Application default: ${settings.maskSensitive ? "Hidden" : "Visible"}. Built-in default: Hidden.`
-            : `Effective value: ${maskSensitive ? "Hidden" : "Visible"}. Source: ${source}.`}
+            ? t("Application default: {value}. Built-in default: Hidden.", {
+                value: settings.maskSensitive ? t("Hidden") : t("Visible"),
+              })
+            : t("Effective value: {value}. Source: {source}.", {
+                value: maskSensitive ? t("Hidden") : t("Visible"),
+                source: t(source),
+              })}
         </p>
         {scope === "workspace" ? (
           <>
             <p className="text-sm text-muted-foreground">
-              Workspace preferences inherit application defaults until you override them.
+              {t("Workspace preferences inherit application defaults until you override them.")}
             </p>
             <Button
               variant="outline"
@@ -213,7 +225,7 @@ function PrivacySettings() {
               disabled={error || settings.workspaceMaskSensitive === null}
               onClick={() => save({ workspaceMaskSensitive: null })}
             >
-              Use application default
+              {t("Use application default")}
             </Button>
           </>
         ) : (
@@ -223,13 +235,13 @@ function PrivacySettings() {
             disabled={error || settings.maskSensitive}
             onClick={() => save({ maskSensitive: true })}
           >
-            Restore built-in default
+            {t("Restore built-in default")}
           </Button>
         )}
       </div>
       {failed ? (
         <p role="alert" className="text-sm text-destructive">
-          Could not save preferences. Your previous settings are still active. Try again.
+          {t("Could not save preferences. Your previous settings are still active. Try again.")}
         </p>
       ) : null}
     </section>
@@ -237,22 +249,23 @@ function PrivacySettings() {
 }
 
 function AppearanceSettings() {
+  const { t } = useLocale();
   const { appearanceMode, setAppearanceMode } = useTheme();
   const [failed, setFailed] = useState(false);
   return (
     <section className="space-y-4">
       <h3 id="setting-appearance" tabIndex={-1} className="font-medium">
-        Appearance
+        {t("Appearance")}
       </h3>
       <p className="text-sm text-muted-foreground">
-        Choose how Madar looks. Changes are saved automatically.
+        {t("Choose how Madar looks. Changes are saved automatically.")}
       </p>
-      <div role="group" aria-label="Appearance" className="flex flex-wrap gap-2">
+      <div role="group" aria-label={t("Appearance")} className="flex flex-wrap gap-2">
         {(
           [
-            ["system", "System"],
-            ["light", "Light"],
-            ["dark", "Dark"],
+            ["system", t("System")],
+            ["light", t("Light")],
+            ["dark", t("Dark")],
           ] as const
         ).map(([mode, label]) => (
           <Button
@@ -269,13 +282,13 @@ function AppearanceSettings() {
               });
             }}
           >
-            {label}
+            {t(label)}
           </Button>
         ))}
       </div>
       {failed ? (
         <p role="alert" className="text-sm text-destructive">
-          Could not save your appearance. Please try again.
+          {t("Could not save your appearance. Please try again.")}
         </p>
       ) : null}
       <ThemeSettings />
@@ -294,28 +307,29 @@ export function SettingsPage({
   shortcutSettings?: ReactNode;
   notificationSettings?: ReactNode;
 }) {
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [resetFailed, setResetFailed] = useState(false);
   const { section, target, invalidTarget } = resolveSettingsPath(path);
-  const matches = searchSettings(query);
+  const matches = searchSettings(query, t);
   useEffect(() => {
     if (target) document.getElementById(`setting-${target.id}`)?.focus();
   }, [target]);
   return (
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <aside
-        className="space-y-4 border-b p-4 md:w-60 md:shrink-0 md:border-r md:border-b-0"
-        aria-label="Settings navigation"
+        className="space-y-4 border-b p-4 md:w-60 md:shrink-0 md:border-e md:border-b-0"
+        aria-label={t("Settings navigation")}
       >
         <Input
           type="search"
-          aria-label="Search settings"
-          placeholder="Search settings..."
+          aria-label={t("Search settings")}
+          placeholder={t("Search settings...")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
         <nav
-          aria-label={query.trim() ? "Settings search results" : "Settings sections"}
+          aria-label={query.trim() ? t("Settings search results") : t("Settings sections")}
           className="flex flex-wrap gap-1 md:flex-col md:items-start"
         >
           {query.trim()
@@ -326,7 +340,7 @@ export function SettingsPage({
                     size="sm-multiline"
                     onClick={() => onNavigate(`/settings/${item.section}?focus=${item.id}`)}
                   >
-                    {item.title}
+                    {t(item.title)}
                   </Button>
                 </div>
               ))
@@ -338,41 +352,45 @@ export function SettingsPage({
                     aria-current={section?.id === item.id ? "page" : undefined}
                     onClick={() => onNavigate(`/settings/${item.id}`)}
                   >
-                    {item.label}
+                    {t(item.label)}
                   </Button>
                 </div>
               ))}
           {query.trim() && matches.length === 0 ? (
             <p role="status" className="text-sm text-muted-foreground">
-              No settings found. Try another search.
+              {t("No settings found. Try another search.")}
             </p>
           ) : null}
         </nav>
       </aside>
       <div className="min-w-0 flex-1 overflow-y-auto scrollbar-gutter-both p-5 sm:p-8">
         <div className="mx-auto max-w-3xl space-y-7">
-          <nav aria-label="Settings breadcrumbs" className="flex items-center gap-2 text-sm">
+          <nav aria-label={t("Settings breadcrumbs")} className="flex items-center gap-2 text-sm">
             <Button variant="link" size="sm" onClick={() => onNavigate("/")}>
-              Workspace
+              {t("Workspace")}
             </Button>
             <span aria-hidden="true">/</span>
             <Button variant="link" size="sm" onClick={() => onNavigate("/settings/general")}>
-              Settings
+              {t("Settings")}
             </Button>
             <span aria-hidden="true">/</span>
-            <span aria-current="page">{section?.label ?? "Unavailable"}</span>
+            <span aria-current="page">{section ? t(section.label) : t("Unavailable")}</span>
           </nav>
-          <h2 className="text-2xl font-semibold">{section?.label ?? "Setting not found"}</h2>
+          <h2 className="text-2xl font-semibold">
+            {section ? t(section.label) : t("Setting not found")}
+          </h2>
           {invalidTarget ? (
             <p role="alert" className="text-sm text-destructive">
-              This settings link points to an unavailable setting. Choose a section or search again.
+              {t(
+                "This settings link points to an unavailable setting. Choose a section or search again.",
+              )}
             </p>
           ) : null}
           {!section ? (
             <div className="space-y-4">
-              <p className="text-muted-foreground">This settings section is unavailable.</p>
+              <p className="text-muted-foreground">{t("This settings section is unavailable.")}</p>
               <Button variant="outline" onClick={() => onNavigate("/settings/general")}>
-                Open General settings
+                {t("Open General settings")}
               </Button>
             </div>
           ) : null}
@@ -380,14 +398,14 @@ export function SettingsPage({
             <>
               <section className="space-y-3">
                 <h3 id="setting-welcome" tabIndex={-1} className="font-medium">
-                  Welcome and onboarding
+                  {t("Welcome and onboarding")}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Revisit the introduction or restart setup for this workspace.
+                  {t("Revisit the introduction or restart setup for this workspace.")}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={() => onNavigate("/welcome")}>
-                    Show welcome
+                    {t("Show welcome")}
                   </Button>
                   <Button
                     variant="outline"
@@ -398,15 +416,16 @@ export function SettingsPage({
                       } else setResetFailed(true);
                     }}
                   >
-                    Restart setup
+                    {t("Restart setup")}
                   </Button>
                 </div>
                 {resetFailed ? (
                   <p role="alert" className="text-sm text-destructive">
-                    Could not reset setup. Try again.
+                    {t("Could not reset setup. Try again.")}
                   </p>
                 ) : null}
               </section>
+              <LanguageSettings />
               <DesktopQuitSettings />
             </>
           ) : null}
@@ -415,7 +434,7 @@ export function SettingsPage({
           {section?.id === "shortcuts" ? (
             <section>
               <h3 id="setting-shortcuts" tabIndex={-1} className="sr-only">
-                Keyboard shortcuts
+                {t("Keyboard shortcuts")}
               </h3>
               {shortcutSettings}
             </section>
@@ -423,7 +442,7 @@ export function SettingsPage({
           {section?.id === "notifications" ? (
             <section>
               <h3 id="setting-notifications" tabIndex={-1} className="sr-only">
-                Notifications
+                {t("Notifications")}
               </h3>
               {notificationSettings}
             </section>

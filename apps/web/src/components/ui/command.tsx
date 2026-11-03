@@ -203,6 +203,7 @@ function CommandShortcut({ className, ...props }: React.ComponentProps<"kbd">) {
         "ms-auto font-medium font-sans text-secondary-label text-xs tracking-widest",
         className,
       )}
+      dir="ltr"
       data-slot="command-shortcut"
       {...props}
     />

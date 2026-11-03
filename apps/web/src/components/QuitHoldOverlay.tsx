@@ -1,3 +1,4 @@
+import { useLocale } from "../useLocale";
 import { useEffect, useState } from "react";
 
 import { isMacPlatform } from "../lib/utils";
@@ -5,6 +6,7 @@ import { isMacPlatform } from "../lib/utils";
 const HOLD_HINT_LINGER_MS = 1200;
 
 export function QuitHoldOverlay() {
+  const { t } = useLocale();
   const [visibleMode, setVisibleMode] = useState<"hold" | "double-click" | null>(null);
 
   useEffect(() => {
@@ -35,8 +37,8 @@ export function QuitHoldOverlay() {
   const shortcut = isMacPlatform(navigator.platform) ? "⌘Q" : "Ctrl+Q";
   const message =
     visibleMode === "hold"
-      ? `Hold ${shortcut} or press twice to quit`
-      : `Press ${shortcut} again to quit`;
+      ? t("Hold {shortcut} or press twice to quit", { shortcut })
+      : t("Press {shortcut} again to quit", { shortcut });
   return (
     <div
       role="status"

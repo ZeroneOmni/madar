@@ -11,6 +11,17 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script>
       (() => {
+        let language = null;
+        try {
+          language = window.localStorage.getItem("madar:language");
+        } catch {}
+        const languages = window.navigator?.languages ?? [];
+        const preferred = languages
+          .map((value) => value.toLowerCase().split("-")[0])
+          .find((value) => value === "ar" || value === "en");
+        const locale = language === "ar" || language === "en" ? language : (preferred ?? "en");
+        document.documentElement.lang = locale;
+        document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
         let appearance = "system";
         try {
           const stored = window.localStorage.getItem("madar:theme-appearance-mode");

@@ -11,6 +11,7 @@ import {
   saveSettings,
 } from "./settingsState";
 import { resolveSettingsPath, searchSettings } from "./settingsSearch";
+import { translate } from "../locale";
 
 function setup() {
   const values = new Map<string, string>();
@@ -94,4 +95,15 @@ it("matches every search term and resolves section-specific links without accept
   expect(resolveSettingsPath("/settings/appearance?focus=privacy").invalidTarget).toBe(true);
   expect(resolveSettingsPath("/settings/missing").section).toBeUndefined();
   expect(resolveSettingsPath("/settings").section?.id).toBe("general");
+});
+
+it.each([
+  ["الخصوصية", "privacy"],
+  ["السمات", "appearance"],
+  ["فاتح", "appearance"],
+  ["إشعارات سطح المكتب", "notifications"],
+])("finds settings by the Arabic concept %s", (query, id) => {
+  expect(
+    searchSettings(query, (message) => translate("ar", message)).map((item) => item.id),
+  ).toContain(id);
 });

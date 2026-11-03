@@ -1,3 +1,6 @@
+import { useLocale } from "./useLocale";
+import { DirectionProvider } from "@base-ui/react/direction-provider";
+import { useDocumentLocale } from "./useLocale";
 import { useEffect } from "react";
 import { Search, Settings, TriangleAlert } from "lucide-react";
 import { QuitHoldOverlay } from "./components/QuitHoldOverlay";
@@ -25,24 +28,29 @@ import {
 } from "./shell/notificationsUI";
 
 function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
+  const { t } = useLocale();
   const { maskSensitive } = usePrivacySettings();
   return (
     <section className="mx-auto max-w-4xl space-y-8 p-6 sm:p-10">
       <div className="space-y-3">
-        <h1 className="text-3xl font-semibold tracking-tight">Your User Manager workspace</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          {t("Your User Manager workspace")}
+        </h1>
         <p className="text-muted-foreground">
-          Organize your work and configure Madar from one place.
+          {t("Organize your work and configure Madar from one place.")}
         </p>
       </div>
       <div className="space-y-3 rounded-xl border p-5">
-        <h2 className="font-semibold">Router connection</h2>
+        <h2 className="font-semibold">{t("Router connection")}</h2>
         <p className="text-sm text-muted-foreground">
-          No router is connected. User Manager operations are unavailable until a supported RouterOS
-          version and connection method are chosen.
+          {t(
+            "No router is connected. User Manager operations are unavailable until a supported RouterOS version and connection method are chosen.",
+          )}
         </p>
         <p className="text-sm">
-          You can organize navigation, customize shortcuts, and set privacy and notification
-          preferences now.
+          {t(
+            "You can organize navigation, customize shortcuts, and set privacy and notification preferences now.",
+          )}
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -50,28 +58,29 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
           .filter((item) => item.id !== "overview" && item.id !== "notifications")
           .map((item) => (
             <section key={item.id} className="space-y-3 rounded-xl border p-5">
-              <h2 className="font-semibold">{item.label}</h2>
-              <p className="text-sm text-muted-foreground">{item.description}</p>
+              <h2 className="font-semibold">{t(item.label)}</h2>
+              <p className="text-sm text-muted-foreground">{t(item.description)}</p>
               <Button variant="outline" onClick={() => onNavigate("/" + item.id)}>
-                Open {item.label.toLowerCase()}
+                {t("Open {name}", { name: t(item.label).toLowerCase() })}
               </Button>
             </section>
           ))}
       </div>
       <section className="space-y-3 rounded-xl border p-5">
-        <h2 className="font-semibold">Local workspace</h2>
+        <h2 className="font-semibold">{t("Local workspace")}</h2>
         <p className="text-sm text-muted-foreground">
-          This address identifies the app you are using. Your privacy preference controls whether it
-          is hidden.
+          {t(
+            "This address identifies the app you are using. Your privacy preference controls whether it is hidden.",
+          )}
         </p>
         <SensitiveText
           value={window.location.origin}
-          label="Local app address"
+          label={t("Local app address")}
           masked={maskSensitive}
         />
         <div>
           <Button variant="link" size="sm" onClick={() => onNavigate("/settings/privacy")}>
-            Privacy preferences
+            {t("Privacy preferences")}
           </Button>
         </div>
       </section>
@@ -86,24 +95,30 @@ function DestinationPage({
   path: string;
   onNavigate: (path: string) => void;
 }) {
+  const { t } = useLocale();
   const destination = destinations.find((item) => "/" + item.id === path);
   return (
     <section className="mx-auto max-w-3xl space-y-6 p-6 sm:p-10">
-      <h1 className="text-3xl font-semibold">{destination?.label ?? "Page not found"}</h1>
+      <h1 className="text-3xl font-semibold">
+        {destination ? t(destination.label) : t("Page not found")}
+      </h1>
       <div className="space-y-3 rounded-xl border p-6">
         <TriangleAlert aria-hidden="true" />
         <h2 className="font-medium">
-          {destination ? "User Manager is not connected" : "This page is unavailable"}
+          {destination ? t("User Manager is not connected") : t("This page is unavailable")}
         </h2>
         <p className="text-sm text-muted-foreground">
           {destination
-            ? "Madar has no RouterOS integration configured yet. Live " +
-              destination.label.toLowerCase() +
-              " will appear here when a supported router connection is available."
-            : "The link may be out of date. Choose a destination in the sidebar or return to the overview."}
+            ? t(
+                "Madar has no RouterOS integration configured yet. Live {name} will appear here when a supported router connection is available.",
+                { name: t(destination.label) },
+              )
+            : t(
+                "The link may be out of date. Choose a destination in the sidebar or return to the overview.",
+              )}
         </p>
         <Button variant="outline" onClick={() => onNavigate("/overview")}>
-          Return to overview
+          {t("Return to overview")}
         </Button>
       </div>
     </section>
@@ -111,6 +126,7 @@ function DestinationPage({
 }
 
 function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigation> }) {
+  const { t } = useLocale();
   const rawPath = useShellPath();
   const { settings } = usePrivacySettings();
   const path = rawPath === "/" ? (settings.onboardingComplete ? "/overview" : "/welcome") : rawPath;
@@ -144,7 +160,7 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
             <SidebarTrigger />
           </div>
           <nav
-            aria-label="Workspace breadcrumbs"
+            aria-label={t("Workspace breadcrumbs")}
             className="[-webkit-app-region:no-drag] flex min-w-0 items-center gap-2 text-sm"
           >
             <Button variant="link" size="sm" onClick={() => navigate("/overview")}>
@@ -152,14 +168,14 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
             </Button>
             <span aria-hidden="true">/</span>
             <span className="truncate" aria-current="page">
-              {routeLabel(path)}
+              {t(routeLabel(path))}
             </span>
           </nav>
-          <div className="[-webkit-app-region:no-drag] ml-auto flex gap-1">
+          <div className="[-webkit-app-region:no-drag] ms-auto flex gap-1">
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Open command palette"
+              aria-label={t("Open command palette")}
               onClick={() => commands.execute("palette")}
             >
               <Search />
@@ -167,7 +183,7 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Open Settings"
+              aria-label={t("Open Settings")}
               onClick={() => commands.execute("settings")}
             >
               <Settings />
@@ -177,20 +193,20 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
         {navigation.error ? (
           <div className="flex flex-wrap items-center gap-3 border-b bg-destructive/5 px-5 py-3">
             <p role="alert" className="flex-1 text-sm text-destructive">
-              {navigation.error}
+              {t(navigation.error)}
             </p>
             <Button variant="outline" size="sm" onClick={navigation.reset}>
-              Reset navigation
+              {t("Reset navigation")}
             </Button>
           </div>
         ) : null}
         {commands.error ? (
           <div className="flex items-center gap-3 border-b px-5 py-3">
             <p role="alert" className="flex-1 text-sm">
-              {commands.error}
+              {t(commands.error)}
             </p>
             <Button variant="outline" size="sm" onClick={() => navigate("/settings/shortcuts")}>
-              Review shortcuts
+              {t("Review shortcuts")}
             </Button>
           </div>
         ) : null}
@@ -221,18 +237,21 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
 }
 
 export function AppRoot() {
+  const direction = useDocumentLocale();
   useTheme();
   const navigation = useNavigation();
   useEffect(() => installDesktopPasteAsText(window.desktopBridge), []);
   return (
-    <ToastProvider>
-      <SidebarProvider
-        className="h-dvh"
-        open={navigation.state.open}
-        onOpenChange={(open) => navigation.dispatch({ type: "open", open })}
-      >
-        <ShellContent navigation={navigation} />
-      </SidebarProvider>
-    </ToastProvider>
+    <DirectionProvider direction={direction}>
+      <ToastProvider position={direction === "rtl" ? "top-left" : "top-right"}>
+        <SidebarProvider
+          className="h-dvh"
+          open={navigation.state.open}
+          onOpenChange={(open) => navigation.dispatch({ type: "open", open })}
+        >
+          <ShellContent navigation={navigation} />
+        </SidebarProvider>
+      </ToastProvider>
+    </DirectionProvider>
   );
 }

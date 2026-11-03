@@ -1,4 +1,5 @@
-﻿import { memo, useEffect, useEffectEvent, useRef, useState } from "react";
+import { useLocale } from "../../useLocale";
+import { memo, useEffect, useEffectEvent, useRef, useState } from "react";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import { isThemeColor, themeColorToHex, type ThemeColorRole } from "../../themePalette";
 import { cn } from "../../lib/utils";
@@ -78,6 +79,7 @@ function ThemeColorPickerPanel({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useLocale();
   const normalizedValue = normalizeThemePickerColor(value);
   const alphaSuffix = themePickerAlphaSuffix(value);
   const [hsv, setHsv] = useState(() => hexToHsv(normalizedValue));
@@ -159,7 +161,7 @@ function ThemeColorPickerPanel({
       <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-xs font-semibold text-foreground">{label}</p>
-          <p className="text-2xs text-muted-foreground">Choose a color</p>
+          <p className="text-2xs text-muted-foreground">{t("Choose a color")}</p>
         </div>
         <span
           className="size-7 shrink-0 rounded-full shadow-sm"
@@ -174,7 +176,7 @@ function ThemeColorPickerPanel({
           onInteractionEnd={flushPendingCommit}
         />
         <ColorHueSlider
-          label={`${label} hue`}
+          label={t("{name} hue", { name: label })}
           value={hsv.h}
           onChange={(h) => commitHsv({ ...hsv, h })}
           onInteractionEnd={flushPendingCommit}
@@ -190,7 +192,8 @@ function ThemeColorPickerPanel({
                 style={{ backgroundColor: currentColor }}
               />
               <input
-                aria-label={`${label} picker hex value`}
+                dir="ltr"
+                aria-label={t("{name} picker hex value", { name: label })}
                 className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
@@ -212,7 +215,8 @@ function ThemeColorPickerPanel({
             </span>
             <span className="flex min-w-0 items-center rounded-lg border border-input bg-background px-2 focus-within:border-ring">
               <input
-                aria-label={`${label} picker RGB value`}
+                dir="ltr"
+                aria-label={t("{name} picker RGB value", { name: label })}
                 className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
@@ -245,6 +249,7 @@ function ThemeColorPicker({
   onChange: (value: string) => void;
   onInteract?: () => void;
 }) {
+  const { t } = useLocale();
   return (
     <Popover>
       <Tooltip>
@@ -253,7 +258,7 @@ function ThemeColorPicker({
             <PopoverTrigger
               render={
                 <button
-                  aria-label={`Choose ${label} color`}
+                  aria-label={t("Choose {name} color", { name: label })}
                   className="relative flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-full border border-foreground/30 transition-transform hover:scale-105 focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-ring"
                   onFocus={onInteract}
                   onPointerDown={onInteract}
@@ -268,7 +273,7 @@ function ThemeColorPicker({
             />
           }
         />
-        <TooltipPopup side="top">{`Choose ${label} color`}</TooltipPopup>
+        <TooltipPopup side="top">{t("Choose {name} color", { name: label })}</TooltipPopup>
       </Tooltip>
       <PopoverPopup
         align="end"
@@ -300,7 +305,8 @@ export const ThemeColorField = memo(function ThemeColorField({
   selected?: boolean;
   label?: string;
 }) {
-  const label = customLabel ?? getThemeRoleLabel(role);
+  const { t } = useLocale();
+  const label = customLabel ?? t(getThemeRoleLabel(role));
   const [textDraft, setTextDraft] = useState<string | null>(null);
   const isColorValue = isThemeColor(value);
   const swatchValue = isColorValue ? value : "#000000";
@@ -320,9 +326,9 @@ export const ThemeColorField = memo(function ThemeColorField({
         <TooltipTrigger
           render={
             <button
-              aria-label={`${selected ? "Hide" : "Show"} ${label} usage`}
+              aria-label={t(selected ? "Hide {name} usage" : "Show {name} usage", { name: label })}
               aria-pressed={selected}
-              className="flex min-w-0 flex-1 cursor-pointer items-center rounded-md text-left text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              className="flex min-w-0 flex-1 cursor-pointer items-center rounded-md text-start text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
               onClick={() => onToggleSelected?.(role)}
               type="button"
             >
@@ -330,9 +336,11 @@ export const ThemeColorField = memo(function ThemeColorField({
             </button>
           }
         />
-        <TooltipPopup side="top">{`${selected ? "Hide" : "Show"} where ${label} is used`}</TooltipPopup>
+        <TooltipPopup side="top">
+          {t(selected ? "Hide where {name} is used" : "Show where {name} is used", { name: label })}
+        </TooltipPopup>
       </Tooltip>
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+      <div className="ms-auto flex shrink-0 items-center gap-2">
         <ThemeColorPicker
           label={label}
           onChange={(nextValue) => onChange(role, nextValue)}
@@ -340,8 +348,9 @@ export const ThemeColorField = memo(function ThemeColorField({
           value={swatchValue}
         />
         <Input
+          dir="ltr"
           aria-invalid={!isColorValue}
-          aria-label={`${label} hex value`}
+          aria-label={t("{name} hex value", { name: label })}
           className="w-28 shrink-0"
           font="mono"
           id={`${role}-hex`}

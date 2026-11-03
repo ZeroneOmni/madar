@@ -8,47 +8,62 @@ export const SETTINGS_SECTIONS = [
 
 const SETTINGS_SEARCH_ITEMS = [
   {
+    id: "language",
+    section: "general",
+    title: "Language",
+    terms: "Arabic English العربية عربي إنجليزي اللغة language",
+  },
+  {
     id: "welcome",
     section: "general",
     title: "Welcome and onboarding",
-    terms: "first run setup introduction reset",
+    terms: "first run setup introduction reset ترحيب إعداد مقدمة إعادة ضبط",
   },
   {
     id: "quit-confirmation",
     section: "general",
     title: "Quit confirmation",
-    terms: "desktop hold double click exit",
+    terms: "desktop hold double click exit سطح المكتب ضغط مطول مرتين خروج",
   },
   {
     id: "appearance",
     section: "appearance",
     title: "Appearance",
-    terms: "theme system light dark color picker custom palette editor import export JSON",
+    terms:
+      "theme system light dark color picker custom palette editor import export JSON السمات سمة نظام فاتح داكن ألوان منتقي تخصيص لوحة محرر استيراد تصدير",
   },
   {
     id: "privacy",
     section: "privacy",
     title: "Mask sensitive text",
-    terms: "privacy hide reveal clipboard application default workspace inherited override",
+    terms:
+      "privacy hide reveal clipboard application default workspace inherited override خصوصية إخفاء إظهار حافظة تطبيق افتراضي مساحة العمل وراثة تجاوز",
   },
   {
     id: "shortcuts",
     section: "shortcuts",
     title: "Keyboard shortcuts",
-    terms: "keybinding hotkey command palette reset",
+    terms: "keybinding hotkey command palette reset اختصارات لوحة مفاتيح أمر أوامر إعادة ضبط",
   },
   {
     id: "notifications",
     section: "notifications",
     title: "Notifications",
-    terms: "desktop permission alerts toast history",
+    terms: "desktop permission alerts toast history إشعارات سطح المكتب إذن تنبيهات سجل",
   },
 ] as const;
 
-export function searchSettings(query: string) {
+export function searchSettings(
+  query: string,
+  t: (message: string) => string = (message) => message,
+) {
   const terms = query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
   return SETTINGS_SEARCH_ITEMS.filter((item) =>
-    terms.every((term) => `${item.title} ${item.terms}`.toLocaleLowerCase().includes(term)),
+    terms.every((term) =>
+      `${item.title} ${t(item.title)} ${t(SETTINGS_SECTIONS.find((section) => section.id === item.section)!.label)} ${item.terms}`
+        .toLocaleLowerCase()
+        .includes(term),
+    ),
   );
 }
 

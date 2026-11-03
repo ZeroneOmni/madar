@@ -1,3 +1,4 @@
+import { useLocale } from "../../useLocale";
 import { randomUUID } from "../../lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { useCustomThemes } from "../../hooks/useCustomThemes";
@@ -37,6 +38,7 @@ function copyOf(theme: ThemeDefinition): ThemeDefinition {
 }
 
 function ThemeEditor({ theme, onClose }: { theme: ThemeDefinition; onClose: () => void }) {
+  const { t } = useLocale();
   const themes = useCustomThemes();
   const [draft, setDraft] = useState(theme);
   const [mode, setMode] = useState<ThemeAppearance>(theme.appearance);
@@ -60,7 +62,7 @@ function ThemeEditor({ theme, onClose }: { theme: ThemeDefinition; onClose: () =
   );
   const save = () => {
     try {
-      if (!valid) throw new Error("Enter a name and valid literal CSS colors before saving.");
+      if (!valid) throw new Error(t("Enter a name and valid literal CSS colors before saving."));
       const canonical = parseThemeFile(JSON.parse(serializeThemeFile(draft)));
       if (themes.some((entry) => entry.id === canonical.id)) updateCustomTheme(canonical);
       else installCustomTheme(canonical);
@@ -79,19 +81,19 @@ function ThemeEditor({ theme, onClose }: { theme: ThemeDefinition; onClose: () =
     >
       <DialogPopup>
         <DialogHeader>
-          <DialogTitle>Edit theme</DialogTitle>
+          <DialogTitle>{t("Edit theme")}</DialogTitle>
         </DialogHeader>
         <DialogPanel>
           <label className="grid gap-2">
-            Theme name
+            {t("Theme name")}
             <Input
-              aria-label="Theme name"
+              aria-label={t("Theme name")}
               value={draft.label}
               maxLength={48}
               onChange={(event) => setDraft({ ...draft, label: event.currentTarget.value })}
             />
           </label>
-          <div className="flex gap-2" role="group" aria-label="Preview appearance">
+          <div className="flex gap-2" role="group" aria-label={t("Preview appearance")}>
             {(["light", "dark"] as const).map((appearance) => (
               <Button
                 key={appearance}
@@ -108,13 +110,14 @@ function ThemeEditor({ theme, onClose }: { theme: ThemeDefinition; onClose: () =
                   setMode(appearance);
                 }}
               >
-                {appearance === "light" ? "Light preview" : "Dark preview"}
+                {appearance === "light" ? t("Light preview") : t("Dark preview")}
               </Button>
             ))}
           </div>
           <p className="text-sm text-muted-foreground">
-            Preview changes throughout Madar. Save keeps your theme; Cancel restores your selected
-            theme.
+            {t(
+              "Preview changes throughout Madar. Save keeps your theme; Cancel restores your selected theme.",
+            )}
           </p>
           <div className="grid gap-1">
             {THEME_COLOR_ROLES.filter(
@@ -140,13 +143,13 @@ function ThemeEditor({ theme, onClose }: { theme: ThemeDefinition; onClose: () =
               />
             ))}
           </div>
-          {error ? <p role="alert">{error}</p> : null}
+          {error ? <p role="alert">{t(error)}</p> : null}
           <div className="flex gap-2">
             <Button disabled={!valid} onClick={save}>
-              Save theme
+              {t("Save theme")}
             </Button>
             <Button variant="outline" onClick={onClose}>
-              Cancel
+              {t("Cancel")}
             </Button>
           </div>
         </DialogPanel>
@@ -156,6 +159,7 @@ function ThemeEditor({ theme, onClose }: { theme: ThemeDefinition; onClose: () =
 }
 
 export function ThemeSettings() {
+  const { t } = useLocale();
   const custom = useCustomThemes();
   const selection = useThemeSelection();
   const [editing, setEditing] = useState<ThemeDefinition | null>(null);
@@ -192,7 +196,7 @@ export function ThemeSettings() {
     const id = ++request.current;
     setReading(true);
     try {
-      if (file.size > MAX_BYTES) throw new Error("Theme files must be 256 KB or smaller.");
+      if (file.size > MAX_BYTES) throw new Error(t("Theme files must be 256 KB or smaller."));
       const text = await file.text();
       if (id !== request.current) return;
       setJson(text);
@@ -222,7 +226,7 @@ export function ThemeSettings() {
   const install = (theme: ThemeDefinition, update = false) => {
     if (update) updateCustomTheme(theme);
     else installCustomTheme(theme);
-    setNotice(`${theme.label} saved. Choose Light or Dark to use it.`);
+    setNotice(t("{name} saved. Choose Light or Dark to use it.", { name: theme.label }));
     closeImport();
   };
   const exportTheme = async (theme: ThemeDefinition) => {
@@ -230,7 +234,7 @@ export function ThemeSettings() {
       const text = serializeThemeFile(theme);
       if (window.desktopBridge?.saveThemeFile) {
         const saved = await window.desktopBridge.saveThemeFile({ name: `${theme.id}.json`, text });
-        if (saved) setNotice("Theme exported.");
+        if (saved) setNotice(t("Theme exported."));
       } else {
         const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
         const anchor = document.createElement("a");
@@ -245,8 +249,8 @@ export function ThemeSettings() {
     }
   };
   return (
-    <section className="space-y-4" aria-label="Theme library">
-      <h3 className="font-medium">Themes</h3>
+    <section className="space-y-4" aria-label={t("Theme library")}>
+      <h3 className="font-medium">{t("Themes")}</h3>
       <div className="flex flex-wrap gap-2">
         <Button
           onClick={() => {
@@ -260,7 +264,7 @@ export function ThemeSettings() {
             });
           }}
         >
-          Create theme
+          {t("Create theme")}
         </Button>
         <Button
           variant="outline"
@@ -271,24 +275,24 @@ export function ThemeSettings() {
             setImportOpen(true);
           }}
         >
-          Import theme JSON
+          {t("Import theme JSON")}
         </Button>
         <Button
           variant="outline"
           onClick={() =>
             run(() => {
               selectTheme("system");
-              setNotice("Default theme selected.");
+              setNotice(t("Default theme selected."));
             })
           }
         >
-          Use default theme
+          {t("Use default theme")}
         </Button>
       </div>
       <p role="status" className="text-sm text-muted-foreground">
-        {notice}
+        {t(notice)}
       </p>
-      {error ? <p role="alert">{error}</p> : null}
+      {error ? <p role="alert">{t(error)}</p> : null}
       {[...builtins, ...custom].map((theme) => (
         <div key={theme.id} className="space-y-2 rounded-lg border p-3">
           <div className="flex items-center gap-2">
@@ -306,11 +310,19 @@ export function ThemeSettings() {
                   onClick={() =>
                     run(() => {
                       selectTheme(theme.id, mode);
-                      setNotice(`${theme.label} selected for ${mode} mode.`);
+                      setNotice(
+                        t("{name} selected for {mode} mode.", {
+                          name: theme.label,
+                          mode: t(mode === "light" ? "Light" : "Dark"),
+                        }),
+                      );
                     })
                   }
                 >
-                  Use {theme.label} for {mode}
+                  {t("Use {name} for {mode}", {
+                    name: theme.label,
+                    mode: t(mode === "light" ? "Light" : "Dark"),
+                  })}
                 </Button>
               ))}
             <Button
@@ -320,15 +332,17 @@ export function ThemeSettings() {
                 setEditing(custom.includes(theme) ? theme : copyOf(theme));
               }}
             >
-              {custom.includes(theme) ? `Edit ${theme.label}` : `Customize ${theme.label}`}
+              {custom.includes(theme)
+                ? t("Edit {name}", { name: theme.label })
+                : t("Customize {name}", { name: theme.label })}
             </Button>
             {custom.includes(theme) ? (
               <>
                 <Button variant="outline" onClick={() => setEditing(copyOf(theme))}>
-                  Duplicate {theme.label}
+                  {t("Duplicate {name}", { name: theme.label })}
                 </Button>
                 <Button variant="outline" onClick={() => setRemoving(theme)}>
-                  Remove {theme.label}
+                  {t("Remove {name}", { name: theme.label })}
                 </Button>
               </>
             ) : null}
@@ -340,7 +354,7 @@ export function ThemeSettings() {
                 );
               }}
             >
-              Export {theme.label}
+              {t("Export {name}", { name: theme.label })}
             </Button>
           </div>
         </div>
@@ -354,23 +368,27 @@ export function ThemeSettings() {
       >
         <DialogPopup>
           <DialogHeader>
-            <DialogTitle>Remove theme?</DialogTitle>
+            <DialogTitle>{t("Remove theme?")}</DialogTitle>
           </DialogHeader>
           <DialogPanel>
-            <p>Remove {removing?.label}? Selected modes will use the default theme.</p>
+            <p>
+              {t("Remove {name}? Selected modes will use the default theme.", {
+                name: removing?.label ?? "",
+              })}
+            </p>
             <Button
               onClick={() =>
                 run(() => {
                   if (removing) removeCustomTheme(removing.id);
                   setRemoving(null);
-                  setNotice("Theme removed.");
+                  setNotice(t("Theme removed."));
                 })
               }
             >
-              Remove theme
+              {t("Remove theme")}
             </Button>
             <Button variant="outline" onClick={() => setRemoving(null)}>
-              Cancel
+              {t("Cancel")}
             </Button>
           </DialogPanel>
         </DialogPopup>
@@ -383,7 +401,7 @@ export function ThemeSettings() {
       >
         <DialogPopup>
           <DialogHeader>
-            <DialogTitle>Import theme JSON</DialogTitle>
+            <DialogTitle>{t("Import theme JSON")}</DialogTitle>
           </DialogHeader>
           <DialogPanel>
             <Button
@@ -393,7 +411,7 @@ export function ThemeSettings() {
                 void pickFile();
               }}
             >
-              Choose JSON file
+              {t("Choose JSON file")}
             </Button>
             <input
               ref={input}
@@ -407,9 +425,10 @@ export function ThemeSettings() {
               }}
             />
             <label className="grid gap-2">
-              Theme JSON
+              {t("Theme JSON")}
               <textarea
-                aria-label="Theme JSON"
+                dir="ltr"
+                aria-label={t("Theme JSON")}
                 className="min-h-48 rounded-lg border bg-background p-2 font-mono text-xs"
                 value={json}
                 onChange={(event) => {
@@ -418,13 +437,15 @@ export function ThemeSettings() {
                 }}
               />
             </label>
-            {error ? <p role="alert">{error}</p> : null}
+            {error ? <p role="alert">{t(error)}</p> : null}
             {conflict ? (
               <>
-                <p>Already installed: {conflict.label}</p>
-                <Button onClick={() => run(() => install(conflict, true))}>Update existing</Button>
+                <p>{t("Already installed: {name}", { name: conflict.label })}</p>
+                <Button onClick={() => run(() => install(conflict, true))}>
+                  {t("Update existing")}
+                </Button>
                 <Button variant="outline" onClick={() => run(() => install(copyOf(conflict)))}>
-                  Keep both
+                  {t("Keep both")}
                 </Button>
               </>
             ) : (
@@ -433,18 +454,18 @@ export function ThemeSettings() {
                 onClick={() =>
                   run(() => {
                     if (new TextEncoder().encode(json).length > MAX_BYTES)
-                      throw new Error("Theme files must be 256 KB or smaller.");
+                      throw new Error(t("Theme files must be 256 KB or smaller."));
                     const theme = parseThemeFile(JSON.parse(json));
                     if (custom.some((entry) => entry.id === theme.id)) setConflict(theme);
                     else install(theme);
                   })
                 }
               >
-                Import theme
+                {t("Import theme")}
               </Button>
             )}
             <Button variant="outline" onClick={closeImport}>
-              Cancel
+              {t("Cancel")}
             </Button>
           </DialogPanel>
         </DialogPopup>
