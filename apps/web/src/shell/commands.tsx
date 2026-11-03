@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from "react";
+import { useLocale } from "../useLocale";
+import { useEffect, useState } from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import {
   Command,
@@ -31,6 +32,7 @@ export function useShellCommands({
   onNavigate: (path: string) => void;
   onToggleSidebar: () => void;
 }) {
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
   const { shortcuts, error } = useShellShortcuts();
   const execute = useStableCallback((command: ShellCommandId) => {
@@ -65,7 +67,7 @@ export function useShellCommands({
   }, [onKeyDown]);
   const commands = (Object.keys(COMMAND_LABELS) as ShellCommandId[])
     .filter((id) => id !== "palette")
-    .map((id) => ({ id, label: COMMAND_LABELS[id] }));
+    .map((id) => ({ id, label: t(COMMAND_LABELS[id]) }));
   return { open, setOpen, commands, execute, shortcuts, error };
 }
 type CommandState = ReturnType<typeof useShellCommands>;
@@ -76,10 +78,11 @@ export function CommandMenu({
   execute,
   shortcuts,
 }: Pick<CommandState, "open" | "setOpen" | "commands" | "execute" | "shortcuts">) {
+  const { t } = useLocale();
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandDialogPopup>
-        <DialogPrimitive.Title className="sr-only">Command palette</DialogPrimitive.Title>
+        <DialogPrimitive.Title className="sr-only">{t("Command palette")}</DialogPrimitive.Title>
         <CommandResults
           key={String(open)}
           commands={commands}
@@ -95,6 +98,7 @@ function CommandResults({
   execute,
   shortcuts,
 }: Pick<CommandState, "commands" | "execute" | "shortcuts">) {
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const filtered = commands.filter((command) =>
@@ -109,8 +113,8 @@ function CommandResults({
       onItemHighlighted={(value) => setHighlighted(typeof value === "string" ? value : null)}
     >
       <CommandInput
-        aria-label="Search commands"
-        placeholder="Search commands…"
+        aria-label={t("Search commands")}
+        placeholder={t("Search commands…")}
         onKeyDown={(event) => {
           if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
           const selected = filtered.find((command) => command.id === highlighted) ?? filtered[0];
@@ -137,7 +141,7 @@ function CommandResults({
           </CommandList>
         ) : (
           <p role="status" className="p-8 text-center text-sm text-muted-foreground">
-            No matching commands.
+            {t("No matching commands.")}
           </p>
         )}
       </CommandPanel>

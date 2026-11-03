@@ -1,3 +1,5 @@
+import { translate } from "../locale";
+import { readLocale } from "../useLocale";
 import * as Schema from "effect/Schema";
 import { useSyncExternalStore } from "react";
 import { toastManager } from "../components/ui/toast";
@@ -120,8 +122,11 @@ export function notifyShell(input: {
   const saved = write(KEY, [item, ...decodeInbox(read(KEY)).items].slice(0, 100));
   if (decodePreferenceValue(read(PREFERENCES_KEY)).inApp) {
     toastManager.add({
-      title: item.title,
-      description: saved ? item.message : "Notification history could not be saved.",
+      title: translate(readLocale(), item.title),
+      description: translate(
+        readLocale(),
+        saved ? item.message : "Notification history could not be saved.",
+      ),
       type: item.level,
     });
   }
@@ -131,9 +136,15 @@ export function notifyShell(input: {
 export async function deliverDesktopNotification(
   item: Pick<ShellNotification, "id" | "title" | "message" | "path">,
 ) {
+  const locale = readLocale();
+  const localized = {
+    ...item,
+    title: translate(locale, item.title),
+    message: translate(locale, item.message),
+  };
   if (window.desktopBridge?.showNotification) {
     const result = await window.desktopBridge
-      .showNotification(item)
+      .showNotification(localized)
       .catch(() => ({ status: "failed", message: "Desktop notification delivery failed." }));
     const error =
       result.status === "failed" || result.status === "unsupported"
@@ -151,7 +162,10 @@ export async function deliverDesktopNotification(
   }
   if (document.visibilityState === "visible" && document.hasFocus()) return;
   try {
-    const notification = new Notification(item.title, { body: item.message, tag: item.id });
+    const notification = new Notification(localized.title, {
+      body: localized.message,
+      tag: item.id,
+    });
     notification.addEventListener("click", () => {
       window.focus();
       window.location.hash = item.path;

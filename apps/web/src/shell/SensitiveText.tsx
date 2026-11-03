@@ -1,3 +1,4 @@
+import { useLocale } from "../useLocale";
 import { useState } from "react";
 import { Button } from "../components/ui/button";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
@@ -13,29 +14,37 @@ export function SensitiveText({
   sensitive?: boolean;
   masked?: boolean;
 }) {
+  const { t } = useLocale();
   const [revealed, setRevealed] = useState(false);
   const [copyError, setCopyError] = useState("");
   const { copyToClipboard, isCopied } = useCopyToClipboard({
     target: label,
     onCopy: () => setCopyError(""),
-    onError: () => setCopyError(`Could not copy ${label.toLowerCase()}. Try again.`),
+    onError: () =>
+      setCopyError(t("Could not copy {name}. Try again.", { name: t(label).toLowerCase() })),
   });
   const hidden = sensitive && masked && !revealed;
   return (
     <div className="space-y-2">
-      <span className="text-sm font-medium">{label}</span>
+      <span className="text-sm font-medium">{t(label)}</span>
       <div className="flex flex-wrap items-center gap-2">
-        <code className="min-w-0 break-all text-sm" aria-label={hidden ? `${label} hidden` : label}>
+        <code
+          dir="ltr"
+          className="min-w-0 break-all text-sm"
+          aria-label={hidden ? t("{name} hidden", { name: t(label) }) : label}
+        >
           {hidden ? "••••••••" : value}
         </code>
         {sensitive && masked ? (
           <Button
             variant="ghost"
             size="sm"
-            aria-label={`${revealed ? "Hide" : "Reveal"} ${label.toLowerCase()}`}
+            aria-label={t(revealed ? "Hide {name}" : "Reveal {name}", {
+              name: t(label).toLowerCase(),
+            })}
             onClick={() => setRevealed(!revealed)}
           >
-            {revealed ? "Hide" : "Reveal"}
+            {revealed ? t("Hide") : t("Reveal")}
           </Button>
         ) : null}
         <Button
@@ -44,7 +53,7 @@ export function SensitiveText({
           disabled={!value}
           onClick={() => copyToClipboard(value)}
         >
-          {isCopied ? "Copied" : `Copy ${label.toLowerCase()}`}
+          {isCopied ? t("Copied") : t("Copy {name}", { name: t(label).toLowerCase() })}
         </Button>
       </div>
       {copyError ? (

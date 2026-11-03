@@ -1,3 +1,4 @@
+import { useLocale } from "../useLocale";
 import { useState } from "react";
 import { randomUUID } from "../lib/utils";
 import {
@@ -75,6 +76,7 @@ export function ShellSidebar({
   onCommand: () => void;
   onChange: (action: NavigationAction) => boolean;
 }) {
+  const { t, direction } = useLocale();
   const [editing, setEditing] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [dragged, setDragged] = useState<DestinationId | null>(null);
@@ -116,8 +118,8 @@ export function ShellSidebar({
                 >
                   <Icon />
                   <span>
-                    {destination.label}
-                    {item.pinned ? " - Pinned" : ""}
+                    {t(destination.label)}
+                    {item.pinned ? t(" - Pinned") : ""}
                   </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -129,22 +131,23 @@ export function ShellSidebar({
   return (
     <>
       <Sidebar
+        side={direction === "rtl" ? "right" : "left"}
         resizable={{ storageKey: "madar:shell-sidebar-width", minWidth: 240, maxWidth: 420 }}
       >
         <SidebarHeader>
           <div className="flex h-11 items-center gap-2 px-2">
             <span className="font-semibold">Madar</span>
-            <span className="text-xs text-muted-foreground">User Manager</span>
+            <span className="text-xs text-muted-foreground">{t("User Manager")}</span>
           </div>
           <Button variant="outline" onClick={onCommand}>
             <Search />
-            Commands
+            {t("Commands")}
           </Button>
         </SidebarHeader>
         <SidebarContent>
-          <nav aria-label="Workspace" className="space-y-4 p-3">
+          <nav aria-label={t("Workspace")} className="space-y-4 p-3">
             <section
-              aria-label="Pinned"
+              aria-label={t("Pinned")}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
@@ -155,17 +158,17 @@ export function ShellSidebar({
                 setDragged(null);
               }}
             >
-              <h2 className="mb-2 text-xs font-medium text-muted-foreground">Pinned</h2>
+              <h2 className="mb-2 text-xs font-medium text-muted-foreground">{t("Pinned")}</h2>
               {state.items.some((item) => item.pinned) ? (
                 rows("", true)
               ) : (
                 <p className="py-2 text-xs text-muted-foreground">
-                  Pin destinations with Organize navigation.
+                  {t("Pin destinations with Organize navigation.")}
                 </p>
               )}
             </section>
-            <section aria-label="Workspace destinations">
-              <h2 className="mb-2 text-xs font-medium text-muted-foreground">Workspace</h2>
+            <section aria-label={t("Workspace destinations")}>
+              <h2 className="mb-2 text-xs font-medium text-muted-foreground">{t("Workspace")}</h2>
               {rows("")}
             </section>
             {state.groups.map((group) => (
@@ -186,14 +189,14 @@ export function ShellSidebar({
                     onClick={() => onChange({ type: "collapse-group", id: group.id })}
                   >
                     <Folder />
-                    {group.name}
+                    <bdi>{group.name}</bdi>
                   </Button>
                 </div>
                 {!group.collapsed ? rows(group.id) : null}
                 {!group.collapsed &&
                 !state.items.some((item) => item.group === group.id && !item.pinned) ? (
                   <p className="py-2 text-xs text-muted-foreground">
-                    Drop a destination here or assign one in Organize navigation.
+                    {t("Drop a destination here or assign one in Organize navigation.")}
                   </p>
                 ) : null}
               </section>
@@ -202,11 +205,11 @@ export function ShellSidebar({
         </SidebarContent>
         <SidebarFooter>
           <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-            Organize navigation
+            {t("Organize navigation")}
           </Button>
           <Button variant="ghost" onClick={() => navigate("/settings/general")}>
             <Settings />
-            Settings
+            {t("Settings")}
           </Button>
         </SidebarFooter>
         <SidebarRail />
@@ -214,26 +217,27 @@ export function ShellSidebar({
       <Dialog open={editing} onOpenChange={setEditing}>
         <DialogPopup>
           <DialogHeader>
-            <DialogTitle>Organize navigation</DialogTitle>
+            <DialogTitle>{t("Organize navigation")}</DialogTitle>
             <DialogDescription>
-              Drag destinations in the sidebar or use these controls. Changes are saved
-              automatically.
+              {t(
+                "Drag destinations in the sidebar or use these controls. Changes are saved automatically.",
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogPanel>
             {error ? (
               <p role="alert" className="text-sm text-destructive">
-                {error}
+                {t(error)}
               </p>
             ) : null}
             <div className="space-y-4">
               {state.items.map((item, index) => {
-                const label = destinations.find((d) => d.id === item.id)!.label;
+                const label = t(destinations.find((d) => d.id === item.id)!.label);
                 return (
                   <section
                     key={item.id}
                     className="space-y-2 rounded-lg border p-3"
-                    aria-label={label + " navigation"}
+                    aria-label={t("{name} navigation", { name: label })}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium">{label}</span>
@@ -241,7 +245,7 @@ export function ShellSidebar({
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          aria-label={`Move ${label} up`}
+                          aria-label={t("Move {name} up", { name: label })}
                           disabled={index === 0}
                           onClick={() => {
                             const before = state.items[index - 1];
@@ -259,7 +263,7 @@ export function ShellSidebar({
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          aria-label={`Move ${label} down`}
+                          aria-label={t("Move {name} down", { name: label })}
                           disabled={index === state.items.length - 1}
                           onClick={() => {
                             const next = state.items[index + 1];
@@ -278,7 +282,9 @@ export function ShellSidebar({
                         <Button
                           variant={item.pinned ? "secondary" : "ghost"}
                           size="icon-sm"
-                          aria-label={`${item.pinned ? "Unpin" : "Pin"} ${label}`}
+                          aria-label={t(item.pinned ? "Unpin {name}" : "Pin {name}", {
+                            name: label,
+                          })}
                           aria-pressed={item.pinned}
                           onClick={() => onChange({ type: "pin", id: item.id })}
                         >
@@ -292,18 +298,18 @@ export function ShellSidebar({
                         if (group !== null) onChange({ type: "assign", id: item.id, group });
                       }}
                     >
-                      <SelectTrigger aria-label={"Group for " + label}>
+                      <SelectTrigger aria-label={t("Group for {name}", { name: label })}>
                         <SelectValue>
                           {item.group
                             ? state.groups.find((group) => group.id === item.group)?.name
-                            : "Workspace"}
+                            : t("Workspace")}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectPopup>
-                        <SelectItem value="">Workspace</SelectItem>
+                        <SelectItem value="">{t("Workspace")}</SelectItem>
                         {state.groups.map((group) => (
                           <SelectItem key={group.id} value={group.id}>
-                            {group.name}
+                            <bdi>{group.name}</bdi>
                           </SelectItem>
                         ))}
                       </SelectPopup>
@@ -324,13 +330,14 @@ export function ShellSidebar({
               }}
             >
               <Input
-                aria-label="New group name"
+                dir="auto"
+                aria-label={t("New group name")}
                 value={groupName}
                 onChange={(event) => setGroupName(event.target.value)}
                 maxLength={60}
               />
               <Button type="submit" disabled={!groupName.trim()}>
-                Add group
+                {t("Add group")}
               </Button>
             </form>
             {state.groups.map((group) => (
@@ -348,26 +355,27 @@ export function ShellSidebar({
                 <div className="min-w-0 flex-1">
                   <Input
                     name="name"
-                    aria-label={"Rename " + group.name}
+                    dir="auto"
+                    aria-label={t("Rename {name}", { name: group.name })}
                     defaultValue={group.name}
                     maxLength={60}
                     required
                   />
                 </div>
                 <Button type="submit" variant="outline">
-                  Rename
+                  {t("Rename")}
                 </Button>
                 <Button
                   variant="destructive-outline"
                   onClick={() => onChange({ type: "remove-group", id: group.id })}
                 >
-                  Remove {group.name}
+                  {t("Remove {name}", { name: group.name })}
                 </Button>
               </form>
             ))}
           </DialogPanel>
           <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>Done</DialogClose>
+            <DialogClose render={<Button variant="outline" />}>{t("Done")}</DialogClose>
           </DialogFooter>
         </DialogPopup>
       </Dialog>

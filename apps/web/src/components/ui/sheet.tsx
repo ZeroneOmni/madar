@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
 import { ControlledOpenContext, renderRetainedPopup } from "~/components/ui/dialog";
+import { useLocale } from "~/useLocale";
 
 function Sheet<Payload>(props: SheetPrimitive.Root.Props<Payload>) {
   return (
@@ -32,6 +33,7 @@ function SheetViewport({
   className,
   side,
   variant = "default",
+  style,
   ...props
 }: SheetPrimitive.Viewport.Props & {
   side?: "right" | "left" | "top" | "bottom";
@@ -43,12 +45,12 @@ function SheetViewport({
         "fixed inset-0 z-(--z-sheet) grid",
         side === "bottom" && "grid grid-rows-[1fr_auto] pt-12",
         side === "top" && "grid grid-rows-[auto_1fr] pb-12",
-        side === "left" && "flex justify-start",
-        side === "right" && "flex justify-end",
+        (side === "left" || side === "right") && "flex",
         variant === "inset" && "sm:p-4",
         className,
       )}
       data-slot="sheet-viewport"
+      style={{ justifyContent: side === "left" || side === "right" ? side : undefined, ...style }}
       {...props}
     />
   );
@@ -71,6 +73,7 @@ function SheetPopup({
   side?: "right" | "left" | "top" | "bottom";
   variant?: "default" | "inset";
 }) {
+  const { t } = useLocale();
   const transitionStyle =
     transitionDurationMs === undefined
       ? undefined
@@ -96,9 +99,9 @@ function SheetPopup({
             side === "top" &&
               "data-ending-style:-translate-y-8 data-starting-style:-translate-y-8 border-b",
             side === "left" &&
-              "data-ending-style:-translate-x-8 data-starting-style:-translate-x-8 w-[calc(100%-(--spacing(12)))] max-w-md border-e",
+              "data-ending-style:-translate-x-8 data-starting-style:-translate-x-8 w-[calc(100%-(--spacing(12)))] max-w-md border-r",
             side === "right" &&
-              "col-start-2 w-[calc(100%-(--spacing(12)))] max-w-md border-s data-ending-style:translate-x-8 data-starting-style:translate-x-8",
+              "col-start-2 w-[calc(100%-(--spacing(12)))] max-w-md border-l data-ending-style:translate-x-8 data-starting-style:translate-x-8",
             variant === "inset" &&
               "before:hidden sm:rounded-2xl sm:border sm:before:rounded-[calc(var(--radius-2xl)-1px)] sm:**:data-[slot=sheet-footer]:rounded-b-[calc(var(--radius-2xl)-1px)]",
             instant &&
@@ -113,7 +116,7 @@ function SheetPopup({
           {children}
           {showCloseButton && (
             <SheetPrimitive.Close
-              aria-label="Close"
+              aria-label={t("Close")}
               className="absolute end-2 top-2"
               render={<Button size="icon" variant="ghost" />}
             >

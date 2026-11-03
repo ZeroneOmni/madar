@@ -5,6 +5,25 @@ const script = indexHtml.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 if (!script) throw new Error("Missing appearance boot script");
 
 it.each([
+  ["ar", ["en-US"], "ar", "rtl"],
+  ["en", ["ar-KW"], "en", "ltr"],
+  [null, ["ar-KW"], "ar", "rtl"],
+  ["invalid", ["fr", "en-GB"], "en", "ltr"],
+] as const)("sets language %s before rendering", (saved, languages, lang, dir) => {
+  const documentElement = { lang: "", dir: "", classList: { toggle: () => {} }, style: {} };
+  new Function("window", "document", script)(
+    {
+      localStorage: { getItem: (key: string) => (key === "madar:language" ? saved : null) },
+      navigator: { languages },
+      matchMedia: () => ({ matches: false }),
+    },
+    { documentElement, querySelector: () => ({ setAttribute: () => {} }) },
+  );
+  expect(documentElement.lang).toBe(lang);
+  expect(documentElement.dir).toBe(dir);
+});
+
+it.each([
   ["light", true, false],
   ["dark", false, true],
   ["system", true, true],
