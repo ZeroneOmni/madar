@@ -37,6 +37,7 @@ it("switches languages in Settings, searches Arabic commands and preserves the c
   await expect.element(screen.getByRole("heading", { name: "عام", exact: true })).toBeVisible();
   expect(document.documentElement.lang).toBe("ar");
   expect(document.documentElement.dir).toBe("rtl");
+  await screen.getByRole("button", { name: "رجوع", exact: true }).click();
   await screen.getByRole("button", { name: "تنظيم التنقل", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "تنظيم التنقل" });
   await dialog.getByRole("textbox", { name: "اسم المجموعة الجديدة" }).fill("يومي");
@@ -45,6 +46,7 @@ it("switches languages in Settings, searches Arabic commands and preserves the c
   await page.getByRole("option", { name: "يومي", exact: true }).click();
   await dialog.getByRole("button", { name: "تم", exact: true }).click();
   await expect.element(screen.getByRole("button", { name: "يومي", exact: true })).toBeVisible();
+  await screen.getByRole("button", { name: "فتح الإعدادات", exact: true }).click();
   await screen.getByRole("searchbox", { name: "البحث في الإعدادات" }).fill("اللغة");
   await screen.getByRole("button", { name: "اللغة", exact: true }).click();
   await expect.element(screen.getByRole("heading", { name: "اللغة", exact: true })).toBeVisible();
@@ -194,4 +196,45 @@ it("retains navigation after a failed write and recovers on retry", async () => 
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await userEvent.keyboard("{Control>}k{/Control}");
   await expect.element(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
+});
+
+it("replaces workspace navigation with settings and returns to the previous destination", async () => {
+  await page.viewport(1280, 900);
+  using _state = setup("/vouchers");
+  await using screen = await render(<AppRoot />);
+  await screen.getByRole("button", { name: "Open Settings", exact: true }).click();
+  await expect
+    .element(screen.getByRole("navigation", { name: "Workspace", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("complementary", { name: "Settings navigation" }))
+    .not.toBeInTheDocument();
+  await screen
+    .getByRole("navigation", { name: "Settings sections", exact: true })
+    .getByRole("button", { name: "Privacy", exact: true })
+    .click();
+  await expect.element(screen.getByRole("heading", { name: "Privacy", exact: true })).toBeVisible();
+  await screen.getByRole("button", { name: "Return", exact: true }).click();
+  await expect
+    .element(screen.getByRole("heading", { name: "Vouchers", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("navigation", { name: "Workspace", exact: true }))
+    .toBeVisible();
+});
+
+it("uses settings navigation for a root settings deep link and returns to overview", async () => {
+  await page.viewport(1280, 900);
+  using _state = setup("/settings?focus=language");
+  await using screen = await render(<AppRoot />);
+  await expect
+    .element(screen.getByRole("navigation", { name: "Settings sections", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Language", exact: true }))
+    .toHaveFocus();
+  await screen.getByRole("button", { name: "Return", exact: true }).click();
+  await expect
+    .element(screen.getByRole("heading", { name: "Your User Manager workspace", exact: true }))
+    .toBeVisible();
 });

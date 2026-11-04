@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { render } from "../../test/render";
+import { SidebarProvider } from "../components/ui/sidebar";
+import { ShellSidebar } from "./ShellSidebar";
+import { defaultNavigation } from "./navigation";
 import { SettingsPage } from "./settings";
 import { WelcomePage } from "./WelcomePage";
 import { DEFAULT_SETTINGS, SETTINGS_STORAGE_KEY, readSettings } from "./settingsState";
@@ -30,10 +34,23 @@ function setup() {
 }
 function SettingsHarness() {
   const [path, setPath] = useState("/settings/general");
-  return <SettingsPage path={path} onNavigate={setPath} />;
+  return (
+    <SidebarProvider>
+      <ShellSidebar
+        state={defaultNavigation}
+        path={path}
+        onNavigate={setPath}
+        onCommand={() => {}}
+        onChange={() => true}
+        error={null}
+      />
+      <SettingsPage path={path} onNavigate={setPath} />
+    </SidebarProvider>
+  );
 }
 
 it("finds a setting, navigates to it, and focuses the deep-link target", async () => {
+  await page.viewport(1280, 900);
   using _state = setup();
   await using screen = await render(<SettingsHarness />);
   await screen.getByRole("searchbox", { name: "Search settings" }).fill("unavailable setting name");

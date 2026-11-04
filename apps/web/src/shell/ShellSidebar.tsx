@@ -3,6 +3,11 @@ import { useState } from "react";
 import { randomUUID } from "../lib/utils";
 import {
   ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  Keyboard,
+  Palette,
+  Shield,
   ArrowUp,
   Bell,
   ChartColumn,
@@ -52,6 +57,98 @@ import {
   type NavigationState,
 } from "./navigation";
 
+import { SETTINGS_SECTIONS, resolveSettingsPath, searchSettings } from "./settingsSearch";
+
+const settingsIcons = {
+  general: Settings,
+  appearance: Palette,
+  privacy: Shield,
+  shortcuts: Keyboard,
+  notifications: Bell,
+};
+
+function SettingsNavigation({
+  path,
+  onNavigate,
+  returnPath,
+}: {
+  path: string;
+  onNavigate: (path: string) => void;
+  returnPath: string;
+}) {
+  const { t, direction } = useLocale();
+  const [query, setQuery] = useState("");
+  const { section } = resolveSettingsPath(path);
+  const matches = searchSettings(query, t);
+  const ReturnIcon = direction === "rtl" ? ArrowRight : ArrowLeft;
+  return (
+    <>
+      <SidebarHeader>
+        <div className="flex h-11 items-center px-2 font-semibold">{t("Settings")}</div>
+        <Input
+          type="search"
+          aria-label={t("Search settings")}
+          placeholder={t("Search settings...")}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </SidebarHeader>
+      <SidebarContent>
+        <nav
+          aria-label={query.trim() ? t("Settings search results") : t("Settings sections")}
+          className="p-3"
+        >
+          <SidebarMenu>
+            {query.trim()
+              ? matches.map((item) => {
+                  const Icon = settingsIcons[item.section];
+                  return (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => {
+                          setQuery("");
+                          onNavigate(`/settings/${item.section}?focus=${item.id}`);
+                        }}
+                      >
+                        <Icon />
+                        <span>{t(item.title)}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })
+              : SETTINGS_SECTIONS.map((item) => {
+                  const Icon = settingsIcons[item.id];
+                  return (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        isActive={section?.id === item.id}
+                        aria-current={section?.id === item.id ? "page" : undefined}
+                        onClick={() => onNavigate(`/settings/${item.id}`)}
+                      >
+                        <Icon />
+                        <span>{t(item.label)}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+          </SidebarMenu>
+          {query.trim() && matches.length === 0 ? (
+            <p role="status" className="py-2 text-sm text-muted-foreground">
+              {t("No settings found. Try another search.")}
+            </p>
+          ) : null}
+        </nav>
+      </SidebarContent>
+      <SidebarFooter>
+        <Button variant="ghost" onClick={() => onNavigate(returnPath)}>
+          <ReturnIcon />
+          {t("Return")}
+        </Button>
+      </SidebarFooter>
+    </>
+  );
+}
+
 const icons = {
   overview: Home,
   vouchers: Ticket,
@@ -77,6 +174,10 @@ export function ShellSidebar({
   onChange: (action: NavigationAction) => boolean;
 }) {
   const { t, direction } = useLocale();
+  const pathname = path.split("?")[0];
+  const settingsPage = pathname === "/settings" || pathname?.startsWith("/settings/");
+  const [returnPath, setReturnPath] = useState("/overview");
+  if (!settingsPage && path !== returnPath) setReturnPath(path);
   const [editing, setEditing] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [dragged, setDragged] = useState<DestinationId | null>(null);
@@ -134,84 +235,92 @@ export function ShellSidebar({
         side={direction === "rtl" ? "right" : "left"}
         resizable={{ storageKey: "madar:shell-sidebar-width", minWidth: 240, maxWidth: 420 }}
       >
-        <SidebarHeader>
-          <div className="flex h-11 items-center gap-2 px-2">
-            <span className="font-semibold">Madar</span>
-            <span className="text-xs text-muted-foreground">{t("User Manager")}</span>
-          </div>
-          <Button variant="outline" onClick={onCommand}>
-            <Search />
-            {t("Commands")}
-          </Button>
-        </SidebarHeader>
-        <SidebarContent>
-          <nav aria-label={t("Workspace")} className="space-y-4 p-3">
-            <section
-              aria-label={t("Pinned")}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                if (dragged) {
-                  const item = state.items.find((item) => item.id === dragged);
-                  if (item && !item.pinned) onChange({ type: "pin", id: dragged });
-                }
-                setDragged(null);
-              }}
-            >
-              <h2 className="mb-2 text-xs font-medium text-muted-foreground">{t("Pinned")}</h2>
-              {state.items.some((item) => item.pinned) ? (
-                rows("", true)
-              ) : (
-                <p className="py-2 text-xs text-muted-foreground">
-                  {t("Pin destinations with Organize navigation.")}
-                </p>
-              )}
-            </section>
-            <section aria-label={t("Workspace destinations")}>
-              <h2 className="mb-2 text-xs font-medium text-muted-foreground">{t("Workspace")}</h2>
-              {rows("")}
-            </section>
-            {state.groups.map((group) => (
-              <section
-                key={group.id}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  if (dragged) onChange({ type: "assign", id: dragged, group: group.id });
-                  setDragged(null);
-                }}
-              >
-                <div className="mb-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-expanded={!group.collapsed}
-                    onClick={() => onChange({ type: "collapse-group", id: group.id })}
+        {settingsPage ? (
+          <SettingsNavigation path={path} onNavigate={navigate} returnPath={returnPath} />
+        ) : (
+          <>
+            <SidebarHeader>
+              <div className="flex h-11 items-center gap-2 px-2">
+                <span className="font-semibold">Madar</span>
+                <span className="text-xs text-muted-foreground">{t("User Manager")}</span>
+              </div>
+              <Button variant="outline" onClick={onCommand}>
+                <Search />
+                {t("Commands")}
+              </Button>
+            </SidebarHeader>
+            <SidebarContent>
+              <nav aria-label={t("Workspace")} className="space-y-4 p-3">
+                <section
+                  aria-label={t("Pinned")}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    if (dragged) {
+                      const item = state.items.find((item) => item.id === dragged);
+                      if (item && !item.pinned) onChange({ type: "pin", id: dragged });
+                    }
+                    setDragged(null);
+                  }}
+                >
+                  <h2 className="mb-2 text-xs font-medium text-muted-foreground">{t("Pinned")}</h2>
+                  {state.items.some((item) => item.pinned) ? (
+                    rows("", true)
+                  ) : (
+                    <p className="py-2 text-xs text-muted-foreground">
+                      {t("Pin destinations with Organize navigation.")}
+                    </p>
+                  )}
+                </section>
+                <section aria-label={t("Workspace destinations")}>
+                  <h2 className="mb-2 text-xs font-medium text-muted-foreground">
+                    {t("Workspace")}
+                  </h2>
+                  {rows("")}
+                </section>
+                {state.groups.map((group) => (
+                  <section
+                    key={group.id}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      if (dragged) onChange({ type: "assign", id: dragged, group: group.id });
+                      setDragged(null);
+                    }}
                   >
-                    <Folder />
-                    <bdi>{group.name}</bdi>
-                  </Button>
-                </div>
-                {!group.collapsed ? rows(group.id) : null}
-                {!group.collapsed &&
-                !state.items.some((item) => item.group === group.id && !item.pinned) ? (
-                  <p className="py-2 text-xs text-muted-foreground">
-                    {t("Drop a destination here or assign one in Organize navigation.")}
-                  </p>
-                ) : null}
-              </section>
-            ))}
-          </nav>
-        </SidebarContent>
-        <SidebarFooter>
-          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-            {t("Organize navigation")}
-          </Button>
-          <Button variant="ghost" onClick={() => navigate("/settings/general")}>
-            <Settings />
-            {t("Settings")}
-          </Button>
-        </SidebarFooter>
+                    <div className="mb-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-expanded={!group.collapsed}
+                        onClick={() => onChange({ type: "collapse-group", id: group.id })}
+                      >
+                        <Folder />
+                        <bdi>{group.name}</bdi>
+                      </Button>
+                    </div>
+                    {!group.collapsed ? rows(group.id) : null}
+                    {!group.collapsed &&
+                    !state.items.some((item) => item.group === group.id && !item.pinned) ? (
+                      <p className="py-2 text-xs text-muted-foreground">
+                        {t("Drop a destination here or assign one in Organize navigation.")}
+                      </p>
+                    ) : null}
+                  </section>
+                ))}
+              </nav>
+            </SidebarContent>
+            <SidebarFooter>
+              <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
+                {t("Organize navigation")}
+              </Button>
+              <Button variant="ghost" onClick={() => navigate("/settings/general")}>
+                <Settings />
+                {t("Settings")}
+              </Button>
+            </SidebarFooter>
+          </>
+        )}
         <SidebarRail />
       </Sidebar>
       <Dialog open={editing} onOpenChange={setEditing}>

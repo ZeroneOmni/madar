@@ -3,12 +3,11 @@ import { useLocale } from "../useLocale";
 import { useEffect, useState, type ReactNode } from "react";
 import { DEFAULT_CLIENT_SETTINGS, type QuitConfirmationMode } from "@madar/contracts";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
 import { Switch } from "../components/ui/switch";
 import { ThemeSettings } from "../components/settings/ThemeSettings";
 import { useTheme } from "../hooks/useTheme";
 import { notifyShell } from "./notifications";
-import { SETTINGS_SECTIONS, resolveSettingsPath, searchSettings } from "./settingsSearch";
+import { resolveSettingsPath } from "./settingsSearch";
 import { resetOnboarding, saveSettings, usePrivacySettings } from "./settingsState";
 
 function DesktopQuitSettings() {
@@ -308,61 +307,13 @@ export function SettingsPage({
   notificationSettings?: ReactNode;
 }) {
   const { t } = useLocale();
-  const [query, setQuery] = useState("");
   const [resetFailed, setResetFailed] = useState(false);
   const { section, target, invalidTarget } = resolveSettingsPath(path);
-  const matches = searchSettings(query, t);
   useEffect(() => {
     if (target) document.getElementById(`setting-${target.id}`)?.focus();
   }, [target]);
   return (
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <aside
-        className="space-y-4 border-b p-4 md:w-60 md:shrink-0 md:border-e md:border-b-0"
-        aria-label={t("Settings navigation")}
-      >
-        <Input
-          type="search"
-          aria-label={t("Search settings")}
-          placeholder={t("Search settings...")}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <nav
-          aria-label={query.trim() ? t("Settings search results") : t("Settings sections")}
-          className="flex flex-wrap gap-1 md:flex-col md:items-start"
-        >
-          {query.trim()
-            ? matches.map((item) => (
-                <div key={item.id}>
-                  <Button
-                    variant="ghost"
-                    size="sm-multiline"
-                    onClick={() => onNavigate(`/settings/${item.section}?focus=${item.id}`)}
-                  >
-                    {t(item.title)}
-                  </Button>
-                </div>
-              ))
-            : SETTINGS_SECTIONS.map((item) => (
-                <div key={item.id}>
-                  <Button
-                    variant={section?.id === item.id ? "secondary" : "ghost"}
-                    size="sm"
-                    aria-current={section?.id === item.id ? "page" : undefined}
-                    onClick={() => onNavigate(`/settings/${item.id}`)}
-                  >
-                    {t(item.label)}
-                  </Button>
-                </div>
-              ))}
-          {query.trim() && matches.length === 0 ? (
-            <p role="status" className="text-sm text-muted-foreground">
-              {t("No settings found. Try another search.")}
-            </p>
-          ) : null}
-        </nav>
-      </aside>
       <div className="min-w-0 flex-1 overflow-y-auto scrollbar-gutter-both p-5 sm:p-8">
         <div className="mx-auto max-w-3xl space-y-7">
           <nav aria-label={t("Settings breadcrumbs")} className="flex items-center gap-2 text-sm">
