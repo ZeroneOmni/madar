@@ -1,1 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect x="64" y="64" width="896" height="896" rx="200" fill="#4c1d95"/><path d="M256 736V288h112l144 224 144-224h112v448H656V480L512 688 368 480v256Z" fill="#f8fafc"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1254 1254">
+  <defs>
+    <clipPath id="orbit-back">
+      <path d="M0 0h225v1254H0ZM1018 0h236v1254h-236Z"/>
+    </clipPath>
+    <mask id="orbit-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254">
+      <rect width="1254" height="1254" fill="white"/>
+      <path d="M103 841A558 132-20 0 0 1151 459" fill="none" stroke="black" stroke-width="78"/>
+    </mask>
+  </defs>
+  <g transform="translate(0 -25)" fill="#00a995">
+    <g clip-path="url(#orbit-back)">
+      <ellipse cx="627" cy="650" rx="558" ry="132" transform="rotate(-20 627 650)" fill="none" stroke="#00a995" stroke-width="48"/>
+    </g>
+    <path d="M225 407c0-66 36-103 88-103 35 0 55 19 83 47l227 217 228-218c29-29 51-46 83-46 50 0 84 38 84 103v497c0 54-32 87-86 87s-90-33-90-87V597L686 744c-37 34-80 34-117 0L402 598v306c0 54-32 87-88 87s-89-33-89-87Z" mask="url(#orbit-gap)"/>
+    <path d="M103 841A558 132-20 0 0 1151 459" fill="none" stroke="#00a995" stroke-width="48"/>
+  </g>
+</svg>
