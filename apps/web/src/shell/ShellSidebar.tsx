@@ -67,6 +67,20 @@ const settingsIcons = {
   notifications: Bell,
 };
 
+function ShellSidebarHeader({ title }: { title: string }) {
+  const { isMobile, open } = useSidebar();
+  if (!isMobile && !open) {
+    return <div className="h-(--workspace-topbar-height) shrink-0" />;
+  }
+  return (
+    <div className="shrink-0 pt-(--shell-sidebar-caption-height)">
+      <div className="drag-region flex h-(--workspace-topbar-height) min-w-0 items-center ps-(--shell-brand-inset) pe-3">
+        <span className="truncate text-lg font-semibold">{title}</span>
+      </div>
+    </div>
+  );
+}
+
 function SettingsNavigation({
   path,
   onNavigate,
@@ -78,33 +92,37 @@ function SettingsNavigation({
 }) {
   const { t, direction } = useLocale();
   const [query, setQuery] = useState("");
+  const { isMobile, open } = useSidebar();
+  const compact = !isMobile && !open;
   const { section } = resolveSettingsPath(path);
   const matches = searchSettings(query, t);
   const ReturnIcon = direction === "rtl" ? ArrowRight : ArrowLeft;
   return (
     <>
-      <SidebarHeader>
-        <div className="flex h-11 items-center px-2 font-semibold">{t("Settings")}</div>
-        <Input
-          type="search"
-          aria-label={t("Search settings")}
-          placeholder={t("Search settings...")}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </SidebarHeader>
+      {!compact && (
+        <SidebarHeader>
+          <Input
+            type="search"
+            aria-label={t("Search settings")}
+            placeholder={t("Search settings...")}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </SidebarHeader>
+      )}
       <SidebarContent>
         <nav
           aria-label={query.trim() ? t("Settings search results") : t("Settings sections")}
-          className="p-3"
+          className="p-2"
         >
           <SidebarMenu>
-            {query.trim()
+            {!compact && query.trim()
               ? matches.map((item) => {
                   const Icon = settingsIcons[item.section];
                   return (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
+                        tooltip={t(item.title)}
                         onClick={() => {
                           setQuery("");
                           onNavigate(`/settings/${item.section}?focus=${item.id}`);
@@ -121,6 +139,7 @@ function SettingsNavigation({
                   return (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton
+                        tooltip={t(item.label)}
                         isActive={section?.id === item.id}
                         aria-current={section?.id === item.id ? "page" : undefined}
                         onClick={() => onNavigate(`/settings/${item.id}`)}
@@ -132,7 +151,7 @@ function SettingsNavigation({
                   );
                 })}
           </SidebarMenu>
-          {query.trim() && matches.length === 0 ? (
+          {!compact && query.trim() && matches.length === 0 ? (
             <p role="status" className="py-2 text-sm text-muted-foreground">
               {t("No settings found. Try another search.")}
             </p>
@@ -140,10 +159,18 @@ function SettingsNavigation({
         </nav>
       </SidebarContent>
       <SidebarFooter>
-        <Button variant="ghost" onClick={() => onNavigate(returnPath)}>
-          <ReturnIcon />
-          {t("Return")}
-        </Button>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip={t("Return")}
+              aria-label={t("Return")}
+              onClick={() => onNavigate(returnPath)}
+            >
+              <ReturnIcon />
+              <span>{t("Return")}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </>
   );
@@ -181,7 +208,8 @@ export function ShellSidebar({
   const [editing, setEditing] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [dragged, setDragged] = useState<DestinationId | null>(null);
-  const { setOpenMobile, isMobile } = useSidebar();
+  const { setOpenMobile, isMobile, open } = useSidebar();
+  const compact = !isMobile && !open;
   function navigate(path: string) {
     onNavigate(path);
     if (isMobile) setOpenMobile(false);
@@ -190,14 +218,16 @@ export function ShellSidebar({
     return (
       <SidebarMenu>
         {state.items
-          .filter((item) => (pinned ? item.pinned : !item.pinned && item.group === group))
+          .filter(
+            (item) => compact || (pinned ? item.pinned : !item.pinned && item.group === group),
+          )
           .map((item) => {
             const destination = destinations.find((d) => d.id === item.id)!;
             const Icon = icons[item.id];
             return (
               <SidebarMenuItem
                 key={item.id}
-                draggable
+                draggable={!compact}
                 onDragStart={(event) => {
                   setDragged(item.id);
                   event.dataTransfer.setData("text/plain", item.id);
@@ -213,6 +243,7 @@ export function ShellSidebar({
                 }}
               >
                 <SidebarMenuButton
+                  tooltip={t(destination.label)}
                   isActive={path.split("?")[0] === "/" + item.id}
                   onClick={() => navigate("/" + item.id)}
                   aria-current={path.split("?")[0] === "/" + item.id ? "page" : undefined}
@@ -233,17 +264,37 @@ export function ShellSidebar({
     <>
       <Sidebar
         side={direction === "rtl" ? "right" : "left"}
+        collapsible="icon"
         resizable={{ storageKey: "madar:shell-sidebar-width", minWidth: 240, maxWidth: 420 }}
       >
+        <ShellSidebarHeader title={settingsPage ? t("Settings") : "Madar"} />
         {settingsPage ? (
           <SettingsNavigation path={path} onNavigate={navigate} returnPath={returnPath} />
+        ) : compact ? (
+          <>
+            <SidebarContent>
+              <nav aria-label={t("Workspace")} className="p-2">
+                {rows("")}
+              </nav>
+            </SidebarContent>
+            <SidebarFooter>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip={t("Settings")}
+                    aria-label={t("Settings")}
+                    onClick={() => navigate("/settings/general")}
+                  >
+                    <Settings />
+                    <span>{t("Settings")}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+          </>
         ) : (
           <>
             <SidebarHeader>
-              <div className="flex h-11 items-center gap-2 px-2">
-                <span className="font-semibold">Madar</span>
-                <span className="text-xs text-muted-foreground">{t("User Manager")}</span>
-              </div>
               <Button variant="outline" onClick={onCommand}>
                 <Search />
                 {t("Commands")}
@@ -321,7 +372,7 @@ export function ShellSidebar({
             </SidebarFooter>
           </>
         )}
-        <SidebarRail />
+        {!compact && <SidebarRail />}
       </Sidebar>
       <Dialog open={editing} onOpenChange={setEditing}>
         <DialogPopup>

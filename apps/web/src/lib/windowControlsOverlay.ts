@@ -9,6 +9,7 @@ const ELECTRON_CLASS_NAME = "electron";
 const ELECTRON_WINDOWS_CLASS_NAME = "electron-windows";
 // macOS has no overlay API; traffic lights stay inside this topbar at every zoom level.
 const MACOS_TITLEBAR_HEIGHT = 52;
+const MACOS_TITLEBAR_CONTROLS_WIDTH = 80;
 
 interface WindowControlsOverlayLike {
   readonly visible: boolean;
@@ -64,7 +65,11 @@ export function syncDocumentWindowControlsOverlayClass(): () => void {
 function subscribeTitlebarArea(listener: () => void): () => void {
   const overlay = getWindowControlsOverlay();
   overlay?.addEventListener("geometrychange", listener);
-  return () => overlay?.removeEventListener("geometrychange", listener);
+  window.addEventListener("resize", listener);
+  return () => {
+    overlay?.removeEventListener("geometrychange", listener);
+    window.removeEventListener("resize", listener);
+  };
 }
 
 function getNativeTitlebarHeight(): number {
@@ -75,6 +80,30 @@ function getNativeTitlebarHeight(): number {
 
 export function useNativeTitlebarHeight(): number {
   return useSyncExternalStore(subscribeTitlebarArea, getNativeTitlebarHeight, () => 0);
+}
+
+function getNativeControlsInset(side: "left" | "right"): number {
+  if (isElectron && isMacPlatform(navigator.platform))
+    return side === "left" ? MACOS_TITLEBAR_CONTROLS_WIDTH : 0;
+  const overlay = getWindowControlsOverlay();
+  if (!overlay?.visible) return 0;
+  const rect = overlay.getTitlebarAreaRect();
+  return side === "left" ? rect.x : Math.max(0, window.innerWidth - rect.right);
+}
+
+function getNativeControlsLeft(): number {
+  return getNativeControlsInset("left");
+}
+
+function getNativeControlsRight(): number {
+  return getNativeControlsInset("right");
+}
+
+export function useNativeTitlebarInsets() {
+  const left = useSyncExternalStore(subscribeTitlebarArea, getNativeControlsLeft, () => 0);
+  const right = useSyncExternalStore(subscribeTitlebarArea, getNativeControlsRight, () => 0);
+  const height = useNativeTitlebarHeight();
+  return { left, right, height };
 }
 
 function getElectronPlatformClassNames(

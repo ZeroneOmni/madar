@@ -6,7 +6,7 @@ import { Search, Settings, TriangleAlert } from "lucide-react";
 import { QuitHoldOverlay } from "./components/QuitHoldOverlay";
 import { WorkspacePageHeader } from "./components/WorkspacePageHeader";
 import { Button } from "./components/ui/button";
-import { SidebarProvider, SidebarInset, SidebarTrigger, useSidebar } from "./components/ui/sidebar";
+import { SidebarProvider, SidebarInset, useSidebar } from "./components/ui/sidebar";
 import { ToastProvider } from "./components/ui/toast";
 import { isElectron } from "./env";
 import { useTheme } from "./hooks/useTheme";
@@ -17,6 +17,7 @@ import { SettingsPage } from "./shell/settings";
 import { usePrivacySettings } from "./shell/settingsState";
 import { WelcomePage } from "./shell/WelcomePage";
 import { ShellSidebar } from "./shell/ShellSidebar";
+import { WorkspaceChrome } from "./shell/WorkspaceChrome";
 import { useNavigation } from "./shell/useNavigation";
 import { destinations, routeLabel } from "./shell/navigation";
 import { navigateShell, useShellPath } from "./shell/routes";
@@ -145,7 +146,7 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
   );
   const settingsPage = path.startsWith("/settings");
   return (
-    <>
+    <WorkspaceChrome>
       <ShellSidebar
         error={navigation.error}
         state={navigation.state}
@@ -156,9 +157,6 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
       />
       <SidebarInset>
         <WorkspacePageHeader electron={isElectron}>
-          <div className="[-webkit-app-region:no-drag]">
-            <SidebarTrigger />
-          </div>
           <nav
             aria-label={t("Workspace breadcrumbs")}
             className="[-webkit-app-region:no-drag] flex min-w-0 items-center gap-2 text-sm"
@@ -232,7 +230,7 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
       <CommandMenu {...commands} />
       <NotificationsCoordinator onNavigate={navigate} />
       <QuitHoldOverlay />
-    </>
+    </WorkspaceChrome>
   );
 }
 

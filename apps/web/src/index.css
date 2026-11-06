@@ -45,10 +45,10 @@
   --glass-saturation: 1.14;
   --desktop-window-right-resize-inset: 0px;
   --workspace-topbar-height: 52px;
-  --workspace-controls-top: 0px;
-  --workspace-controls-left: calc(env(safe-area-inset-left) + 0.75rem);
-  --workspace-controls-right: calc(env(safe-area-inset-right) + 0.75rem);
-  --workspace-native-controls-inset: 0px;
+  --shell-header-left: var(--workspace-gutter-start);
+  --shell-header-right: var(--workspace-gutter-end);
+  --shell-brand-inset: 52px;
+  --shell-sidebar-caption-height: 0px;
   --workspace-titlebar-control-size: 1.75rem;
   --workspace-titlebar-control-gap: 0.75rem;
   --workspace-titlebar-scroll-fade-height: 1.5rem;
@@ -75,14 +75,6 @@
 .wco {
   --native-titlebar-height: env(titlebar-area-height, 0px);
   --workspace-topbar-height: max(40px, env(titlebar-area-height, 52px));
-  --workspace-controls-top: env(titlebar-area-y, 0px);
-  --workspace-controls-left: calc(env(titlebar-area-x, 0px) + 0.75rem);
-  --workspace-controls-right: calc(
-    100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px) + 0.75rem
-  );
-  --workspace-native-controls-inset: calc(
-    100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px) + 0.75rem
-  );
 }
 
 @theme {
