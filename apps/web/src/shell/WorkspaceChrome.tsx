@@ -27,10 +27,11 @@ export function WorkspaceChrome({ children }: { children: ReactNode }) {
 
   return (
     <div className="contents" style={style}>
+      {children}
+      {/* Electron processes native drag regions in document order; controls must follow draggable surfaces. */}
       <div className="fixed top-[calc((var(--workspace-topbar-height)-var(--workspace-titlebar-control-size))/2)] start-(--shell-toggle-offset) z-30">
         <SidebarTrigger />
       </div>
-      {children}
     </div>
   );
 }
