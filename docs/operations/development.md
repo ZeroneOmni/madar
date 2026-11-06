@@ -184,6 +184,18 @@ CI owns the full suite; see
 The [manual Windows lane](../../.github/workflows/windows-tests.yml) is available for focused
 Windows investigation while that suite is not a required gate.
 
+To check native sidebar hover and clicks on Windows, build the desktop app, then run:
+
+```sh
+vp run build:desktop
+node apps/web/scripts/verify-desktop-sidebar.mjs
+```
+
+This opens an isolated Electron instance and moves the system pointer to test restored, maximized,
+fullscreen, and minimize/restore states. Reports, screenshots, and video are saved under the temporary
+directory printed at startup. Chromium pointer injection alone does not exercise Windows caption
+hit-testing.
+
 ### Unused code
 
 `vp run knip:check` checks unused files and dependencies across the repo, then

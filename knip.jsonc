@@ -45,6 +45,7 @@
     "apps/web": {
       "entry": [
         "scripts/warm-dep-cache.ts",
+        "scripts/verify-desktop-sidebar.mjs",
         "src/components/ui/*.{ts,tsx}",
         "src/hooks/*.ts",
         "src/lib/*.ts",

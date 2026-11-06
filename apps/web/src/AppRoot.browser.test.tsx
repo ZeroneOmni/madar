@@ -1,8 +1,9 @@
-﻿import { expect, it, vi } from "vite-plus/test";
+import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "../test/render";
 import { AppRoot } from "./AppRoot";
 import { notifyShell } from "./shell/notifications";
+import { decodeNavigation, defaultNavigation, NAVIGATION_KEY } from "./shell/navigation";
 import "./index.css";
 
 function setup(path = "/") {
@@ -28,6 +29,134 @@ function setup(path = "/") {
     },
   };
 }
+
+function nativeControls(initialSide: "left" | "right") {
+  const previous = Object.getOwnPropertyDescriptor(navigator, "windowControlsOverlay");
+  const events = new EventTarget();
+  let side = initialSide;
+  const overlay = Object.assign(events, {
+    visible: true,
+    getTitlebarAreaRect: () =>
+      new DOMRect(side === "left" ? 138 : 0, 0, window.innerWidth - 138, 40),
+  });
+  Object.defineProperty(navigator, "windowControlsOverlay", { configurable: true, value: overlay });
+  return {
+    controls: () => new DOMRect(side === "left" ? 0 : window.innerWidth - 138, 0, 138, 40),
+    move(next: "left" | "right") {
+      side = next;
+      events.dispatchEvent(new Event("geometrychange"));
+    },
+    [Symbol.dispose]() {
+      if (previous) Object.defineProperty(navigator, "windowControlsOverlay", previous);
+      else Reflect.deleteProperty(navigator, "windowControlsOverlay");
+    },
+  };
+}
+
+it.each([
+  ["en", "left"],
+  ["en", "right"],
+  ["ar", "left"],
+  ["ar", "right"],
+] as const)(
+  "keeps %s chrome clear of %s native controls through compact mode and geometry changes",
+  async (language, side) => {
+    await page.viewport(1280, 900);
+    using _state = setup("/overview");
+    using native = nativeControls(side);
+    localStorage.setItem("madar:language", language);
+    await using screen = await render(<AppRoot />);
+    const trigger = screen.container.querySelector<HTMLButtonElement>('[data-sidebar="trigger"]')!;
+    const initial = trigger.getBoundingClientRect();
+    function expectClear() {
+      const controls = native.controls();
+      const buttons = [
+        trigger,
+        ...screen.container.querySelectorAll<HTMLElement>("main > header button"),
+      ];
+      for (const button of buttons) {
+        const rect = button.getBoundingClientRect();
+        const overlaps =
+          rect.left < controls.right &&
+          rect.right > controls.left &&
+          rect.top < controls.bottom &&
+          rect.bottom > controls.top;
+        expect(
+          overlaps,
+          button.textContent || button.getAttribute("aria-label") || "toolbar button",
+        ).toBe(false);
+      }
+    }
+    expectClear();
+    await page.elementLocator(trigger).click();
+    await expect.element(page.elementLocator(trigger)).toHaveAttribute("aria-expanded", "false");
+    await vi.waitFor(() => {
+      expect(trigger.getBoundingClientRect().x).toBe(initial.x);
+      expect(trigger.getBoundingClientRect().y).toBe(initial.y);
+      expectClear();
+    });
+    await page.viewport(1024, 768);
+    await vi.waitFor(expectClear);
+    native.move(side === "left" ? "right" : "left");
+    await vi.waitFor(expectClear);
+    await page.elementLocator(trigger).click();
+    await expect.element(page.elementLocator(trigger)).toHaveAttribute("aria-expanded", "true");
+    await vi.waitFor(expectClear);
+  },
+);
+
+it.each([
+  ["en", "Vouchers", "Settings", "Privacy", "Return", "Toggle Sidebar"],
+  ["ar", "القسائم", "الإعدادات", "الخصوصية", "رجوع", "إظهار الشريط الجانبي أو إخفاؤه"],
+] as const)(
+  "keeps compact navigation usable and persisted in %s",
+  async (language, vouchers, settings, privacy, back, toggle) => {
+    await page.viewport(1280, 900);
+    using _state = setup("/overview");
+    localStorage.setItem("madar:language", language);
+    localStorage.setItem(
+      NAVIGATION_KEY,
+      JSON.stringify({
+        ...defaultNavigation,
+        items: defaultNavigation.items.map((item) =>
+          item.id === "vouchers" ? { ...item, group: "work" } : item,
+        ),
+        groups: [{ id: "work", name: "Work", collapsed: true }],
+      }),
+    );
+    await using screen = await render(<AppRoot />);
+    await screen.getByRole("button", { name: toggle, exact: true }).click();
+    await expect.element(screen.getByRole("button", { name: vouchers, exact: true })).toBeVisible();
+    await userEvent.hover(screen.getByRole("button", { name: vouchers, exact: true }));
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-slot="tooltip-popup"]')?.textContent).toBe(vouchers),
+    );
+    await expect
+      .element(
+        page.elementLocator(document.querySelector<HTMLElement>('[data-slot="tooltip-popup"]')!),
+      )
+      .toBeVisible();
+    await screen.getByRole("button", { name: vouchers, exact: true }).click();
+    await expect
+      .element(screen.getByRole("heading", { name: vouchers, exact: true }))
+      .toBeVisible();
+    expect(decodeNavigation(localStorage.getItem(NAVIGATION_KEY)).open).toBe(false);
+    await screen.getByRole("button", { name: settings, exact: true }).click();
+    await screen.getByRole("button", { name: privacy, exact: true }).click();
+    await expect.element(screen.getByRole("heading", { name: privacy, exact: true })).toBeVisible();
+    await screen.getByRole("button", { name: back, exact: true }).click();
+    await expect
+      .element(screen.getByRole("heading", { name: vouchers, exact: true }))
+      .toBeVisible();
+    await screen.unmount();
+    await using restarted = await render(<AppRoot />);
+    await expect
+      .element(restarted.getByRole("button", { name: vouchers, exact: true }))
+      .toBeVisible();
+    await restarted.getByRole("button", { name: toggle, exact: true }).click();
+    expect(decodeNavigation(localStorage.getItem(NAVIGATION_KEY)).open).toBe(true);
+  },
+);
 
 it("switches languages in Settings, searches Arabic commands and preserves the choice on restart", async () => {
   await page.viewport(1280, 900);
