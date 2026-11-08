@@ -15,7 +15,7 @@
 }
 
 :root {
-  --app-scrollbar-width: 6px;
+  --app-scrollbar-width: calc(6px + var(--desktop-scrollbar-resize-inset));
   --appearance-contrast-base: 100%;
   --appearance-contrast-boost: 0%;
   --appearance-contrast-border-boost: 0%;
@@ -43,7 +43,7 @@
   --glass-blur: 12px;
   --glass-opacity: 80%;
   --glass-saturation: 1.14;
-  --desktop-window-right-resize-inset: 0px;
+  --desktop-scrollbar-resize-inset: 0px;
   --workspace-topbar-height: 52px;
   --shell-header-left: var(--workspace-gutter-start);
   --shell-header-right: var(--workspace-gutter-end);
@@ -675,11 +675,11 @@ body {
   overflow-y: hidden;
   overscroll-behavior-y: none;
   padding-top: max(env(safe-area-inset-top), 0px);
-  padding-right: var(--desktop-window-right-resize-inset);
 }
 
 .electron-windows {
-  --desktop-window-right-resize-inset: 6px;
+  /* Keep scrollbar thumbs clear of native resize hit areas without insetting the app shell. */
+  --desktop-scrollbar-resize-inset: 6px;
 }
 
 /* App-chrome grain. Baked into each surface's own background (behind
@@ -744,6 +744,11 @@ code {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--app-scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-thumb:vertical {
+  border-inline-end: var(--desktop-scrollbar-resize-inset) solid transparent;
+  background-clip: padding-box;
 }
 
 html[data-theme-id]:not([data-theme-id=""]) {
