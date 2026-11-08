@@ -14,7 +14,6 @@ import {
   CreditCard,
   Folder,
   Home,
-  Pin,
   Search,
   Settings,
   Ticket,
@@ -214,13 +213,11 @@ export function ShellSidebar({
     onNavigate(path);
     if (isMobile) setOpenMobile(false);
   }
-  function rows(group: string, pinned = false) {
+  function rows(group: string) {
     return (
       <SidebarMenu>
         {state.items
-          .filter(
-            (item) => compact || (pinned ? item.pinned : !item.pinned && item.group === group),
-          )
+          .filter((item) => compact || item.group === group)
           .map((item) => {
             const destination = destinations.find((d) => d.id === item.id)!;
             const Icon = icons[item.id];
@@ -249,10 +246,7 @@ export function ShellSidebar({
                   aria-current={path.split("?")[0] === "/" + item.id ? "page" : undefined}
                 >
                   <Icon />
-                  <span>
-                    {t(destination.label)}
-                    {item.pinned ? t(" - Pinned") : ""}
-                  </span>
+                  <span>{t(destination.label)}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );
@@ -302,27 +296,6 @@ export function ShellSidebar({
             </SidebarHeader>
             <SidebarContent>
               <nav aria-label={t("Workspace")} className="space-y-4 p-3">
-                <section
-                  aria-label={t("Pinned")}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    if (dragged) {
-                      const item = state.items.find((item) => item.id === dragged);
-                      if (item && !item.pinned) onChange({ type: "pin", id: dragged });
-                    }
-                    setDragged(null);
-                  }}
-                >
-                  <h2 className="mb-2 text-xs font-medium text-muted-foreground">{t("Pinned")}</h2>
-                  {state.items.some((item) => item.pinned) ? (
-                    rows("", true)
-                  ) : (
-                    <p className="py-2 text-xs text-muted-foreground">
-                      {t("Pin destinations with Organize navigation.")}
-                    </p>
-                  )}
-                </section>
                 <section aria-label={t("Workspace destinations")}>
                   <h2 className="mb-2 text-xs font-medium text-muted-foreground">
                     {t("Workspace")}
@@ -351,8 +324,7 @@ export function ShellSidebar({
                       </Button>
                     </div>
                     {!group.collapsed ? rows(group.id) : null}
-                    {!group.collapsed &&
-                    !state.items.some((item) => item.group === group.id && !item.pinned) ? (
+                    {!group.collapsed && !state.items.some((item) => item.group === group.id) ? (
                       <p className="py-2 text-xs text-muted-foreground">
                         {t("Drop a destination here or assign one in Organize navigation.")}
                       </p>
@@ -438,17 +410,6 @@ export function ShellSidebar({
                           }}
                         >
                           <ArrowDown />
-                        </Button>
-                        <Button
-                          variant={item.pinned ? "secondary" : "ghost"}
-                          size="icon-sm"
-                          aria-label={t(item.pinned ? "Unpin {name}" : "Pin {name}", {
-                            name: label,
-                          })}
-                          aria-pressed={item.pinned}
-                          onClick={() => onChange({ type: "pin", id: item.id })}
-                        >
-                          <Pin />
                         </Button>
                       </div>
                     </div>

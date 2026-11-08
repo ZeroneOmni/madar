@@ -13,7 +13,6 @@ export const arabic = {
   "Keyboard shortcuts": "اختصارات لوحة المفاتيح",
   Workspace: "مساحة العمل",
   Commands: "الأوامر",
-  Pinned: "المثبّتة",
   "Organize navigation": "تنظيم التنقل",
   "Your User Manager workspace": "مساحة عمل مدير المستخدمين",
   "Organize your work and configure Madar from one place.": "نظّم عملك واضبط مدار من مكان واحد.",
@@ -65,8 +64,6 @@ export const arabic = {
   "Open {name}": "فتح {name}",
   "Madar has no RouterOS integration configured yet. Live {name} will appear here when a supported router connection is available.":
     "لم يُضبط تكامل RouterOS في مدار بعد. ستظهر بيانات {name} هنا عند توفر اتصال بموجّه مدعوم.",
-  " - Pinned": " - مثبّتة",
-  "Pin destinations with Organize navigation.": "ثبّت الصفحات من «تنظيم التنقل».",
   "Workspace destinations": "صفحات مساحة العمل",
   "Drop a destination here or assign one in Organize navigation.":
     "أفلت صفحة هنا أو عيّنها من «تنظيم التنقل».",
@@ -75,8 +72,6 @@ export const arabic = {
   "{name} navigation": "تنقل {name}",
   "Move {name} up": "نقل {name} لأعلى",
   "Move {name} down": "نقل {name} لأسفل",
-  "Pin {name}": "تثبيت {name}",
-  "Unpin {name}": "إلغاء تثبيت {name}",
   "Group for {name}": "مجموعة {name}",
   "New group name": "اسم المجموعة الجديدة",
   "Add group": "إضافة مجموعة",

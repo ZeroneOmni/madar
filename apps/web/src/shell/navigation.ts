@@ -29,7 +29,7 @@ export const DestinationId = Schema.Literals([
   "notifications",
 ]);
 export type DestinationId = typeof DestinationId.Type;
-const NavItem = Schema.Struct({ id: DestinationId, pinned: Schema.Boolean, group: Schema.String });
+const NavItem = Schema.Struct({ id: DestinationId, group: Schema.String });
 const NavGroup = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
@@ -45,7 +45,7 @@ const decode = Schema.decodeSync(Schema.fromJsonString(NavigationSchema));
 const encode = Schema.encodeSync(Schema.fromJsonString(NavigationSchema));
 export const defaultNavigation: NavigationState = {
   open: true,
-  items: destinations.map(({ id }) => ({ id, pinned: false, group: "" })),
+  items: destinations.map(({ id }) => ({ id, group: "" })),
   groups: [],
 };
 export const NAVIGATION_KEY = "madar:shell-navigation";
@@ -69,7 +69,6 @@ export function decodeNavigation(serialized: string | null): NavigationState {
 
 export type NavigationAction =
   | { type: "open"; open: boolean }
-  | { type: "pin"; id: DestinationId }
   | {
       type: "move";
       id: DestinationId;
@@ -90,13 +89,6 @@ export function changeNavigation(
   switch (action.type) {
     case "open":
       return { ...state, open: action.open };
-    case "pin":
-      return {
-        ...state,
-        items: state.items.map((item) =>
-          item.id === action.id ? { ...item, pinned: !item.pinned } : item,
-        ),
-      };
     case "move": {
       const source = state.items.find((item) => item.id === action.id);
       const target = state.items.find((item) => item.id === action.before);
@@ -105,7 +97,6 @@ export function changeNavigation(
       items.splice(items.findIndex((item) => item.id === target.id) + (action.after ? 1 : 0), 0, {
         ...source,
         group: action.keepMembership ? source.group : target.group,
-        pinned: action.keepMembership ? source.pinned : target.pinned,
       });
       return { ...state, items };
     }
@@ -114,7 +105,7 @@ export function changeNavigation(
       return {
         ...state,
         items: state.items.map((item) =>
-          item.id === action.id ? { ...item, group: action.group, pinned: false } : item,
+          item.id === action.id ? { ...item, group: action.group } : item,
         ),
       };
     case "add-group":

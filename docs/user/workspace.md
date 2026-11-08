@@ -2,7 +2,7 @@
 
 Madar's workspace provides navigation, commands, preferences, and operation notifications. RouterOS integration is not configured yet, so voucher, subscription, card-design, and usage pages explain their unavailable state.
 
-Use **Organize navigation** to pin destinations, change their order, or create named groups. You can also drag destinations between rows and groups. Removing a group keeps its destinations in the workspace. Navigation and preferences are saved locally; a failed save leaves the previous saved value in use.
+Use **Organize navigation** to change destination order or create named groups. You can also drag destinations between rows and groups. Removing a group keeps its destinations in the workspace. Navigation and preferences are saved locally; a failed save leaves the previous saved value in use.
 
 Switch the sidebar to compact mode to give the workspace more room. Its icons keep every destination available, including pages in folded groups; hover an icon to see its name.
 

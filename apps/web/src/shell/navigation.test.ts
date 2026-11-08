@@ -7,7 +7,7 @@ import {
 } from "./navigation";
 
 describe("Madar navigation", () => {
-  it("persists ordering, pins, groups and collapse state together", () => {
+  it("persists ordering, groups and collapse state together", () => {
     let state = changeNavigation(defaultNavigation, {
       type: "add-group",
       id: "daily",
@@ -15,7 +15,6 @@ describe("Madar navigation", () => {
     });
     state = changeNavigation(state, { type: "assign", id: "usage", group: "daily" });
     state = changeNavigation(state, { type: "collapse-group", id: "daily" });
-    state = changeNavigation(state, { type: "pin", id: "vouchers" });
     state = changeNavigation(state, { type: "move", id: "subscriptions", before: "overview" });
     const storage = new Map<string, string>();
     saveNavigation(
@@ -29,7 +28,6 @@ describe("Madar navigation", () => {
     expect(decodeNavigation([...storage.values()][0]!)).toEqual(state);
     expect(state.items[0]?.id).toBe("subscriptions");
     expect(state.items.find((item) => item.id === "usage")?.group).toBe("daily");
-    expect(state.items.find((item) => item.id === "vouchers")?.pinned).toBe(true);
     expect(state.groups[0]?.collapsed).toBe(true);
   });
 
@@ -50,12 +48,11 @@ describe("Madar navigation", () => {
     expect(state.items.every((item) => item.group === "")).toBe(true);
   });
 
-  it("unpins and rejects missing destinations and malformed storage", () => {
-    let state = changeNavigation(defaultNavigation, { type: "pin", id: "usage" });
-    state = changeNavigation(state, { type: "pin", id: "usage" });
-    expect(state).toEqual(defaultNavigation);
+  it("rejects missing destinations and malformed storage", () => {
     expect(() =>
-      decodeNavigation(JSON.stringify({ ...state, items: state.items.slice(1) })),
+      decodeNavigation(
+        JSON.stringify({ ...defaultNavigation, items: defaultNavigation.items.slice(1) }),
+      ),
     ).toThrow();
     expect(() => decodeNavigation("broken")).toThrow();
   });
