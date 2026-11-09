@@ -69,6 +69,7 @@ const browserTestProject = {
     include: [
       "vite-plus/test/browser",
       "@base-ui/react/autocomplete",
+      "@base-ui/react/combobox",
       "@base-ui/react/input",
       "@base-ui/react/select",
       "@base-ui/react/switch",
