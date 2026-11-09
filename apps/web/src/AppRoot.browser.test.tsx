@@ -266,7 +266,7 @@ it("completes welcome, searches Settings, preserves appearance and returns throu
   expect(document.documentElement.classList.contains("dark")).toBe(true);
 });
 
-it("keeps the chosen monospace size in the JSON editor and workspace after restart", async () => {
+it("keeps the chosen monospace size in theme editors and workspace after restart", async () => {
   using _state = setup("/settings/appearance");
   await using screen = await render(<AppRoot />);
   await screen.getByRole("combobox", { name: "Monospace font size", exact: true }).click();
@@ -274,6 +274,12 @@ it("keeps the chosen monospace size in the JSON editor and workspace after resta
   await screen.getByRole("button", { name: "Add theme", exact: true }).click();
   const editor = screen.container.ownerDocument.querySelector('textarea[aria-label="Theme JSON"]')!;
   await vi.waitFor(() => expect(getComputedStyle(editor).fontSize).toBe("18px"));
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await screen.getByRole("button", { name: "Create theme", exact: true }).click();
+  const hex = screen.container.ownerDocument.querySelector(
+    'input[aria-label="Accent color hex value"]',
+  )!;
+  await vi.waitFor(() => expect(getComputedStyle(hex).fontSize).toBe("18px"));
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await screen.unmount();
   history.replaceState(null, "", "#/overview");
