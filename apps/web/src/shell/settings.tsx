@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { DEFAULT_CLIENT_SETTINGS, type QuitConfirmationMode } from "@madar/contracts";
 import { Button } from "../components/ui/button";
 import { Switch } from "../components/ui/switch";
-import { ThemeSettings } from "../components/settings/ThemeSettings";
+import { AppearanceSettingsPanel } from "../components/settings/AppearanceSettingsPanel";
 import { notifyShell } from "./notifications";
 import { resolveSettingsPath } from "./settingsSearch";
 import { resetOnboarding, saveSettings, usePrivacySettings } from "./settingsState";
@@ -253,7 +253,7 @@ function AppearanceSettings() {
       <h3 id="setting-appearance" tabIndex={-1} className="sr-only">
         {t("Appearance")}
       </h3>
-      <ThemeSettings />
+      <AppearanceSettingsPanel />
     </section>
   );
 }
@@ -273,7 +273,11 @@ export function SettingsPage({
   const [resetFailed, setResetFailed] = useState(false);
   const { section, target, invalidTarget } = resolveSettingsPath(path);
   useEffect(() => {
-    if (target) document.getElementById(`setting-${target.id}`)?.focus();
+    if (target) {
+      const element = document.getElementById(`setting-${target.id}`);
+      element?.focus({ preventScroll: true });
+      element?.scrollIntoView({ block: "nearest" });
+    }
   }, [target]);
   return (
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">

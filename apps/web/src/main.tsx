@@ -1,3 +1,9 @@
+import {
+  applyAppearancePreferences,
+  decodeAppearance,
+  APPEARANCE_STORAGE_KEY,
+  DEFAULT_APPEARANCE,
+} from "./appearancePreferences";
 import React from "react";
 import ReactDOM from "react-dom/client";
 
@@ -14,6 +20,15 @@ import { clearChunkReloadGuard, reloadOnceForChunkLoadError } from "./lib/chunkR
 if (isElectron) {
   syncDocumentElectronPlatformClasses(navigator.platform);
   syncDocumentWindowControlsOverlayClass();
+}
+
+try {
+  applyAppearancePreferences(
+    document.documentElement,
+    decodeAppearance(window.localStorage.getItem(APPEARANCE_STORAGE_KEY)),
+  );
+} catch {
+  applyAppearancePreferences(document.documentElement, DEFAULT_APPEARANCE);
 }
 
 let chunkLoadFailed = false;

@@ -1,3 +1,4 @@
+import { useDocumentAppearance } from "./appearancePreferences";
 import { useLocale } from "./useLocale";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useDocumentLocale } from "./useLocale";
@@ -219,6 +220,7 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
 export function AppRoot() {
   const direction = useDocumentLocale();
   useTheme();
+  useDocumentAppearance();
   const navigation = useNavigation();
   useEffect(() => installDesktopPasteAsText(window.desktopBridge), []);
   return (

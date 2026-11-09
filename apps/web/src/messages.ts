@@ -359,4 +359,42 @@ export const arabic = {
   "Dismiss notification": "تجاهل الإشعار",
   "Show details": "عرض التفاصيل",
   "Hide details": "إخفاء التفاصيل",
+  Interface: "الواجهة",
+  Motion: "الحركة",
+  Typography: "الخطوط",
+  "Interface font": "خط الواجهة",
+  "Monospace font": "خط ثابت العرض",
+  "Interface font size": "حجم خط الواجهة",
+  "Monospace font size": "حجم الخط ثابت العرض",
+  Contrast: "التباين",
+  "Glass opacity": "عتامة الزجاج",
+  "Panel animations": "حركة اللوحات",
+  "Panel animation duration": "مدة حركة اللوحات",
+  "Reset {name} to default": "إعادة {name} إلى الافتراضي",
+  "Reset to default": "إعادة إلى الافتراضي",
+  "{name} family": "عائلة خط {name}",
+  "System monospace": "الخط ثابت العرض للنظام",
+  "System default": "افتراضي النظام",
+  "Search fonts…": "ابحث عن خط…",
+  "No fonts found.": "لم يتم العثور على خطوط.",
+  default: "افتراضي",
+  "Search to see more fonts.": "ابحث لعرض المزيد من الخطوط.",
+  "Choose a fixed-width font for voucher codes and diagnostics.":
+    "اختر خطاً ثابت العرض لرموز القسائم والتشخيص.",
+  "Voucher codes, identifiers, and diagnostic output.": "رموز القسائم والمعرّفات ومخرجات التشخيص.",
+  "Tables, forms, menus, and other interface text.":
+    "الجداول والنماذج والقوائم ونصوص الواجهة الأخرى.",
+  "Adjust the contrast of colors and borders across the interface.":
+    "اضبط تباين الألوان والحدود في الواجهة.",
+  "Higher values make menus and dialogs more solid.":
+    "القيم الأعلى تجعل القوائم ومربعات الحوار أكثر عتامة.",
+  "Set how fast panels open and close.": "حدد سرعة فتح اللوحات وإغلاقها.",
+  "Replay panel animation preview": "إعادة معاينة حركة اللوحات",
+  "Font unavailable or unsuitable. Your previous font is still active.":
+    "الخط غير متاح أو غير مناسب. لا يزال الخط السابق مستخدماً.",
+  "Could not read appearance preferences. Restore defaults to recover.":
+    "تعذرت قراءة تفضيلات المظهر. استعد الإعدادات الافتراضية للمتابعة.",
+  "Restore appearance defaults": "استعادة إعدادات المظهر الافتراضية",
+  "Could not save appearance preferences. Your previous settings are still active.":
+    "تعذر حفظ تفضيلات المظهر. لا تزال الإعدادات السابقة مستخدمة.",
 } as const;
