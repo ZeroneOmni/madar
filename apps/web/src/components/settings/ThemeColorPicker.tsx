@@ -194,7 +194,7 @@ function ThemeColorPickerPanel({
               <input
                 dir="ltr"
                 aria-label={t("{name} picker hex value", { name: label })}
-                className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
+                className="h-8 min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
                   setHexDraft(currentColor);
@@ -217,7 +217,7 @@ function ThemeColorPickerPanel({
               <input
                 dir="ltr"
                 aria-label={t("{name} picker RGB value", { name: label })}
-                className="h-8 min-w-0 flex-1 bg-transparent font-mono text-xs text-foreground outline-none"
+                className="h-8 min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none"
                 onBlur={() => {
                   setIsEditingText(false);
                   setHexDraft(currentColor);

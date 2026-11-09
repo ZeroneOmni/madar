@@ -367,24 +367,18 @@ export function ThemeSettings() {
               (mode) => (selection[mode] ?? "system") === (theme?.id ?? "system"),
             );
             const actions = [
-              {
-                label: t("Duplicate {name}", { name: card.label }),
-                icon: CopyIcon,
-                onClick: () => {
-                  setError(null);
-                  setEditing(
-                    copyOf(
-                      theme ?? {
-                        id: "default",
-                        label: card.label,
-                        appearance: "light",
-                        colors: getDefaultThemeColors("light"),
-                        variants: { dark: getDefaultThemeColors("dark") },
+              ...(theme
+                ? [
+                    {
+                      label: t("Duplicate {name}", { name: card.label }),
+                      icon: CopyIcon,
+                      onClick: () => {
+                        setError(null);
+                        setEditing(copyOf(theme));
                       },
-                    ),
-                  );
-                },
-              },
+                    },
+                  ]
+                : []),
               ...(editable
                 ? [
                     {
@@ -548,7 +542,7 @@ export function ThemeSettings() {
               <textarea
                 dir="ltr"
                 aria-label={t("Theme JSON")}
-                className="min-h-48 rounded-lg border bg-background p-2 font-mono text-xs"
+                className="min-h-48 rounded-lg border bg-background p-2 font-mono"
                 value={json}
                 onChange={(event) => {
                   setJson(event.currentTarget.value);

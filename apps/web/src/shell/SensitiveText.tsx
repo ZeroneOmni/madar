@@ -30,7 +30,7 @@ export function SensitiveText({
       <div className="flex flex-wrap items-center gap-2">
         <code
           dir="ltr"
-          className="min-w-0 break-all text-sm"
+          className="min-w-0 break-all"
           aria-label={hidden ? t("{name} hidden", { name: t(label) }) : label}
         >
           {hidden ? "••••••••" : value}
