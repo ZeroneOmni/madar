@@ -266,6 +266,22 @@ it("completes welcome, searches Settings, preserves appearance and returns throu
   expect(document.documentElement.classList.contains("dark")).toBe(true);
 });
 
+it("keeps the chosen monospace size in the JSON editor and workspace after restart", async () => {
+  using _state = setup("/settings/appearance");
+  await using screen = await render(<AppRoot />);
+  await screen.getByRole("combobox", { name: "Monospace font size", exact: true }).click();
+  await page.getByRole("option", { name: "18 px", exact: true }).click();
+  await screen.getByRole("button", { name: "Add theme", exact: true }).click();
+  const editor = screen.container.ownerDocument.querySelector('textarea[aria-label="Theme JSON"]')!;
+  await vi.waitFor(() => expect(getComputedStyle(editor).fontSize).toBe("18px"));
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await screen.unmount();
+  history.replaceState(null, "", "#/overview");
+  await using restarted = await render(<AppRoot />);
+  const address = restarted.container.querySelector("code")!;
+  await vi.waitFor(() => expect(getComputedStyle(address).fontSize).toBe("18px"));
+});
+
 it("persists groups, then removes the group without losing destinations", async () => {
   await page.viewport(1280, 900);
   using _state = setup("/overview");
