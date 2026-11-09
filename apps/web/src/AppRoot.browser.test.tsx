@@ -175,11 +175,11 @@ it("switches languages in Settings, searches Arabic commands and preserves the c
   await page.getByRole("option", { name: "يومي", exact: true }).click();
   await dialog.getByRole("button", { name: "تم", exact: true }).click();
   await expect.element(screen.getByRole("button", { name: "يومي", exact: true })).toBeVisible();
-  await screen.getByRole("button", { name: "فتح الإعدادات", exact: true }).click();
+  await screen.getByRole("button", { name: "الإعدادات", exact: true }).click();
   await screen.getByRole("searchbox", { name: "البحث في الإعدادات" }).fill("اللغة");
   await screen.getByRole("button", { name: "اللغة", exact: true }).click();
   await expect.element(screen.getByRole("heading", { name: "اللغة", exact: true })).toBeVisible();
-  await screen.getByRole("button", { name: "فتح لوحة الأوامر", exact: true }).click();
+  await userEvent.keyboard("{Control>}k{/Control}");
   await page.getByRole("combobox", { name: "البحث عن أمر" }).fill("القسائم");
   await page.getByText("الانتقال إلى القسائم", { exact: true }).click();
   await expect.element(screen.getByRole("heading", { name: "القسائم", exact: true })).toBeVisible();
@@ -188,7 +188,7 @@ it("switches languages in Settings, searches Arabic commands and preserves the c
   await expect
     .element(restarted.getByRole("heading", { name: "القسائم", exact: true }))
     .toBeVisible();
-  await restarted.getByRole("button", { name: "فتح الإعدادات", exact: true }).click();
+  await restarted.getByRole("button", { name: "الإعدادات", exact: true }).click();
   await restarted.getByRole("button", { name: "English", exact: true }).click();
   await expect
     .element(restarted.getByRole("heading", { name: "General", exact: true }))
@@ -249,7 +249,7 @@ it("completes welcome, searches Settings, preserves appearance and returns throu
   await expect
     .element(screen.getByRole("heading", { name: "Your User Manager workspace" }))
     .toBeVisible();
-  await screen.getByRole("button", { name: "Open Settings", exact: true }).click();
+  await screen.getByRole("button", { name: "Settings", exact: true }).click();
   await screen.getByRole("searchbox", { name: "Search settings" }).fill("theme");
   await screen.getByRole("button", { name: "Appearance", exact: true }).click();
   await screen.getByRole("button", { name: "Dark", exact: true }).click();
@@ -323,7 +323,7 @@ it("replaces workspace navigation with settings and returns to the previous dest
   await page.viewport(1280, 900);
   using _state = setup("/vouchers");
   await using screen = await render(<AppRoot />);
-  await screen.getByRole("button", { name: "Open Settings", exact: true }).click();
+  await screen.getByRole("button", { name: "Settings", exact: true }).click();
   await expect
     .element(screen.getByRole("navigation", { name: "Workspace", exact: true }))
     .not.toBeInTheDocument();

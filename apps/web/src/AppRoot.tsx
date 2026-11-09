@@ -2,7 +2,7 @@ import { useLocale } from "./useLocale";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useDocumentLocale } from "./useLocale";
 import { useEffect } from "react";
-import { Search, Settings, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { QuitHoldOverlay } from "./components/QuitHoldOverlay";
 import { WorkspacePageHeader } from "./components/WorkspacePageHeader";
 import { Button } from "./components/ui/button";
@@ -169,24 +169,6 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
               {t(routeLabel(path))}
             </span>
           </nav>
-          <div className="[-webkit-app-region:no-drag] ms-auto flex gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("Open command palette")}
-              onClick={() => commands.execute("palette")}
-            >
-              <Search />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("Open Settings")}
-              onClick={() => commands.execute("settings")}
-            >
-              <Settings />
-            </Button>
-          </div>
         </WorkspacePageHeader>
         {navigation.error ? (
           <div className="flex flex-wrap items-center gap-3 border-b bg-destructive/5 px-5 py-3">
