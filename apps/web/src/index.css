@@ -58,9 +58,11 @@
   --workspace-gutter: 0.75rem;
   --workspace-gutter-start: calc(env(safe-area-inset-left) + var(--workspace-gutter));
   --workspace-gutter-end: calc(env(safe-area-inset-right) + var(--workspace-gutter));
+  --workspace-page-padding: 1.5rem;
 
   @variant sm {
     --workspace-gutter: 1.25rem;
+    --workspace-page-padding: 2.5rem;
   }
 
   @variant dark {

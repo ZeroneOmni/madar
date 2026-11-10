@@ -33,7 +33,7 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
   const { t } = useLocale();
   const { maskSensitive } = usePrivacySettings();
   return (
-    <section className="mx-auto max-w-4xl space-y-8 p-6 sm:p-10">
+    <section className="mx-auto max-w-4xl space-y-8 p-(--workspace-page-padding)">
       <div className="space-y-3">
         <h1 className="text-3xl font-semibold tracking-tight">
           {t("Your User Manager workspace")}
@@ -100,7 +100,7 @@ function DestinationPage({
   const { t } = useLocale();
   const destination = destinations.find((item) => "/" + item.id === path);
   return (
-    <section className="mx-auto max-w-3xl space-y-6 p-6 sm:p-10">
+    <section className="mx-auto max-w-3xl space-y-6 p-(--workspace-page-padding)">
       <h1 className="text-3xl font-semibold">
         {destination ? t(destination.label) : t("Page not found")}
       </h1>
