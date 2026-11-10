@@ -22,16 +22,6 @@ import {
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
-  Dialog,
-  DialogPopup,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogPanel,
-  DialogFooter,
-  DialogClose,
-} from "../components/ui/dialog";
-import {
   Select,
   SelectTrigger,
   SelectValue,
@@ -209,297 +199,336 @@ export function ShellSidebar({
   const [dragged, setDragged] = useState<DestinationId | null>(null);
   const { setOpenMobile, isMobile, open } = useSidebar();
   const compact = !isMobile && !open;
+  const organizing = editing && !compact && !settingsPage;
+  if (editing && !organizing) {
+    setEditing(false);
+    setDragged(null);
+  }
   function navigate(path: string) {
+    setEditing(false);
+    setDragged(null);
     onNavigate(path);
     if (isMobile) setOpenMobile(false);
   }
   function rows(group: string) {
+    const items = state.items.filter((item) => compact || item.group === group);
     return (
       <SidebarMenu>
-        {state.items
-          .filter((item) => compact || item.group === group)
-          .map((item) => {
-            const destination = destinations.find((d) => d.id === item.id)!;
-            const Icon = icons[item.id];
-            return (
-              <SidebarMenuItem
-                key={item.id}
-                draggable={!compact}
-                onDragStart={(event) => {
-                  setDragged(item.id);
-                  event.dataTransfer.setData("text/plain", item.id);
-                  event.dataTransfer.effectAllowed = "move";
-                }}
-                onDragEnd={() => setDragged(null)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
+        {items.map((item, index) => {
+          const destination = destinations.find((d) => d.id === item.id)!;
+          const Icon = icons[item.id];
+          return (
+            <SidebarMenuItem
+              key={item.id}
+              draggable={organizing}
+              onDragStart={(event) => {
+                if (!organizing) {
                   event.preventDefault();
-                  event.stopPropagation();
-                  if (dragged) onChange({ type: "move", id: dragged, before: item.id });
-                  setDragged(null);
-                }}
+                  return;
+                }
+                setDragged(item.id);
+                event.dataTransfer.setData("text/plain", item.id);
+                event.dataTransfer.effectAllowed = "move";
+              }}
+              onDragEnd={() => setDragged(null)}
+              onDragOver={(event) => {
+                if (organizing && dragged) event.preventDefault();
+              }}
+              onDrop={(event) => {
+                if (!organizing || !dragged) return;
+                event.preventDefault();
+                event.stopPropagation();
+                onChange({ type: "move", id: dragged, before: item.id });
+                setDragged(null);
+              }}
+            >
+              <div
+                className={
+                  organizing
+                    ? "flex cursor-grab items-center gap-1 active:cursor-grabbing"
+                    : undefined
+                }
               >
-                <SidebarMenuButton
-                  tooltip={t(destination.label)}
-                  isActive={path.split("?")[0] === "/" + item.id}
-                  onClick={() => navigate("/" + item.id)}
-                  aria-current={path.split("?")[0] === "/" + item.id ? "page" : undefined}
-                >
-                  <Icon />
-                  <span>{t(destination.label)}</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
+                <div className="min-w-0 flex-1">
+                  <SidebarMenuButton
+                    tooltip={t(destination.label)}
+                    isActive={path.split("?")[0] === "/" + item.id}
+                    onClick={() => navigate("/" + item.id)}
+                    aria-current={path.split("?")[0] === "/" + item.id ? "page" : undefined}
+                  >
+                    <Icon />
+                    <span>{t(destination.label)}</span>
+                  </SidebarMenuButton>
+                </div>
+                {organizing ? (
+                  <div
+                    className="flex shrink-0 items-center"
+                    role="group"
+                    aria-label={t("{name} navigation", { name: t(destination.label) })}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={t("Move {name} up", { name: t(destination.label) })}
+                      disabled={index === 0}
+                      onClick={() => {
+                        const before = items[index - 1];
+                        if (before)
+                          onChange({
+                            type: "move",
+                            id: item.id,
+                            before: before.id,
+                            keepMembership: true,
+                          });
+                      }}
+                    >
+                      <ArrowUp />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={t("Move {name} down", { name: t(destination.label) })}
+                      disabled={index === items.length - 1}
+                      onClick={() => {
+                        const next = items[index + 1];
+                        if (next)
+                          onChange({
+                            type: "move",
+                            id: item.id,
+                            before: next.id,
+                            after: true,
+                            keepMembership: true,
+                          });
+                      }}
+                    >
+                      <ArrowDown />
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+              {organizing && state.groups.length > 0 ? (
+                <div className="ms-6 mb-2">
+                  <Select
+                    value={item.group}
+                    onValueChange={(group) => {
+                      if (group !== null) onChange({ type: "assign", id: item.id, group });
+                    }}
+                  >
+                    <SelectTrigger
+                      aria-label={t("Group for {name}", { name: t(destination.label) })}
+                    >
+                      <SelectValue>
+                        {item.group
+                          ? state.groups.find((group) => group.id === item.group)?.name
+                          : t("Workspace")}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectPopup>
+                      <SelectItem value="">{t("Workspace")}</SelectItem>
+                      {state.groups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          <bdi>{group.name}</bdi>
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
+                </div>
+              ) : null}
+            </SidebarMenuItem>
+          );
+        })}
       </SidebarMenu>
     );
   }
   return (
-    <>
-      <Sidebar
-        side={direction === "rtl" ? "right" : "left"}
-        collapsible="icon"
-        resizable={{ storageKey: "madar:shell-sidebar-width", minWidth: 240, maxWidth: 420 }}
-      >
-        <ShellSidebarHeader title={settingsPage ? t("Settings") : "Madar"} />
-        {settingsPage ? (
-          <SettingsNavigation path={path} onNavigate={navigate} returnPath={returnPath} />
-        ) : compact ? (
-          <>
-            <SidebarContent>
-              <nav aria-label={t("Workspace")} className="p-2">
-                {rows("")}
-              </nav>
-            </SidebarContent>
-            <SidebarFooter>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip={t("Settings")}
-                    aria-label={t("Settings")}
-                    onClick={() => navigate("/settings/general")}
-                  >
-                    <Settings />
-                    <span>{t("Settings")}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
-          </>
-        ) : (
-          <>
-            <SidebarHeader>
-              <Button variant="outline" onClick={onCommand}>
-                <Search />
-                {t("Commands")}
-              </Button>
-            </SidebarHeader>
-            <SidebarContent>
-              <nav aria-label={t("Workspace")} className="space-y-4 p-3">
-                <section aria-label={t("Workspace destinations")}>
-                  <h2 className="mb-2 text-xs font-medium text-muted-foreground">
-                    {t("Workspace")}
-                  </h2>
-                  {rows("")}
-                </section>
-                {state.groups.map((group) => (
-                  <section
-                    key={group.id}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      if (dragged) onChange({ type: "assign", id: dragged, group: group.id });
-                      setDragged(null);
-                    }}
-                  >
-                    <div className="mb-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-expanded={!group.collapsed}
-                        onClick={() => onChange({ type: "collapse-group", id: group.id })}
-                      >
-                        <Folder />
-                        <bdi>{group.name}</bdi>
-                      </Button>
-                    </div>
-                    {!group.collapsed ? rows(group.id) : null}
-                    {!group.collapsed && !state.items.some((item) => item.group === group.id) ? (
-                      <p className="py-2 text-xs text-muted-foreground">
-                        {t("Drop a destination here or assign one in Organize navigation.")}
-                      </p>
-                    ) : null}
-                  </section>
-                ))}
-              </nav>
-            </SidebarContent>
-            <SidebarFooter>
-              <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-                {t("Organize navigation")}
-              </Button>
-              <Button variant="ghost" onClick={() => navigate("/settings/general")}>
-                <Settings />
-                {t("Settings")}
-              </Button>
-            </SidebarFooter>
-          </>
-        )}
-        {!compact && <SidebarRail />}
-      </Sidebar>
-      <Dialog open={editing} onOpenChange={setEditing}>
-        <DialogPopup>
-          <DialogHeader>
-            <DialogTitle>{t("Organize navigation")}</DialogTitle>
-            <DialogDescription>
-              {t(
-                "Drag destinations in the sidebar or use these controls. Changes are saved automatically.",
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogPanel>
-            {error ? (
-              <p role="alert" className="text-sm text-destructive">
-                {t(error)}
-              </p>
-            ) : null}
-            <div className="space-y-4">
-              {state.items.map((item, index) => {
-                const label = t(destinations.find((d) => d.id === item.id)!.label);
-                return (
-                  <section
-                    key={item.id}
-                    className="space-y-2 rounded-lg border p-3"
-                    aria-label={t("{name} navigation", { name: label })}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium">{label}</span>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={t("Move {name} up", { name: label })}
-                          disabled={index === 0}
-                          onClick={() => {
-                            const before = state.items[index - 1];
-                            if (before)
-                              onChange({
-                                type: "move",
-                                id: item.id,
-                                before: before.id,
-                                keepMembership: true,
-                              });
-                          }}
-                        >
-                          <ArrowUp />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={t("Move {name} down", { name: label })}
-                          disabled={index === state.items.length - 1}
-                          onClick={() => {
-                            const next = state.items[index + 1];
-                            if (next)
-                              onChange({
-                                type: "move",
-                                id: item.id,
-                                before: next.id,
-                                after: true,
-                                keepMembership: true,
-                              });
-                          }}
-                        >
-                          <ArrowDown />
-                        </Button>
-                      </div>
-                    </div>
-                    <Select
-                      value={item.group}
-                      onValueChange={(group) => {
-                        if (group !== null) onChange({ type: "assign", id: item.id, group });
-                      }}
-                    >
-                      <SelectTrigger aria-label={t("Group for {name}", { name: label })}>
-                        <SelectValue>
-                          {item.group
-                            ? state.groups.find((group) => group.id === item.group)?.name
-                            : t("Workspace")}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectPopup>
-                        <SelectItem value="">{t("Workspace")}</SelectItem>
-                        {state.groups.map((group) => (
-                          <SelectItem key={group.id} value={group.id}>
-                            <bdi>{group.name}</bdi>
-                          </SelectItem>
-                        ))}
-                      </SelectPopup>
-                    </Select>
-                  </section>
-                );
-              })}
-            </div>
-            <form
-              className="flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (
-                  groupName.trim() &&
-                  onChange({ type: "add-group", id: randomUUID(), name: groupName })
-                )
-                  setGroupName("");
-              }}
-            >
-              <Input
-                dir="auto"
-                aria-label={t("New group name")}
-                value={groupName}
-                onChange={(event) => setGroupName(event.target.value)}
-                maxLength={60}
-              />
-              <Button type="submit" disabled={!groupName.trim()}>
-                {t("Add group")}
-              </Button>
-            </form>
-            {state.groups.map((group) => (
-              <form
-                key={group.id}
-                className="flex flex-wrap gap-2"
-                onSubmit={(event) => {
+    <Sidebar
+      side={direction === "rtl" ? "right" : "left"}
+      collapsible="icon"
+      resizable={{ storageKey: "madar:shell-sidebar-width", minWidth: 240, maxWidth: 420 }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && organizing && !event.defaultPrevented) {
+          setEditing(false);
+          setDragged(null);
+        }
+      }}
+    >
+      <ShellSidebarHeader title={settingsPage ? t("Settings") : "Madar"} />
+      {settingsPage ? (
+        <SettingsNavigation path={path} onNavigate={navigate} returnPath={returnPath} />
+      ) : compact ? (
+        <>
+          <SidebarContent>
+            <nav aria-label={t("Workspace")} className="p-2">
+              {rows("")}
+            </nav>
+          </SidebarContent>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  tooltip={t("Settings")}
+                  aria-label={t("Settings")}
+                  onClick={() => navigate("/settings/general")}
+                >
+                  <Settings />
+                  <span>{t("Settings")}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </>
+      ) : (
+        <>
+          <SidebarHeader>
+            <Button variant="outline" onClick={onCommand}>
+              <Search />
+              {t("Commands")}
+            </Button>
+          </SidebarHeader>
+          <SidebarContent>
+            <nav aria-label={t("Workspace")} className="space-y-4 p-3">
+              {error ? (
+                <p role="alert" className="text-sm text-destructive">
+                  {t(error)}
+                </p>
+              ) : null}
+              {organizing ? (
+                <p className="text-xs text-muted-foreground">
+                  {t("Drag destinations or use the arrows. Changes are saved automatically.")}
+                </p>
+              ) : null}
+              <section
+                aria-label={t("Workspace destinations")}
+                onDragOver={(event) => {
+                  if (organizing && dragged) event.preventDefault();
+                }}
+                onDrop={(event) => {
+                  if (!organizing || !dragged) return;
                   event.preventDefault();
-                  const data = new FormData(event.currentTarget);
-                  const name = data.get("name");
-                  if (typeof name === "string")
-                    onChange({ type: "rename-group", id: group.id, name });
+                  onChange({ type: "assign", id: dragged, group: "" });
+                  setDragged(null);
                 }}
               >
-                <div className="min-w-0 flex-1">
-                  <Input
-                    name="name"
-                    dir="auto"
-                    aria-label={t("Rename {name}", { name: group.name })}
-                    defaultValue={group.name}
-                    maxLength={60}
-                    required
-                  />
-                </div>
-                <Button type="submit" variant="outline">
-                  {t("Rename")}
-                </Button>
-                <Button
-                  variant="destructive-outline"
-                  onClick={() => onChange({ type: "remove-group", id: group.id })}
+                <h2 className="mb-2 text-xs font-medium text-muted-foreground">{t("Workspace")}</h2>
+                {rows("")}
+              </section>
+              {state.groups.map((group) => (
+                <section
+                  key={group.id}
+                  onDragOver={(event) => {
+                    if (organizing && dragged) event.preventDefault();
+                  }}
+                  onDrop={(event) => {
+                    if (!organizing || !dragged) return;
+                    event.preventDefault();
+                    onChange({ type: "assign", id: dragged, group: group.id });
+                    setDragged(null);
+                  }}
                 >
-                  {t("Remove {name}", { name: group.name })}
-                </Button>
-              </form>
-            ))}
-          </DialogPanel>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline" />}>{t("Done")}</DialogClose>
-          </DialogFooter>
-        </DialogPopup>
-      </Dialog>
-    </>
+                  <div className="mb-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-expanded={!group.collapsed}
+                      onClick={() => onChange({ type: "collapse-group", id: group.id })}
+                    >
+                      <Folder />
+                      <bdi>{group.name}</bdi>
+                    </Button>
+                  </div>
+                  {!group.collapsed ? rows(group.id) : null}
+                  {organizing &&
+                  !group.collapsed &&
+                  !state.items.some((item) => item.group === group.id) ? (
+                    <p className="py-2 text-xs text-muted-foreground">
+                      {t("Drop a destination here or choose its group.")}
+                    </p>
+                  ) : null}
+                </section>
+              ))}
+              {organizing ? (
+                <div className="space-y-3 border-t pt-3">
+                  <form
+                    className="flex gap-2"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      if (
+                        groupName.trim() &&
+                        onChange({ type: "add-group", id: randomUUID(), name: groupName })
+                      )
+                        setGroupName("");
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <Input
+                        dir="auto"
+                        aria-label={t("New group name")}
+                        value={groupName}
+                        onChange={(event) => setGroupName(event.target.value)}
+                        maxLength={60}
+                      />
+                    </div>
+                    <Button type="submit" disabled={!groupName.trim()}>
+                      {t("Add group")}
+                    </Button>
+                  </form>
+                  {state.groups.map((group) => (
+                    <form
+                      key={group.id}
+                      className="flex flex-wrap gap-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const data = new FormData(event.currentTarget);
+                        const name = data.get("name");
+                        if (typeof name === "string")
+                          onChange({ type: "rename-group", id: group.id, name });
+                      }}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <Input
+                          name="name"
+                          dir="auto"
+                          aria-label={t("Rename {name}", { name: group.name })}
+                          defaultValue={group.name}
+                          maxLength={60}
+                          required
+                        />
+                      </div>
+                      <Button type="submit" variant="outline">
+                        {t("Rename")}
+                      </Button>
+                      <Button
+                        variant="destructive-outline"
+                        onClick={() => onChange({ type: "remove-group", id: group.id })}
+                      >
+                        {t("Remove {name}", { name: group.name })}
+                      </Button>
+                    </form>
+                  ))}
+                </div>
+              ) : null}
+            </nav>
+          </SidebarContent>
+          <SidebarFooter>
+            <Button
+              variant={organizing ? "outline" : "ghost"}
+              size="sm"
+              aria-pressed={organizing}
+              onClick={() => {
+                setEditing(!editing);
+                setDragged(null);
+              }}
+            >
+              {organizing ? t("Done") : t("Organize navigation")}
+            </Button>
+            <Button variant="ghost" onClick={() => navigate("/settings/general")}>
+              <Settings />
+              {t("Settings")}
+            </Button>
+          </SidebarFooter>
+        </>
+      )}
+      {!compact && <SidebarRail />}
+    </Sidebar>
   );
 }

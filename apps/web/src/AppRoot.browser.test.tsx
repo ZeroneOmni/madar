@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
-import { render } from "../test/render";
+import { act, render } from "../test/render";
 import { AppRoot } from "./AppRoot";
 import { notifyShell } from "./shell/notifications";
 import { decodeNavigation, defaultNavigation, NAVIGATION_KEY } from "./shell/navigation";
@@ -168,12 +168,11 @@ it("switches languages in Settings, searches Arabic commands and preserves the c
   expect(document.documentElement.dir).toBe("rtl");
   await screen.getByRole("button", { name: "رجوع", exact: true }).click();
   await screen.getByRole("button", { name: "تنظيم التنقل", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "تنظيم التنقل" });
-  await dialog.getByRole("textbox", { name: "اسم المجموعة الجديدة" }).fill("يومي");
-  await dialog.getByRole("button", { name: "إضافة مجموعة", exact: true }).click();
-  await dialog.getByRole("combobox", { name: "مجموعة القسائم" }).click();
+  await screen.getByRole("textbox", { name: "اسم المجموعة الجديدة" }).fill("يومي");
+  await screen.getByRole("button", { name: "إضافة مجموعة", exact: true }).click();
+  await screen.getByRole("combobox", { name: "مجموعة القسائم" }).click();
   await page.getByRole("option", { name: "يومي", exact: true }).click();
-  await dialog.getByRole("button", { name: "تم", exact: true }).click();
+  await screen.getByRole("button", { name: "تم", exact: true }).click();
   await expect.element(screen.getByRole("button", { name: "يومي", exact: true })).toBeVisible();
   await screen.getByRole("button", { name: "الإعدادات", exact: true }).click();
   await screen.getByRole("searchbox", { name: "البحث في الإعدادات" }).fill("اللغة");
@@ -289,17 +288,68 @@ it("keeps the chosen monospace size in theme editors and workspace after restart
   await vi.waitFor(() => expect(getComputedStyle(address).fontSize).toBe("18px"));
 });
 
+it("only reorders navigation while organizing inline and keeps the order after restart", async () => {
+  await page.viewport(1280, 900);
+  using _state = setup("/overview");
+  await using screen = await render(<AppRoot />);
+  const navigation = screen.getByRole("navigation", { name: "Workspace", exact: true });
+  async function dragBeforeOverview(name: string) {
+    const source = navigation.getByRole("button", { name, exact: true }).element().closest("li")!;
+    const target = navigation
+      .getByRole("button", { name: "Overview", exact: true })
+      .element()
+      .closest("li")!;
+    const dataTransfer = new DataTransfer();
+    await act(() => {
+      source.dispatchEvent(
+        new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer }),
+      );
+    });
+    await act(() => {
+      target.dispatchEvent(
+        new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer }),
+      );
+      source.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer }));
+    });
+  }
+  await dragBeforeOverview("Vouchers");
+  expect(decodeNavigation(localStorage.getItem(NAVIGATION_KEY)).items[0]?.id).toBe("overview");
+  await screen.getByRole("button", { name: "Organize navigation" }).click();
+  await expect
+    .element(page.getByRole("dialog", { name: "Organize navigation" }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(navigation.getByRole("button", { name: "Move Vouchers up", exact: true }))
+    .toBeVisible();
+  await dragBeforeOverview("Vouchers");
+  expect(decodeNavigation(localStorage.getItem(NAVIGATION_KEY)).items[0]?.id).toBe("vouchers");
+  await screen.getByRole("button", { name: "Done", exact: true }).click();
+  const saved = localStorage.getItem(NAVIGATION_KEY);
+  await dragBeforeOverview("Usage");
+  expect(localStorage.getItem(NAVIGATION_KEY)).toBe(saved);
+  await expect
+    .element(navigation.getByRole("button", { name: "Move Vouchers up", exact: true }))
+    .not.toBeInTheDocument();
+  await navigation.getByRole("button", { name: "Usage", exact: true }).click();
+  await expect.element(screen.getByRole("heading", { name: "Usage", exact: true })).toBeVisible();
+  await screen.unmount();
+  await using restarted = await render(<AppRoot />);
+  expect(decodeNavigation(localStorage.getItem(NAVIGATION_KEY)).items[0]?.id).toBe("vouchers");
+  await expect
+    .element(restarted.getByRole("button", { name: "Organize navigation" }))
+    .toBeVisible();
+});
+
 it("persists groups, then removes the group without losing destinations", async () => {
   await page.viewport(1280, 900);
   using _state = setup("/overview");
   await using screen = await render(<AppRoot />);
   await screen.getByRole("button", { name: "Organize navigation" }).click();
-  const dialog = page.getByRole("dialog", { name: "Organize navigation" });
-  await dialog.getByRole("textbox", { name: "New group name" }).fill("Daily");
-  await dialog.getByRole("button", { name: "Add group", exact: true }).click();
-  await dialog.getByRole("combobox", { name: "Group for Usage" }).click();
+  await screen.getByRole("textbox", { name: "New group name" }).fill("Daily");
+  await screen.getByRole("button", { name: "Add group", exact: true }).click();
+  await screen.getByRole("combobox", { name: "Group for Usage" }).click();
   await page.getByRole("option", { name: "Daily", exact: true }).click();
-  await dialog.getByRole("button", { name: "Done", exact: true }).click();
+  await screen.getByRole("button", { name: "Done", exact: true }).click();
   await expect.element(screen.getByRole("button", { name: "Daily", exact: true })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Vouchers", exact: true })).toBeVisible();
   await screen.unmount();
@@ -330,7 +380,7 @@ it("retains navigation after a failed write and recovers on retry", async () => 
   });
   await page.getByRole("button", { name: "Move Vouchers up", exact: true }).click();
   await expect
-    .element(page.getByRole("dialog").getByRole("alert"))
+    .element(screen.getByRole("navigation", { name: "Workspace", exact: true }).getByRole("alert"))
     .toHaveTextContent(
       "Could not save navigation. Your previous layout is still in use. Please try again.",
     );

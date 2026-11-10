@@ -93,10 +93,9 @@ export const arabic = {
   "Madar has no RouterOS integration configured yet. Live {name} will appear here when a supported router connection is available.":
     "لم يُضبط تكامل RouterOS في مدار بعد. ستظهر بيانات {name} هنا عند توفر اتصال بموجّه مدعوم.",
   "Workspace destinations": "صفحات مساحة العمل",
-  "Drop a destination here or assign one in Organize navigation.":
-    "أفلت صفحة هنا أو عيّنها من «تنظيم التنقل».",
-  "Drag destinations in the sidebar or use these controls. Changes are saved automatically.":
-    "اسحب الصفحات في الشريط الجانبي أو استخدم هذه الأدوات. تُحفظ التغييرات تلقائيًا.",
+  "Drop a destination here or choose its group.": "أفلت صفحة هنا أو اختر مجموعتها.",
+  "Drag destinations or use the arrows. Changes are saved automatically.":
+    "اسحب الصفحات أو استخدم الأسهم. تُحفظ التغييرات تلقائيًا.",
   "{name} navigation": "تنقل {name}",
   "Move {name} up": "نقل {name} لأعلى",
   "Move {name} down": "نقل {name} لأسفل",
