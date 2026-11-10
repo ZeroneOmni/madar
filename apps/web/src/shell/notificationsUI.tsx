@@ -147,7 +147,10 @@ export function NotificationCenter({ onNavigate }: { onNavigate: (path: string) 
     setWriteError(saved ? "" : t("Could not update notification history. Try again."));
   }
   return (
-    <section className="space-y-5" aria-label={t("Notification history")}>
+    <section
+      className="mx-auto max-w-4xl space-y-5 p-6 sm:p-10"
+      aria-label={t("Notification history")}
+    >
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold">{t("Notifications")}</h1>
         <span className="text-sm text-muted-foreground">
