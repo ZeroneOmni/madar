@@ -223,6 +223,7 @@ it("explains navigation and shortcut failures in Arabic and offers localized not
     )
     .toBeVisible();
   const editor = screen.getByRole("form", { name: "اختصار فتح لوحة الأوامر" });
+  await editor.getByRole("button", { name: "تعديل اختصار فتح لوحة الأوامر" }).click();
   await editor.getByRole("textbox", { name: "فتح لوحة الأوامر" }).fill("Mod+Q");
   await editor.getByRole("button", { name: "حفظ", exact: true }).click();
   await expect

@@ -156,13 +156,12 @@ export function decodeShortcuts(serialized: string | null) {
   return serialized === null ? { ...DEFAULT_SHORTCUTS } : validateShortcuts(JSON.parse(serialized));
 }
 
-export function matchesShortcut(
-  event: Pick<KeyboardEvent, "key" | "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">,
-  value: string,
-  mac: boolean,
-) {
-  const shortcut = parseShortcut(value);
-  if (!shortcut) return false;
+type ShortcutEvent = Pick<
+  KeyboardEvent,
+  "key" | "code" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey"
+>;
+
+function shortcutEventKey(event: ShortcutEvent) {
   const rawKey = event.key.toLowerCase();
   // Physical fallback preserves shortcuts on layouts whose letters are non-Latin.
   const baseKey =
@@ -171,7 +170,27 @@ export function matchesShortcut(
       : rawKey === " "
         ? "space"
         : rawKey;
-  const key = event.shiftKey ? (SHIFTED_BASE_KEYS[event.code] ?? baseKey) : baseKey;
+  return event.shiftKey ? (SHIFTED_BASE_KEYS[event.code] ?? baseKey) : baseKey;
+}
+
+export function shortcutFromKeyboardEvent(event: ShortcutEvent, mac: boolean) {
+  if (["Control", "Meta", "Alt", "Shift", "AltGraph"].includes(event.key)) return null;
+  const parts: string[] = [];
+  if (event.ctrlKey && event.metaKey) parts.push("Ctrl", "Meta");
+  else if (mac ? event.metaKey : event.ctrlKey) parts.push("Mod");
+  else if (event.ctrlKey) parts.push("Ctrl");
+  else if (event.metaKey) parts.push("Meta");
+  if (event.altKey) parts.push("Alt");
+  if (event.shiftKey) parts.push("Shift");
+  const key = shortcutEventKey(event);
+  parts.push(key.length === 1 ? key.toUpperCase() : key);
+  return parts.join("+");
+}
+
+export function matchesShortcut(event: ShortcutEvent, value: string, mac: boolean) {
+  const shortcut = parseShortcut(value);
+  if (!shortcut) return false;
+  const key = shortcutEventKey(event);
   return (
     key === shortcut.key &&
     event.ctrlKey === (shortcut.ctrl || (shortcut.mod && !mac)) &&

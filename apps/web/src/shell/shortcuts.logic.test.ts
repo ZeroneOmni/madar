@@ -3,12 +3,40 @@ import {
   DEFAULT_SHORTCUTS,
   decodeShortcuts,
   matchesShortcut,
+  shortcutFromKeyboardEvent,
   parseShortcut,
   shortcutAllowedInEditor,
   validateShortcuts,
 } from "./shortcuts.logic";
 
 describe("shell keyboard shortcuts", () => {
+  it("records combinations that the runtime can match across platforms and layouts", () => {
+    const event = {
+      key: "P",
+      code: "KeyP",
+      ctrlKey: true,
+      metaKey: false,
+      altKey: false,
+      shiftKey: true,
+    };
+    expect(shortcutFromKeyboardEvent(event, false)).toBe("Mod+Shift+P");
+    const macEvent = { ...event, ctrlKey: false, metaKey: true };
+    expect(shortcutFromKeyboardEvent(macEvent, true)).toBe("Mod+Shift+P");
+    for (const next of [
+      event,
+      { ...event, metaKey: true },
+      { ...event, key: "<", code: "Comma" },
+      { ...event, key: "!", code: "Digit1" },
+      { ...event, key: "ي", code: "KeyD", shiftKey: false, altKey: true },
+      { ...event, key: " ", code: "Space" },
+    ]) {
+      const binding = shortcutFromKeyboardEvent(next, false);
+      expect(binding).not.toBeNull();
+      expect(matchesShortcut(next, binding!, false)).toBe(true);
+    }
+    expect(shortcutFromKeyboardEvent({ ...event, key: "Control" }, false)).toBeNull();
+  });
+
   it("resolves Mod using the active platform and exact modifiers", () => {
     const event = {
       key: "k",
