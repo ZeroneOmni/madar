@@ -1,8 +1,9 @@
+import { useDocumentAppearance } from "./appearancePreferences";
 import { useLocale } from "./useLocale";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useDocumentLocale } from "./useLocale";
 import { useEffect } from "react";
-import { Search, Settings, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { QuitHoldOverlay } from "./components/QuitHoldOverlay";
 import { WorkspacePageHeader } from "./components/WorkspacePageHeader";
 import { Button } from "./components/ui/button";
@@ -32,7 +33,7 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
   const { t } = useLocale();
   const { maskSensitive } = usePrivacySettings();
   return (
-    <section className="mx-auto max-w-4xl space-y-8 p-6 sm:p-10">
+    <section className="mx-auto max-w-4xl space-y-8 p-(--workspace-page-padding)">
       <div className="space-y-3">
         <h1 className="text-3xl font-semibold tracking-tight">
           {t("Your User Manager workspace")}
@@ -99,7 +100,7 @@ function DestinationPage({
   const { t } = useLocale();
   const destination = destinations.find((item) => "/" + item.id === path);
   return (
-    <section className="mx-auto max-w-3xl space-y-6 p-6 sm:p-10">
+    <section className="mx-auto max-w-3xl space-y-6 p-(--workspace-page-padding)">
       <h1 className="text-3xl font-semibold">
         {destination ? t(destination.label) : t("Page not found")}
       </h1>
@@ -169,24 +170,6 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
               {t(routeLabel(path))}
             </span>
           </nav>
-          <div className="[-webkit-app-region:no-drag] ms-auto flex gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("Open command palette")}
-              onClick={() => commands.execute("palette")}
-            >
-              <Search />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("Open Settings")}
-              onClick={() => commands.execute("settings")}
-            >
-              <Settings />
-            </Button>
-          </div>
         </WorkspacePageHeader>
         {navigation.error ? (
           <div className="flex flex-wrap items-center gap-3 border-b bg-destructive/5 px-5 py-3">
@@ -237,6 +220,7 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
 export function AppRoot() {
   const direction = useDocumentLocale();
   useTheme();
+  useDocumentAppearance();
   const navigation = useNavigation();
   useEffect(() => installDesktopPasteAsText(window.desktopBridge), []);
   return (

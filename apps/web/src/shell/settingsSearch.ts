@@ -33,6 +33,36 @@ const SETTINGS_SEARCH_ITEMS = [
       "theme system light dark color picker custom palette editor import export JSON السمات سمة نظام فاتح داكن ألوان منتقي تخصيص لوحة محرر استيراد تصدير",
   },
   {
+    id: "interface-font",
+    section: "appearance",
+    title: "Interface font",
+    terms: "typography font family size English Arabic",
+  },
+  {
+    id: "monospace-font",
+    section: "appearance",
+    title: "Monospace font",
+    terms: "typography font size voucher codes identifiers diagnostics",
+  },
+  {
+    id: "contrast",
+    section: "appearance",
+    title: "Contrast",
+    terms: "accessibility borders text",
+  },
+  {
+    id: "glass-opacity",
+    section: "appearance",
+    title: "Glass opacity",
+    terms: "accessibility transparency menus dialogs",
+  },
+  {
+    id: "panel-animations",
+    section: "appearance",
+    title: "Panel animations",
+    terms: "motion animation duration speed reduced",
+  },
+  {
     id: "privacy",
     section: "privacy",
     title: "Mask sensitive text",

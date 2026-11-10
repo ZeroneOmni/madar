@@ -2,6 +2,7 @@ import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "../../../test/render";
 import { ThemeSettings } from "./ThemeSettings";
+import { T3_CHAT_THEME } from "@madar/shared/themePalettes";
 import { useTheme } from "../../hooks/useTheme";
 import { themeColorToHex, getCustomThemes, subscribeToCustomThemes } from "../../themePalette";
 import "../../index.css";
@@ -29,6 +30,21 @@ function setup() {
     },
   };
 }
+
+it("offers duplication for editable palettes rather than CSS defaults", async () => {
+  using _state = setup();
+  await using screen = await render(<Appearance />);
+  await expect
+    .element(screen.getByRole("button", { name: "Duplicate T3 Code", exact: true }))
+    .not.toBeInTheDocument();
+  await screen.getByRole("button", { name: "Duplicate T3 Chat", exact: true }).click();
+  await page.getByRole("button", { name: "Save theme", exact: true }).click();
+  const stored = getCustomThemes();
+  expect(stored[0]!.label).toBe("T3 Chat copy");
+  expect(themeColorToHex(stored[0]!.colors.canvas)).toBe(
+    themeColorToHex(T3_CHAT_THEME.colors.canvas),
+  );
+});
 
 it("accepts a complete six-digit hex color without rewriting the in-progress text", async () => {
   using _state = setup();

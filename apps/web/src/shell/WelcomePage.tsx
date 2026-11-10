@@ -8,7 +8,7 @@ export function WelcomePage({ onContinue }: { onContinue: () => void }) {
   const { t } = useLocale();
   const [failed, setFailed] = useState(false);
   return (
-    <section className="mx-auto flex max-w-2xl flex-col gap-6 p-6 sm:p-10">
+    <section className="mx-auto flex max-w-2xl flex-col gap-6 p-(--workspace-page-padding)">
       <div className="space-y-3">
         <h1 className="text-3xl font-semibold tracking-tight">{t("Welcome to Madar")}</h1>
         <p className="text-muted-foreground">

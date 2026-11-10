@@ -4,8 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { DEFAULT_CLIENT_SETTINGS, type QuitConfirmationMode } from "@madar/contracts";
 import { Button } from "../components/ui/button";
 import { Switch } from "../components/ui/switch";
-import { ThemeSettings } from "../components/settings/ThemeSettings";
-import { useTheme } from "../hooks/useTheme";
+import { AppearanceSettingsPanel } from "../components/settings/AppearanceSettingsPanel";
 import { notifyShell } from "./notifications";
 import { resolveSettingsPath } from "./settingsSearch";
 import { resetOnboarding, saveSettings, usePrivacySettings } from "./settingsState";
@@ -249,48 +248,12 @@ function PrivacySettings() {
 
 function AppearanceSettings() {
   const { t } = useLocale();
-  const { appearanceMode, setAppearanceMode } = useTheme();
-  const [failed, setFailed] = useState(false);
   return (
-    <section className="space-y-4">
-      <h3 id="setting-appearance" tabIndex={-1} className="font-medium">
+    <section>
+      <h3 id="setting-appearance" tabIndex={-1} className="sr-only">
         {t("Appearance")}
       </h3>
-      <p className="text-sm text-muted-foreground">
-        {t("Choose how Madar looks. Changes are saved automatically.")}
-      </p>
-      <div role="group" aria-label={t("Appearance")} className="flex flex-wrap gap-2">
-        {(
-          [
-            ["system", t("System")],
-            ["light", t("Light")],
-            ["dark", t("Dark")],
-          ] as const
-        ).map(([mode, label]) => (
-          <Button
-            key={mode}
-            variant={appearanceMode === mode ? "default" : "outline"}
-            aria-pressed={appearanceMode === mode}
-            onClick={() => {
-              const saved = setAppearanceMode(mode);
-              setFailed(!saved);
-              notifyShell({
-                title: saved ? "Appearance saved" : "Could not save appearance",
-                level: saved ? "success" : "error",
-                path: "/settings/appearance",
-              });
-            }}
-          >
-            {t(label)}
-          </Button>
-        ))}
-      </div>
-      {failed ? (
-        <p role="alert" className="text-sm text-destructive">
-          {t("Could not save your appearance. Please try again.")}
-        </p>
-      ) : null}
-      <ThemeSettings />
+      <AppearanceSettingsPanel />
     </section>
   );
 }
@@ -310,12 +273,18 @@ export function SettingsPage({
   const [resetFailed, setResetFailed] = useState(false);
   const { section, target, invalidTarget } = resolveSettingsPath(path);
   useEffect(() => {
-    if (target) document.getElementById(`setting-${target.id}`)?.focus();
+    if (target) {
+      const element = document.getElementById(`setting-${target.id}`);
+      element?.focus({ preventScroll: true });
+      element?.scrollIntoView({ block: "nearest" });
+    }
   }, [target]);
   return (
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <div className="min-w-0 flex-1 overflow-y-auto scrollbar-gutter-both p-5 sm:p-8">
-        <div className="mx-auto max-w-3xl space-y-7">
+        <div
+          className={`mx-auto space-y-7 ${section?.id === "appearance" ? "max-w-5xl" : "max-w-3xl"}`}
+        >
           <nav aria-label={t("Settings breadcrumbs")} className="flex items-center gap-2 text-sm">
             <Button variant="link" size="sm" onClick={() => onNavigate("/")}>
               {t("Workspace")}
