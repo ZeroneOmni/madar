@@ -2,7 +2,7 @@ import { RouterProfile } from "@madar/contracts";
 import { probeRouter, disconnectRouter } from "./access";
 import * as Schema from "effect/Schema";
 import { createContext, useContext, useEffect, useState } from "react";
-import { Building2, Home, Router } from "lucide-react";
+import { Building2, Home, Router, Settings2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { useLocale } from "../useLocale";
@@ -184,7 +184,7 @@ export function RouterPicker() {
         aria-label={t("Active connection")}
         value={catalog.selected ?? ""}
         onChange={(event) => select(event.target.value)}
-        className="max-w-48 rounded-md border bg-background p-1"
+        className="min-w-0 max-w-48 rounded-md border bg-background p-1"
       >
         <option value="">{t("Select connection")}</option>
         {catalog.routers.map((router) => (
@@ -194,9 +194,18 @@ export function RouterPicker() {
           </option>
         ))}
       </select>
-      <span role="status">{t(statusLabels[state.kind])}</span>
-      <Button variant="ghost" size="sm" onClick={() => navigateShell("/routers")}>
-        {t("Manage connections")}
+      <span role="status" className="shrink-0">
+        {t(statusLabels[state.kind])}
+      </span>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label={t("Manage connections")}
+        title={t("Manage connections")}
+        onClick={() => navigateShell("/routers")}
+      >
+        <Settings2 aria-hidden="true" />
+        <span className="hidden xl:inline">{t("Manage connections")}</span>
       </Button>
     </div>
   );
