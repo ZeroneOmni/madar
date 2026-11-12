@@ -17,6 +17,9 @@ import * as ServerOwnership from "./serverOwnership.ts";
 import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import * as AuthHttp from "./auth/http.ts";
+import * as RouterHttp from "./routers/http.ts";
+import * as RouterProbe from "./routers/RouterProbe.ts";
+import * as UserManagerConnection from "./routers/UserManagerConnection.ts";
 import * as ReplayMarkers from "./auth/replayMarkers.ts";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
 import {
@@ -70,6 +73,12 @@ const layerAuth = EnvironmentAuth.layer.pipe(
 const layerRoutes = Layer.mergeAll(
   HttpApiBuilder.layer(EnvironmentHttpApi).pipe(
     Layer.provide(AuthHttp.layer),
+    Layer.provide(
+      RouterHttp.layer.pipe(
+        Layer.provide(RouterProbe.layer),
+        Layer.provide(UserManagerConnection.layer),
+      ),
+    ),
     Layer.provide(ServerHttp.layerServerEnvironmentHttpApi),
     Layer.provide(AuthHttp.layerAuthenticatedAuth),
   ),

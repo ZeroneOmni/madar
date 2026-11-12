@@ -27,6 +27,7 @@
     "@effect/platform-node": "catalog:",
     "@effect/platform-node-shared": "catalog:",
     "@napi-rs/keyring": "^1.3.0",
+    "@xmldom/xmldom": "0.9.12",
     "effect": "catalog:",
     "undici": "catalog:"
   },

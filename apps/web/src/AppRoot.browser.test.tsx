@@ -83,7 +83,7 @@ it.each([
           rect.bottom > controls.top;
         expect(
           overlaps,
-          button.textContent || button.getAttribute("aria-label") || "toolbar button",
+          `${button.textContent || button.getAttribute("aria-label") || "toolbar button"}: ${JSON.stringify(rect.toJSON())}, controls: ${JSON.stringify(controls.toJSON())}`,
         ).toBe(false);
       }
     }
@@ -95,7 +95,7 @@ it.each([
       expect(trigger.getBoundingClientRect().y).toBe(initial.y);
       expectClear();
     });
-    await page.viewport(1024, 768);
+    await page.viewport(800, 768);
     await vi.waitFor(expectClear);
     native.move(side === "left" ? "right" : "left");
     await vi.waitFor(expectClear);
@@ -366,7 +366,9 @@ it("persists groups, then removes the group without losing destinations", async 
     .element(restarted.getByRole("heading", { name: "Usage", exact: true }))
     .toBeVisible();
   await expect
-    .element(restarted.getByRole("heading", { name: "User Manager is not connected" }))
+    .element(
+      restarted.getByRole("heading", { name: "User Manager operations are not available yet" }),
+    )
     .toBeVisible();
 });
 

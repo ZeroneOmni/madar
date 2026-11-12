@@ -49,6 +49,7 @@ export const COMMAND_LABELS: Record<ShellCommandId, string> = {
   usage: "Go to usage",
   notifications: "Open notifications",
   welcome: "Show welcome",
+  routers: "Manage connections",
 };
 const COMMANDS = Object.keys(COMMAND_LABELS) as ShellCommandId[];
 

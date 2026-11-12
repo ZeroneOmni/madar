@@ -24,6 +24,7 @@ const PATHS = {
   usage: "/usage",
   notifications: "/notifications",
   welcome: "/welcome",
+  routers: "/routers",
 } as const;
 export function useShellCommands({
   onNavigate,
