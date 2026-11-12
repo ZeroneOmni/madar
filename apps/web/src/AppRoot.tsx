@@ -1,4 +1,5 @@
 import { useDocumentAppearance } from "./appearancePreferences";
+import { RouterConnections, RouterPicker, RouterProvider } from "./routers/RouterConnections";
 import { useLocale } from "./useLocale";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useDocumentLocale } from "./useLocale";
@@ -46,7 +47,7 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
         <h2 className="font-semibold">{t("Router connection")}</h2>
         <p className="text-sm text-muted-foreground">
           {t(
-            "No router is connected. User Manager operations are unavailable until a supported RouterOS version and connection method are chosen.",
+            "Save and select a RouterOS 6 router to check its API connection. User Manager operations are not available yet.",
           )}
         </p>
         <p className="text-sm">
@@ -54,6 +55,9 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
             "You can organize navigation, customize shortcuts, and set privacy and notification preferences now.",
           )}
         </p>
+        <Button variant="outline" onClick={() => onNavigate("/routers")}>
+          {t("Manage routers")}
+        </Button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {destinations
@@ -170,6 +174,7 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
               {t(routeLabel(path))}
             </span>
           </nav>
+          <RouterPicker />
         </WorkspacePageHeader>
         {navigation.error ? (
           <div className="flex flex-wrap items-center gap-3 border-b bg-destructive/5 px-5 py-3">
@@ -203,6 +208,8 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
             <WelcomePage onContinue={() => navigate("/overview")} />
           ) : path === "/overview" ? (
             <Overview onNavigate={navigate} />
+          ) : path === "/routers" ? (
+            <RouterConnections />
           ) : path === "/notifications" ? (
             <NotificationCenter onNavigate={navigate} />
           ) : (
@@ -231,7 +238,9 @@ export function AppRoot() {
           open={navigation.state.open}
           onOpenChange={(open) => navigation.dispatch({ type: "open", open })}
         >
-          <ShellContent navigation={navigation} />
+          <RouterProvider>
+            <ShellContent navigation={navigation} />
+          </RouterProvider>
         </SidebarProvider>
       </ToastProvider>
     </DirectionProvider>

@@ -150,5 +150,6 @@ export function routeLabel(path: string) {
   const route = path.split("?")[0];
   if (route?.startsWith("/settings")) return "Settings";
   if (route === "/welcome") return "Welcome";
+  if (route === "/routers") return "Router connections";
   return destinations.find(({ id }) => route === "/" + id)?.label ?? "Page not found";
 }

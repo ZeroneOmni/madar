@@ -1,6 +1,10 @@
 # Your workspace
 
-Madar's workspace provides navigation, commands, preferences, and operation notifications. RouterOS integration is not configured yet, so voucher, subscription, card-design, and usage pages explain their unavailable state.
+Madar's workspace provides navigation, commands, preferences, router connections, and operation notifications. Voucher, subscription, card-design, and usage operations are not available yet.
+
+Use **Manage routers** in the header or command palette to save a RouterOS 6 router, then select it in the header. Enter its password and choose **Connect**. Names, addresses, usernames, labels, colors, and icons are saved on this device; passwords last only until you disconnect, switch routers, or close the app. Editing the active router disconnects it.
+
+Enable the router's binary API service before connecting. API-SSL defaults to port 8729 and requires a trusted certificate matching the hostname. Unencrypted API defaults to port 8728 and sends credentials over the network. Connected means Madar successfully authenticated and read the router identity and version; it does not confirm User Manager availability. Access is checked every 30 seconds. Temporary failures retry up to five times, with a short delay before displaying an interruption. Use **Connection diagnosis**, **Copy diagnostics**, and **Retry connection** to investigate and recover; copied diagnostics exclude passwords, usernames, names, and host addresses.
 
 Use **Organize navigation** to change destination order or create named groups. You can also drag destinations between rows and groups. Removing a group keeps its destinations in the workspace. Navigation and preferences are saved locally; a failed save leaves the previous saved value in use.
 

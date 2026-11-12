@@ -1,4 +1,7 @@
+import { routerArabic } from "./routers/messages";
+
 export const arabic = {
+  ...routerArabic,
   Return: "رجوع",
   Settings: "الإعدادات",
   Overview: "نظرة عامة",

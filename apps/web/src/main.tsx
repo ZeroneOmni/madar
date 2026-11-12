@@ -15,6 +15,7 @@ import {
   syncDocumentWindowControlsOverlayClass,
 } from "./lib/windowControlsOverlay";
 import { AppRoot } from "./AppRoot";
+import { initializeAppSession } from "./routers/access";
 import { clearChunkReloadGuard, reloadOnceForChunkLoadError } from "./lib/chunkReloadGuard";
 
 if (isElectron) {
@@ -42,6 +43,7 @@ window.addEventListener("vite:preloadError", (event) => {
 });
 
 export const startup = Promise.resolve()
+  .then(initializeAppSession)
   .then(() => {
     if (reloadScheduled) return;
     if (!chunkLoadFailed) clearChunkReloadGuard();

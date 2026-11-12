@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema";
+import * as Effect from "effect/Effect";
 
 export const DEFAULT_SHORTCUTS = {
   palette: "Mod+K",
@@ -11,6 +12,7 @@ export const DEFAULT_SHORTCUTS = {
   usage: "",
   notifications: "",
   welcome: "",
+  routers: "",
 } as const;
 export type ShellCommandId = keyof typeof DEFAULT_SHORTCUTS;
 export type ShellShortcuts = Record<ShellCommandId, string>;
@@ -25,6 +27,7 @@ const ShortcutsSchema = Schema.Struct({
   usage: Schema.String,
   notifications: Schema.String,
   welcome: Schema.String,
+  routers: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
 });
 
 export function parseShortcut(value: string) {

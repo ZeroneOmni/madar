@@ -25,7 +25,7 @@ export function WelcomePage({ onContinue }: { onContinue: () => void }) {
         </p>
         <p className="text-sm text-muted-foreground">
           {t(
-            "RouterOS operations become available after a supported version and connection method are configured. This workspace does not connect to a router yet.",
+            "Save and select a RouterOS 6 router to check its API connection. User Manager operations are not available yet.",
           )}
         </p>
       </div>
