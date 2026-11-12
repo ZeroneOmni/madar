@@ -49,6 +49,17 @@ type Session = {
   touched: number;
 };
 
+function isTlsFailure(cause: unknown): boolean {
+  if (!(cause instanceof Error)) return false;
+  if (
+    "code" in cause &&
+    typeof cause.code === "string" &&
+    /CERT|TLS|SSL|UNABLE_TO_VERIFY_LEAF_SIGNATURE/.test(cause.code)
+  )
+    return true;
+  return isTlsFailure(cause.cause);
+}
+
 export class UserManagerConnection extends Context.Service<
   UserManagerConnection,
   {
@@ -79,7 +90,13 @@ const make = Effect.gen(function* () {
     );
     const response = yield* http.execute(req).pipe(
       Effect.provideService(FetchHttpClient.RequestInit, { redirect: "manual" }),
-      Effect.mapError((cause) => new UserManagerRequestError({ reason: "network", cause })),
+      Effect.mapError(
+        (cause) =>
+          new UserManagerRequestError({
+            reason: isTlsFailure(cause) ? "tls" : "network",
+            cause,
+          }),
+      ),
     );
     const responseBody = yield* Stream.runFoldEffect(
       response.stream.pipe(

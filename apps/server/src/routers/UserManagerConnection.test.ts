@@ -33,6 +33,32 @@ const login =
 const authenticated =
   '<server-message trans-id="12"><message-part processor="EchoDomUpdate.MessageProcessor"><dom-remove><item eid="login-form"/></dom-remove><dom-add><content parent-id="body"><div id="logout-23">Logout</div><div id="users-24">Users</div></content></dom-add></message-part><message-part processor="EchoButton.MessageProcessor"><init><button eid="logout-23"/></init></message-part></server-message>';
 
+it.effect.each([
+  { code: "DEPTH_ZERO_SELF_SIGNED_CERT", reason: "tls" },
+  { code: "CERT_HAS_EXPIRED", reason: "tls" },
+  { code: "UNABLE_TO_VERIFY_LEAF_SIGNATURE", reason: "tls" },
+  { code: "ERR_TLS_CERT_ALTNAME_INVALID", reason: "tls" },
+  { code: "ECONNREFUSED", reason: "network" },
+])("classifies HTTPS transport failure $code as $reason", ({ code, reason }) => {
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => {
+    throw new TypeError("fetch failed", {
+      cause: Object.assign(new Error("connection failed"), { code }),
+    });
+  });
+  return Effect.gen(function* () {
+    const service = yield* UserManagerConnection.UserManagerConnection;
+    expect(
+      yield* service.check(
+        {
+          ...input,
+          profile: { ...input.profile, transport: "user-manager-https", port: 443 },
+        },
+        "owner",
+      ),
+    ).toEqual({ kind: "failed", reason });
+  }).pipe(Effect.provide(layerWithFetch(fetch)));
+});
+
 function fixture({
   rejected = false,
   base = "/userman",
