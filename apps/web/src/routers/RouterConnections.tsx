@@ -1,5 +1,5 @@
 import { RouterProfile } from "@madar/contracts";
-import { probeRouter } from "./access";
+import { probeRouter, disconnectRouter } from "./access";
 import * as Schema from "effect/Schema";
 import { createContext, useContext, useEffect, useState } from "react";
 import { Building2, Home, Router } from "lucide-react";
@@ -24,6 +24,37 @@ const icons = { router: Router, building: Building2, home: Home };
 const decodeProfile = Schema.decodeSync(RouterProfile);
 const decodeColor = Schema.decodeUnknownSync(RouterProfile.fields.color);
 const decodeIcon = Schema.decodeUnknownSync(RouterProfile.fields.icon);
+const decodeTransport = Schema.decodeUnknownSync(RouterProfile.fields.transport);
+const connectionMethods = {
+  "user-manager-http": { label: "User Manager (HTTP)", port: 80, scheme: "http" },
+  "user-manager-https": {
+    label: "User Manager (HTTPS)",
+    port: 443,
+    scheme: "https",
+  },
+  tls: { label: "Router API account (TLS)", port: 8729, scheme: "tls" },
+  tcp: { label: "Router API account (unencrypted)", port: 8728, scheme: "tcp" },
+};
+const isUserManager = (profile: RouterProfile) => profile.transport.startsWith("user-manager-");
+function address(profile: RouterProfile) {
+  const host = profile.host.includes(":") ? `[${profile.host}]` : profile.host;
+  return isUserManager(profile)
+    ? `${connectionMethods[profile.transport].scheme}://${host}:${profile.port}/userman`
+    : `${host}:${profile.port}`;
+}
+const userManagerReasons = {
+  network: "User Manager is unreachable. Check its address, web port, and web service.",
+  tls: "The User Manager HTTPS certificate could not be verified. Check its hostname and certificate.",
+  timeout: "User Manager did not respond in time. Check its address, web port, and web service.",
+  authentication:
+    "User Manager rejected the customer login or the session expired. Check your /userman account details.",
+  permission: "This User Manager customer account does not have access.",
+  protocol:
+    "Madar could not confirm the User Manager customer session. This version may need a compatibility update.",
+  unsupported:
+    "This address did not provide a supported RouterOS 6 User Manager login page. Check the address and web port.",
+  app: "Madar could not check User Manager. Check the app connection and try again.",
+};
 const reasons = {
   network: "Router unreachable. Check the host, API port, firewall, and API service.",
   tls: "TLS verification failed. Configure a trusted API-SSL certificate matching the router host.",
@@ -40,6 +71,7 @@ function useRouterModel() {
   const [error, setError] = useState("");
   const [session, setSession] = useState<{ profile: RouterProfile; password: string } | null>(null);
   const [state, setState] = useState<ConnectionState>({ kind: "disconnected" });
+  const [closing, setClosing] = useState(false);
   useEffect(() => {
     const load = () => {
       try {
@@ -83,6 +115,16 @@ function useRouterModel() {
     }
   }
   function disconnect() {
+    if (session && isUserManager(session.profile)) {
+      setClosing(true);
+      void disconnectRouter(session.profile.id)
+        .catch(() =>
+          setError(
+            "Could not close the User Manager session. It may remain active until the server expires it.",
+          ),
+        )
+        .finally(() => setClosing(false));
+    }
     setSession(null);
     setState({ kind: "disconnected" });
   }
@@ -93,10 +135,12 @@ function useRouterModel() {
     catalog,
     error,
     state,
+    closing,
     update,
     select,
     disconnect,
     connect: (password: string) => {
+      if (closing) return;
       const profile = catalog.routers.find(({ id }) => id === catalog.selected);
       if (profile) {
         setState({ kind: "connecting" });
@@ -137,12 +181,12 @@ export function RouterPicker() {
         <Icon size={18} aria-hidden="true" />
       </span>
       <select
-        aria-label={t("Active router")}
+        aria-label={t("Active connection")}
         value={catalog.selected ?? ""}
         onChange={(event) => select(event.target.value)}
         className="max-w-48 rounded-md border bg-background p-1"
       >
-        <option value="">{t("Select router")}</option>
+        <option value="">{t("Select connection")}</option>
         {catalog.routers.map((router) => (
           <option key={router.id} value={router.id}>
             {router.name}
@@ -152,7 +196,7 @@ export function RouterPicker() {
       </select>
       <span role="status">{t(statusLabels[state.kind])}</span>
       <Button variant="ghost" size="sm" onClick={() => navigateShell("/routers")}>
-        {t("Manage routers")}
+        {t("Manage connections")}
       </Button>
     </div>
   );
@@ -161,9 +205,9 @@ const blankProfile: RouterProfile = {
   id: "new",
   name: "",
   host: "",
-  port: 8729,
-  username: "admin",
-  transport: "tls",
+  port: 80,
+  username: "",
+  transport: "user-manager-http",
   color: "blue",
   icon: "router",
   label: "",
@@ -187,10 +231,10 @@ export function RouterConnections() {
   }
   return (
     <section className="mx-auto max-w-3xl space-y-6 p-(--workspace-page-padding)">
-      <h1 className="text-3xl font-semibold">{t("Router connections")}</h1>
+      <h1 className="text-3xl font-semibold">{t("Connections")}</h1>
       <p className="text-sm text-muted-foreground">
         {t(
-          "Save routers on this device. Connection checks support RouterOS 6. Passwords are kept only for this session.",
+          "Save your own User Manager address and login. User Manager accounts are separate from router accounts. Passwords are not saved.",
         )}
       </p>
       {model.error && (
@@ -202,7 +246,7 @@ export function RouterConnections() {
         </div>
       )}
       <div className="space-y-4 rounded-xl border p-5">
-        <h2 className="font-semibold">{t("Active router")}</h2>
+        <h2 className="font-semibold">{t("Active connection")}</h2>
         {active ? (
           <>
             <p>
@@ -215,15 +259,25 @@ export function RouterConnections() {
               )}
             </p>
             <SensitiveText
-              value={`${active.host}:${active.port}`}
-              label={t("Router address")}
+              value={address(active)}
+              label={t(isUserManager(active) ? "User Manager address" : "Router API address")}
               masked={maskSensitive}
             />
             <p role="status">
               {t(statusLabels[state.kind])}
               {state.kind === "reconnecting" ? ` (${state.attempt}/5)` : ""}
             </p>
-            {state.kind === "connected" && (
+            {state.kind === "connected" && state.service === "user-manager" && (
+              <div className="space-y-2">
+                <p className="font-medium">{t("User Manager sign-in verified")}</p>
+                <SensitiveText
+                  value={state.customer}
+                  label={t("User Manager account (/userman)")}
+                  masked={maskSensitive}
+                />
+              </div>
+            )}
+            {state.kind === "connected" && state.service === "router-api" && (
               <>
                 <SensitiveText
                   value={state.identity}
@@ -245,7 +299,9 @@ export function RouterConnections() {
                 }}
               >
                 <label className="block space-y-1">
-                  <span>{t("Router password")}</span>
+                  <span>
+                    {t(isUserManager(active) ? "User Manager password" : "Router account password")}
+                  </span>
                   <Input
                     type="password"
                     autoComplete="current-password"
@@ -260,7 +316,16 @@ export function RouterConnections() {
                     )}
                   </p>
                 )}
-                <Button type="submit">{t("Connect")}</Button>
+                {active.transport === "user-manager-http" && (
+                  <p role="note" className="text-sm text-destructive">
+                    {t(
+                      "HTTP sends your User Manager login without encryption. Use HTTPS when available.",
+                    )}
+                  </p>
+                )}
+                <Button type="submit" disabled={model.closing}>
+                  {t(model.closing ? "Signing out…" : "Connect")}
+                </Button>
               </form>
             ) : (
               <div className="flex gap-2">
@@ -275,14 +340,18 @@ export function RouterConnections() {
             {(state.kind === "failed" || state.kind === "reconnecting") && (
               <div className="space-y-3 rounded-lg border p-4">
                 <h3 className="font-medium">{t("Connection diagnosis")}</h3>
-                <p role="alert">{t(reasons[state.reason])}</p>
+                <p role="alert">
+                  {t((isUserManager(active) ? userManagerReasons : reasons)[state.reason])}
+                </p>
                 <Button
                   variant="outline"
                   onClick={async () => {
                     const diagnostics = JSON.stringify(
                       {
                         app: "Madar",
-                        target: "RouterOS 6",
+                        target: isUserManager(active)
+                          ? "User Manager (RouterOS 6)"
+                          : "RouterOS 6 API",
                         transport: active.transport,
                         port: active.port,
                         state: state.kind,
@@ -306,24 +375,24 @@ export function RouterConnections() {
             )}
           </>
         ) : (
-          <p>{t("Select a saved router or add one below.")}</p>
+          <p>{t("Select a saved connection or add one below.")}</p>
         )}
         <p className="text-sm text-muted-foreground">
           {t(
-            "Madar checks API access every 30 seconds while connected. User Manager operations are not available yet.",
+            "Madar checks the selected connection every 30 seconds. User Manager sign-in and router API access are different. Voucher and subscription operations are not available yet.",
           )}
         </p>
       </div>
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">{t("Saved routers")}</h2>
+          <h2 className="font-semibold">{t("Saved connections")}</h2>
           <Button
             onClick={() => {
               setDraft({ ...blankProfile, id: randomUUID() });
               setFormError("");
             }}
           >
-            {t("Add router")}
+            {t("Add connection")}
           </Button>
         </div>
         {catalog.routers.map((router) => {
@@ -422,13 +491,25 @@ export function RouterConnections() {
             }
           }}
         >
-          <h2 className="font-semibold">{t("Router details")}</h2>
+          <h2 className="font-semibold">{t("Connection details")}</h2>
+          <p className="text-sm text-muted-foreground">
+            {t(
+              isUserManager(draft)
+                ? "Use the account you use on /userman, not your router or Wi-Fi account."
+                : "Router API access uses a router account. It does not verify a User Manager account (/userman).",
+            )}
+          </p>
           {(
             [
-              ["name", "Router name"],
+              ["name", "Connection name"],
               ["host", "Hostname or IP address"],
-              ["username", "Username"],
-              ["label", "Label"],
+              [
+                "username",
+                isUserManager(draft)
+                  ? "User Manager account (/userman)"
+                  : "Router account username",
+              ],
+              ["label", "Short description (optional)"],
             ] as const
           ).map(([key, label]) => (
             <label key={key} className="block space-y-1">
@@ -452,20 +533,24 @@ export function RouterConnections() {
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span>{t("Transport")}</span>
+            <span>{t("Connection method")}</span>
             <select
               className="rounded-md border bg-background p-2"
               value={draft.transport}
-              onChange={(event) =>
+              onChange={(event) => {
+                const transport = decodeTransport(event.target.value);
                 setDraft({
                   ...draft,
-                  transport: event.target.value === "tls" ? "tls" : "tcp",
-                  port: event.target.value === "tls" ? 8729 : 8728,
-                })
-              }
+                  transport,
+                  port: connectionMethods[transport].port,
+                });
+              }}
             >
-              <option value="tls">API-SSL (TLS)</option>
-              <option value="tcp">{t("API (unencrypted)")}</option>
+              {Object.entries(connectionMethods).map(([method, { label }]) => (
+                <option key={method} value={method}>
+                  {t(label)}
+                </option>
+              ))}
             </select>
           </label>
           <label className="flex flex-col gap-1">
@@ -508,7 +593,7 @@ export function RouterConnections() {
           </label>
           {formError && <p role="alert">{t(formError)}</p>}
           <div className="flex gap-2">
-            <Button type="submit">{t("Save router")}</Button>
+            <Button type="submit">{t("Save connection")}</Button>
             <Button variant="outline" onClick={() => setDraft(null)}>
               {t("Cancel")}
             </Button>

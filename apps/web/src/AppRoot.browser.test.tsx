@@ -366,7 +366,9 @@ it("persists groups, then removes the group without losing destinations", async 
     .element(restarted.getByRole("heading", { name: "Usage", exact: true }))
     .toBeVisible();
   await expect
-    .element(restarted.getByRole("heading", { name: "User Manager is not connected" }))
+    .element(
+      restarted.getByRole("heading", { name: "User Manager operations are not available yet" }),
+    )
     .toBeVisible();
 });
 

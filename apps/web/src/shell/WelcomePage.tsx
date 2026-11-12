@@ -25,7 +25,7 @@ export function WelcomePage({ onContinue }: { onContinue: () => void }) {
         </p>
         <p className="text-sm text-muted-foreground">
           {t(
-            "Save and select a RouterOS 6 router to check its API connection. User Manager operations are not available yet.",
+            "Save your User Manager connection to sign in with your /userman account. Voucher and subscription operations are not available yet.",
           )}
         </p>
       </div>

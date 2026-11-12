@@ -1,5 +1,10 @@
 import * as Context from "effect/Context";
-import { RouterProbeInput, RouterProbeResult } from "./routers.ts";
+import {
+  RouterProbeInput,
+  RouterProbeResult,
+  RouterDisconnectInput,
+  RouterDisconnectResult,
+} from "./routers.ts";
 import type * as DateTime from "effect/DateTime";
 import * as Schema from "effect/Schema";
 import * as HttpApi from "effect/http-api/HttpApi";
@@ -372,11 +377,19 @@ export class EnvironmentHttpApi extends HttpApi.make("environment")
   .add(EnvironmentMetadataHttpApi)
   .add(EnvironmentAuthHttpApi)
   .add(
-    HttpApiGroup.make("routers").add(
-      HttpApiEndpoint.post("probe", "/api/routers/probe", {
-        payload: RouterProbeInput,
-        success: RouterProbeResult,
-        error: EnvironmentScopedOperationErrors,
-      }).middleware(EnvironmentAuthenticatedAuth),
-    ),
+    HttpApiGroup.make("routers")
+      .add(
+        HttpApiEndpoint.post("probe", "/api/routers/probe", {
+          payload: RouterProbeInput,
+          success: RouterProbeResult,
+          error: EnvironmentScopedOperationErrors,
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("disconnect", "/api/routers/disconnect", {
+          payload: RouterDisconnectInput,
+          success: RouterDisconnectResult,
+          error: EnvironmentScopedOperationErrors,
+        }).middleware(EnvironmentAuthenticatedAuth),
+      ),
   ) {}

@@ -116,7 +116,7 @@ export const layer = Layer.succeed(
             send(["/system/resource/print", "=.proplist=version"]);
           } else if (!identity || !version) fail("protocol");
           else if (!/^6\.\d+(?:\.|\s|$)/.test(version)) fail("unsupported");
-          else finish({ kind: "connected", identity, version });
+          else finish({ kind: "connected", service: "router-api", identity, version });
         };
         socket.on("data", (data: Buffer) => {
           buffer = Buffer.concat([buffer, data]);

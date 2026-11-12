@@ -13,7 +13,12 @@ function fakeTimers() {
 it("recovers from a brief interruption without showing an offline state", async () => {
   using _timers = fakeTimers();
   const states: ConnectionState[] = [];
-  const connected: RouterProbeResult = { kind: "connected", identity: "Office", version: "6.49" };
+  const connected: RouterProbeResult = {
+    kind: "connected",
+    service: "router-api",
+    identity: "Office",
+    version: "6.49",
+  };
   const probe = vi
     .fn<() => Promise<RouterProbeResult>>()
     .mockResolvedValueOnce(connected)
@@ -65,7 +70,7 @@ it("ignores a completed request after switching routers", async () => {
   const publish = vi.fn();
   const stop = superviseConnection({ probe: () => promise, publish });
   stop();
-  complete({ kind: "connected", identity: "Old router", version: "6.49" });
+  complete({ kind: "connected", service: "router-api", identity: "Old router", version: "6.49" });
   await promise;
   expect(publish).toHaveBeenCalledTimes(1);
 });

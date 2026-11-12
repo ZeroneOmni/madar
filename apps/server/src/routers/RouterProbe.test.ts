@@ -79,6 +79,7 @@ it.live("authenticates and reads identity and version through the binary API", (
     const router = yield* acquireFixture("success");
     expect(yield* router.check()).toEqual({
       kind: "connected",
+      service: "router-api",
       identity: "Office",
       version: "6.49.18 (long-term)",
     });
@@ -99,6 +100,7 @@ it.live("answers the pre-6.43 login challenge before reading router identity", (
     const router = yield* acquireFixture("legacy", "6.42.12");
     expect(yield* router.check()).toEqual({
       kind: "connected",
+      service: "router-api",
       identity: "Office",
       version: "6.42.12",
     });

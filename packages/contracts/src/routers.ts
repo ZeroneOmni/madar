@@ -6,7 +6,7 @@ export const RouterProfile = Schema.Struct({
   host: Schema.String.check(Schema.isPattern(/^[a-zA-Z0-9.:_-]+$/), Schema.isMaxLength(253)),
   port: Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 65535 })),
   username: Schema.NonEmptyString,
-  transport: Schema.Literals(["tls", "tcp"]),
+  transport: Schema.Literals(["user-manager-http", "user-manager-https", "tls", "tcp"]),
   color: Schema.Literals(["blue", "green", "amber", "red", "purple"]),
   icon: Schema.Literals(["router", "building", "home"]),
   label: Schema.String,
@@ -17,8 +17,14 @@ export type RouterProbeInput = typeof RouterProbeInput.Type;
 export const RouterProbeResult = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("connected"),
+    service: Schema.Literal("router-api"),
     identity: Schema.String,
     version: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("connected"),
+    service: Schema.Literal("user-manager"),
+    customer: Schema.String,
   }),
   Schema.Struct({
     kind: Schema.Literal("failed"),
@@ -34,3 +40,6 @@ export const RouterProbeResult = Schema.Union([
   }),
 ]);
 export type RouterProbeResult = typeof RouterProbeResult.Type;
+
+export const RouterDisconnectInput = Schema.Struct({ profileId: Schema.NonEmptyString });
+export const RouterDisconnectResult = Schema.Struct({ disconnected: Schema.Boolean });

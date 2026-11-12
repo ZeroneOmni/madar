@@ -48,11 +48,14 @@ it("uses desktop bearer authentication without cross-site cookies", async () => 
       getLocalEnvironmentBearerToken: async () => "desktop-fixture",
     },
   });
-  using _fetch = vi
-    .spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(
-      Response.json({ kind: "connected", identity: "Office", version: "6.49" }),
-    );
+  using _fetch = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    Response.json({
+      kind: "connected",
+      service: "router-api",
+      identity: "Office",
+      version: "6.49",
+    }),
+  );
   try {
     const result = await probeRouter(
       {
@@ -71,7 +74,12 @@ it("uses desktop bearer authentication without cross-site cookies", async () => 
       },
       new AbortController().signal,
     );
-    expect(result).toEqual({ kind: "connected", identity: "Office", version: "6.49" });
+    expect(result).toEqual({
+      kind: "connected",
+      service: "router-api",
+      identity: "Office",
+      version: "6.49",
+    });
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith(
       "http://localhost:1234/api/routers/probe",

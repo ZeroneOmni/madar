@@ -1,4 +1,61 @@
 export const routerArabic = {
+  Connections: "الاتصالات",
+  "Signing out…": "جارٍ تسجيل الخروج…",
+  "Save your User Manager connection to sign in with your /userman account. Voucher and subscription operations are not available yet.":
+    "احفظ اتصال مدير المستخدمين للدخول بحساب /userman الخاص بك. عمليات القسائم والاشتراكات غير متاحة بعد.",
+  "User Manager operations are not available yet": "عمليات مدير المستخدمين غير متاحة بعد",
+  "{name} operations are not implemented yet. You can configure and verify your User Manager sign-in from Connections.":
+    "عمليات {name} غير متاحة بعد. يمكنك إعداد الدخول إلى مدير المستخدمين والتحقق منه من صفحة الاتصالات.",
+  "Active connection": "الاتصال النشط",
+  "Select connection": "اختر اتصالًا",
+  "Manage connections": "إدارة الاتصالات",
+  "Saved connections": "الاتصالات المحفوظة",
+  "Add connection": "إضافة اتصال",
+  "Connection details": "تفاصيل الاتصال",
+  "Connection name": "اسم الاتصال",
+  "Connection method": "طريقة الاتصال",
+  "Short description (optional)": "وصف مختصر (اختياري)",
+  "Save connection": "حفظ الاتصال",
+  "User Manager address": "عنوان مدير المستخدمين",
+  "Router API address": "عنوان واجهة الراوتر API",
+  "User Manager account (/userman)": "اسم حساب الإدارة في مدير المستخدمين",
+  "User Manager password": "كلمة مرور حساب الإدارة في مدير المستخدمين",
+  "Router account username": "اسم حساب الراوتر",
+  "Router account password": "كلمة مرور حساب الراوتر",
+  "User Manager sign-in verified": "تم التحقق من الدخول إلى مدير المستخدمين",
+  "User Manager (HTTP)": "حساب إدارة مدير المستخدمين (HTTP)",
+  "User Manager (HTTPS)": "حساب إدارة مدير المستخدمين (HTTPS)",
+  "Router API account (TLS)": "حساب الراوتر عبر API (مشفّر)",
+  "Router API account (unencrypted)": "حساب الراوتر عبر API (غير مشفّر)",
+  "Save your own User Manager address and login. User Manager accounts are separate from router accounts. Passwords are not saved.":
+    "أدخل عنوان مدير المستخدمين واسم حساب الإدارة الخاصين بك. حسابات إدارة مدير المستخدمين في RouterOS 6 منفصلة عن حسابات الراوتر. لا تُحفظ كلمات المرور.",
+  "Use the account you use on /userman, not your router or Wi-Fi account.":
+    "استخدم حساب الإدارة الذي تدخل به إلى /userman، وليس حساب الراوتر أو شبكة Wi-Fi.",
+  "Router API access uses a router account. It does not verify a User Manager account (/userman).":
+    "يستخدم اتصال API حساب الراوتر، ولا يتحقق من حساب إدارة مدير المستخدمين.",
+  "HTTP sends your User Manager login without encryption. Use HTTPS when available.":
+    "يرسل HTTP بيانات دخول مدير المستخدمين دون تشفير. استخدم HTTPS عند توفره.",
+  "Select a saved connection or add one below.": "اختر اتصالًا محفوظًا أو أضف اتصالًا أدناه.",
+  "Madar checks the selected connection every 30 seconds. User Manager sign-in and router API access are different. Voucher and subscription operations are not available yet.":
+    "يفحص مدار الاتصال المختار كل 30 ثانية. الدخول إلى مدير المستخدمين يختلف عن اتصال الراوتر عبر API. عمليات القسائم والاشتراكات غير متاحة بعد.",
+  "User Manager is unreachable. Check its address, web port, and web service.":
+    "تعذر الوصول إلى مدير المستخدمين. تحقق من عنوانه ومنفذ الويب وخدمة الويب.",
+  "The User Manager HTTPS certificate could not be verified. Check its hostname and certificate.":
+    "تعذر التحقق من شهادة HTTPS لمدير المستخدمين. تحقق من اسم المضيف وشهادته.",
+  "User Manager did not respond in time. Check its address, web port, and web service.":
+    "لم يستجب مدير المستخدمين في الوقت المحدد. تحقق من العنوان ومنفذ الويب وخدمة الويب.",
+  "User Manager rejected the customer login or the session expired. Check your /userman account details.":
+    "رُفض الدخول إلى حساب الإدارة أو انتهت الجلسة. تحقق من بيانات حساب /userman.",
+  "This User Manager customer account does not have access.":
+    "حساب الإدارة هذا لا يملك صلاحية الوصول إلى مدير المستخدمين.",
+  "Madar could not confirm the User Manager customer session. This version may need a compatibility update.":
+    "تعذر تأكيد جلسة مدير المستخدمين. قد يحتاج هذا الإصدار إلى تحديث للتوافق.",
+  "This address did not provide a supported RouterOS 6 User Manager login page. Check the address and web port.":
+    "لم يقدم هذا العنوان صفحة دخول مدعومة لمدير المستخدمين في RouterOS 6. تحقق من العنوان ومنفذ الويب.",
+  "Madar could not check User Manager. Check the app connection and try again.":
+    "تعذر فحص مدير المستخدمين. تحقق من اتصال التطبيق وحاول مجددًا.",
+  "Could not close the User Manager session. It may remain active until the server expires it.":
+    "تعذر إنهاء جلسة مدير المستخدمين. قد تظل فعالة حتى ينهيها الخادم تلقائيًا.",
   "Router connections": "اتصالات أجهزة التوجيه",
   "Manage routers": "إدارة أجهزة التوجيه",
   "Active router": "جهاز التوجيه النشط",

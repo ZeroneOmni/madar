@@ -3,7 +3,7 @@ import type { RouterProbeResult } from "@madar/contracts";
 export type ConnectionState =
   | { kind: "disconnected" }
   | { kind: "connecting" }
-  | { kind: "connected"; identity: string; version: string }
+  | Extract<RouterProbeResult, { kind: "connected" }>
   | { kind: "reconnecting"; attempt: number; reason: FailureReason }
   | { kind: "failed"; reason: FailureReason };
 type FailureReason = Extract<RouterProbeResult, { kind: "failed" }>["reason"] | "app";

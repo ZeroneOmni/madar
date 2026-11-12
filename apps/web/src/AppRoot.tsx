@@ -47,7 +47,7 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
         <h2 className="font-semibold">{t("Router connection")}</h2>
         <p className="text-sm text-muted-foreground">
           {t(
-            "Save and select a RouterOS 6 router to check its API connection. User Manager operations are not available yet.",
+            "Save your User Manager connection to sign in with your /userman account. Voucher and subscription operations are not available yet.",
           )}
         </p>
         <p className="text-sm">
@@ -56,7 +56,7 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
           )}
         </p>
         <Button variant="outline" onClick={() => onNavigate("/routers")}>
-          {t("Manage routers")}
+          {t("Manage connections")}
         </Button>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -111,12 +111,14 @@ function DestinationPage({
       <div className="space-y-3 rounded-xl border p-6">
         <TriangleAlert aria-hidden="true" />
         <h2 className="font-medium">
-          {destination ? t("User Manager is not connected") : t("This page is unavailable")}
+          {destination
+            ? t("User Manager operations are not available yet")
+            : t("This page is unavailable")}
         </h2>
         <p className="text-sm text-muted-foreground">
           {destination
             ? t(
-                "Madar has no RouterOS integration configured yet. Live {name} will appear here when a supported router connection is available.",
+                "{name} operations are not implemented yet. You can configure and verify your User Manager sign-in from Connections.",
                 { name: t(destination.label) },
               )
             : t(
