@@ -16,6 +16,7 @@ function setup(path = "/") {
       localStorage.removeItem(key);
     }
   }
+  localStorage.setItem("madar:language", "en");
   const previousUrl = location.href;
   history.replaceState(null, "", "#" + path);
   return {
@@ -188,7 +189,7 @@ it("switches languages in Settings, searches Arabic commands and preserves the c
     .element(restarted.getByRole("heading", { name: "القسائم", exact: true }))
     .toBeVisible();
   await restarted.getByRole("button", { name: "الإعدادات", exact: true }).click();
-  await restarted.getByRole("button", { name: "English", exact: true }).click();
+  await restarted.getByRole("button", { name: "الإنجليزية", exact: true }).click();
   await expect
     .element(restarted.getByRole("heading", { name: "General", exact: true }))
     .toBeVisible();

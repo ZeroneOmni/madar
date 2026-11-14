@@ -1,7 +1,18 @@
 import { routerArabic } from "./routers/messages";
+import { voucherArabic } from "./vouchers/messages";
 
 export const arabic = {
   ...routerArabic,
+  ...voucherArabic,
+  Madar: "مدار",
+  English: "الإنجليزية",
+  "Copied!": "تم النسخ",
+  "Failed to copy": "تعذّر النسخ",
+  "Unable to open release notes": "تعذّر فتح ملاحظات الإصدار",
+  "Read more": "قراءة المزيد",
+  "Update downloaded": "تم تنزيل التحديث",
+  "Restart the app from the update button to install it.":
+    "أعد تشغيل التطبيق من زر التحديث لتثبيته.",
   Return: "رجوع",
   Settings: "الإعدادات",
   Overview: "نظرة عامة",

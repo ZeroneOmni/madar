@@ -352,7 +352,7 @@ export function ShellSidebar({
         }
       }}
     >
-      <ShellSidebarHeader title={settingsPage ? t("Settings") : "Madar"} />
+      <ShellSidebarHeader title={settingsPage ? t("Settings") : t("Madar")} />
       {settingsPage ? (
         <SettingsNavigation path={path} onNavigate={navigate} returnPath={returnPath} />
       ) : compact ? (

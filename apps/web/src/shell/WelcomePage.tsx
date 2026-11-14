@@ -25,7 +25,7 @@ export function WelcomePage({ onContinue }: { onContinue: () => void }) {
         </p>
         <p className="text-sm text-muted-foreground">
           {t(
-            "Save your User Manager connection to sign in with your /userman account. Voucher and subscription operations are not available yet.",
+            "Connect through API-SSL to browse customer vouchers, create batches, manage profiles and check usage.",
           )}
         </p>
       </div>

@@ -1,3 +1,5 @@
+import { translate } from "../locale";
+import { readLocale, useLocale } from "../useLocale";
 import type { DesktopBridge, DesktopUpdateState } from "@madar/contracts";
 import { ArrowRightIcon } from "lucide-react";
 
@@ -16,7 +18,10 @@ export async function openDesktopUpdateReleaseNotes(
   try {
     if (shell && (await shell.openExternal(releaseUrl))) return;
   } catch {}
-  toastManager.add({ type: "error", title: "Unable to open release notes" });
+  toastManager.add({
+    type: "error",
+    title: translate(readLocale(), "Unable to open release notes"),
+  });
 }
 
 function ReleaseNotesLink({
@@ -26,18 +31,19 @@ function ReleaseNotesLink({
   shell: DesktopUpdateShell;
   releaseUrl: string;
 }) {
+  const { t } = useLocale();
   return (
     <button
-      className="ml-2 inline cursor-pointer text-muted-foreground underline decoration-dotted underline-offset-4 transition-colors hover:text-foreground"
+      className="ms-2 inline cursor-pointer text-muted-foreground underline decoration-dotted underline-offset-4 transition-colors hover:text-foreground"
       onClick={() => {
         void openDesktopUpdateReleaseNotes(shell, releaseUrl);
       }}
       type="button"
     >
-      Read more
+      {t("Read more")}
       <ArrowRightIcon
         aria-hidden
-        className="ml-1 inline size-3 -rotate-45 align-[-0.125em]"
+        className="ms-1 inline size-3 -rotate-45 align-[-0.125em]"
         strokeWidth={2.25}
       />
     </button>
@@ -51,10 +57,10 @@ export function showDesktopUpdateDownloadedToast(
   const releaseUrl = getDesktopUpdateReleaseUrl(getDesktopUpdateDownloadedVersion(state));
   toastManager.add({
     type: "success",
-    title: "Update downloaded",
+    title: translate(readLocale(), "Update downloaded"),
     description: (
       <>
-        Restart the app from the update button to install it.
+        {translate(readLocale(), "Restart the app from the update button to install it.")}
         {releaseUrl ? <ReleaseNotesLink releaseUrl={releaseUrl} shell={shell} /> : null}
       </>
     ),

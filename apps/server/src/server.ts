@@ -18,8 +18,10 @@ import * as ServerEnvironment from "./environment/ServerEnvironment.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import * as AuthHttp from "./auth/http.ts";
 import * as RouterHttp from "./routers/http.ts";
-import * as RouterProbe from "./routers/RouterProbe.ts";
-import * as UserManagerConnection from "./routers/UserManagerConnection.ts";
+import * as RouterApi from "./routers/RouterApi.ts";
+import * as VoucherHttp from "./vouchers/http.ts";
+import * as VoucherService from "./vouchers/VoucherService.ts";
+import * as VoucherStore from "./vouchers/VoucherStore.ts";
 import * as ReplayMarkers from "./auth/replayMarkers.ts";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
 import {
@@ -74,10 +76,12 @@ const layerRoutes = Layer.mergeAll(
   HttpApiBuilder.layer(EnvironmentHttpApi).pipe(
     Layer.provide(AuthHttp.layer),
     Layer.provide(
-      RouterHttp.layer.pipe(
-        Layer.provide(RouterProbe.layer),
-        Layer.provide(UserManagerConnection.layer),
-      ),
+      Layer.merge(
+        RouterHttp.layer,
+        VoucherHttp.layer.pipe(
+          Layer.provide(VoucherService.layer.pipe(Layer.provide(VoucherStore.layer))),
+        ),
+      ).pipe(Layer.provide(RouterApi.layer)),
     ),
     Layer.provide(ServerHttp.layerServerEnvironmentHttpApi),
     Layer.provide(AuthHttp.layerAuthenticatedAuth),

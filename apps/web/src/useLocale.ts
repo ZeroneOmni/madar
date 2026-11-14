@@ -41,7 +41,7 @@ const translators = {
 };
 
 export function useLocale() {
-  const locale = useSyncExternalStore(subscribe, readLocale, () => "en" as const);
+  const locale = useSyncExternalStore(subscribe, readLocale, () => "ar" as const);
   return {
     locale,
     direction: locale === "ar" ? ("rtl" as const) : ("ltr" as const),

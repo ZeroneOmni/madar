@@ -114,7 +114,15 @@ try {
       )
       .all()
       .map((row) => row.name),
-    ["auth_pairing_links", "auth_sessions", "effect_sql_migrations"],
+    [
+      "auth_pairing_links",
+      "auth_sessions",
+      "effect_sql_migrations",
+      "voucher_catalog",
+      "voucher_operations",
+      "voucher_sync",
+      "vouchers",
+    ],
   );
   console.log(
     "PASS: desktop bootstrap, authentication, metadata, retired APIs, and isolated Madar schema",

@@ -11,7 +11,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 
 import * as SqlitePersistence from "./Sqlite.ts";
 
-it.effect("initializes only the local authentication schema", () =>
+it.effect("initializes local authentication and voucher storage", () =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const tables = yield* sql<{ readonly name: string }>`
@@ -20,7 +20,15 @@ it.effect("initializes only the local authentication schema", () =>
     `;
     assert.deepEqual(
       tables.map((table) => table.name),
-      ["auth_pairing_links", "auth_sessions", "effect_sql_migrations"],
+      [
+        "auth_pairing_links",
+        "auth_sessions",
+        "effect_sql_migrations",
+        "voucher_catalog",
+        "voucher_operations",
+        "voucher_sync",
+        "vouchers",
+      ],
     );
   }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
 );

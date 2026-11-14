@@ -6,7 +6,7 @@ export const RouterProfile = Schema.Struct({
   host: Schema.String.check(Schema.isPattern(/^[a-zA-Z0-9.:_-]+$/), Schema.isMaxLength(253)),
   port: Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 65535 })),
   username: Schema.NonEmptyString,
-  transport: Schema.Literals(["user-manager-http", "user-manager-https", "tls", "tcp"]),
+  transport: Schema.Literals(["tls", "tcp"]),
   color: Schema.Literals(["blue", "green", "amber", "red", "purple"]),
   icon: Schema.Literals(["router", "building", "home"]),
   label: Schema.String,
@@ -20,11 +20,6 @@ export const RouterProbeResult = Schema.Union([
     service: Schema.Literal("router-api"),
     identity: Schema.String,
     version: Schema.String,
-  }),
-  Schema.Struct({
-    kind: Schema.Literal("connected"),
-    service: Schema.Literal("user-manager"),
-    customer: Schema.String,
   }),
   Schema.Struct({
     kind: Schema.Literal("failed"),

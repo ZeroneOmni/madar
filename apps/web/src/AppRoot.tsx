@@ -1,4 +1,5 @@
 import { useDocumentAppearance } from "./appearancePreferences";
+import { VouchersPage } from "./vouchers/VouchersPage";
 import { RouterConnections, RouterPicker, RouterProvider } from "./routers/RouterConnections";
 import { useLocale } from "./useLocale";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
@@ -47,7 +48,7 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
         <h2 className="font-semibold">{t("Router connection")}</h2>
         <p className="text-sm text-muted-foreground">
           {t(
-            "Save your User Manager connection to sign in with your /userman account. Voucher and subscription operations are not available yet.",
+            "Connect through API-SSL to browse customer vouchers, create batches, manage profiles and check usage.",
           )}
         </p>
         <p className="text-sm">
@@ -118,7 +119,7 @@ function DestinationPage({
         <p className="text-sm text-muted-foreground">
           {destination
             ? t(
-                "{name} operations are not implemented yet. You can configure and verify your User Manager sign-in from Connections.",
+                "{name} is planned for a later release. Voucher management and usage are available in Vouchers.",
                 { name: t(destination.label) },
               )
             : t(
@@ -169,7 +170,7 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
             className="[-webkit-app-region:no-drag] flex min-w-0 items-center gap-2 text-sm"
           >
             <Button variant="link" size="sm" onClick={() => navigate("/overview")}>
-              Madar
+              {t("Madar")}
             </Button>
             <span aria-hidden="true">/</span>
             <span className="truncate" aria-current="page">
@@ -212,6 +213,8 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
             <Overview onNavigate={navigate} />
           ) : path === "/routers" ? (
             <RouterConnections />
+          ) : path === "/vouchers" ? (
+            <VouchersPage />
           ) : path === "/notifications" ? (
             <NotificationCenter onNavigate={navigate} />
           ) : (

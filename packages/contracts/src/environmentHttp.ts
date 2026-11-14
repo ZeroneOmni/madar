@@ -1,5 +1,16 @@
 import * as Context from "effect/Context";
 import {
+  VoucherCatalog,
+  VoucherQuery,
+  VoucherPage,
+  VoucherScope,
+  VoucherTarget,
+  VoucherDetails,
+  VoucherMutation,
+  VoucherOperation,
+  VoucherFailure,
+} from "./vouchers.ts";
+import {
   RouterProbeInput,
   RouterProbeResult,
   RouterDisconnectInput,
@@ -377,10 +388,65 @@ export class EnvironmentHttpApi extends HttpApi.make("environment")
   .add(EnvironmentMetadataHttpApi)
   .add(EnvironmentAuthHttpApi)
   .add(
+    HttpApiGroup.make("vouchers")
+      .add(
+        HttpApiEndpoint.post("catalog", "/api/vouchers/catalog", {
+          payload: Schema.Struct({
+            router: RouterProbeInput.fields.profile,
+            refresh: Schema.Boolean,
+          }),
+          success: VoucherCatalog,
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("list", "/api/vouchers/list", {
+          payload: VoucherQuery,
+          success: VoucherPage,
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("sync", "/api/vouchers/sync", {
+          payload: VoucherScope,
+          success: VoucherCatalog,
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("details", "/api/vouchers/details", {
+          payload: Schema.Struct({ ...VoucherTarget.fields, revealPassword: Schema.Boolean }),
+          success: VoucherDetails,
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("mutate", "/api/vouchers/mutate", {
+          payload: VoucherMutation,
+          success: VoucherOperation,
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("history", "/api/vouchers/history", {
+          payload: VoucherScope,
+          success: Schema.Array(VoucherOperation),
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      ),
+  )
+  .add(
     HttpApiGroup.make("routers")
       .add(
         HttpApiEndpoint.post("probe", "/api/routers/probe", {
           payload: RouterProbeInput,
+          success: RouterProbeResult,
+          error: EnvironmentScopedOperationErrors,
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("status", "/api/routers/status", {
+          payload: RouterDisconnectInput,
           success: RouterProbeResult,
           error: EnvironmentScopedOperationErrors,
         }).middleware(EnvironmentAuthenticatedAuth),

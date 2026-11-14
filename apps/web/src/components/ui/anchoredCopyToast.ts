@@ -1,3 +1,5 @@
+import { translate } from "../../locale";
+import { readLocale } from "../../useLocale";
 import type { RefObject } from "react";
 import { anchoredToastManager } from "./toast";
 
@@ -13,11 +15,14 @@ export function showAnchoredCopySuccessToast(ref: RefObject<HTMLButtonElement | 
       anchor: ref.current,
     },
     timeout: ANCHORED_COPY_TOAST_TIMEOUT_MS,
-    title: "Copied!",
+    title: translate(readLocale(), "Copied!"),
   });
 }
 
-export function showAnchoredCopyErrorToast(ref: RefObject<HTMLButtonElement | null>, error: Error) {
+export function showAnchoredCopyErrorToast(
+  ref: RefObject<HTMLButtonElement | null>,
+  _error: Error,
+) {
   if (!ref.current) return;
   anchoredToastManager.add({
     data: {
@@ -27,7 +32,6 @@ export function showAnchoredCopyErrorToast(ref: RefObject<HTMLButtonElement | nu
       anchor: ref.current,
     },
     timeout: ANCHORED_COPY_TOAST_TIMEOUT_MS,
-    title: "Failed to copy",
-    description: error.message,
+    title: translate(readLocale(), "Failed to copy"),
   });
 }

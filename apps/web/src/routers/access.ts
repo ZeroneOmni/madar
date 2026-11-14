@@ -17,6 +17,23 @@ function endpoint(path: string) {
   const base = localBackend()?.httpBaseUrl;
   return base ? new URL(path, base).href : path;
 }
+export async function routerRequest(path: string, input: unknown, signal?: AbortSignal) {
+  const bridge = window.desktopBridge;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (bridge) headers.Authorization = `Bearer ${await bridge.getLocalEnvironmentBearerToken()}`;
+  return fetch(endpoint(path), {
+    method: "POST",
+    headers,
+    body: JSON.stringify(input),
+    credentials: bridge ? "omit" : "include",
+    signal: signal ?? AbortSignal.timeout(300000),
+  });
+}
+export async function checkRouter(profileId: string, signal: AbortSignal) {
+  const response = await routerRequest("/api/routers/status", { profileId }, signal);
+  if (!response.ok) throw new Error("Router check unavailable");
+  return decodeResult(await response.json());
+}
 async function signIn(credential: string) {
   const response = await fetch(endpoint("/api/auth/browser-session"), {
     method: "POST",

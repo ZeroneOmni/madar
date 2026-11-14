@@ -1,25 +1,35 @@
-# Your workspace
+# مساحة العمل
 
-Madar's workspace provides navigation, commands, preferences, router connections, and operation notifications. Voucher, subscription, card-design, and usage operations are not available yet.
+يدير مدار قسائم مدير المستخدمين على الراوترات التي تعمل بنظام RouterOS 6. الواجهة عربية افتراضيًا، وتدعم اتجاه الكتابة من اليمين إلى اليسار. يمكنك اختيار الإنجليزية من **الإعدادات > عام > اللغة**؛ يُحفظ اختيارك على هذا الجهاز.
 
-Use **Manage connections** in the header or command palette to save a connection, then select it in the header. Enter its password and choose **Connect**. Names, addresses, usernames, descriptions, colors, and icons are saved on this device; passwords are not saved. Editing the active connection disconnects it.
+## الاتصال بالراوتر
 
-For a RouterOS 6 **User Manager account (/userman)**, enter the User Manager host, its web port, and the account you use at `/userman`. Choose HTTP (normally port 80) or HTTPS (normally port 443); HTTPS requires a trusted certificate. HTTP transmits login details without encryption. Madar confirms the customer session before displaying verified User Manager access. Voucher and subscription operations are not available yet.
+افتح **إدارة الاتصالات** من الشريط العلوي أو قائمة الأوامر، وأضف الراوتر الذي يستضيف مدير المستخدمين. اختر الاتصال، وأدخل كلمة مرور حساب الراوتر، ثم اضغط **اتصال**. تُحفظ بيانات الاتصال على جهازك؛ وتبقى كلمة المرور في الذاكرة حتى تقطع الاتصال أو تُغلق خدمة مدار. تعديل الاتصال النشط يقطع اتصاله.
 
-**Router API account** is a separate connection method for router credentials. API-SSL normally uses port 8729; unencrypted API normally uses 8728. This connection checks router identity and version and does not verify a User Manager account (/userman). Existing saved router API connections retain their method.
+الواجهة المشفّرة **API-SSL** هي الافتراضية، وعادةً تستخدم المنفذ 8729. يجب إعداد شهادة موثوقة تطابق اسم المضيف. الواجهة الأصلية **API**، وعادةً تستخدم المنفذ 8728، خيار احتياطي غير مشفّر لشبكة موثوقة. لا يتحول مدار تلقائيًا من الاتصال المشفّر إلى الاتصال غير المشفّر.
 
-Access is checked every 30 seconds. Temporary failures retry up to five times, with a short delay before displaying an interruption. Use **Connection diagnosis**, **Copy diagnostics**, and **Retry connection** to investigate and recover; copied diagnostics exclude passwords, usernames, names, and host addresses.
+استخدم حساب راوتر يملك صلاحيات الواجهة البرمجية والقراءة والكتابة، وصلاحية البيانات الحساسة عند الحاجة لجلب كلمات المرور. حساب الراوتر مختلف عن حساب العميل أو القسيمة في مدير المستخدمين. يجب استبدال اتصالات تسجيل الدخول عبر الويب القديمة باتصال بالواجهة البرمجية.
 
-Use **Organize navigation** to change destination order or create named groups. You can also drag destinations between rows and groups. Removing a group keeps its destinations in the workspace. Navigation and preferences are saved locally; a failed save leaves the previous saved value in use.
+## إدارة القسائم
 
-Switch the sidebar to compact mode to give the workspace more room. Its icons keep every destination available, including pages in folded groups; hover an icon to see its name.
+افتح **القسائم** واختر العميل. يجلب التحديث الأول القائمة الكاملة لهذا العميل. بعد ذلك يعمل البحث والتصفية والترتيب والتنقل بين الصفحات من النسخة المحلية، حتى عند انقطاع الإنترنت. يظهر وقت آخر تحديث كامل لتوضيح عمر البيانات. تُحدّث القسائم عند الاتصال وبصورة دورية أثناء ظهور الصفحة، مع تقليل التكرار على الاتصالات البطيئة أو عند تكرر الفشل. يمكنك طلب تحديث يدوي متى احتجت.
 
-Open the command palette with **Ctrl+K** on Windows/Linux or **Command+K** on macOS. Change or reset shortcuts in **Settings > Keyboard shortcuts**. Select a shortcut, press the new combination, then save; Escape cancels recording. Add bindings for unassigned commands with **Add keybinding**, or remove and reset bindings from their row menu. Navigation shortcuts pause while typing; the command palette and Settings shortcuts remain available.
+أنشئ قسيمة واحدة أو دفعة تصل إلى 100 قسيمة. يمكنك إدخال اسم المستخدم وكلمة المرور لقسيمة واحدة، أو تركهما فارغين للتوليد التلقائي. اختر باقة موجودة لإضافتها وتفعيلها بعد الإنشاء، أو اترك القسيمة بدون باقة. راجع العملية قبل تنفيذها، ثم صدّر بيانات الدخول للقسائم التي تأكد إنشاؤها. لا تُجلب كلمات المرور أثناء الاستعراض؛ افتح تفاصيل القسيمة لطلب جلب كلمة مرورها عند توفر الصلاحية.
 
-Choose **English** or **العربية** in **Settings > General > Language**. Arabic uses a right-to-left layout. Your choice takes effect immediately and is remembered on this device. The welcome screen also offers this choice; the first launch follows your system language when supported.
+حدّد القسائم لتفعيلها أو تعطيلها أو حذفها أو تصفير عداداتها أو إضافة باقة وتفعيلها. افتح القسيمة لتعديل اسم المستخدم وكلمة المرور والملاحظة وعدد الاتصالات المتزامنة، أو لعرض الاستهلاك والجلسات. الحذف وتصفير العدادات لا يمكن التراجع عنهما. تصفير العدادات لا يجدد الباقة، وقد تستمر الجلسات الحالية بعد تعطيل القسيمة أو تفعيل باقة جديدة إلى أن تُطبّق الشبكة التغيير.
 
-Search in Settings to jump directly to a preference. Settings links preserve their section and target when reopened. In **Settings > Privacy**, workspace overrides take precedence over application defaults; **Use application default** restores inheritance. Masking hides values on screen, while Copy copies the original value.
+تُسجل نتيجة العملية لكل قسيمة. قد يؤدي فشل إسناد الباقة بعد الإنشاء إلى بقاء القسيمة دون الباقة المطلوبة. عند انقطاع الاستجابة، تحقّق من النتيجة المسجلة وحدّث القسائم المعنية قبل اتخاذ إجراء آخر. لا يعيد مدار تنفيذ العمليات غير المؤكدة تلقائيًا. لا يُخمّن تاريخ انتهاء القسيمة أو سجل باقاتها عندما لا تتيحهما واجهة الراوتر بصورة موثوقة.
 
-Results from preference changes and app updates appear in **Notifications**. You can mark them read or unread, open their related page, or dismiss them. In-app toasts and background desktop notifications can be configured separately in **Settings > Notifications**. Operating-system permissions and Do Not Disturb may suppress desktop delivery; delivery failures offer a retry.
+يفحص مدار الاتصال كل 30 ثانية، ويعيد المحاولة حتى خمس مرات عند الأعطال المؤقتة. إذا توقفت محاولات الاستعادة، أعد الاتصال من **الاتصالات**. إدارة الاشتراكات المنفصلة وتصميم البطاقات مخططان لإصدارات لاحقة.
 
-Revisit the introduction or restart setup in **Settings > General**. Completing setup is saved only when local storage accepts the change.
+## التفضيلات والتنقل
+
+استخدم **تنظيم التنقل** لتغيير ترتيب الوجهات أو جمعها في مجموعات. يمكنك سحب الوجهات بين الصفوف والمجموعات؛ حذف المجموعة يحتفظ بوجهاتها. يتيح الشريط الجانبي المصغّر مساحة أكبر، مع إبقاء جميع الوجهات متاحة وإظهار أسمائها عند مرور المؤشر.
+
+افتح قائمة الأوامر بالاختصار **Ctrl+K** على ويندوز ولينكس، أو **Command+K** على ماك. عدّل الاختصارات من **الإعدادات > اختصارات لوحة المفاتيح**. يتوقف التنقل بالاختصارات أثناء الكتابة، مع بقاء اختصارات قائمة الأوامر والإعدادات متاحة.
+
+ابحث داخل الإعدادات للوصول مباشرةً إلى التفضيل المطلوب. في **الإعدادات > الخصوصية**، تتقدم إعدادات مساحة العمل على إعدادات التطبيق. يخفي حجب البيانات الحساسة القيم على الشاشة؛ ويظل النسخ ينقل القيمة الأصلية.
+
+تظهر نتائج تغيير التفضيلات وتحديثات التطبيق في **الإشعارات**. يمكنك تمييزها كمقروءة أو غير مقروءة، وفتح الصفحة المرتبطة بها، أو تجاهلها. اضبط تنبيهات التطبيق وإشعارات سطح المكتب من **الإعدادات > الإشعارات**. قد تمنع أذونات نظام التشغيل أو وضع عدم الإزعاج ظهور الإشعارات.
+
+تُحفظ التفضيلات والتنقل محليًا. عند فشل الحفظ، تبقى القيمة المحفوظة السابقة مستخدمة. يمكنك إعادة فتح المقدمة أو بدء الإعداد من جديد من **الإعدادات > عام**.

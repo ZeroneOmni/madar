@@ -22,9 +22,8 @@ const layerSetup = Layer.effectDiscard(
     }>`SELECT COUNT(*) AS count FROM sqlite_schema WHERE type = 'table'`;
     if (tables[0]?.count === 0) yield* sql`PRAGMA auto_vacuum = INCREMENTAL;`;
     yield* sql`PRAGMA journal_mode = WAL;`;
-    // FULL fsyncs every event commit on the main thread; NORMAL syncs only at WAL checkpoints.
-    // App crashes lose nothing; OS crashes or power loss can roll back post-checkpoint commits without corruption.
-    yield* sql`PRAGMA synchronous = NORMAL;`;
+    // Voucher operation records must survive power loss before sending router commands.
+    yield* sql`PRAGMA synchronous = FULL;`;
     // macOS fsync misses drive caches; F_FULLFSYNC flushes them at checkpoints and is ignored elsewhere.
     yield* sql`PRAGMA checkpoint_fullfsync = ON;`;
     // PASSIVE checkpoints retain peak WAL size until the last connection closes.

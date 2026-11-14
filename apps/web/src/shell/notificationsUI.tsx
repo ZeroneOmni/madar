@@ -47,7 +47,7 @@ export function NotificationsCoordinator({ onNavigate }: { onNavigate: (path: st
       if (state.status === "error")
         notifyShell({
           title: "Madar update failed",
-          message: state.message ?? "The update could not complete.",
+          message: "The update could not complete.",
           level: "error",
           path: "/settings/general",
         });

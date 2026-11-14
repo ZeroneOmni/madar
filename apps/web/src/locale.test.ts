@@ -6,7 +6,8 @@ it("respects explicit language and detects Arabic regional preferences", () => {
   expect(resolveLocale("ar", ["en-US"])).toBe("ar");
   expect(resolveLocale(null, ["ar-KW", "en"])).toBe("ar");
   expect(resolveLocale("invalid", ["fr", "ar-SA"])).toBe("ar");
-  expect(resolveLocale(null, ["fr"])).toBe("en");
+  expect(resolveLocale(null, ["fr"])).toBe("ar");
+  expect(resolveLocale(null, ["en-US"])).toBe("ar");
 });
 
 it("translates complete messages with interpolation and preserves external text", () => {

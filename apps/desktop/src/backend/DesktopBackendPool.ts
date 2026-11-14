@@ -121,8 +121,8 @@ export const layer = Layer.effect(
       onStateDirOwned: () =>
         electronDialog
           .showErrorBox(
-            "This Madar home is unavailable",
-            "Another Madar server, such as the background service, is using this data directory, or an older background service is set up for it. Stop that server or try `madar update`. If the older launcher cannot update, run `madar service uninstall` and optionally reinstall with `madar service install` from a current CLI. Use `npx madar@latest` if `madar` is missing or outdated, and pass `--base-dir` with the service's Madar home to each command. Then reopen Madar. You can also set a separate MADAR_HOME and pair with the running server.",
+            "مجلد بيانات مدار غير متاح",
+            "تستخدم نسخة أخرى من مدار مجلد البيانات هذا، أو توجد خدمة قديمة مرتبطة به. أوقف النسخة الأخرى وأعد فتح التطبيق. لإدارة الخدمة، استخدم أوامر مدار من الطرفية أو اختر مجلد بيانات مختلفًا.",
           )
           .pipe(Effect.andThen(electronApp.quit)),
     });

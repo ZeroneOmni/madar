@@ -16,7 +16,7 @@ export function LanguageSettings() {
       <div role="group" aria-label={t("Language")} className="flex flex-wrap gap-2">
         {(
           [
-            ["en", "English"],
+            ["en", t("English")],
             ["ar", "العربية"],
           ] as const
         ).map(([value, label]) => (
