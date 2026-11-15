@@ -515,6 +515,7 @@ function Toasts({ position }: { position: ToastPosition }) {
   return (
     <Toast.Portal data-slot="toast-portal">
       <Toast.Viewport
+        aria-label={t("Notifications")}
         className={cn(
           "fixed z-100 mx-auto flex w-[calc(100%-var(--toast-inset)*2)] max-w-90 [--toast-header-offset:var(--workspace-topbar-height)] [--toast-inset:--spacing(4)] sm:[--toast-inset:--spacing(8)]",
           "data-[position*=top]:top-[calc(var(--toast-inset)+var(--toast-header-offset))]",
@@ -657,7 +658,11 @@ function AnchoredToasts() {
 
   return (
     <Toast.Portal data-slot="toast-portal-anchored">
-      <Toast.Viewport className="outline-none" data-slot="toast-viewport-anchored">
+      <Toast.Viewport
+        aria-label={t("Notifications")}
+        className="outline-none"
+        data-slot="toast-viewport-anchored"
+      >
         {toasts.map((toast) => {
           const tooltipStyle = toast.data?.tooltipStyle ?? false;
           const positionerProps = toast.positionerProps;

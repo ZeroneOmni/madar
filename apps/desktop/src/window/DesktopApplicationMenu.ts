@@ -296,7 +296,21 @@ export const make = Effect.gen(function* () {
           { role: "togglefullscreen", label: "ملء الشاشة" },
         ],
       },
-      { role: "windowMenu", label: "النافذة" },
+      {
+        role: "windowMenu",
+        label: "النافذة",
+        submenu: [
+          { role: "minimize", label: "تصغير النافذة" },
+          { role: "zoom", label: "تكبير النافذة" },
+          { role: "close", label: "إغلاق النافذة" },
+          ...(environment.platform === "darwin"
+            ? [
+                { type: "separator" as const },
+                { role: "front" as const, label: "إظهار جميع النوافذ" },
+              ]
+            : []),
+        ],
+      },
       {
         role: "help",
         label: "المساعدة",
