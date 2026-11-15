@@ -8,7 +8,8 @@ it.each([
   ["ar", ["en-US"], "ar", "rtl"],
   ["en", ["ar-KW"], "en", "ltr"],
   [null, ["ar-KW"], "ar", "rtl"],
-  ["invalid", ["fr", "en-GB"], "en", "ltr"],
+  [null, ["en-US"], "ar", "rtl"],
+  ["invalid", ["fr", "en-GB"], "ar", "rtl"],
 ] as const)("sets language %s before rendering", (saved, languages, lang, dir) => {
   const documentElement = { lang: "", dir: "", classList: { toggle: () => {} }, style: {} };
   new Function("window", "document", script)(
