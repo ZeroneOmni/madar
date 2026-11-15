@@ -286,6 +286,8 @@ function VoucherEditForm({
   onReview: (action: VoucherAction) => void;
 }) {
   const { t } = useLocale();
+  const { maskSensitive } = usePrivacySettings();
+  const [revealUsername, setRevealUsername] = useState(false);
   const [username, setUsername] = useState(voucher.username);
   const [password, setPassword] = useState("");
   const [comment, setComment] = useState(voucher.comment);
@@ -305,15 +307,29 @@ function VoucherEditForm({
         });
       }}
     >
-      <label>
-        <span>{t("Username")}</span>
-        <Input
-          required
-          maxLength={128}
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-        />
-      </label>
+      <div className="space-y-1">
+        <label>
+          <span>{t("Username")}</span>
+          <Input
+            required
+            type={maskSensitive && !revealUsername ? "password" : "text"}
+            autoComplete="off"
+            maxLength={128}
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+          />
+        </label>
+        {maskSensitive && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setRevealUsername(!revealUsername)}
+          >
+            {t(revealUsername ? "Hide username" : "Reveal username for editing")}
+          </Button>
+        )}
+      </div>
       <label>
         <span>{t("New password (blank keeps current)")}</span>
         <Input

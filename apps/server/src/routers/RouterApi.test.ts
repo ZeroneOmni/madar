@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeTls from "node:tls";
 import { it, expect } from "@effect/vitest";
+import { vi } from "vite-plus/test";
 import * as Effect from "effect/Effect";
 import * as RouterApi from "./RouterApi.ts";
 import { routerFixture } from "../vouchers/routerFixture.ts";
@@ -25,6 +26,26 @@ A+Ke/q0rNPya3fjQa9O5B+kCIQC1SfmdNaFcNJ4JINlus4FfrRnfKiADS2MIJR9f
 99BN0A==
 -----END CERTIFICATE-----
 `;
+
+it.live("keeps an authenticated socket after its connection deadline is cleared", () =>
+  Effect.gen(function* () {
+    const router = yield* Effect.acquireDisposable(Effect.promise(() => routerFixture(0)));
+    yield* Effect.gen(function* () {
+      const api = yield* RouterApi.RouterApi;
+      using deadlines = vi.spyOn(globalThis, "setTimeout");
+      using cleared = vi.spyOn(globalThis, "clearTimeout");
+      expect(
+        (yield* api.connect({ profile: router.profile, password: "fixture" }, "owner")).kind,
+      ).toBe("connected");
+      for (const [index, [callback, delay]] of deadlines.mock.calls.entries()) {
+        const timer = deadlines.mock.results[index]?.value;
+        if (delay === 10000 && !cleared.mock.calls.some(([value]) => value === timer)) callback();
+      }
+      yield* api.execute(router.profile, "owner", ["/system/identity/print"]);
+      expect(router.commands.filter((words) => words[0] === "/login")).toHaveLength(1);
+    }).pipe(Effect.provide(RouterApi.layer));
+  }).pipe(Effect.scoped),
+);
 
 it.live("verifies API-SSL certificates and never sends credentials before TLS verification", () =>
   Effect.gen(function* () {

@@ -192,22 +192,29 @@ const make = Effect.gen(function* () {
       }
       if (action.kind === "assign-profile" && !action.profile)
         return yield* new VoucherFailure({ reason: "rejected" });
-      let operation: VoucherOperation = {
-        requestId: input.requestId,
-        kind: action.kind,
-        createdAt: yield* now,
-        state: "running",
-        outcomes: [],
-      };
-      yield* store.saveOperation(input, operation);
       const targets =
         action.kind === "create"
           ? action.items.map((item) => item.username)
           : action.kind === "edit"
             ? [action.id]
             : [...new Set(action.ids)];
+      let operation: VoucherOperation = {
+        requestId: input.requestId,
+        kind: action.kind,
+        createdAt: yield* now,
+        state: "running",
+        outcomes: targets.map((target) => ({ target, state: "pending", reason: "" })),
+      };
+      yield* store.saveOperation(input, operation);
       for (let index = 0; index < targets.length; index++) {
         const target = targets[index]!;
+        operation = {
+          ...operation,
+          outcomes: operation.outcomes.map((outcome, position) =>
+            position === index ? { ...outcome, state: "uncertain" } : outcome,
+          ),
+        };
+        yield* store.saveOperation(input, operation);
         let written = false;
         const result = yield* Effect.gen(function* () {
           let id = target;
@@ -283,7 +290,12 @@ const make = Effect.gen(function* () {
             }),
           ),
         );
-        operation = { ...operation, outcomes: operation.outcomes.concat(result) };
+        operation = {
+          ...operation,
+          outcomes: operation.outcomes.map((outcome, position) =>
+            position === index ? result : outcome,
+          ),
+        };
         yield* store.saveOperation(input, operation);
         if (result.state === "uncertain") break;
       }

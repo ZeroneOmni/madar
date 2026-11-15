@@ -25,6 +25,7 @@ import {
   DialogFooter,
 } from "../components/ui/dialog";
 import { usePrivacySettings } from "../shell/settingsState";
+import { SensitiveText } from "../shell/SensitiveText";
 import { navigateShell } from "../shell/routes";
 import { useLocale } from "../useLocale";
 import { useStableCallback } from "../hooks/useStableCallback";
@@ -167,6 +168,7 @@ function CustomerVouchers({
   onCatalog: (value: VoucherCatalog) => void;
 }) {
   const { t, locale } = useLocale();
+  const { maskSensitive } = usePrivacySettings();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<VoucherQuery["status"]>("all");
   const [profile, setProfile] = useState("");
@@ -490,9 +492,13 @@ function CustomerVouchers({
                       : pending.action.ids.length}
                 </p>
                 {pending.action.kind === "create" && (
-                  <p className="max-h-24 overflow-auto text-sm">
-                    {pending.action.items.map((item) => item.username).join(", ")}
-                  </p>
+                  <div className="max-h-24 overflow-auto text-sm">
+                    <SensitiveText
+                      value={pending.action.items.map((item) => item.username).join(", ")}
+                      label={t("Username")}
+                      masked={maskSensitive}
+                    />
+                  </div>
                 )}
                 {pending.action.kind === "remove" && (
                   <p>{t("Deleting vouchers cannot be undone.")}</p>
@@ -516,9 +522,11 @@ function CustomerVouchers({
                 )}
                 {pending.action.kind === "edit" && (
                   <div className="space-y-2 text-sm">
-                    <p>
-                      {t("Username")}: <bdi>{pending.action.username}</bdi>
-                    </p>
+                    <SensitiveText
+                      value={pending.action.username}
+                      label={t("Username")}
+                      masked={maskSensitive}
+                    />
                     <p>
                       {t("Shared users")}: {pending.action.sharedUsers}
                     </p>

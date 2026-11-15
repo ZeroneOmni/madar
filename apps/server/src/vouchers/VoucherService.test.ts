@@ -15,6 +15,67 @@ const services = VoucherService.layer.pipe(
   Layer.provideMerge(Sqlite.layerMemory),
 );
 
+it.live("records current and unattempted targets before a process loss after a router write", () =>
+  Effect.gen(function* () {
+    const router = yield* Effect.acquireDisposable(Effect.promise(() => routerFixture(0)));
+    const crashingApi = Layer.effect(
+      RouterApi.RouterApi,
+      Effect.gen(function* () {
+        const api = yield* RouterApi.RouterApi;
+        return RouterApi.RouterApi.of({
+          ...api,
+          execute: (profile, owner, words) =>
+            api
+              .execute(profile, owner, words)
+              .pipe(
+                Effect.tap(() =>
+                  words[0]?.endsWith("/add") ? Effect.die("process loss") : Effect.void,
+                ),
+              ),
+        });
+      }),
+    ).pipe(Layer.provide(RouterApi.layer));
+    const crashServices = VoucherService.layer.pipe(
+      Layer.provideMerge(VoucherStore.layer),
+      Layer.provideMerge(crashingApi),
+      Layer.provideMerge(Sqlite.layerMemory),
+    );
+    yield* Effect.gen(function* () {
+      const api = yield* RouterApi.RouterApi;
+      const vouchers = yield* VoucherService.VoucherService;
+      yield* api.connect({ profile: router.profile, password: "fixture" }, "owner");
+      const input: VoucherMutation = {
+        router: router.profile,
+        customer: "admin",
+        requestId: "crash-targets-000001",
+        action: {
+          kind: "create",
+          items: [
+            { username: "current-target", password: "secret-current" },
+            { username: "later-target", password: "secret-later" },
+          ],
+          profile: "",
+          sharedUsers: 1,
+          comment: "",
+        },
+      };
+      expect((yield* Effect.exit(vouchers.mutate(input, "owner")))._tag).toBe("Failure");
+      expect([...router.users.values()].map((user) => user.username)).toEqual(["current-target"]);
+      const history = yield* vouchers.history(input);
+      expect(history[0]).toMatchObject({
+        state: "running",
+        outcomes: [
+          { target: "current-target", state: "uncertain" },
+          { target: "later-target", state: "pending" },
+        ],
+      });
+      expect(JSON.stringify(history)).not.toContain("secret-");
+      expect(yield* vouchers.mutate(input, "owner")).toEqual(history[0]);
+      expect(router.commands.filter((words) => words[0]?.endsWith("/add"))).toHaveLength(1);
+    }).pipe(Effect.provide(crashServices));
+  }).pipe(Effect.scoped),
+);
+
 it.live("syncs and pages locally, manages vouchers, and retrieves passwords only on request", () =>
   Effect.gen(function* () {
     const router = yield* Effect.acquireDisposable(Effect.promise(() => routerFixture(120)));

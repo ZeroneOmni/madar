@@ -103,7 +103,7 @@ export const VoucherOperation = Schema.Struct({
   outcomes: Schema.Array(
     Schema.Struct({
       target: Schema.String,
-      state: Schema.Literals(["confirmed", "failed", "uncertain", "partial"]),
+      state: Schema.Literals(["pending", "confirmed", "failed", "uncertain", "partial"]),
       reason: Schema.String,
     }),
   ),

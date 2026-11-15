@@ -169,18 +169,18 @@ const make = Effect.gen(function* () {
     if (session.input.profile.transport !== "tls" && session.input.profile.transport !== "tcp")
       return yield* new RouterApiError({ reason: "unsupported" });
     const socket = yield* Effect.callback<ApiSocket, RouterApiError>((resume) => {
-      let accepted = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const api = new ApiSocket(session.input.profile, (error) => {
-        accepted = !error;
+        clearTimeout(timer);
         resume(error ? Effect.fail(error) : Effect.succeed(api));
       });
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         api.close();
         resume(Effect.fail(new RouterApiError({ reason: "timeout" })));
       }, 10000);
       return Effect.sync(() => {
         clearTimeout(timer);
-        if (!accepted) api.close();
+        api.close();
       });
     });
     session.socket = socket;
