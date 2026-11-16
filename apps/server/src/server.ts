@@ -19,6 +19,7 @@ import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import * as AuthHttp from "./auth/http.ts";
 import * as RouterHttp from "./routers/http.ts";
 import * as RouterApi from "./routers/RouterApi.ts";
+import * as RouterDiscovery from "./routers/RouterDiscovery.ts";
 import * as VoucherHttp from "./vouchers/http.ts";
 import * as VoucherService from "./vouchers/VoucherService.ts";
 import * as VoucherStore from "./vouchers/VoucherStore.ts";
@@ -81,7 +82,7 @@ const layerRoutes = Layer.mergeAll(
         VoucherHttp.layer.pipe(
           Layer.provide(VoucherService.layer.pipe(Layer.provide(VoucherStore.layer))),
         ),
-      ).pipe(Layer.provide(RouterApi.layer)),
+      ).pipe(Layer.provide(Layer.merge(RouterApi.layer, RouterDiscovery.layer))),
     ),
     Layer.provide(ServerHttp.layerServerEnvironmentHttpApi),
     Layer.provide(AuthHttp.layerAuthenticatedAuth),

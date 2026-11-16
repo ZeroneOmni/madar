@@ -3,15 +3,11 @@ export const voucherArabic = {
     "اتصل عبر الواجهة المشفّرة لاستعراض قسائم العملاء وإنشائها وإدارة باقاتها ومتابعة الاستهلاك.",
   "{name} is planned for a later release. Voucher management and usage are available in Vouchers.":
     "ستتوفر ميزة {name} في إصدار لاحق. يمكنك حاليًا إدارة القسائم ومتابعة استهلاكها من صفحة القسائم.",
-  "Connect to the RouterOS 6 device hosting User Manager. Use a router account with API access. Passwords stay in memory until you disconnect or close Madar.":
-    "اتصل بالراوتر الذي يستضيف مدير المستخدمين ويعمل بنظام RouterOS 6، باستخدام حساب راوتر يملك صلاحية الوصول إلى الواجهة البرمجية. تبقى كلمة المرور في الذاكرة حتى تقطع الاتصال أو تغلق مدار.",
   "API-SSL": "الواجهة المشفّرة (API-SSL)",
   "Native API": "الواجهة الأصلية (API)",
   "Open vouchers": "فتح القسائم",
   "Native API is an unencrypted backup. Use it only on a trusted network.":
     "الواجهة الأصلية اتصال احتياطي غير مشفّر. استخدمها على شبكة موثوقة فقط.",
-  "API-SSL is the default. TLS failures never silently switch to an unencrypted connection.":
-    "الاتصال المشفّر هو الافتراضي. عند تعذّر التحقق من التشفير، لن يتحول مدار تلقائيًا إلى اتصال غير مشفّر.",
   "API-SSL (recommended)": "الواجهة المشفّرة، موصى بها (API-SSL)",
   "Native API (backup)": "الواجهة الأصلية، احتياطية (API)",
   "Router access denied. Check the account's read, write and API permissions.":

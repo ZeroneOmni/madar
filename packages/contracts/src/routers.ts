@@ -38,3 +38,20 @@ export type RouterProbeResult = typeof RouterProbeResult.Type;
 
 export const RouterDisconnectInput = Schema.Struct({ profileId: Schema.NonEmptyString });
 export const RouterDisconnectResult = Schema.Struct({ disconnected: Schema.Boolean });
+
+export const DiscoveredRouter = Schema.Struct({
+  host: Schema.NullOr(Schema.String),
+  mac: Schema.String,
+  identity: Schema.String,
+  version: Schema.String,
+  board: Schema.String,
+});
+export type DiscoveredRouter = typeof DiscoveredRouter.Type;
+export const RouterDiscoveryResult = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("complete"), routers: Schema.Array(DiscoveredRouter) }),
+  Schema.Struct({
+    kind: Schema.Literal("failed"),
+    reason: Schema.Literals(["busy", "unavailable", "no-network"]),
+  }),
+]);
+export type RouterDiscoveryResult = typeof RouterDiscoveryResult.Type;
