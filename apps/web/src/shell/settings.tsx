@@ -3,11 +3,10 @@ import { useLocale } from "../useLocale";
 import { useEffect, useState, type ReactNode } from "react";
 import { DEFAULT_CLIENT_SETTINGS, type QuitConfirmationMode } from "@madar/contracts";
 import { Button } from "../components/ui/button";
-import { Switch } from "../components/ui/switch";
 import { AppearanceSettingsPanel } from "../components/settings/AppearanceSettingsPanel";
 import { notifyShell } from "./notifications";
 import { resolveSettingsPath } from "./settingsSearch";
-import { resetOnboarding, saveSettings, usePrivacySettings } from "./settingsState";
+import { resetOnboarding } from "./settingsState";
 
 function DesktopQuitSettings() {
   const { t } = useLocale();
@@ -140,112 +139,6 @@ function DesktopQuitSettings() {
   );
 }
 
-function PrivacySettings() {
-  const { t } = useLocale();
-  const { settings, maskSensitive, source, error } = usePrivacySettings();
-  const [scope, setScope] = useState<"application" | "workspace">("workspace");
-  const [failed, setFailed] = useState(false);
-  function save(update: Parameters<typeof saveSettings>[0], replace = false) {
-    setFailed(!saveSettings(update, replace));
-  }
-  return (
-    <section className="space-y-5">
-      <h3 id="setting-privacy" tabIndex={-1} className="font-medium">
-        {t("Mask sensitive text")}
-      </h3>
-      <p className="text-sm text-muted-foreground">
-        {t(
-          "Hide sensitive values until you choose to reveal them. Copy still uses the original value.",
-        )}
-      </p>
-      {error ? (
-        <div className="space-y-3">
-          <p role="alert" className="text-sm text-destructive">
-            {t(
-              "Could not read saved preferences. Sensitive values remain hidden. Restore defaults to recover.",
-            )}
-          </p>
-          <Button variant="outline" onClick={() => save({}, true)}>
-            {t("Restore local preferences")}
-          </Button>
-        </div>
-      ) : null}
-      <div role="group" aria-label={t("Privacy scope")} className="flex flex-wrap gap-2">
-        <Button
-          variant={scope === "application" ? "default" : "outline"}
-          aria-pressed={scope === "application"}
-          onClick={() => setScope("application")}
-        >
-          {t("Application defaults")}
-        </Button>
-        <Button
-          variant={scope === "workspace" ? "default" : "outline"}
-          aria-pressed={scope === "workspace"}
-          onClick={() => setScope("workspace")}
-        >
-          {t("This workspace")}
-        </Button>
-      </div>
-      <div className="space-y-4 rounded-xl border p-4">
-        <div className="flex items-center justify-between gap-4">
-          <label htmlFor="privacy-mask">{t("Hide sensitive values by default")}</label>
-          <Switch
-            id="privacy-mask"
-            checked={scope === "application" ? settings.maskSensitive : maskSensitive}
-            disabled={error}
-            onCheckedChange={(checked) =>
-              save(
-                scope === "application"
-                  ? { maskSensitive: checked }
-                  : { workspaceMaskSensitive: checked },
-              )
-            }
-          />
-        </div>
-        <p role="status" className="text-sm text-muted-foreground">
-          {scope === "application"
-            ? t("Application default: {value}. Built-in default: Hidden.", {
-                value: settings.maskSensitive ? t("Hidden") : t("Visible"),
-              })
-            : t("Effective value: {value}. Source: {source}.", {
-                value: maskSensitive ? t("Hidden") : t("Visible"),
-                source: t(source),
-              })}
-        </p>
-        {scope === "workspace" ? (
-          <>
-            <p className="text-sm text-muted-foreground">
-              {t("Workspace preferences inherit application defaults until you override them.")}
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={error || settings.workspaceMaskSensitive === null}
-              onClick={() => save({ workspaceMaskSensitive: null })}
-            >
-              {t("Use application default")}
-            </Button>
-          </>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={error || settings.maskSensitive}
-            onClick={() => save({ maskSensitive: true })}
-          >
-            {t("Restore built-in default")}
-          </Button>
-        )}
-      </div>
-      {failed ? (
-        <p role="alert" className="text-sm text-destructive">
-          {t("Could not save preferences. Your previous settings are still active. Try again.")}
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
 function AppearanceSettings() {
   const { t } = useLocale();
   return (
@@ -350,7 +243,6 @@ export function SettingsPage({
             </>
           ) : null}
           {section?.id === "appearance" ? <AppearanceSettings /> : null}
-          {section?.id === "privacy" ? <PrivacySettings /> : null}
           {section?.id === "shortcuts" ? (
             <section>
               <h3 id="setting-shortcuts" tabIndex={-1} className="sr-only">

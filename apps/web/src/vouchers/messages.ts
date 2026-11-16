@@ -34,10 +34,8 @@ export const voucherArabic = {
   "Voucher details": "تفاصيل القسيمة",
   "Exact expiry and profile history are not exposed reliably by the legacy API. No expiry is inferred from session end times.":
     "لا تتيح الواجهة القديمة تاريخ انتهاء القسيمة وسجل الباقات بصورة موثوقة. لذلك لا يُستنتج انتهاء القسيمة من أوقات انتهاء الجلسات.",
-  "Reveal password": "جلب كلمة المرور",
   "Edit voucher": "تعديل القسيمة",
   Password: "كلمة المرور",
-  "Hide password": "إخفاء كلمة المرور",
   "Recent sessions": "الجلسات الأخيرة",
   "Session details are unavailable. Voucher details were refreshed.":
     "تم تحديث بيانات القسيمة، لكن تعذّر جلب تفاصيل الجلسات.",
@@ -168,8 +166,6 @@ export const voucherArabic = {
   uncertain: "نتيجة غير مؤكدة",
   partial: "نُفذت جزئيًا",
   pending: "لم تُنفذ بعد",
-  "Reveal username for editing": "إظهار اسم المستخدم للتعديل",
-  "Hide username": "إخفاء اسم المستخدم",
   disconnected: "غير متصل",
   authentication: "تعذّر تسجيل الدخول",
   network: "انقطع الاتصال",

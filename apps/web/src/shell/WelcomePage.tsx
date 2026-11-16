@@ -20,7 +20,7 @@ export function WelcomePage({ onContinue }: { onContinue: () => void }) {
         <h2 className="font-medium">{t("Make the workspace yours")}</h2>
         <p className="text-sm text-muted-foreground">
           {t(
-            "Organize navigation, search commands, and customize your shortcuts. Settings includes appearance, privacy, and notifications.",
+            "Organize navigation, search commands, and customize your shortcuts. Settings includes appearance and notifications.",
           )}
         </p>
         <p className="text-sm text-muted-foreground">

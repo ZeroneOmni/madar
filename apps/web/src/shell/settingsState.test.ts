@@ -4,7 +4,6 @@ import {
   DEFAULT_SETTINGS,
   SETTINGS_STORAGE_KEY,
   decodeSettings,
-  effectivePrivacy,
   readOnboardingComplete,
   readSettings,
   resetOnboarding,
@@ -26,27 +25,19 @@ function setup() {
   return { values, storage, dispatchEvent, [Symbol.dispose]: () => vi.unstubAllGlobals() };
 }
 
-it("persists workspace overrides, inherits later application changes after reset, and restores defaults", () => {
+it("discards legacy masking preferences while preserving onboarding", () => {
   using state = setup();
-  expect(effectivePrivacy(decodeSettings(null))).toEqual({
-    maskSensitive: true,
-    source: "Application default",
-  });
-  expect(saveSettings({ maskSensitive: false })).toBe(true);
-  expect(effectivePrivacy(readSettings().settings).maskSensitive).toBe(false);
-  expect(saveSettings({ workspaceMaskSensitive: true })).toBe(true);
-  expect(effectivePrivacy(readSettings().settings)).toEqual({
-    maskSensitive: true,
-    source: "Workspace override",
-  });
-  expect(saveSettings({ workspaceMaskSensitive: null })).toBe(true);
-  expect(effectivePrivacy(readSettings().settings)).toEqual({
-    maskSensitive: false,
-    source: "Application default",
-  });
-  expect(saveSettings({ maskSensitive: true })).toBe(true);
-  expect(readSettings().settings).toEqual(DEFAULT_SETTINGS);
-  expect(state.dispatchEvent).toHaveBeenCalled();
+  state.values.set(
+    SETTINGS_STORAGE_KEY,
+    JSON.stringify({
+      maskSensitive: true,
+      workspaceMaskSensitive: true,
+      onboardingComplete: true,
+    }),
+  );
+  expect(readSettings().settings).toEqual({ onboardingComplete: true });
+  expect(saveSettings({ onboardingComplete: false })).toBe(true);
+  expect(JSON.parse(state.values.get(SETTINGS_STORAGE_KEY)!)).toEqual(DEFAULT_SETTINGS);
 });
 
 it("keeps persisted preferences on failed writes and can retry", () => {
@@ -62,12 +53,12 @@ it("keeps persisted preferences on failed writes and can retry", () => {
   expect(write).toHaveBeenCalledTimes(2);
 });
 
-it("protects sensitive values when saved state is corrupt and supports explicit recovery", () => {
+it("handles corrupt onboarding state and supports explicit recovery", () => {
   using state = setup();
-  state.values.set(SETTINGS_STORAGE_KEY, '{"maskSensitive":"yes"}');
+  state.values.set(SETTINGS_STORAGE_KEY, '{"onboardingComplete":"yes"}');
   expect(readSettings()).toEqual({ settings: DEFAULT_SETTINGS, error: true });
-  expect(saveSettings({ maskSensitive: false })).toBe(false);
-  expect(state.values.get(SETTINGS_STORAGE_KEY)).toBe('{"maskSensitive":"yes"}');
+  expect(saveSettings({ onboardingComplete: true })).toBe(false);
+  expect(state.values.get(SETTINGS_STORAGE_KEY)).toBe('{"onboardingComplete":"yes"}');
   expect(saveSettings({}, true)).toBe(true);
   expect(readSettings()).toEqual({ settings: DEFAULT_SETTINGS, error: false });
 });
@@ -85,11 +76,11 @@ it("persists onboarding completion across reads and permits revisiting or reset"
 });
 
 it("matches every search term and resolves section-specific links without accepting unknown targets", () => {
-  expect(searchSettings("  inherited privacy ").map((item) => item.id)).toEqual(["privacy"]);
+  expect(searchSettings("privacy")).toEqual([]);
   expect(searchSettings("no such setting")).toEqual([]);
-  expect(resolveSettingsPath("/settings/privacy?focus=privacy")).toMatchObject({
-    section: { id: "privacy" },
-    target: { id: "privacy" },
+  expect(resolveSettingsPath("/settings/general?focus=welcome")).toMatchObject({
+    section: { id: "general" },
+    target: { id: "welcome" },
     invalidTarget: false,
   });
   expect(resolveSettingsPath("/settings/appearance?focus=privacy").invalidTarget).toBe(true);
@@ -98,7 +89,6 @@ it("matches every search term and resolves section-specific links without accept
 });
 
 it.each([
-  ["الخصوصية", "privacy"],
   ["السمات", "appearance"],
   ["فاتح", "appearance"],
   ["إشعارات سطح المكتب", "notifications"],

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   Voucher,
   VoucherAction,
@@ -10,8 +10,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Choice } from "../components/Choice";
 import { useLocale } from "../useLocale";
-import { usePrivacySettings } from "../shell/settingsState";
-import { SensitiveText } from "../shell/SensitiveText";
+import { CopyableText } from "../shell/CopyableText";
 import { randomCode, voucherClient, voucherError } from "./client";
 import { formatVoucherValue } from "./format";
 
@@ -83,7 +82,7 @@ export function VoucherCreateForm({
             <label className="space-y-1">
               <span>{t("Password (blank generates one)")}</span>
               <Input
-                type="password"
+                type="text"
                 autoComplete="new-password"
                 maxLength={128}
                 value={password}
@@ -156,25 +155,45 @@ export function VoucherInspector({
   onClose: () => void;
 }) {
   const { t, locale } = useLocale();
-  const { maskSensitive } = usePrivacySettings();
   const [details, setDetails] = useState<VoucherDetails | null>(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(connected);
   const [editing, setEditing] = useState(false);
   const voucher = details?.voucher ?? row;
-  async function refresh(reveal: boolean) {
+  async function refresh() {
     setLoading(true);
     setError("");
     await voucherClient
-      .details({ ...scope, id: row.id }, reveal)
+      .details({ ...scope, id: row.id })
       .then(setDetails, (error) => setError(voucherError(error)));
     setLoading(false);
   }
+  useEffect(() => {
+    if (!connected) return;
+    let active = true;
+    void voucherClient.details({ ...scope, id: row.id }).then(
+      (result) => {
+        if (active) {
+          setDetails(result);
+          setLoading(false);
+        }
+      },
+      (error) => {
+        if (active) {
+          setError(voucherError(error));
+          setLoading(false);
+        }
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [connected, row.id, scope]);
   return (
     <aside className="space-y-4 rounded-xl border bg-card p-5" aria-label={t("Voucher details")}>
       <div className="flex items-center justify-between">
         <div className="text-lg font-semibold">
-          <SensitiveText value={voucher.username} label={t("Username")} masked={maskSensitive} />
+          <CopyableText value={voucher.username} label={t("Username")} />
         </div>
         <Button variant="ghost" onClick={onClose}>
           {t("Close")}
@@ -205,19 +224,8 @@ export function VoucherInspector({
         )}
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          disabled={!connected || loading}
-          onClick={() => void refresh(false)}
-        >
+        <Button variant="outline" disabled={!connected || loading} onClick={() => void refresh()}>
           {t(loading ? "Loading…" : "Refresh details and sessions")}
-        </Button>
-        <Button
-          variant="outline"
-          disabled={!connected || loading}
-          onClick={() => void refresh(true)}
-        >
-          {t("Reveal password")}
         </Button>
         <Button variant="outline" disabled={!connected} onClick={() => setEditing(!editing)}>
           {t("Edit voucher")}
@@ -225,10 +233,7 @@ export function VoucherInspector({
       </div>
       {connected && details?.password !== null && details?.password !== undefined && (
         <div className="flex items-center gap-3">
-          <SensitiveText value={details.password} label={t("Password")} masked={maskSensitive} />
-          <Button variant="ghost" onClick={() => setDetails({ ...details, password: null })}>
-            {t("Hide password")}
-          </Button>
+          <CopyableText value={details.password} label={t("Password")} />
         </div>
       )}
       {error && <p role="alert">{t(error)}</p>}
@@ -286,8 +291,6 @@ function VoucherEditForm({
   onReview: (action: VoucherAction) => void;
 }) {
   const { t } = useLocale();
-  const { maskSensitive } = usePrivacySettings();
-  const [revealUsername, setRevealUsername] = useState(false);
   const [username, setUsername] = useState(voucher.username);
   const [password, setPassword] = useState("");
   const [comment, setComment] = useState(voucher.comment);
@@ -312,28 +315,18 @@ function VoucherEditForm({
           <span>{t("Username")}</span>
           <Input
             required
-            type={maskSensitive && !revealUsername ? "password" : "text"}
+            type="text"
             autoComplete="off"
             maxLength={128}
             value={username}
             onChange={(event) => setUsername(event.target.value)}
           />
         </label>
-        {maskSensitive && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setRevealUsername(!revealUsername)}
-          >
-            {t(revealUsername ? "Hide username" : "Reveal username for editing")}
-          </Button>
-        )}
       </div>
       <label>
         <span>{t("New password (blank keeps current)")}</span>
         <Input
-          type="password"
+          type="text"
           autoComplete="new-password"
           maxLength={128}
           value={password}

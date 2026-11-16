@@ -107,11 +107,11 @@ it.each([
 );
 
 it.each([
-  ["en", "Vouchers", "Settings", "Privacy", "Return", "Toggle Sidebar"],
-  ["ar", "القسائم", "الإعدادات", "الخصوصية", "رجوع", "إظهار الشريط الجانبي أو إخفاؤه"],
+  ["en", "Vouchers", "Settings", "Appearance", "Return", "Toggle Sidebar"],
+  ["ar", "القسائم", "الإعدادات", "المظهر", "رجوع", "إظهار الشريط الجانبي أو إخفاؤه"],
 ] as const)(
   "keeps compact navigation usable and persisted in %s",
-  async (language, vouchers, settings, privacy, back, toggle) => {
+  async (language, vouchers, settings, appearance, back, toggle) => {
     await page.viewport(1280, 900);
     using _state = setup("/overview");
     localStorage.setItem("madar:language", language);
@@ -143,8 +143,10 @@ it.each([
       .toBeVisible();
     expect(decodeNavigation(localStorage.getItem(NAVIGATION_KEY)).open).toBe(false);
     await screen.getByRole("button", { name: settings, exact: true }).click();
-    await screen.getByRole("button", { name: privacy, exact: true }).click();
-    await expect.element(screen.getByRole("heading", { name: privacy, exact: true })).toBeVisible();
+    await screen.getByRole("button", { name: appearance, exact: true }).click();
+    await expect
+      .element(screen.getByRole("heading", { name: appearance, exact: true, level: 2 }))
+      .toBeVisible();
     await screen.getByRole("button", { name: back, exact: true }).click();
     await expect
       .element(screen.getByRole("heading", { name: vouchers, exact: true }))
@@ -408,9 +410,11 @@ it("replaces workspace navigation with settings and returns to the previous dest
     .not.toBeInTheDocument();
   await screen
     .getByRole("navigation", { name: "Settings sections", exact: true })
-    .getByRole("button", { name: "Privacy", exact: true })
+    .getByRole("button", { name: "Appearance", exact: true })
     .click();
-  await expect.element(screen.getByRole("heading", { name: "Privacy", exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Appearance", exact: true, level: 2 }))
+    .toBeVisible();
   await screen.getByRole("button", { name: "Return", exact: true }).click();
   await expect
     .element(screen.getByRole("heading", { name: "Vouchers", exact: true }))

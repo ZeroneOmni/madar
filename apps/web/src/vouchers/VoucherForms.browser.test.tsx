@@ -1,8 +1,9 @@
 import { expect, it, vi } from "vite-plus/test";
 import { render } from "../../test/render";
+import { voucherClient } from "./client";
 import { VoucherInspector } from "./VoucherForms";
 
-it("keeps an existing username hidden during editing until explicitly revealed", async () => {
+it("keeps an existing username visible during editing despite legacy masking preferences", async () => {
   const previous = localStorage.getItem("madar:shell-settings");
   localStorage.setItem(
     "madar:shell-settings",
@@ -14,23 +15,30 @@ it("keeps an existing username hidden during editing until explicitly revealed",
       else localStorage.setItem("madar:shell-settings", previous);
     },
   };
+  const voucher = {
+    id: "*1",
+    customer: "admin",
+    username: "private-voucher",
+    disabled: false,
+    profile: "",
+    sharedUsers: "1",
+    comment: "",
+    upload: "",
+    download: "",
+    uptime: "",
+    lastSeen: "",
+    activeSessions: "",
+    observedAt: "2026-11-14T00:00:00Z",
+  };
+  using _details = vi.spyOn(voucherClient, "details").mockResolvedValue({
+    voucher,
+    password: "visible-password",
+    sessions: [],
+    sessionsAvailable: true,
+  });
   await using screen = await render(
     <VoucherInspector
-      row={{
-        id: "*1",
-        customer: "admin",
-        username: "private-voucher",
-        disabled: false,
-        profile: "",
-        sharedUsers: "1",
-        comment: "",
-        upload: "",
-        download: "",
-        uptime: "",
-        lastSeen: "",
-        activeSessions: "",
-        observedAt: "2026-11-14T00:00:00Z",
-      }}
+      row={voucher}
       scope={{
         router: {
           id: "test",
@@ -50,12 +58,14 @@ it("keeps an existing username hidden during editing until explicitly revealed",
       onClose={vi.fn()}
     />,
   );
+  await expect
+    .element(screen.getByLabelText("Password", { exact: true }))
+    .toHaveTextContent("visible-password");
   await screen.getByRole("button", { name: "Edit voucher", exact: true }).click();
-  const username = screen.getByLabelText("Username", { exact: true });
-  await expect.element(username).toHaveAttribute("type", "password");
-  await screen.getByRole("button", { name: "Reveal username for editing", exact: true }).click();
+  const username = screen.getByRole("textbox", { name: "Username", exact: true });
   await expect.element(username).toHaveAttribute("type", "text");
   await expect.element(username).toHaveValue("private-voucher");
-  await screen.getByRole("button", { name: "Hide username", exact: true }).click();
-  await expect.element(username).toHaveAttribute("type", "password");
+  await expect
+    .element(screen.getByRole("button", { name: /reveal|hide/i }))
+    .not.toBeInTheDocument();
 });

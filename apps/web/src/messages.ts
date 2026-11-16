@@ -29,7 +29,6 @@ export const arabic = {
   "Use {name}": "استخدام {name}",
   "{name} selected.": "تم اختيار {name}.",
   Appearance: "المظهر",
-  Privacy: "الخصوصية",
   "Keyboard shortcuts": "اختصارات لوحة المفاتيح",
   Keybindings: "اختصارات لوحة المفاتيح",
   "Search keybindings": "البحث عن اختصار",
@@ -61,13 +60,11 @@ export const arabic = {
   "Router connection": "الاتصال بالموجّه",
   "No router is connected. User Manager operations are unavailable until a supported RouterOS version and connection method are chosen.":
     "لا يوجد موجّه متصل. ستتوفر عمليات مدير المستخدمين بعد اختيار إصدار RouterOS مدعوم وطريقة الاتصال.",
-  "You can organize navigation, customize shortcuts, and set privacy and notification preferences now.":
-    "يمكنك الآن تنظيم التنقل وتخصيص الاختصارات وضبط تفضيلات الخصوصية والإشعارات.",
+  "You can organize navigation, customize shortcuts, and set notification preferences now.":
+    "يمكنك الآن تنظيم التنقل وتخصيص الاختصارات وضبط تفضيلات الإشعارات.",
   "Local workspace": "مساحة العمل المحلية",
-  "This address identifies the app you are using. Your privacy preference controls whether it is hidden.":
-    "هذا عنوان التطبيق الذي تستخدمه. تحدد تفضيلات الخصوصية ما إذا كان مخفيًا.",
+  "This address identifies the app you are using.": "هذا عنوان التطبيق الذي تستخدمه.",
   "Local app address": "عنوان التطبيق المحلي",
-  "Privacy preferences": "تفضيلات الخصوصية",
   "Page not found": "الصفحة غير موجودة",
   "User Manager is not connected": "مدير المستخدمين غير متصل",
   "This page is unavailable": "هذه الصفحة غير متاحة",
@@ -83,8 +80,8 @@ export const arabic = {
   "Your desktop workspace for MikroTik User Manager.":
     "مساحة عملك المكتبية لإدارة مستخدمي MikroTik.",
   "Make the workspace yours": "خصّص مساحة عملك",
-  "Organize navigation, search commands, and customize your shortcuts. Settings includes appearance, privacy, and notifications.":
-    "نظّم التنقل وابحث عن الأوامر وخصّص الاختصارات. تتضمن الإعدادات المظهر والخصوصية والإشعارات.",
+  "Organize navigation, search commands, and customize your shortcuts. Settings includes appearance and notifications.":
+    "نظّم التنقل وابحث عن الأوامر وخصّص الاختصارات. تتضمن الإعدادات المظهر والإشعارات.",
   "RouterOS operations become available after a supported version and connection method are configured. This workspace does not connect to a router yet.":
     "ستتوفر عمليات RouterOS بعد ضبط إصدار مدعوم وطريقة الاتصال. مساحة العمل غير متصلة بموجّه بعد.",
   "You can reopen this introduction from Settings / General.":
@@ -133,27 +130,9 @@ export const arabic = {
   Retry: "إعادة المحاولة",
   "Quit confirmation is available in the Madar desktop app.":
     "يتوفر تأكيد الخروج في تطبيق مدار لسطح المكتب.",
-  "Mask sensitive text": "إخفاء النصوص الحساسة",
-  "Hide sensitive values until you choose to reveal them. Copy still uses the original value.":
-    "أخفِ القيم الحساسة حتى تختار إظهارها. يبقى النسخ بالقيمة الأصلية.",
-  "Could not read saved preferences. Sensitive values remain hidden. Restore defaults to recover.":
-    "تعذرت قراءة التفضيلات المحفوظة. ستبقى القيم الحساسة مخفية. استعد الإعدادات الافتراضية للمتابعة.",
   "Restore local preferences": "استعادة التفضيلات المحلية",
-  "Privacy scope": "نطاق الخصوصية",
-  "Application defaults": "إعدادات التطبيق الافتراضية",
-  "This workspace": "مساحة العمل هذه",
-  "Hide sensitive values by default": "إخفاء القيم الحساسة افتراضيًا",
-  Hidden: "مخفي",
-  Visible: "ظاهر",
-  "Application default: {value}. Built-in default: Hidden.":
-    "إعداد التطبيق الافتراضي: {value}. الإعداد الأصلي: مخفي.",
-  "Effective value: {value}. Source: {source}.": "القيمة الفعلية: {value}. المصدر: {source}.",
   application: "التطبيق",
   workspace: "مساحة العمل",
-  "Workspace preferences inherit application defaults until you override them.":
-    "ترث تفضيلات مساحة العمل إعدادات التطبيق الافتراضية حتى تغيّرها.",
-  "Use application default": "استخدام إعداد التطبيق الافتراضي",
-  "Restore built-in default": "استعادة الإعداد الأصلي",
   "Could not save preferences. Your previous settings are still active. Try again.":
     "تعذر حفظ التفضيلات. لا تزال الإعدادات السابقة مفعّلة. حاول مجددًا.",
   "Choose the appearance used throughout Madar.": "اختر المظهر المستخدم في مدار.",
@@ -210,13 +189,8 @@ export const arabic = {
   "Shortcut saved.": "تم حفظ الاختصار.",
   "Shortcut {name}": "اختصار {name}",
   Value: "القيمة",
-  Hide: "إخفاء",
-  Reveal: "إظهار",
   Copied: "تم النسخ",
   "Copy {name}": "نسخ {name}",
-  "Hide {name}": "إخفاء {name}",
-  "Reveal {name}": "إظهار {name}",
-  "{name} hidden": "{name} مخفي",
   "Could not copy {name}. Try again.": "تعذر نسخ {name}. حاول مجددًا.",
   "Madar update ready": "تحديث مدار جاهز",
   "An update is ready to install.": "يوجد تحديث جاهز للتثبيت.",
@@ -375,8 +349,6 @@ export const arabic = {
   "Hide {name} usage": "إخفاء استخدام {name}",
   "Show where {name} is used": "إظهار مواضع استخدام {name}",
   "Hide where {name} is used": "إخفاء مواضع استخدام {name}",
-  "Application default": "إعداد التطبيق الافتراضي",
-  "Workspace override": "إعداد مساحة العمل",
   "Use a letter, number, punctuation key, arrow, Enter, Space, or F1–F12.":
     "استخدم حرفًا أو رقمًا أو علامة ترقيم أو سهمًا أو Enter أو Space أو F1–F12.",
   "Use modifiers Mod, Ctrl, Meta, Alt, and Shift once each.":

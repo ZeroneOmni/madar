@@ -415,7 +415,7 @@ export class EnvironmentHttpApi extends HttpApi.make("environment")
       )
       .add(
         HttpApiEndpoint.post("details", "/api/vouchers/details", {
-          payload: Schema.Struct({ ...VoucherTarget.fields, revealPassword: Schema.Boolean }),
+          payload: VoucherTarget,
           success: VoucherDetails,
           error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
         }).middleware(EnvironmentAuthenticatedAuth),

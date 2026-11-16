@@ -58,7 +58,6 @@ export class VoucherService extends Context.Service<
     readonly details: (
       target: VoucherTarget,
       owner: string,
-      revealPassword: boolean,
     ) => Effect.Effect<VoucherDetails, VoucherFailure>;
     readonly mutate: (
       input: VoucherMutation,
@@ -150,19 +149,15 @@ const make = Effect.gen(function* () {
   const details = Effect.fn("VoucherService.details")(function* (
     target: VoucherTarget,
     owner: string,
-    revealPassword: boolean,
   ) {
     const voucher = yield* find(target, owner, target.id);
-    let password: string | null = null;
-    if (revealPassword) {
-      const rows = yield* read(target, owner, [
-        `${userMenu}/print`,
-        "=.proplist=.id,customer,password",
-        `?.id=${target.id}`,
-        `?customer=${target.customer}`,
-      ]);
-      password = rows[0]?.password ?? null;
-    }
+    const rows = yield* read(target, owner, [
+      `${userMenu}/print`,
+      "=.proplist=.id,customer,password",
+      `?.id=${target.id}`,
+      `?customer=${target.customer}`,
+    ]);
+    const password = rows[0]?.password ?? null;
     const sessions = yield* read(target, owner, [
       "/tool/user-manager/session/print",
       "=.proplist=.id,user,customer,active,started,ended,uptime,upload,download,from-time,till-time,host-ip,calling-station-id",

@@ -57,32 +57,12 @@ it("finds a setting, navigates to it, and focuses the deep-link target", async (
   await expect
     .element(screen.getByRole("status"))
     .toHaveTextContent("No settings found. Try another search.");
-  await screen.getByRole("searchbox", { name: "Search settings" }).fill("inherited privacy");
-  await screen.getByRole("button", { name: "Mask sensitive text" }).click();
-  await expect.element(screen.getByRole("heading", { name: "Privacy", exact: true })).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Mask sensitive text" })).toHaveFocus();
-});
-
-it("shows the effective source and resets a saved workspace override to the application default", async () => {
-  using _state = setup();
-  await using screen = await render(
-    <SettingsPage path="/settings/privacy" onNavigate={() => {}} />,
-  );
-  await screen.getByRole("switch", { name: "Hide sensitive values by default" }).click();
-  expect(readSettings().settings.workspaceMaskSensitive).toBe(false);
+  await screen.getByRole("searchbox", { name: "Search settings" }).fill("first run setup");
+  await screen.getByRole("button", { name: "Welcome and onboarding" }).click();
+  await expect.element(screen.getByRole("heading", { name: "General", exact: true })).toBeVisible();
   await expect
-    .element(screen.getByRole("status"))
-    .toHaveTextContent("Effective value: Visible. Source: Workspace override.");
-  await screen.getByRole("button", { name: "Application defaults", exact: true }).click();
-  await screen.getByRole("switch", { name: "Hide sensitive values by default" }).click();
-  expect(readSettings().settings.maskSensitive).toBe(false);
-  await screen.getByRole("button", { name: "This workspace" }).click();
-  await screen.getByRole("button", { name: "Use application default" }).click();
-  expect(readSettings().settings.workspaceMaskSensitive).toBeNull();
-  await expect
-    .element(screen.getByRole("status"))
-    .toHaveTextContent("Effective value: Visible. Source: Application default.");
-  await expect.element(screen.getByRole("switch")).not.toBeChecked();
+    .element(screen.getByRole("heading", { name: "Welcome and onboarding" }))
+    .toHaveFocus();
 });
 
 it("keeps onboarding open when completion cannot be saved and completes on retry", async () => {

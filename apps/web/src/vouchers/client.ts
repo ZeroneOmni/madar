@@ -55,8 +55,7 @@ export const voucherClient = {
     call("catalog", { router, refresh }, VoucherCatalog, signal),
   list: (query: VoucherQuery, signal?: AbortSignal) => call("list", query, VoucherPage, signal),
   sync: (scope: VoucherScope, signal?: AbortSignal) => call("sync", scope, VoucherCatalog, signal),
-  details: (target: VoucherTarget, revealPassword: boolean) =>
-    call("details", { ...target, revealPassword }, VoucherDetails),
+  details: (target: VoucherTarget) => call("details", target, VoucherDetails),
   mutate: (input: VoucherMutation) => call("mutate", input, VoucherOperation),
   history: (scope: VoucherScope) => call("history", scope, Schema.Array(VoucherOperation)),
 };

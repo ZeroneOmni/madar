@@ -24,8 +24,7 @@ import {
   DialogPanel,
   DialogFooter,
 } from "../components/ui/dialog";
-import { usePrivacySettings } from "../shell/settingsState";
-import { SensitiveText } from "../shell/SensitiveText";
+import { CopyableText } from "../shell/CopyableText";
 import { navigateShell } from "../shell/routes";
 import { useLocale } from "../useLocale";
 import { useStableCallback } from "../hooks/useStableCallback";
@@ -168,7 +167,6 @@ function CustomerVouchers({
   onCatalog: (value: VoucherCatalog) => void;
 }) {
   const { t, locale } = useLocale();
-  const { maskSensitive } = usePrivacySettings();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<VoucherQuery["status"]>("all");
   const [profile, setProfile] = useState("");
@@ -493,10 +491,13 @@ function CustomerVouchers({
                 </p>
                 {pending.action.kind === "create" && (
                   <div className="max-h-24 overflow-auto text-sm">
-                    <SensitiveText
+                    <CopyableText
                       value={pending.action.items.map((item) => item.username).join(", ")}
                       label={t("Username")}
-                      masked={maskSensitive}
+                    />
+                    <CopyableText
+                      value={pending.action.items.map((item) => item.password).join(", ")}
+                      label={t("Password")}
                     />
                   </div>
                 )}
@@ -522,17 +523,16 @@ function CustomerVouchers({
                 )}
                 {pending.action.kind === "edit" && (
                   <div className="space-y-2 text-sm">
-                    <SensitiveText
-                      value={pending.action.username}
-                      label={t("Username")}
-                      masked={maskSensitive}
-                    />
+                    <CopyableText value={pending.action.username} label={t("Username")} />
                     <p>
                       {t("Shared users")}: {pending.action.sharedUsers}
                     </p>
                     <p>
                       {t("Comment")}: <bdi>{pending.action.comment || "–"}</bdi>
                     </p>
+                    {pending.action.password !== undefined && (
+                      <CopyableText value={pending.action.password} label={t("Password")} />
+                    )}
                     <p>
                       {t(
                         pending.action.password === undefined
@@ -588,7 +588,6 @@ function VoucherRows({
   onOffset: (offset: number) => void;
 }) {
   const { t, locale } = useLocale();
-  const { maskSensitive } = usePrivacySettings();
   const key = JSON.stringify(query);
   const [page, setPage] = useState<VoucherPage | null>(() => pageCache.get(key) ?? null);
   const [error, setError] = useState("");
@@ -632,7 +631,7 @@ function VoucherRows({
         <Button
           variant="ghost"
           size="sm"
-          disabled={!page.items.length || maskSensitive}
+          disabled={!page.items.length}
           onClick={() =>
             downloadCsv("قسائم-مدار.csv", [
               [
@@ -704,7 +703,7 @@ function VoucherRows({
                 <td className="p-3">
                   <Checkbox
                     aria-label={t("Select voucher {name}", {
-                      name: maskSensitive ? "••••" : row.username,
+                      name: row.username,
                     })}
                     checked={selected.includes(row.id)}
                     disabled={selected.length >= 100 && !selected.includes(row.id)}
@@ -717,7 +716,7 @@ function VoucherRows({
                 </td>
                 <td className="p-3">
                   <Button variant="link" size="sm" onClick={() => onInspect(row)}>
-                    {maskSensitive ? "••••••••" : row.username}
+                    {row.username}
                   </Button>
                 </td>
                 <td className="whitespace-nowrap p-3">
@@ -783,7 +782,6 @@ function VoucherRows({
 }
 function OperationResult({ operation }: { operation: VoucherOperation }) {
   const { t } = useLocale();
-  const { maskSensitive } = usePrivacySettings();
   return (
     <div className="space-y-2 rounded-lg border p-3 text-sm">
       <p className="font-medium">
@@ -798,7 +796,7 @@ function OperationResult({ operation }: { operation: VoucherOperation }) {
       </p>
       {operation.outcomes.map((outcome) => (
         <p key={outcome.target}>
-          {maskSensitive ? "••••••••" : outcome.target} · {t(outcome.state)}
+          {outcome.target} · {t(outcome.state)}
           {outcome.reason ? ` · ${t(outcome.reason)}` : ""}
         </p>
       ))}

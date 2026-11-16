@@ -1,7 +1,6 @@
 export const SETTINGS_SECTIONS = [
   { id: "general", label: "General" },
   { id: "appearance", label: "Appearance" },
-  { id: "privacy", label: "Privacy" },
   { id: "shortcuts", label: "Keyboard shortcuts" },
   { id: "notifications", label: "Notifications" },
 ] as const;
@@ -61,13 +60,6 @@ const SETTINGS_SEARCH_ITEMS = [
     section: "appearance",
     title: "Panel animations",
     terms: "motion animation duration speed reduced",
-  },
-  {
-    id: "privacy",
-    section: "privacy",
-    title: "Mask sensitive text",
-    terms:
-      "privacy hide reveal clipboard application default workspace inherited override خصوصية إخفاء إظهار حافظة تطبيق افتراضي مساحة العمل وراثة تجاوز",
   },
   {
     id: "shortcuts",

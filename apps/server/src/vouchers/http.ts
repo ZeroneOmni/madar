@@ -37,7 +37,7 @@ export const layer = HttpApiBuilder.group(
         "details",
         Effect.fn("vouchers.details")(function* ({ payload }) {
           const principal = yield* requireEnvironmentScope(AuthAccessWriteScope);
-          return yield* vouchers.details(payload, principal.sessionId, payload.revealPassword);
+          return yield* vouchers.details(payload, principal.sessionId);
         }),
       )
       .handle(

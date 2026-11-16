@@ -7,7 +7,7 @@ import { Input } from "../components/ui/input";
 import { Choice } from "../components/Choice";
 import { useLocale } from "../useLocale";
 import { usePrivacySettings } from "../shell/settingsState";
-import { SensitiveText } from "../shell/SensitiveText";
+import { CopyableText } from "../shell/CopyableText";
 import { navigateShell } from "../shell/routes";
 import { randomUUID } from "../lib/utils";
 import { probeRouter, disconnectRouter, checkRouter } from "./access";
@@ -170,7 +170,7 @@ export function RouterConnections() {
             <p className="font-medium">
               {active.name} · {t(active.transport === "tls" ? "API-SSL" : "Native API")}
             </p>
-            <SensitiveText
+            <CopyableText
               value={`${active.host}:${active.port}`}
               label={t("Router API address")}
               masked={maskSensitive}
@@ -178,7 +178,7 @@ export function RouterConnections() {
             <p role="status">{t(labels[model.state.kind])}</p>
             {connected && (
               <>
-                <SensitiveText
+                <CopyableText
                   value={connected.identity}
                   label={t("Router identity")}
                   masked={maskSensitive}
@@ -199,7 +199,7 @@ export function RouterConnections() {
                 <label className="block space-y-1">
                   <span>{t("Router account password")}</span>
                   <Input
-                    type="password"
+                    type="text"
                     autoComplete="current-password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}

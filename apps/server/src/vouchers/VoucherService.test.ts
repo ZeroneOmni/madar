@@ -76,100 +76,103 @@ it.live("records current and unattempted targets before a process loss after a r
   }).pipe(Effect.scoped),
 );
 
-it.live("syncs and pages locally, manages vouchers, and retrieves passwords only on request", () =>
-  Effect.gen(function* () {
-    const router = yield* Effect.acquireDisposable(Effect.promise(() => routerFixture(120)));
-    yield* Effect.gen(function* () {
-      const api = yield* RouterApi.RouterApi;
-      const vouchers = yield* VoucherService.VoucherService;
-      expect(
-        yield* api.connect({ profile: router.profile, password: "fixture" }, "owner"),
-      ).toMatchObject({ kind: "connected", version: "6.48.4" });
-      const scope = { router: router.profile, customer: "admin" };
-      yield* vouchers.sync(scope, "owner");
-      const query: VoucherQuery = {
-        ...scope,
-        search: "",
-        status: "all",
-        profile: "",
-        sort: "username",
-        descending: false,
-        offset: 50,
-        limit: 50,
-      };
-      const calls = router.commands.length;
-      const page = yield* vouchers.list(query);
-      expect(page.total).toBe(120);
-      expect(page.items).toHaveLength(50);
-      expect(page.complete).toBe(true);
-      expect(router.commands.length).toBe(calls);
-      expect(JSON.stringify(page)).not.toContain("fixture-password");
-      expect((yield* vouchers.details({ ...scope, id: "*1" }, "owner", true)).password).toBe(
-        "fixture-password",
-      );
-      const create: VoucherMutation = {
-        ...scope,
-        requestId: "test-create-0000001",
-        action: {
-          kind: "create",
-          items: [{ username: "new-voucher", password: "new-secret" }],
-          profile: "Day",
-          sharedUsers: 1,
-          comment: "Batch",
-        },
-      };
-      const created = yield* vouchers.mutate(create, "owner");
-      expect(created.state).toBe("completed");
-      const repeated = yield* vouchers.mutate(create, "owner");
-      expect(repeated).toEqual(created);
-      expect(router.commands.filter((words) => words[0]?.endsWith("/add"))).toHaveLength(1);
-      const id = [...router.users.values()].find((user) => user.username === "new-voucher")![
-        ".id"
-      ]!;
-      const edited = yield* vouchers.mutate(
-        {
-          ...scope,
-          requestId: "test-edit-000000001",
-          action: {
-            kind: "edit",
-            id,
-            username: "edited-voucher",
-            password: "replacement-secret",
-            sharedUsers: 2,
-            comment: "Updated note",
-          },
-        },
-        "owner",
-      );
-      expect(edited.state).toBe("completed");
-      expect((yield* vouchers.details({ ...scope, id }, "owner", true)).password).toBe(
-        "replacement-secret",
-      );
-      expect(
-        (yield* vouchers.list({ ...query, offset: 0, search: "updated note" })).items[0]?.username,
-      ).toBe("edited-voucher");
-      for (const kind of [
-        "disable",
-        "enable",
-        "assign-profile",
-        "reset-counters",
-        "remove",
-      ] as const) {
+it.live(
+  "syncs and pages locally, manages vouchers, and includes passwords in voucher details",
+  () =>
+    Effect.gen(function* () {
+      const router = yield* Effect.acquireDisposable(Effect.promise(() => routerFixture(120)));
+      yield* Effect.gen(function* () {
+        const api = yield* RouterApi.RouterApi;
+        const vouchers = yield* VoucherService.VoucherService;
         expect(
-          (yield* vouchers.mutate(
-            {
-              ...scope,
-              requestId: `test-${kind}-0000001`,
-              action: { kind, ids: [id], profile: "Week" },
+          yield* api.connect({ profile: router.profile, password: "fixture" }, "owner"),
+        ).toMatchObject({ kind: "connected", version: "6.48.4" });
+        const scope = { router: router.profile, customer: "admin" };
+        yield* vouchers.sync(scope, "owner");
+        const query: VoucherQuery = {
+          ...scope,
+          search: "",
+          status: "all",
+          profile: "",
+          sort: "username",
+          descending: false,
+          offset: 50,
+          limit: 50,
+        };
+        const calls = router.commands.length;
+        const page = yield* vouchers.list(query);
+        expect(page.total).toBe(120);
+        expect(page.items).toHaveLength(50);
+        expect(page.complete).toBe(true);
+        expect(router.commands.length).toBe(calls);
+        expect(JSON.stringify(page)).not.toContain("fixture-password");
+        expect((yield* vouchers.details({ ...scope, id: "*1" }, "owner")).password).toBe(
+          "fixture-password",
+        );
+        const create: VoucherMutation = {
+          ...scope,
+          requestId: "test-create-0000001",
+          action: {
+            kind: "create",
+            items: [{ username: "new-voucher", password: "new-secret" }],
+            profile: "Day",
+            sharedUsers: 1,
+            comment: "Batch",
+          },
+        };
+        const created = yield* vouchers.mutate(create, "owner");
+        expect(created.state).toBe("completed");
+        const repeated = yield* vouchers.mutate(create, "owner");
+        expect(repeated).toEqual(created);
+        expect(router.commands.filter((words) => words[0]?.endsWith("/add"))).toHaveLength(1);
+        const id = [...router.users.values()].find((user) => user.username === "new-voucher")![
+          ".id"
+        ]!;
+        const edited = yield* vouchers.mutate(
+          {
+            ...scope,
+            requestId: "test-edit-000000001",
+            action: {
+              kind: "edit",
+              id,
+              username: "edited-voucher",
+              password: "replacement-secret",
+              sharedUsers: 2,
+              comment: "Updated note",
             },
-            "owner",
-          )).state,
-        ).toBe("completed");
-      }
-      expect(router.users.has(id)).toBe(false);
-      expect(JSON.stringify(yield* vouchers.history(scope))).not.toContain("new-secret");
-    }).pipe(Effect.provide(services));
-  }).pipe(Effect.scoped),
+          },
+          "owner",
+        );
+        expect(edited.state).toBe("completed");
+        expect((yield* vouchers.details({ ...scope, id }, "owner")).password).toBe(
+          "replacement-secret",
+        );
+        expect(
+          (yield* vouchers.list({ ...query, offset: 0, search: "updated note" })).items[0]
+            ?.username,
+        ).toBe("edited-voucher");
+        for (const kind of [
+          "disable",
+          "enable",
+          "assign-profile",
+          "reset-counters",
+          "remove",
+        ] as const) {
+          expect(
+            (yield* vouchers.mutate(
+              {
+                ...scope,
+                requestId: `test-${kind}-0000001`,
+                action: { kind, ids: [id], profile: "Week" },
+              },
+              "owner",
+            )).state,
+          ).toBe("completed");
+        }
+        expect(router.users.has(id)).toBe(false);
+        expect(JSON.stringify(yield* vouchers.history(scope))).not.toContain("new-secret");
+      }).pipe(Effect.provide(services));
+    }).pipe(Effect.scoped),
 );
 
 it.live("refreshes changed and removed vouchers without rewriting unchanged rows", () =>
