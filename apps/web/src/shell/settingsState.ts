@@ -5,14 +5,10 @@ import { notifyShell } from "./notifications";
 export const SETTINGS_STORAGE_KEY = "madar:shell-settings";
 const CHANGE_EVENT = "madar:shell-settings-change";
 const SettingsState = Schema.Struct({
-  maskSensitive: Schema.Boolean,
-  workspaceMaskSensitive: Schema.NullOr(Schema.Boolean),
   onboardingComplete: Schema.Boolean,
 });
 export type SettingsState = typeof SettingsState.Type;
 export const DEFAULT_SETTINGS: SettingsState = {
-  maskSensitive: true,
-  workspaceMaskSensitive: null,
   onboardingComplete: false,
 };
 
@@ -76,21 +72,14 @@ export function saveSettings(update: Partial<SettingsState>, replace = false): b
     message: saved
       ? setup
         ? "Your setup preference has been saved."
-        : "Your privacy preferences have been saved."
+        : "Your preferences have been saved."
       : "Previous preferences are still active. Check local storage access and try again.",
     level: saved ? "success" : "error",
-    path: setup ? "/welcome" : "/settings/privacy",
+    path: setup ? "/welcome" : "/settings/general",
   });
   return saved;
 }
-export function effectivePrivacy(settings: SettingsState) {
-  return {
-    maskSensitive: settings.workspaceMaskSensitive ?? settings.maskSensitive,
-    source: settings.workspaceMaskSensitive === null ? "Application default" : "Workspace override",
-  };
-}
-
-export function usePrivacySettings() {
+export function useShellSettings() {
   const serialized = useSyncExternalStore(subscribe, snapshot, () => null);
   let state;
   try {
@@ -98,7 +87,7 @@ export function usePrivacySettings() {
   } catch {
     state = { settings: DEFAULT_SETTINGS, error: true };
   }
-  return { ...state, ...effectivePrivacy(state.settings), saveSettings };
+  return { ...state, saveSettings };
 }
 
 export function readOnboardingComplete() {

@@ -2,23 +2,35 @@ import { AuthAccessWriteScope, EnvironmentHttpApi } from "@madar/contracts";
 import * as Effect from "effect/Effect";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import { requireEnvironmentScope } from "../auth/http.ts";
-import * as RouterProbe from "./RouterProbe.ts";
-import * as UserManagerConnection from "./UserManagerConnection.ts";
+import * as RouterApi from "./RouterApi.ts";
+import * as RouterDiscovery from "./RouterDiscovery.ts";
 
 export const layer = HttpApiBuilder.group(
   EnvironmentHttpApi,
   "routers",
   Effect.fnUntraced(function* (handlers) {
-    const probe = yield* RouterProbe.RouterProbe;
-    const userManager = yield* UserManagerConnection.UserManagerConnection;
+    const api = yield* RouterApi.RouterApi;
+    const discovery = yield* RouterDiscovery.RouterDiscovery;
     return handlers
+      .handle(
+        "discover",
+        Effect.fn("routers.discover")(function* () {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* discovery.scan();
+        }),
+      )
       .handle(
         "probe",
         Effect.fn("routers.probe")(function* ({ payload }) {
           const principal = yield* requireEnvironmentScope(AuthAccessWriteScope);
-          if (payload.profile.transport.startsWith("user-manager-"))
-            return yield* userManager.check(payload, principal.sessionId);
-          return yield* probe.check(payload);
+          return yield* api.connect(payload, principal.sessionId);
+        }),
+      )
+      .handle(
+        "status",
+        Effect.fn("routers.status")(function* ({ payload }) {
+          const principal = yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* api.status(payload.profileId, principal.sessionId);
         }),
       )
       .handle(
@@ -26,7 +38,7 @@ export const layer = HttpApiBuilder.group(
         Effect.fn("routers.disconnect")(function* ({ payload }) {
           const principal = yield* requireEnvironmentScope(AuthAccessWriteScope);
           return {
-            disconnected: yield* userManager.disconnect(payload.profileId, principal.sessionId),
+            disconnected: yield* api.disconnect(payload.profileId, principal.sessionId),
           };
         }),
       );

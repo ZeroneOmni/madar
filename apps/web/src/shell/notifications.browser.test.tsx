@@ -6,7 +6,7 @@ import {
   NotificationsCoordinator,
 } from "./notificationsUI";
 import { notifyShell } from "./notifications";
-import { SensitiveText } from "./SensitiveText";
+import { CopyableText } from "./CopyableText";
 
 function isolatedNotifications() {
   const history = localStorage.getItem("madar:shell-notifications");
@@ -36,9 +36,9 @@ it("retains real operation results across remount and supports read, unread and 
   await expect.element(first.getByText("No notifications yet.", { exact: false })).toBeVisible();
   notifyShell({
     title: "Settings saved",
-    message: "Privacy preferences updated",
+    message: "Preferences updated",
     level: "success",
-    path: "/settings/privacy",
+    path: "/settings/general",
   });
   await expect.element(first.getByRole("heading", { name: "Settings saved" })).toBeVisible();
   await first.getByRole("button", { name: "Mark read", exact: true }).click();
@@ -47,7 +47,7 @@ it("retains real operation results across remount and supports read, unread and 
   await using second = await render(<NotificationCenter onNavigate={navigate} />);
   await second.getByRole("button", { name: "Mark unread" }).click();
   await second.getByRole("button", { name: "Open", exact: true }).click();
-  expect(navigate).toHaveBeenCalledWith("/settings/privacy");
+  expect(navigate).toHaveBeenCalledWith("/settings/general");
   await second.getByRole("button", { name: "Dismiss", exact: true }).click();
   await expect.element(second.getByText("No notifications yet.", { exact: false })).toBeVisible();
 });
@@ -69,18 +69,13 @@ it("reports failed history writes without dropping an existing result and recove
   await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
 });
 
-it("masks the actual value, reveals and hides it, and recovers after clipboard failure", async () => {
+it("shows the actual value and recovers after clipboard failure", async () => {
   await using screen = await render(
-    <SensitiveText value="http://localhost:8077" label="Local app address" />,
+    <CopyableText value="http://localhost:8077" label="Local app address" />,
   );
-  await expect
-    .element(screen.getByLabelText("Local app address hidden"))
-    .toHaveTextContent("••••••••");
-  await screen.getByRole("button", { name: "Reveal local app address" }).click();
   await expect
     .element(screen.getByLabelText("Local app address", { exact: true }))
     .toHaveTextContent("http://localhost:8077");
-  await screen.getByRole("button", { name: "Hide local app address" }).click();
   using clipboard = vi
     .spyOn(navigator.clipboard, "writeText")
     .mockRejectedValueOnce(new Error("Denied"))

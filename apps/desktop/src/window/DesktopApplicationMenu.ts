@@ -73,17 +73,17 @@ const checkForUpdatesFromMenu = Effect.gen(function* () {
   if (updateState.status === "up-to-date") {
     yield* electronDialog.showMessageBox({
       type: "info",
-      title: "You're up to date!",
-      message: `Madar ${updateState.currentVersion} is currently the newest version available.`,
-      buttons: ["OK"],
+      title: "لديك أحدث إصدار",
+      message: `الإصدار ${updateState.currentVersion} هو أحدث إصدار متاح من مدار.`,
+      buttons: ["موافق"],
     });
   } else if (updateState.status === "error") {
     yield* electronDialog.showMessageBox({
       type: "warning",
-      title: "Update check failed",
-      message: "Could not check for updates.",
-      detail: updateState.message ?? "An unknown error occurred. Please try again later.",
-      buttons: ["OK"],
+      title: "تعذّر التحقق من التحديثات",
+      message: "تعذّر التحقق من التحديثات.",
+      detail: "تحقق من اتصال الإنترنت وحاول مجددًا لاحقًا.",
+      buttons: ["موافق"],
     });
   }
 }).pipe(Effect.withSpan("desktop.menu.checkForUpdates"));
@@ -98,10 +98,10 @@ const handleCheckForUpdatesMenuClick = Effect.gen(function* () {
     });
     yield* electronDialog.showMessageBox({
       type: "info",
-      title: "Updates unavailable",
-      message: "Automatic updates are not available right now.",
-      detail: disabledReason.value,
-      buttons: ["OK"],
+      title: "التحديثات غير متاحة",
+      message: "التحديثات التلقائية غير متاحة حاليًا.",
+      detail: "التحديث التلقائي غير متاح لهذا التثبيت. تحقق من إعدادات التحديث.",
+      buttons: ["موافق"],
     });
     return;
   }
@@ -160,94 +160,104 @@ export const make = Effect.gen(function* () {
       template.push({
         label: environment.displayName,
         submenu: [
-          { role: "about", label: `About ${environment.displayName}` },
+          { role: "about", label: "حول مدار" },
           {
-            label: "Check for Updates...",
+            label: "التحقق من التحديثات…",
             click: checkForUpdatesClick,
           },
           { type: "separator" },
           {
-            label: "Settings...",
+            label: "الإعدادات…",
             accelerator: "CmdOrCtrl+,",
             click: () => runMenuEffect("open-settings", dispatchMenuAction("open-settings")),
           },
           { type: "separator" },
-          { role: "services" },
+          { role: "services", label: "الخدمات" },
           { type: "separator" },
-          { role: "hide", label: `Hide ${environment.displayName}` },
-          { role: "hideOthers" },
-          { role: "unhide" },
+          { role: "hide", label: "إخفاء مدار" },
+          { role: "hideOthers", label: "إخفاء النوافذ الأخرى" },
+          { role: "unhide", label: "إظهار الكل" },
           { type: "separator" },
-          { role: "quit", label: `Quit ${environment.displayName}` },
+          { role: "quit", label: "إنهاء مدار" },
         ],
       });
     }
 
     template.push(
       {
-        label: "File",
+        label: "ملف",
         submenu: [
           ...(environment.platform === "darwin"
             ? []
             : [
                 {
-                  label: "Settings...",
+                  label: "الإعدادات…",
                   accelerator: "CmdOrCtrl+,",
                   click: () => runMenuEffect("open-settings", dispatchMenuAction("open-settings")),
                 },
                 { type: "separator" as const },
               ]),
-          { role: environment.platform === "darwin" ? "close" : "quit" },
+          {
+            role: environment.platform === "darwin" ? "close" : "quit",
+            label: environment.platform === "darwin" ? "إغلاق النافذة" : "إنهاء مدار",
+          },
         ],
       },
       {
-        label: "Edit",
+        label: "تحرير",
         submenu: [
-          { role: "undo" },
-          { role: "redo" },
+          { role: "undo", label: "تراجع" },
+          { role: "redo", label: "إعادة" },
           { type: "separator" },
-          { role: "cut" },
-          { role: "copy" },
-          { role: "paste" },
+          { role: "cut", label: "قص" },
+          { role: "copy", label: "نسخ" },
+          { role: "paste", label: "لصق" },
           {
-            label: "Paste as Text",
+            label: "لصق كنص",
             accelerator: "CmdOrCtrl+Shift+V",
             click: pasteAsTextClick,
           },
-          { role: "delete" },
+          { role: "delete", label: "حذف" },
           { type: "separator" },
-          { role: "selectAll" },
+          { role: "selectAll", label: "تحديد الكل" },
           ...(environment.platform === "darwin"
             ? [
                 { type: "separator" as const },
                 {
-                  label: "Speech",
-                  submenu: [{ role: "startSpeaking" as const }, { role: "stopSpeaking" as const }],
+                  label: "النطق",
+                  submenu: [
+                    { role: "startSpeaking" as const, label: "بدء النطق" },
+                    { role: "stopSpeaking" as const, label: "إيقاف النطق" },
+                  ],
                 },
               ]
             : []),
         ],
       },
       {
-        label: "View",
+        label: "عرض",
         submenu: [
           /* Native reload/DevTools/zoom roles target focused guests; these commands must target the app. */
-          { label: "Reload", accelerator: "CmdOrCtrl+R", click: mainContentsClick("reload") },
           {
-            label: "Force Reload",
+            label: "إعادة التحميل",
+            accelerator: "CmdOrCtrl+R",
+            click: mainContentsClick("reload"),
+          },
+          {
+            label: "إعادة التحميل بالكامل",
             accelerator: "Shift+CmdOrCtrl+R",
             click: mainContentsClick("forceReload"),
           },
           {
-            label: "Toggle Developer Tools",
+            label: "إظهار أدوات المطور أو إخفاؤها",
             accelerator: environment.platform === "darwin" ? "Alt+Command+I" : "Ctrl+Shift+I",
             click: mainContentsClick("toggleDevTools"),
           },
           { type: "separator" },
-          { label: "Actual Size", accelerator: "CmdOrCtrl+0", click: zoomClick("reset") },
-          { label: "Zoom In", accelerator: "CmdOrCtrl+=", click: zoomClick("in") },
+          { label: "الحجم الفعلي", accelerator: "CmdOrCtrl+0", click: zoomClick("reset") },
+          { label: "تكبير", accelerator: "CmdOrCtrl+=", click: zoomClick("in") },
           {
-            label: "Zoom In",
+            label: "تكبير",
             accelerator: "CmdOrCtrl+Plus",
             visible: false,
             click: zoomClick("in"),
@@ -255,43 +265,58 @@ export const make = Effect.gen(function* () {
           ...(environment.platform === "darwin"
             ? [
                 {
-                  label: "Zoom In",
+                  label: "تكبير",
                   accelerator: "CmdOrCtrl+Shift+=",
                   visible: false,
                   click: zoomClick("in"),
                 },
               ]
             : []),
-          { label: "Zoom Out", accelerator: "CmdOrCtrl+-", click: zoomClick("out") },
+          { label: "تصغير", accelerator: "CmdOrCtrl+-", click: zoomClick("out") },
           // Keypad codes do not match number-row accelerators.
           {
-            label: "Actual Size",
+            label: "الحجم الفعلي",
             accelerator: "CmdOrCtrl+num0",
             visible: false,
             click: zoomClick("reset"),
           },
           {
-            label: "Zoom In",
+            label: "تكبير",
             accelerator: "CmdOrCtrl+numadd",
             visible: false,
             click: zoomClick("in"),
           },
           {
-            label: "Zoom Out",
+            label: "تصغير",
             accelerator: "CmdOrCtrl+numsub",
             visible: false,
             click: zoomClick("out"),
           },
           { type: "separator" },
-          { role: "togglefullscreen" },
+          { role: "togglefullscreen", label: "ملء الشاشة" },
         ],
       },
-      { role: "windowMenu" },
+      {
+        role: "windowMenu",
+        label: "النافذة",
+        submenu: [
+          { role: "minimize", label: "تصغير النافذة" },
+          { role: "zoom", label: "تكبير النافذة" },
+          { role: "close", label: "إغلاق النافذة" },
+          ...(environment.platform === "darwin"
+            ? [
+                { type: "separator" as const },
+                { role: "front" as const, label: "إظهار جميع النوافذ" },
+              ]
+            : []),
+        ],
+      },
       {
         role: "help",
+        label: "المساعدة",
         submenu: [
           {
-            label: "Check for Updates...",
+            label: "التحقق من التحديثات…",
             click: checkForUpdatesClick,
           },
         ],

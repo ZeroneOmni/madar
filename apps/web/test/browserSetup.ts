@@ -13,5 +13,6 @@ declare module "vite-plus/test/browser" {
 // that mount without it are covered too. Before each test, not after: a timed-out test keeps
 // running and can move the mouse after its own afterEach.
 beforeEach(async () => {
+  localStorage.setItem("madar:language", "en");
   await commands.resetPointer();
 });

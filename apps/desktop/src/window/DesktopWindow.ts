@@ -478,7 +478,7 @@ export const make = Effect.gen(function* () {
             });
           }
           if (params.dictionarySuggestions.length === 0) {
-            menuTemplate.push({ label: "No suggestions", enabled: false });
+            menuTemplate.push({ label: "لا توجد اقتراحات", enabled: false });
           }
           menuTemplate.push({ type: "separator" });
         }
@@ -486,7 +486,7 @@ export const make = Effect.gen(function* () {
         if (Option.isSome(ElectronShell.parseSafeExternalUrl(params.linkURL))) {
           menuTemplate.push(
             {
-              label: "Copy Link",
+              label: "نسخ الرابط",
               click: () => {
                 void runPromise(electronShell.copyText(params.linkURL));
               },
@@ -497,7 +497,7 @@ export const make = Effect.gen(function* () {
 
         if (params.mediaType === "image") {
           menuTemplate.push({
-            label: "Copy Image",
+            label: "نسخ الصورة",
             click: () => {
               void runPromise(
                 Effect.tryPromise(() => copyContextMenuImage(contents, params)).pipe(
@@ -510,10 +510,10 @@ export const make = Effect.gen(function* () {
         }
 
         menuTemplate.push(
-          { role: "cut", enabled: params.editFlags.canCut },
-          { role: "copy", enabled: params.editFlags.canCopy },
-          { role: "paste", enabled: params.editFlags.canPaste },
-          { role: "selectAll", enabled: params.editFlags.canSelectAll },
+          { role: "cut", label: "قص", enabled: params.editFlags.canCut },
+          { role: "copy", label: "نسخ", enabled: params.editFlags.canCopy },
+          { role: "paste", label: "لصق", enabled: params.editFlags.canPaste },
+          { role: "selectAll", label: "تحديد الكل", enabled: params.editFlags.canSelectAll },
         );
 
         void runPromise(

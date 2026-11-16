@@ -129,8 +129,8 @@ const handleFatalStartupError = Effect.fn("desktop.startup.handleFatalStartupErr
   const wasQuitting = yield* Ref.getAndSet(state.quitting, true);
   if (!wasQuitting) {
     yield* electronDialog.showErrorBox(
-      "Madar failed to start",
-      `Stage: ${stage}\n${message}${detail}`,
+      "تعذّر تشغيل مدار",
+      "تعذّر بدء التطبيق. أغلقه وافتحه مجددًا. إذا استمرت المشكلة، راجع سجل التشخيص.",
     );
   }
   yield* shutdown.request;

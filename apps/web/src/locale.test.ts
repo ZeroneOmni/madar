@@ -1,12 +1,11 @@
 ﻿import { expect, it } from "vite-plus/test";
 import { resolveLocale, translate } from "./locale";
 
-it("respects explicit language and detects Arabic regional preferences", () => {
-  expect(resolveLocale("en", ["ar-KW"])).toBe("en");
-  expect(resolveLocale("ar", ["en-US"])).toBe("ar");
-  expect(resolveLocale(null, ["ar-KW", "en"])).toBe("ar");
-  expect(resolveLocale("invalid", ["fr", "ar-SA"])).toBe("ar");
-  expect(resolveLocale(null, ["fr"])).toBe("en");
+it("respects explicit language and otherwise defaults to Arabic", () => {
+  expect(resolveLocale("en")).toBe("en");
+  expect(resolveLocale("ar")).toBe("ar");
+  expect(resolveLocale(null)).toBe("ar");
+  expect(resolveLocale("invalid")).toBe("ar");
 });
 
 it("translates complete messages with interpolation and preserves external text", () => {

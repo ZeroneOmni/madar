@@ -1,5 +1,6 @@
 export * from "./baseSchemas.ts";
 export * from "./routers.ts";
+export * from "./vouchers.ts";
 
 export * from "./auth.ts";
 export * from "./environment.ts";

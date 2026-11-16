@@ -1,4 +1,5 @@
 import { useDocumentAppearance } from "./appearancePreferences";
+import { VouchersPage } from "./vouchers/VouchersPage";
 import { RouterConnections, RouterPicker, RouterProvider } from "./routers/RouterConnections";
 import { useLocale } from "./useLocale";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
@@ -16,14 +17,14 @@ import { installDesktopPasteAsText } from "./lib/desktopPasteAsText";
 import { CommandMenu, useShellCommands } from "./shell/commands";
 import { ShortcutSettings } from "./shell/shortcuts";
 import { SettingsPage } from "./shell/settings";
-import { usePrivacySettings } from "./shell/settingsState";
+import { useShellSettings } from "./shell/settingsState";
 import { WelcomePage } from "./shell/WelcomePage";
 import { ShellSidebar } from "./shell/ShellSidebar";
 import { WorkspaceChrome } from "./shell/WorkspaceChrome";
 import { useNavigation } from "./shell/useNavigation";
 import { destinations, routeLabel } from "./shell/navigation";
 import { navigateShell, useShellPath } from "./shell/routes";
-import { SensitiveText } from "./shell/SensitiveText";
+import { CopyableText } from "./shell/CopyableText";
 import {
   NotificationCenter,
   NotificationSettings,
@@ -32,7 +33,6 @@ import {
 
 function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
   const { t } = useLocale();
-  const { maskSensitive } = usePrivacySettings();
   return (
     <section className="mx-auto max-w-4xl space-y-8 p-(--workspace-page-padding)">
       <div className="space-y-3">
@@ -47,12 +47,12 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
         <h2 className="font-semibold">{t("Router connection")}</h2>
         <p className="text-sm text-muted-foreground">
           {t(
-            "Save your User Manager connection to sign in with your /userman account. Voucher and subscription operations are not available yet.",
+            "Connect through API-SSL to browse customer vouchers, create batches, manage profiles and check usage.",
           )}
         </p>
         <p className="text-sm">
           {t(
-            "You can organize navigation, customize shortcuts, and set privacy and notification preferences now.",
+            "You can organize navigation, customize shortcuts, and set notification preferences now.",
           )}
         </p>
         <Button variant="outline" onClick={() => onNavigate("/routers")}>
@@ -75,20 +75,9 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
       <section className="space-y-3 rounded-xl border p-5">
         <h2 className="font-semibold">{t("Local workspace")}</h2>
         <p className="text-sm text-muted-foreground">
-          {t(
-            "This address identifies the app you are using. Your privacy preference controls whether it is hidden.",
-          )}
+          {t("This address identifies the app you are using.")}
         </p>
-        <SensitiveText
-          value={window.location.origin}
-          label={t("Local app address")}
-          masked={maskSensitive}
-        />
-        <div>
-          <Button variant="link" size="sm" onClick={() => onNavigate("/settings/privacy")}>
-            {t("Privacy preferences")}
-          </Button>
-        </div>
+        <CopyableText value={window.location.origin} label={t("Local app address")} />
       </section>
     </section>
   );
@@ -118,7 +107,7 @@ function DestinationPage({
         <p className="text-sm text-muted-foreground">
           {destination
             ? t(
-                "{name} operations are not implemented yet. You can configure and verify your User Manager sign-in from Connections.",
+                "{name} is planned for a later release. Voucher management and usage are available in Vouchers.",
                 { name: t(destination.label) },
               )
             : t(
@@ -136,7 +125,7 @@ function DestinationPage({
 function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigation> }) {
   const { t } = useLocale();
   const rawPath = useShellPath();
-  const { settings } = usePrivacySettings();
+  const { settings } = useShellSettings();
   const path = rawPath === "/" ? (settings.onboardingComplete ? "/overview" : "/welcome") : rawPath;
   const { toggleSidebar, setOpenMobile, isMobile } = useSidebar();
   function navigate(path: string) {
@@ -169,7 +158,7 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
             className="[-webkit-app-region:no-drag] flex min-w-0 items-center gap-2 text-sm"
           >
             <Button variant="link" size="sm" onClick={() => navigate("/overview")}>
-              Madar
+              {t("Madar")}
             </Button>
             <span aria-hidden="true">/</span>
             <span className="truncate" aria-current="page">
@@ -212,6 +201,8 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
             <Overview onNavigate={navigate} />
           ) : path === "/routers" ? (
             <RouterConnections />
+          ) : path === "/vouchers" ? (
+            <VouchersPage />
           ) : path === "/notifications" ? (
             <NotificationCenter onNavigate={navigate} />
           ) : (

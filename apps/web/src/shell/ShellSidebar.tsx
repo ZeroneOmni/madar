@@ -7,7 +7,6 @@ import {
   ArrowRight,
   Keyboard,
   Palette,
-  Shield,
   ArrowUp,
   Bell,
   ChartColumn,
@@ -51,7 +50,6 @@ import { SETTINGS_SECTIONS, resolveSettingsPath, searchSettings } from "./settin
 const settingsIcons = {
   general: Settings,
   appearance: Palette,
-  privacy: Shield,
   shortcuts: Keyboard,
   notifications: Bell,
 };
@@ -352,7 +350,7 @@ export function ShellSidebar({
         }
       }}
     >
-      <ShellSidebarHeader title={settingsPage ? t("Settings") : "Madar"} />
+      <ShellSidebarHeader title={settingsPage ? t("Settings") : t("Madar")} />
       {settingsPage ? (
         <SettingsNavigation path={path} onNavigate={navigate} returnPath={returnPath} />
       ) : compact ? (

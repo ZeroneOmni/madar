@@ -6,7 +6,7 @@ export const RouterProfile = Schema.Struct({
   host: Schema.String.check(Schema.isPattern(/^[a-zA-Z0-9.:_-]+$/), Schema.isMaxLength(253)),
   port: Schema.Number.check(Schema.isInt(), Schema.isBetween({ minimum: 1, maximum: 65535 })),
   username: Schema.NonEmptyString,
-  transport: Schema.Literals(["user-manager-http", "user-manager-https", "tls", "tcp"]),
+  transport: Schema.Literals(["tls", "tcp"]),
   color: Schema.Literals(["blue", "green", "amber", "red", "purple"]),
   icon: Schema.Literals(["router", "building", "home"]),
   label: Schema.String,
@@ -20,11 +20,6 @@ export const RouterProbeResult = Schema.Union([
     service: Schema.Literal("router-api"),
     identity: Schema.String,
     version: Schema.String,
-  }),
-  Schema.Struct({
-    kind: Schema.Literal("connected"),
-    service: Schema.Literal("user-manager"),
-    customer: Schema.String,
   }),
   Schema.Struct({
     kind: Schema.Literal("failed"),
@@ -43,3 +38,20 @@ export type RouterProbeResult = typeof RouterProbeResult.Type;
 
 export const RouterDisconnectInput = Schema.Struct({ profileId: Schema.NonEmptyString });
 export const RouterDisconnectResult = Schema.Struct({ disconnected: Schema.Boolean });
+
+export const DiscoveredRouter = Schema.Struct({
+  host: Schema.NullOr(Schema.String),
+  mac: Schema.String,
+  identity: Schema.String,
+  version: Schema.String,
+  board: Schema.String,
+});
+export type DiscoveredRouter = typeof DiscoveredRouter.Type;
+export const RouterDiscoveryResult = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("complete"), routers: Schema.Array(DiscoveredRouter) }),
+  Schema.Struct({
+    kind: Schema.Literal("failed"),
+    reason: Schema.Literals(["busy", "unavailable", "no-network"]),
+  }),
+]);
+export type RouterDiscoveryResult = typeof RouterDiscoveryResult.Type;

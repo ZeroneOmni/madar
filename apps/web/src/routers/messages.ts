@@ -1,4 +1,21 @@
 export const routerArabic = {
+  "Discover routers": "اكتشاف الراوترات",
+  "Find your router": "اعثر على الراوتر",
+  "Automatic discovery, once a minute": "اكتشاف تلقائي مرة كل دقيقة",
+  "IP address needed": "يلزم عنوان IP",
+  "This router has no IP address. Configure an IP address on the router, then enter it here. Madar connects over IP, not MAC.":
+    "لا يملك هذا الراوتر عنوان IP. اضبط عنوانًا على الراوتر ثم أدخله هنا. يتصل مدار عبر IP ولا يدعم الاتصال عبر MAC.",
+  "Listening for router advertisements…": "جارٍ البحث عن الراوترات المتاحة على شبكتك…",
+  "No routers found yet.": "لم يُعثر على راوترات بعد.",
+  "Discovery does not verify API access. Connections currently support RouterOS 6.":
+    "ظهور الراوتر لا يؤكد إتاحة الاتصال به. يدعم الاتصال حاليًا RouterOS 6.",
+  "Another search is running. Try again shortly.": "هناك بحث آخر قيد التنفيذ. حاول مجددًا بعد قليل.",
+  "Discovery could not use UDP port 5678. Check your firewall and other discovery apps, then retry.":
+    "تعذر البحث عبر منفذ UDP 5678. تحقق من الجدار الناري وتطبيقات اكتشاف الراوترات الأخرى، ثم أعد المحاولة.",
+  "No connected IPv4 network was found. Connect to your local network and retry.":
+    "لا توجد شبكة IPv4 متصلة. اتصل بشبكتك المحلية ثم أعد المحاولة.",
+  "Could not search for routers. Check the app connection and retry.":
+    "تعذر البحث عن الراوترات. تحقق من اتصال التطبيق ثم أعد المحاولة.",
   Connections: "الاتصالات",
   "Signing out…": "جارٍ تسجيل الخروج…",
   "Save your User Manager connection to sign in with your /userman account. Voucher and subscription operations are not available yet.":
@@ -10,11 +27,14 @@ export const routerArabic = {
   "Select connection": "اختر اتصالًا",
   "Manage connections": "إدارة الاتصالات",
   "Saved connections": "الاتصالات المحفوظة",
-  "Add connection": "إضافة اتصال",
   "Connection details": "تفاصيل الاتصال",
   "Connection name": "اسم الاتصال",
+  "Connection name (optional)": "اسم الاتصال (اختياري)",
+  Advanced: "خيارات متقدمة",
+  Other: "أخرى",
+  Protocol: "البروتوكول",
+  "Save and connect": "حفظ واتصال",
   "Connection method": "طريقة الاتصال",
-  "Short description (optional)": "وصف مختصر (اختياري)",
   "Save connection": "حفظ الاتصال",
   "User Manager address": "عنوان مدير المستخدمين",
   "Router API address": "عنوان واجهة الراوتر API",
@@ -35,7 +55,6 @@ export const routerArabic = {
     "يستخدم اتصال API حساب الراوتر، ولا يتحقق من حساب إدارة مدير المستخدمين.",
   "HTTP sends your User Manager login without encryption. Use HTTPS when available.":
     "يرسل HTTP بيانات دخول مدير المستخدمين دون تشفير. استخدم HTTPS عند توفره.",
-  "Select a saved connection or add one below.": "اختر اتصالًا محفوظًا أو أضف اتصالًا أدناه.",
   "Madar checks the selected connection every 30 seconds. User Manager sign-in and router API access are different. Voucher and subscription operations are not available yet.":
     "يفحص مدار الاتصال المختار كل 30 ثانية. الدخول إلى مدير المستخدمين يختلف عن اتصال الراوتر عبر API. عمليات القسائم والاشتراكات غير متاحة بعد.",
   "User Manager is unreachable. Check its address, web port, and web service.":
