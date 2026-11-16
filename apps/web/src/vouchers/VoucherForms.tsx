@@ -11,7 +11,7 @@ import { Input } from "../components/ui/input";
 import { Choice } from "../components/Choice";
 import { useLocale } from "../useLocale";
 import { CopyableText } from "../shell/CopyableText";
-import { randomCode, voucherClient, voucherError } from "./client";
+import { createVoucherItems, voucherClient, voucherError } from "./client";
 import { formatVoucherValue } from "./format";
 
 export function VoucherCreateForm({
@@ -38,10 +38,7 @@ export function VoucherCreateForm({
       className="space-y-4 rounded-xl border p-5"
       onSubmit={(event) => {
         event.preventDefault();
-        const items = Array.from({ length: count }, () => ({
-          username: count === 1 && username ? username : prefix + randomCode(),
-          password: count === 1 && password ? password : randomCode(12),
-        }));
+        const items = createVoucherItems(count, username, password, prefix);
         onReview({ kind: "create", items, profile, sharedUsers, comment });
       }}
     >
@@ -80,7 +77,7 @@ export function VoucherCreateForm({
               />
             </label>
             <label className="space-y-1">
-              <span>{t("Password (blank generates one)")}</span>
+              <span>{t("Password (blank stays empty)")}</span>
               <Input
                 type="text"
                 autoComplete="new-password"

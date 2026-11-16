@@ -81,8 +81,20 @@ export function downloadCsv(name: string, rows: readonly (readonly string[])[]) 
   URL.revokeObjectURL(url);
 }
 
-export function randomCode(length = 10) {
+function randomCode(length = 10) {
   const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz";
   const values = crypto.getRandomValues(new Uint8Array(length));
   return [...values].map((value) => alphabet[value % alphabet.length]).join("");
+}
+
+export function createVoucherItems(
+  count: number,
+  username: string,
+  password: string,
+  prefix: string,
+) {
+  return Array.from({ length: count }, () => ({
+    username: count === 1 && username ? username : prefix + randomCode(),
+    password: count === 1 ? password : randomCode(12),
+  }));
 }

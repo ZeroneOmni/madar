@@ -19,7 +19,7 @@ export const voucherArabic = {
   Quantity: "العدد",
   "Shared users": "عدد الاتصالات المتزامنة",
   "Username (blank generates one)": "اسم المستخدم، اتركه فارغًا للتوليد التلقائي",
-  "Password (blank generates one)": "كلمة المرور، اتركها فارغة للتوليد التلقائي",
+  "Password (blank stays empty)": "كلمة المرور، اتركها فارغة لتبقى بدون كلمة مرور",
   "Username prefix": "بادئة أسماء المستخدمين",
   Profile: "الباقة",
   "No profile": "بدون باقة",
