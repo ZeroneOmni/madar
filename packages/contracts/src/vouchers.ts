@@ -40,8 +40,7 @@ export const VoucherQuery = Schema.Struct({
   search: Text,
   status: Schema.Literals(["all", "enabled", "disabled", "online", "unassigned"]),
   profile: Text,
-  sort: Schema.Literals(["username", "profile", "lastSeen"]),
-  descending: Schema.Boolean,
+  sort: Schema.Literals(["username", "profile"]),
   offset: Integer,
   limit: Integer.check(Schema.isBetween({ minimum: 1, maximum: 200 })),
 });

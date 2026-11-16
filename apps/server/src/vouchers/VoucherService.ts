@@ -266,7 +266,11 @@ const make = Effect.gen(function* () {
                 `=customer=${input.customer}`,
                 `=profile=${action.profile}`,
               ]);
-            } else yield* read(input, owner, [`${userMenu}/${action.kind}`, `=.id=${id}`]);
+            } else
+              yield* read(input, owner, [
+                `${userMenu}/${action.kind}`,
+                `=${action.kind === "reset-counters" ? "numbers" : ".id"}=${id}`,
+              ]);
             written = true;
           }
           if (action.kind === "remove") yield* store.remove(input, id);
@@ -296,11 +300,9 @@ const make = Effect.gen(function* () {
       }
       operation = {
         ...operation,
-        state:
-          operation.outcomes.length === targets.length &&
-          operation.outcomes.every((outcome) => outcome.state === "confirmed")
-            ? "completed"
-            : "attention",
+        state: operation.outcomes.every((outcome) => outcome.state === "confirmed")
+          ? "completed"
+          : "attention",
       };
       yield* store.saveOperation(input, operation);
       return operation;

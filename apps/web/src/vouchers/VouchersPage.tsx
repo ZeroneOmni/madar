@@ -29,7 +29,7 @@ import { navigateShell } from "../shell/routes";
 import { useLocale } from "../useLocale";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { randomUUID } from "../lib/utils";
-import { voucherClient, voucherError, downloadCsv } from "./client";
+import { voucherClient, voucherError, downloadCsv, VoucherRequestError } from "./client";
 import { VoucherCreateForm, VoucherInspector } from "./VoucherForms";
 import { formatVoucherValue } from "./format";
 
@@ -187,12 +187,12 @@ function CustomerVouchers({
   );
   const scope = { router, customer };
   const query: VoucherQuery = {
-    ...scope,
+    router,
+    customer,
     search,
     status,
     profile,
     sort,
-    descending: false,
     offset,
     limit: 50,
   };
@@ -275,9 +275,11 @@ function CustomerVouchers({
         pageCache.clear();
         setRevision((value) => value + 1);
       },
-      () =>
+      (error) =>
         setError(
-          "The response was interrupted. Retry this same request to check its recorded outcome. Do not submit the action again with a new request.",
+          error instanceof VoucherRequestError
+            ? voucherError(error)
+            : "The response was interrupted. Retry this same request to check its recorded outcome. Do not submit the action again with a new request.",
         ),
     );
     setBusy(false);
@@ -588,10 +590,12 @@ function VoucherRows({
   onOffset: (offset: number) => void;
 }) {
   const { t, locale } = useLocale();
+  const { router, customer, search, status, profile, sort, offset, limit } = query;
   const key = JSON.stringify(query);
   const [page, setPage] = useState<VoucherPage | null>(() => pageCache.get(key) ?? null);
   const [error, setError] = useState("");
   useEffect(() => {
+    const query = { router, customer, search, status, profile, sort, offset, limit };
     const abort = new AbortController();
     void voucherClient
       .list(query, abort.signal)
@@ -613,7 +617,7 @@ function VoucherRows({
         if (!abort.signal.aborted) setError(voucherError(error));
       });
     return () => abort.abort();
-  }, [query, key]);
+  }, [router, customer, search, status, profile, sort, offset, limit, key]);
   if (error) return <p role="alert">{t(error)}</p>;
   if (!page) return <p role="status">{t("Loading saved vouchers…")}</p>;
   const all = page.items.length > 0 && page.items.every((row) => selected.includes(row.id));

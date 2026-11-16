@@ -8,7 +8,7 @@ export function readLocale() {
   try {
     saved = window.localStorage.getItem(LOCALE_KEY);
   } catch {}
-  return resolveLocale(saved, navigator.languages);
+  return resolveLocale(saved);
 }
 
 function subscribe(listener: () => void) {

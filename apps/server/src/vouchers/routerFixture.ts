@@ -109,7 +109,7 @@ export async function routerFixture(
           });
         } else {
           const id =
-            (command.endsWith("/create-and-activate-profile")
+            (command.endsWith("/create-and-activate-profile") || command.endsWith("/reset-counters")
               ? attributes.numbers
               : attributes[".id"]) ?? "";
           const user = users.get(id);

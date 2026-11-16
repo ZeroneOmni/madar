@@ -28,6 +28,8 @@ const messages: Record<string, string> = {
     "A voucher with this username already exists, or the operation identifier is already in use.",
   busy: "Another operation is in progress. Try again when it finishes.",
 };
+export class VoucherRequestError extends Error {}
+
 async function call<A>(
   name: string,
   payload: unknown,
@@ -44,7 +46,7 @@ async function call<A>(
       typeof body.reason === "string"
         ? body.reason
         : "";
-    throw new Error(
+    throw new VoucherRequestError(
       messages[reason] ?? "Madar could not complete the request. Check the app connection.",
     );
   }

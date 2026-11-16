@@ -95,7 +95,6 @@ it.live(
           status: "all",
           profile: "",
           sort: "username",
-          descending: false,
           offset: 50,
           limit: 50,
         };
@@ -201,7 +200,6 @@ it.live("refreshes changed and removed vouchers without rewriting unchanged rows
         status: "all",
         profile: "",
         sort: "username",
-        descending: false,
         offset: 0,
         limit: 50,
       });
@@ -231,7 +229,6 @@ it.live(
           status: "all",
           profile: "",
           sort: "username",
-          descending: false,
           offset: 0,
           limit: 50,
         };

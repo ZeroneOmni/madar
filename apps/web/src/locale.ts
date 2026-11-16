@@ -3,7 +3,7 @@ import { arabic } from "./messages";
 export type Locale = "en" | "ar";
 export const LOCALE_KEY = "madar:language";
 
-export function resolveLocale(saved: string | null, _languages: readonly string[]): Locale {
+export function resolveLocale(saved: string | null): Locale {
   if (saved === "ar" || saved === "en") return saved;
   return "ar";
 }

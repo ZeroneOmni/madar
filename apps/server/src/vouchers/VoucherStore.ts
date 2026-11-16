@@ -137,12 +137,7 @@ const make = Effect.gen(function* () {
         where.push("CAST(json_extract(data, '$.activeSessions') AS INTEGER)>0");
       if (query.status === "unassigned") where.push("profile=''");
       const condition = where.join(" AND ");
-      const order =
-        query.sort === "profile"
-          ? "profile"
-          : query.sort === "lastSeen"
-            ? "json_extract(data, '$.lastSeen')"
-            : "username";
+      const order = query.sort === "profile" ? "profile" : "username";
       const result = yield* sql.withTransaction(
         Effect.gen(function* () {
           const count = yield* sql.unsafe<{ total: number }>(
@@ -150,7 +145,7 @@ const make = Effect.gen(function* () {
             values,
           );
           const rows = yield* sql.unsafe<{ data: string }>(
-            `SELECT data FROM vouchers WHERE ${condition} ORDER BY ${order} ${query.descending ? "DESC" : "ASC"}, id LIMIT ? OFFSET ?`,
+            `SELECT data FROM vouchers WHERE ${condition} ORDER BY ${order} ASC, id LIMIT ? OFFSET ?`,
             [...values, query.limit, query.offset],
           );
           const sync = yield* sql<{
