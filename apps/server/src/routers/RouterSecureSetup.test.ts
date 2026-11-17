@@ -29,6 +29,16 @@ async function sshFixture(output: string) {
         accept().on("exec", (accept, _reject, info) => {
           commands.push(info.command);
           const stream = accept();
+          // RouterOS 6 exposes the digest in print, but rejects setting it in certificate add.
+          if (
+            output.startsWith("MADAR_PORT=") &&
+            /\/certificate add [^;]* digest-algorithm=/.test(info.command)
+          ) {
+            stream.write("expected end of command (line 1 column 389)");
+            stream.exit(1);
+            stream.end();
+            return;
+          }
           stream.write(output);
           stream.exit(0);
           stream.end();

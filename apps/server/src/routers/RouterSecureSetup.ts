@@ -25,14 +25,16 @@ class SetupError extends Schema.TaggedError<SetupError>()("SetupError", {
 
 function setupScript(host: string, name: string) {
   const san = `${NodeNet.isIP(host) ? "IP" : "DNS"}:${host}`;
+  // RouterOS needs a registration delay after signing before a service can select the certificate.
   return `{
   :local version [/system resource get version];
   :if ([:pick $version 0 2] != "6.") do={ :error "MADAR_UNSUPPORTED" };
   :local service [/ip service find where name="api-ssl"];
   :local cert [/ip service get $service certificate];
   :if (($cert = "none") || ($cert = "")) do={
-    /certificate add name="${name}" common-name="${host}" subject-alt-name="${san}" key-size=2048 digest-algorithm=sha256 days-valid=3650 key-usage=digital-signature,key-encipherment,key-cert-sign,tls-server;
+    /certificate add name="${name}" common-name="${host}" subject-alt-name="${san}" key-size=2048 days-valid=3650 key-usage=digital-signature,key-encipherment,key-cert-sign,tls-server;
     /certificate sign [find where name="${name}"] name="${name}";
+    :delay 3s;
     :set cert "${name}";
     /ip service set $service certificate=$cert;
   };
