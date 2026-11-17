@@ -1,4 +1,63 @@
 export const routerArabic = {
+  Continue: "متابعة",
+  "Set up API-SSL": "إعداد API-SSL",
+  "API-SSL (already configured)": "API-SSL (مُعد مسبقًا)",
+  "Native API is unencrypted. Use it on a trusted network, or set up API-SSL.":
+    "اتصال API العادي غير مشفّر. استخدم شبكة موثوقة أو أعدّ API-SSL.",
+  "API-SSL verifies the router certificate before sending your password.":
+    "يتحقق API-SSL من شهادة الراوتر قبل إرسال كلمة المرور.",
+  "Enter the router address and username before setting up API-SSL.":
+    "أدخل عنوان الراوتر واسم المستخدم قبل إعداد API-SSL.",
+  "Secure connection ready": "الاتصال الآمن جاهز",
+  "Encrypt the connection to {host}.": "شفّر الاتصال مع {host}.",
+  "Madar verified the router certificate. Save to use this secure connection from now on.":
+    "تحقق مدار من شهادة الراوتر. احفظ لاستخدام الاتصال الآمن من الآن.",
+  "Existing native API access is still available on the router.":
+    "يبقى اتصال API العادي متاحًا على الراوتر.",
+  "Is this your router? Only continue on a network you trust. For stronger verification, compare this SSH fingerprint through an existing trusted connection.":
+    "هل هذا هو الراوتر الخاص بك؟ تابع على شبكة تثق بها فقط. للتحقق بدقة أكبر، قارن بصمة SSH عبر اتصال موثوق قائم.",
+  "SSH fingerprint": "بصمة SSH",
+  "Your password is sent only after you approve this router identity. Madar then creates a certificate if needed and enables API-SSL. Firewall and native API settings are kept.":
+    "تُرسل كلمة المرور بعد موافقتك على هوية الراوتر فقط. ينشئ مدار شهادة عند الحاجة ويفعّل API-SSL مع إبقاء إعدادات الجدار الناري وAPI العادي.",
+  "Open WinBox Terminal on this router, paste this setup block, and wait for MADAR_PORT and MADAR_FINGERPRINT. Paste those values below.":
+    "افتح Terminal في WinBox على هذا الراوتر، والصق أوامر الإعداد، وانتظر ظهور MADAR_PORT وMADAR_FINGERPRINT. أدخل القيمتين أدناه.",
+  "Router setup block": "أوامر إعداد الراوتر",
+  "API-SSL port": "منفذ API-SSL",
+  "Certificate fingerprint": "بصمة الشهادة",
+  "The setup keeps any existing API-SSL certificate and port. No private keys leave your router.":
+    "يحتفظ الإعداد بشهادة API-SSL ومنفذه الحاليين إن وُجدا. لا تغادر المفاتيح الخاصة الراوتر.",
+  "Madar can prepare your router automatically using SSH and the account you entered. You need administrator access.":
+    "يمكن لمدار إعداد الراوتر تلقائيًا عبر SSH باستخدام الحساب الذي أدخلته. تحتاج إلى صلاحيات مسؤول.",
+  "You will approve the router identity before setup. No certificate downloads or computer settings are needed.":
+    "ستوافق على هوية الراوتر قبل الإعداد. لا حاجة لتنزيل شهادات أو تعديل إعدادات الكمبيوتر.",
+  "SSH settings": "إعدادات SSH",
+  "SSH port": "منفذ SSH",
+  "Checking router identity…": "جارٍ التحقق من هوية الراوتر…",
+  "Preparing secure access… This can take up to two minutes. Keep this window open.":
+    "جارٍ إعداد الاتصال الآمن… قد يستغرق ذلك دقيقتين. أبقِ هذه النافذة مفتوحة.",
+  "Saving secure connection…": "جارٍ حفظ الاتصال الآمن…",
+  "Verifying certificate…": "جارٍ التحقق من الشهادة…",
+  "Use WinBox instead": "الإعداد عبر WinBox",
+  "Save and connect securely": "حفظ واتصال آمن",
+  "Trust router and set up": "الوثوق بالراوتر وإعداده",
+  "Verify secure connection": "التحقق من الاتصال الآمن",
+  "Could not save the secure connection. Try again.": "تعذر حفظ الاتصال الآمن. حاول مجددًا.",
+  "Could not reach the router. Check SSH or API-SSL access and firewall settings.":
+    "تعذر الوصول إلى الراوتر. تحقق من اتصال SSH أو API-SSL وإعدادات الجدار الناري.",
+  "SSH login rejected. Check the router username and password.":
+    "رُفض تسجيل دخول SSH. تحقق من اسم مستخدم الراوتر وكلمة المرور.",
+  "The router identity changed. Close setup and verify the router before trying again.":
+    "تغيرت هوية الراوتر. أغلق الإعداد وتحقق من الراوتر قبل المحاولة مجددًا.",
+  "This account cannot configure secure access. Use an administrator account or ask your administrator to run the setup in WinBox.":
+    "لا يملك هذا الحساب صلاحية إعداد الاتصال الآمن. استخدم حساب مسؤول أو اطلب من المسؤول تنفيذ الإعداد في WinBox.",
+  "Automatic setup supports RouterOS 6. Check the router version.":
+    "يدعم الإعداد التلقائي RouterOS 6. تحقق من إصدار الراوتر.",
+  "The certificate could not be verified. Check the fingerprint, router address and certificate dates.":
+    "تعذر التحقق من الشهادة. تحقق من البصمة وعنوان الراوتر وتواريخ الشهادة.",
+  "Setup did not finish. The router may have changed. Use WinBox to check API-SSL before trying again.":
+    "لم يكتمل الإعداد. ربما تغيرت إعدادات الراوتر. تحقق من API-SSL في WinBox قبل المحاولة مجددًا.",
+  "Another secure setup is running. Wait for it to finish, then try again.":
+    "هناك إعداد آمن قيد التنفيذ. انتظر اكتماله ثم حاول مجددًا.",
   "Loading saved password…": "جارٍ تحميل كلمة المرور المحفوظة…",
   "Retry disconnect": "إعادة محاولة قطع الاتصال",
   "Could not load the saved password. Enter it before saving.":

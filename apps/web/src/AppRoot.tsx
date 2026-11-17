@@ -47,7 +47,7 @@ function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
         <h2 className="font-semibold">{t("Router connection")}</h2>
         <p className="text-sm text-muted-foreground">
           {t(
-            "Connect through API-SSL to browse customer vouchers, create batches, manage profiles and check usage.",
+            "Connect to your router to browse customer vouchers, create batches, manage profiles and check usage.",
           )}
         </p>
         <p className="text-sm">

@@ -1,10 +1,5 @@
 import { expect, it, vi } from "vite-plus/test";
-import {
-  discoverRouters,
-  initializeAppSession,
-  probeRouter,
-  probeRouterWithFallback,
-} from "./access";
+import { discoverRouters, initializeAppSession, probeRouter } from "./access";
 import type { RouterProfile } from "@madar/contracts";
 
 const profile: RouterProfile = {
@@ -65,117 +60,23 @@ it.each([Response.json({ kind: "complete", routers: [{}] }), new Response("", { 
 );
 
 it.each(["network", "timeout", "tls", "protocol"])(
-  "retries %s failures over the standard native API port",
+  "keeps API-SSL selected after a %s failure without sending credentials over native API",
   async (reason) => {
     vi.stubGlobal("window", {});
-    const connected = {
-      kind: "connected",
-      service: "router-api",
-      identity: "Office",
-      version: "6.49",
-    };
     using request = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(Response.json({ kind: "failed", reason }))
-      .mockResolvedValueOnce(Response.json(connected));
-    try {
-      const result = await probeRouterWithFallback(
-        { profile, password: "fixture" },
-        new AbortController().signal,
-      );
-      expect(result).toEqual({
-        profile: { ...profile, transport: "tcp", port: 8728 },
-        result: connected,
-      });
-      expect(request.mock.calls.map(([, init]) => JSON.parse(String(init?.body)))).toEqual([
-        { profile, password: "fixture" },
-        { profile: { ...profile, transport: "tcp", port: 8728 }, password: "fixture" },
-      ]);
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  },
-);
-
-it.each([
-  { router: profile, result: { kind: "failed", reason: "authentication" } },
-  { router: profile, result: { kind: "failed", reason: "permission" } },
-  { router: profile, result: { kind: "failed", reason: "unsupported" } },
-  { router: { ...profile, port: 1234 }, result: { kind: "failed", reason: "network" } },
-  {
-    router: { ...profile, transport: "tcp" as const, port: 8728 },
-    result: { kind: "failed", reason: "network" },
-  },
-  {
-    router: profile,
-    result: { kind: "connected", service: "router-api", identity: "Office", version: "6.49" },
-  },
-])(
-  "preserves the chosen profile without an unnecessary retry: $result.kind $result.reason",
-  async ({ router, result }) => {
-    vi.stubGlobal("window", {});
-    using request = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json(result));
+      .mockResolvedValue(Response.json({ kind: "failed", reason }));
     try {
       expect(
-        await probeRouterWithFallback(
-          { profile: router, password: "fixture" },
-          new AbortController().signal,
-        ),
-      ).toEqual({ profile: router, result });
+        await probeRouter({ profile, password: "fixture" }, new AbortController().signal),
+      ).toEqual({ kind: "failed", reason });
       expect(request).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body)).profile.transport).toBe("tls");
     } finally {
       vi.unstubAllGlobals();
     }
   },
 );
-
-it("does not retry a cancelled connection", async () => {
-  vi.stubGlobal("window", {});
-  const abort = new AbortController();
-  using request = vi.spyOn(globalThis, "fetch").mockImplementationOnce(async () => {
-    abort.abort();
-    return Response.json({ kind: "failed", reason: "network" });
-  });
-  try {
-    await expect(
-      probeRouterWithFallback({ profile, password: "fixture" }, abort.signal),
-    ).rejects.toThrow();
-    expect(request).toHaveBeenCalledTimes(1);
-  } finally {
-    vi.unstubAllGlobals();
-  }
-});
-
-it("keeps API-SSL configured when both connection attempts fail", async () => {
-  vi.stubGlobal("window", {});
-  using request = vi
-    .spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(Response.json({ kind: "failed", reason: "tls" }))
-    .mockResolvedValueOnce(Response.json({ kind: "failed", reason: "network" }));
-  try {
-    expect(
-      await probeRouterWithFallback({ profile, password: "fixture" }, new AbortController().signal),
-    ).toEqual({ profile, result: { kind: "failed", reason: "network" } });
-    expect(request).toHaveBeenCalledTimes(2);
-  } finally {
-    vi.unstubAllGlobals();
-  }
-});
-
-it("does not downgrade when the app request fails", async () => {
-  vi.stubGlobal("window", {});
-  using request = vi
-    .spyOn(globalThis, "fetch")
-    .mockResolvedValueOnce(new Response("", { status: 500 }));
-  try {
-    await expect(
-      probeRouterWithFallback({ profile, password: "fixture" }, new AbortController().signal),
-    ).rejects.toThrow("Router check unavailable");
-    expect(request).toHaveBeenCalledTimes(1);
-  } finally {
-    vi.unstubAllGlobals();
-  }
-});
 
 it("preserves a failed pairing route so startup can show recovery", async () => {
   const replaceState = vi.fn();

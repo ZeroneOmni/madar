@@ -4,6 +4,7 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import { requireEnvironmentScope } from "../auth/http.ts";
 import * as RouterApi from "./RouterApi.ts";
 import * as RouterDiscovery from "./RouterDiscovery.ts";
+import * as RouterSecureSetup from "./RouterSecureSetup.ts";
 
 export const layer = HttpApiBuilder.group(
   EnvironmentHttpApi,
@@ -11,7 +12,15 @@ export const layer = HttpApiBuilder.group(
   Effect.fnUntraced(function* (handlers) {
     const api = yield* RouterApi.RouterApi;
     const discovery = yield* RouterDiscovery.RouterDiscovery;
+    const secure = yield* RouterSecureSetup.RouterSecureSetup;
     return handlers
+      .handle(
+        "secure",
+        Effect.fn("routers.secure")(function* ({ payload }) {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* secure.run(payload);
+        }),
+      )
       .handle(
         "discover",
         Effect.fn("routers.discover")(function* () {

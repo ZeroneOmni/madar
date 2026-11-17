@@ -6,26 +6,45 @@ import * as Effect from "effect/Effect";
 import * as RouterApi from "./RouterApi.ts";
 import { routerFixture } from "../vouchers/routerFixture.ts";
 
-// Non-secret, self-signed 127.0.0.1 certificate, valid until 2126; ALPN h2 requires TLS.
-const TEST_KEY = `-----BEGIN PRIVATE KEY-----
-MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg3EwCztQysKTvzdcR
-g0LWq+axzUd4tHi9PyMdqh7PlGShRANCAARfQpoLgv/tOsHWCLriDza7Ruaey2b7
-mR/nS6mLu6W7+agkEqDm0mE3F/ngpPjL4Jj0IGadeMcKNKFRSBgiLdfn
------END PRIVATE KEY-----
-`;
-const TEST_CERT = `-----BEGIN CERTIFICATE-----
-MIIBsDCCAVagAwIBAgIUWbn2Wt5kTxii1UU57NJMt/wTaUgwCgYIKoZIzj0EAwIw
-JDEiMCAGA1UEAwwZdDNjb2RlIG91dGJvdW5kIGh0dHAgdGVzdDAgFw0yNjEwMTEy
-MjQyMzZaGA8yMTI2MDkxNzIyNDIzNlowJDEiMCAGA1UEAwwZdDNjb2RlIG91dGJv
-dW5kIGh0dHAgdGVzdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABF9CmguC/+06
-wdYIuuIPNrtG5p7LZvuZH+dLqYu7pbv5qCQSoObSYTcX+eCk+MvgmPQgZp14xwo0
-oVFIGCIt1+ejZDBiMB0GA1UdDgQWBBSsekAc30Q/zdIE/tvVDQKJL5oiCDAfBgNV
-HSMEGDAWgBSsekAc30Q/zdIE/tvVDQKJL5oiCDAPBgNVHRMBAf8EBTADAQH/MA8G
-A1UdEQQIMAaHBH8AAAEwCgYIKoZIzj0EAwIDSAAwRQIgebUrkyP56242EJB7nCV7
-A+Ke/q0rNPya3fjQa9O5B+kCIQC1SfmdNaFcNJ4JINlus4FfrRnfKiADS2MIJR9f
-99BN0A==
------END CERTIFICATE-----
-`;
+import { TEST_KEY, TEST_CERT } from "./tlsFixture.ts";
+
+it.effect("preserves persistent router keys when certificates are added or renewed", () =>
+  Effect.sync(() => {
+    const profile = {
+      id: "fixture",
+      name: "Fixture",
+      host: "Router.local",
+      port: 8728,
+      transport: "tcp" as const,
+      username: "admin",
+      color: "blue" as const,
+      icon: "router" as const,
+      label: "",
+    };
+    const key = '["router.local",8728,"tcp","admin"]';
+    expect(RouterApi.routerKey(profile)).toBe(key);
+    expect(RouterApi.routerKey({ ...profile, tlsCertificate: TEST_CERT })).toBe(key);
+  }),
+);
+
+it.live("requires reconnection when a profile certificate changes", () =>
+  Effect.gen(function* () {
+    const router = yield* Effect.acquireDisposable(
+      Effect.promise(() => routerFixture(0, { tls: { key: TEST_KEY, cert: TEST_CERT } })),
+    );
+    yield* Effect.gen(function* () {
+      const api = yield* RouterApi.RouterApi;
+      const profile = { ...router.profile, tlsCertificate: TEST_CERT };
+      expect((yield* api.connect({ profile, password: "fixture" }, "owner")).kind).toBe(
+        "connected",
+      );
+      const result = yield* api
+        .execute(router.profile, "owner", ["/system/identity/print"])
+        .pipe(Effect.flip);
+      expect(result.reason).toBe("disconnected");
+    }).pipe(Effect.provide(RouterApi.layer));
+  }).pipe(Effect.scoped),
+);
 
 it.live("keeps an authenticated socket after its connection deadline is cleared", () =>
   Effect.gen(function* () {

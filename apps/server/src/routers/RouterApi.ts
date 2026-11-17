@@ -52,6 +52,20 @@ class ApiSocket {
               port: profile.port,
               servername: NodeNet.isIP(profile.host) ? undefined : profile.host,
               rejectUnauthorized: true,
+              ...(profile.tlsCertificate
+                ? {
+                    ca: profile.tlsCertificate,
+                    allowPartialTrustChain: true,
+                    checkServerIdentity: (host: string, cert: NodeTls.PeerCertificate) => {
+                      const pinned = new NodeCrypto.X509Certificate(profile.tlsCertificate!);
+                      return cert.raw.equals(pinned.raw)
+                        ? NodeTls.checkServerIdentity(host, cert)
+                        : Object.assign(new Error("Router certificate changed"), {
+                            code: "CERT_CHANGED",
+                          });
+                    },
+                  }
+                : {}),
             },
             () => ready(),
           )
@@ -275,7 +289,8 @@ const make = Effect.gen(function* () {
     if (
       !session ||
       session.owner !== owner ||
-      routerKey(session.input.profile) !== routerKey(profile)
+      routerKey(session.input.profile) !== routerKey(profile) ||
+      session.input.profile.tlsCertificate !== profile.tlsCertificate
     )
       return yield* new RouterApiError({ reason: "disconnected" });
     const socket = yield* open(session).pipe(

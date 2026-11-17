@@ -3,6 +3,8 @@ import {
   RouterProbeResult,
   RouterDisconnectResult,
   RouterDiscoveryResult,
+  RouterSecureResult,
+  type RouterSecureRequest,
   type RouterProbeInput,
 } from "@madar/contracts";
 import * as Schema from "effect/Schema";
@@ -10,6 +12,12 @@ import * as Schema from "effect/Schema";
 const decodeResult = Schema.decodeUnknownSync(RouterProbeResult);
 const decodeDisconnect = Schema.decodeUnknownSync(RouterDisconnectResult);
 const decodeDiscovery = Schema.decodeUnknownSync(RouterDiscoveryResult);
+const decodeSecure = Schema.decodeUnknownSync(RouterSecureResult);
+export async function setupSecureRouter(input: RouterSecureRequest, signal: AbortSignal) {
+  const response = await routerRequest("/api/routers/secure", input, signal);
+  if (!response.ok) throw new Error("Secure setup unavailable");
+  return decodeSecure(await response.json());
+}
 export async function discoverRouters(signal: AbortSignal) {
   const response = await routerRequest(
     "/api/routers/discover",
@@ -86,20 +94,4 @@ export async function disconnectRouter(profileId: string) {
   );
   if (!response.ok || !decodeDisconnect(await response.json()).disconnected)
     throw new Error("Session could not be closed");
-}
-
-export async function probeRouterWithFallback(input: RouterProbeInput, signal: AbortSignal) {
-  const result = await probeRouter(input, signal);
-  signal.throwIfAborted();
-  if (
-    input.profile.transport !== "tls" ||
-    input.profile.port !== 8729 ||
-    result.kind !== "failed" ||
-    !["network", "timeout", "tls", "protocol"].includes(result.reason)
-  )
-    return { profile: input.profile, result };
-  const profile = { ...input.profile, transport: "tcp" as const, port: 8728 };
-  const fallback = await probeRouter({ ...input, profile }, signal);
-  signal.throwIfAborted();
-  return { profile: fallback.kind === "connected" ? profile : input.profile, result: fallback };
 }

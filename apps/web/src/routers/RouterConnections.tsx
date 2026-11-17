@@ -13,6 +13,7 @@ import { useRouterModel } from "./useRouterModel";
 import { Badge } from "../components/ui/badge";
 import { RouterDiscovery } from "./RouterDiscovery";
 import { RouterDiscoveryProvider } from "./discoveryState";
+import { SecureRouterSetup } from "./SecureRouterSetup";
 
 const reasons = {
   credentials: "Enter your router password to restore automatic connection.",
@@ -79,9 +80,9 @@ const blank: RouterProfile = {
   id: "new",
   name: "",
   host: "",
-  port: 8729,
+  port: 8728,
   username: "",
-  transport: "tls",
+  transport: "tcp",
   color: "blue",
   icon: "router",
   label: "",
@@ -97,6 +98,7 @@ export function RouterConnections() {
   const [customPort, setCustomPort] = useState(false);
   const [formError, setFormError] = useState("");
   const [removing, setRemoving] = useState<string | null>(null);
+  const [secure, setSecure] = useState<{ profile: RouterProfile; password: string } | null>(null);
   const connectionForm = useRef<HTMLFormElement | null>(null);
   const draftRequest = useRef(0);
   const active = model.catalog.routers.find((router) => router.id === model.catalog.selected);
@@ -123,6 +125,22 @@ export function RouterConnections() {
           if (draftRequest.current === request)
             setFormError("Could not load the saved password. Enter it before saving.");
         });
+    }
+  }
+  function openSecure() {
+    if (draftPassword === null) return;
+    try {
+      const profile = decode({
+        ...draft,
+        name: draft.name.trim() || draft.host.trim(),
+        host: draft.host.trim(),
+        username: draft.username.trim(),
+      });
+      setFormError("");
+      setSecure({ profile, password: draftPassword });
+    } catch {
+      setFormError("Enter the router address and username before setting up API-SSL.");
+      connectionForm.current?.reportValidity();
     }
   }
   return (
@@ -197,7 +215,7 @@ export function RouterConnections() {
               )}
               {active.transport === "tcp" && (
                 <p className="text-sm text-destructive">
-                  {t("Native API is an unencrypted backup. Use it only on a trusted network.")}
+                  {t("Native API is unencrypted. Use it on a trusted network, or set up API-SSL.")}
                 </p>
               )}
               <Button type="submit" disabled={model.closing || model.credentialsLoading}>
@@ -379,8 +397,8 @@ export function RouterConnections() {
               label={t("Connection method")}
               value={customPort ? "other" : draft.transport}
               options={[
-                { value: "tls", label: t("API-SSL (recommended)") },
-                { value: "tcp", label: t("Native API (backup)") },
+                { value: "tcp", label: t("Native API") },
+                { value: "tls", label: t("API-SSL (already configured)") },
                 { value: "other", label: t("Other") },
               ]}
               onChange={(value) => {
@@ -428,6 +446,13 @@ export function RouterConnections() {
         <p className="text-sm text-muted-foreground">
           {t("Your password is saved on this device for automatic connection.")}
         </p>
+        <p className="text-sm text-muted-foreground">
+          {t(
+            draft.transport === "tcp"
+              ? "Native API is unencrypted. Use it on a trusted network, or set up API-SSL."
+              : "API-SSL verifies the router certificate before sending your password.",
+          )}
+        </p>
         <div className="flex flex-wrap gap-2">
           <Button
             type="submit"
@@ -438,8 +463,28 @@ export function RouterConnections() {
           <Button variant="outline" onClick={() => resetDraft()}>
             {t("Cancel")}
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={draftPassword === null || model.closing || model.state.kind === "connecting"}
+            onClick={openSecure}
+          >
+            {t("Set up API-SSL")}
+          </Button>
         </div>
       </form>
+      {secure && (
+        <SecureRouterSetup
+          profile={secure.profile}
+          password={secure.password}
+          onClose={() => setSecure(null)}
+          onReady={async (profile) => {
+            const saved = await model.save(profile, secure.password);
+            if (saved) resetDraft();
+            return saved;
+          }}
+        />
+      )}
     </section>
   );
 }

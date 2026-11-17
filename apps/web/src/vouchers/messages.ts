@@ -1,6 +1,6 @@
 export const voucherArabic = {
-  "Connect through API-SSL to browse customer vouchers, create batches, manage profiles and check usage.":
-    "اتصل عبر الواجهة المشفّرة لاستعراض قسائم العملاء وإنشائها وإدارة باقاتها ومتابعة الاستهلاك.",
+  "Connect to your router to browse customer vouchers, create batches, manage profiles and check usage.":
+    "اتصل بالراوتر لاستعراض قسائم العملاء وإنشائها وإدارة باقاتها ومتابعة الاستهلاك.",
   "{name} is planned for a later release. Voucher management and usage are available in Vouchers.":
     "ستتوفر ميزة {name} في إصدار لاحق. يمكنك حاليًا إدارة القسائم ومتابعة استهلاكها من صفحة القسائم.",
   "API-SSL": "الواجهة المشفّرة (API-SSL)",

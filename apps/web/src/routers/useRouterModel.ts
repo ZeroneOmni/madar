@@ -1,7 +1,7 @@
 import type { RouterProbeInput, RouterProfile } from "@madar/contracts";
 import { useEffect, useRef, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { checkRouter, disconnectRouter, probeRouterWithFallback } from "./access";
+import { checkRouter, disconnectRouter, probeRouter } from "./access";
 import { CATALOG_KEY, decodeCatalog, emptyCatalog, saveCatalog, type Catalog } from "./catalog";
 import { superviseConnection, type ConnectionState } from "./supervisor";
 
@@ -99,7 +99,7 @@ export function useRouterModel() {
 
   useEffect(() => {
     if (!session || session.abort.signal.aborted) return;
-    let input = session.input;
+    const input = session.input;
     let established = false;
     const cancel = superviseConnection({
       publish: setState,
@@ -113,19 +113,10 @@ export function useRouterModel() {
             // A restarted backend has lost its in-memory router session.
             if (result.reason !== "authentication") return result;
           }
-          const outcome = await probeRouterWithFallback(input, combined);
+          const result = await probeRouter(input, combined);
           combined.throwIfAborted();
-          established = outcome.result.kind === "connected";
-          if (outcome.profile.transport !== input.profile.transport) {
-            input = { ...input, profile: outcome.profile };
-            update({
-              ...currentCatalog.current,
-              routers: currentCatalog.current.routers.map((router) =>
-                router.id === input.profile.id ? input.profile : router,
-              ),
-            });
-          }
-          return outcome.result;
+          established = result.kind === "connected";
+          return result;
         } catch (error) {
           established = false;
           throw error;
@@ -134,7 +125,7 @@ export function useRouterModel() {
     });
     stop.current = cancel;
     return cancel;
-  }, [session, update]);
+  }, [session]);
 
   useEffect(() => () => pending.current?.abort(), []);
 

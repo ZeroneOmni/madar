@@ -1,5 +1,16 @@
 /** Keep bundler externals and staged runtime dependency roots aligned. */
 // Filesystem-loaded externals need dependencies outside the bundle.
+const SSH_RUNTIME_PACKAGES = [
+  "ssh2",
+  "asn1",
+  "bcrypt-pbkdf",
+  "cpu-features",
+  "nan",
+  "safer-buffer",
+  "tweetnacl",
+  "buildcheck",
+] as const;
+
 export const CLI_RUNTIME_EXTERNAL_PREFIXES = [
   "@napi-rs/keyring",
   "node-gyp-build",
@@ -9,7 +20,10 @@ export const CLI_RUNTIME_EXTERNAL_PREFIXES = [
 ] as const;
 
 export function isRuntimeExternalCliDependency(id: string): boolean {
-  return CLI_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix));
+  return (
+    SSH_RUNTIME_PACKAGES.some((name) => id === name || id.startsWith(`${name}/`)) ||
+    CLI_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix))
+  );
 }
 
 /** Use neverBundle: false from alwaysBundle means no opinion and leaves transitive packages bundled. */

@@ -16,6 +16,8 @@ import {
   RouterDisconnectInput,
   RouterDisconnectResult,
   RouterDiscoveryResult,
+  RouterSecureRequest,
+  RouterSecureResult,
 } from "./routers.ts";
 import type * as DateTime from "effect/DateTime";
 import * as Schema from "effect/Schema";
@@ -438,6 +440,13 @@ export class EnvironmentHttpApi extends HttpApi.make("environment")
   )
   .add(
     HttpApiGroup.make("routers")
+      .add(
+        HttpApiEndpoint.post("secure", "/api/routers/secure", {
+          payload: RouterSecureRequest,
+          success: RouterSecureResult,
+          error: EnvironmentScopedOperationErrors,
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
       .add(
         HttpApiEndpoint.post("discover", "/api/routers/discover", {
           success: RouterDiscoveryResult,
