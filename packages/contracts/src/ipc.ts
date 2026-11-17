@@ -2,6 +2,7 @@ import * as Schema from "effect/Schema";
 
 import { type ClientSettings, type QuitConfirmationMode } from "./settings.ts";
 import type { DesktopNotificationInput, DesktopNotificationResult } from "./notifications.ts";
+import type { RouterCredentialRequest } from "./routers.ts";
 
 export interface ContextMenuItem<T extends string = string> {
   id: T;
@@ -222,6 +223,7 @@ export const SystemSettingsPaneSchema = Schema.Literals(["full-disk-access"]);
 export type SystemSettingsPane = typeof SystemSettingsPaneSchema.Type;
 
 export interface DesktopBridge {
+  routerCredentials?: (request: RouterCredentialRequest) => Promise<string | null>;
   pickThemeFiles?: () => Promise<readonly { name: string; size: number; text: string }[] | null>;
   saveThemeFile?: (file: { name: string; text: string }) => Promise<boolean>;
   showNotification?: (input: DesktopNotificationInput) => Promise<DesktopNotificationResult>;

@@ -1,6 +1,6 @@
 import { RouterProfile } from "@madar/contracts";
 import * as Schema from "effect/Schema";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import { Router, Settings2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -9,13 +9,13 @@ import { useLocale } from "../useLocale";
 import { CopyableText } from "../shell/CopyableText";
 import { navigateShell } from "../shell/routes";
 import { randomUUID } from "../lib/utils";
-import { probeRouterWithFallback, disconnectRouter, checkRouter } from "./access";
-import { CATALOG_KEY, decodeCatalog, emptyCatalog, saveCatalog, type Catalog } from "./catalog";
-import { superviseConnection, type ConnectionState } from "./supervisor";
+import { useRouterModel } from "./useRouterModel";
+import { Badge } from "../components/ui/badge";
 import { RouterDiscovery } from "./RouterDiscovery";
 import { RouterDiscoveryProvider } from "./discoveryState";
 
 const reasons = {
+  credentials: "Enter your router password to restore automatic connection.",
   network: "Router unreachable. Check the host, API port, firewall, and API service.",
   tls: "TLS verification failed. Configure a trusted API-SSL certificate matching the router host.",
   timeout: "Router did not respond in time. Check connectivity and the API service.",
@@ -25,83 +25,6 @@ const reasons = {
   unsupported: "Supported target: RouterOS 6 using the binary API.",
   app: "Madar could not check the router. Check the app connection and sign in again if needed.",
 };
-function useRouterModel() {
-  const [catalog, setCatalog] = useState<Catalog>(() => {
-    try {
-      return decodeCatalog(localStorage.getItem(CATALOG_KEY));
-    } catch {
-      return emptyCatalog;
-    }
-  });
-  const [error, setError] = useState("");
-  const currentCatalog = useRef(catalog);
-  const [session, setSession] = useState<{ id: string } | null>(null);
-  const [state, setState] = useState<ConnectionState>({ kind: "disconnected" });
-  const [closing, setClosing] = useState(false);
-  const pending = useRef<AbortController | null>(null);
-  useEffect(() => () => pending.current?.abort(), []);
-  useEffect(() => {
-    if (!session) return;
-    return superviseConnection({
-      publish: setState,
-      probe: (signal) => checkRouter(session.id, signal),
-    });
-  }, [session]);
-  function update(next: Catalog) {
-    try {
-      saveCatalog(localStorage, next);
-      currentCatalog.current = next;
-      setCatalog(next);
-      setError("");
-      return true;
-    } catch {
-      setError("Could not save routers. Previous settings are still active.");
-      return false;
-    }
-  }
-  async function disconnect() {
-    pending.current?.abort();
-    const id = session?.id ?? catalog.selected;
-    setSession(null);
-    setState({ kind: "disconnected" });
-    if (!id) return;
-    setClosing(true);
-    await disconnectRouter(id).catch(() =>
-      setError("Could not close the router connection. Try disconnecting again."),
-    );
-    setClosing(false);
-  }
-  function select(id: string) {
-    if (update({ ...catalog, selected: id || null })) void disconnect();
-  }
-  async function connect(
-    password: string,
-    profile = catalog.routers.find((router) => router.id === catalog.selected),
-  ) {
-    if (!profile || closing) return;
-    pending.current?.abort();
-    const abort = new AbortController();
-    pending.current = abort;
-    setSession(null);
-    setState({ kind: "connecting" });
-    const outcome = await probeRouterWithFallback({ profile, password }, abort.signal).catch(
-      () => ({ profile, result: { kind: "failed", reason: "app" } }) as const,
-    );
-    if (abort.signal.aborted) return;
-    const { result } = outcome;
-    if (outcome.profile.transport !== profile.transport) {
-      update({
-        ...currentCatalog.current,
-        routers: currentCatalog.current.routers.map((router) =>
-          router.id === profile.id ? outcome.profile : router,
-        ),
-      });
-    }
-    setState(result);
-    if (result.kind === "connected") setSession({ id: profile.id });
-  }
-  return { catalog, error, state, closing, update, select, disconnect, connect };
-}
 const RouterContext = createContext<ReturnType<typeof useRouterModel> | null>(null);
 export function RouterProvider({ children }: { children: React.ReactNode }) {
   const model = useRouterModel();
@@ -121,7 +44,7 @@ const labels = {
   connecting: "Connecting",
   connected: "Connected",
   reconnecting: "Reconnecting",
-  failed: "Failed",
+  failed: "Needs attention",
 };
 export function RouterPicker() {
   const { t } = useLocale();
@@ -169,18 +92,38 @@ export function RouterConnections() {
   const model = useRouters();
   const [draft, setDraft] = useState<RouterProfile>(() => ({ ...blank, id: randomUUID() }));
   const [password, setPassword] = useState("");
-  const [draftPassword, setDraftPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [draftPassword, setDraftPassword] = useState<string | null>("");
   const [customPort, setCustomPort] = useState(false);
   const [formError, setFormError] = useState("");
   const [removing, setRemoving] = useState<string | null>(null);
   const connectionForm = useRef<HTMLFormElement | null>(null);
+  const draftRequest = useRef(0);
   const active = model.catalog.routers.find((router) => router.id === model.catalog.selected);
   const connected = model.state.kind === "connected" ? model.state : null;
+  const needsPassword =
+    !model.passwordSaved ||
+    changingPassword ||
+    (model.state.kind === "failed" &&
+      ["authentication", "credentials"].includes(model.state.reason));
   function resetDraft(profile = { ...blank, id: randomUUID() }) {
+    const request = ++draftRequest.current;
     setDraft(profile);
     setDraftPassword("");
     setCustomPort(profile.port !== (profile.transport === "tls" ? 8729 : 8728));
     setFormError("");
+    if (model.catalog.routers.some(({ id }) => id === profile.id)) {
+      setDraftPassword(null);
+      void model
+        .passwordFor(profile)
+        .then((value) => {
+          if (draftRequest.current === request) setDraftPassword(value ?? "");
+        })
+        .catch(() => {
+          if (draftRequest.current === request)
+            setFormError("Could not load the saved password. Enter it before saving.");
+        });
+    }
   }
   return (
     <section className="mx-auto max-w-3xl space-y-6 p-(--workspace-page-padding)">
@@ -188,10 +131,33 @@ export function RouterConnections() {
       {model.error && <p role="alert">{t(model.error)}</p>}
       {active && (
         <div className="space-y-4 rounded-xl border p-5">
-          <h2 className="font-semibold">{t("Active connection")}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-semibold">{t("Active connection")}</h2>
+            <Badge
+              aria-label={t("Router connection status")}
+              variant={
+                connected ? "success" : model.state.kind === "failed" ? "warning" : "secondary"
+              }
+              role="status"
+            >
+              {t(labels[model.state.kind])}
+            </Badge>
+          </div>
           <p className="font-medium">{active.name}</p>
           <CopyableText value={`${active.host}:${active.port}`} label={t("Router API address")} />
-          <p role="status">{t(labels[model.state.kind])}</p>
+          <p className="text-sm text-muted-foreground">
+            {t(
+              model.state.kind === "disconnected"
+                ? "Automatic connection is off. Choose Connect to resume."
+                : model.state.kind === "reconnecting"
+                  ? "Retrying every 30 seconds. Madar will keep trying until the router returns."
+                  : model.state.kind === "failed"
+                    ? "Update the connection details to continue."
+                    : model.catalog.autoConnect
+                      ? "Connects when Madar opens and recovers automatically after an outage."
+                      : "Connected for this session. Reopening will require your password.",
+            )}
+          </p>
           {connected && (
             <>
               <CopyableText value={connected.identity} label={t("Router identity")} />
@@ -203,19 +169,29 @@ export function RouterConnections() {
               className="space-y-3"
               onSubmit={(event) => {
                 event.preventDefault();
-                void model.connect(password);
+                void model.connect(needsPassword ? password : undefined);
+                setChangingPassword(false);
                 setPassword("");
               }}
             >
-              <label className="block space-y-1">
-                <span>{t("Router account password")}</span>
-                <Input
-                  type="text"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </label>
+              {needsPassword ? (
+                <label className="block space-y-1">
+                  <span>{t("Router account password")}</span>
+                  <Input
+                    type="text"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                </label>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t("Saved password will be used.")}</p>
+              )}
+              {needsPassword && (
+                <p className="text-sm text-muted-foreground">
+                  {t("Your password is saved on this device for automatic connection.")}
+                </p>
+              )}
               {active.transport === "tcp" && (
                 <p className="text-sm text-destructive">
                   {t("Native API is an unencrypted backup. Use it only on a trusted network.")}
@@ -224,20 +200,46 @@ export function RouterConnections() {
               <Button type="submit" disabled={model.closing}>
                 {t("Connect")}
               </Button>
+              {!needsPassword && (
+                <Button variant="ghost" onClick={() => setChangingPassword(true)}>
+                  {t("Change password")}
+                </Button>
+              )}
             </form>
+          )}
+          {model.closeFailed && model.state.kind === "disconnected" && (
+            <Button
+              variant="outline"
+              disabled={model.closing}
+              onClick={() => void model.disconnect()}
+            >
+              {t("Retry disconnect")}
+            </Button>
           )}
           {model.state.kind !== "disconnected" && (
             <div className="flex flex-wrap gap-2">
+              {model.state.kind === "reconnecting" && (
+                <Button onClick={model.retry}>{t("Try now")}</Button>
+              )}
               {connected && (
                 <Button onClick={() => navigateShell("/vouchers")}>{t("Open vouchers")}</Button>
               )}
-              <Button variant="outline" onClick={() => void model.disconnect()}>
+              <Button
+                variant="outline"
+                disabled={model.closing}
+                onClick={() => void model.disconnect()}
+              >
                 {t("Disconnect")}
               </Button>
             </div>
           )}
           {(model.state.kind === "failed" || model.state.kind === "reconnecting") && (
-            <p role="alert">{t(reasons[model.state.reason])}</p>
+            <p
+              role={model.state.kind === "failed" ? "alert" : undefined}
+              className="text-sm text-muted-foreground"
+            >
+              {t(reasons[model.state.reason])}
+            </p>
           )}
         </div>
       )}
@@ -268,16 +270,11 @@ export function RouterConnections() {
               <p>{t("Remove this saved router?")}</p>
               <Button
                 variant="destructive"
+                disabled={model.closing}
                 onClick={() => {
-                  if (router.id === model.catalog.selected) void model.disconnect();
-                  if (
-                    model.update({
-                      routers: model.catalog.routers.filter((item) => item.id !== router.id),
-                      selected:
-                        model.catalog.selected === router.id ? null : model.catalog.selected,
-                    })
-                  )
-                    setRemoving(null);
+                  void model.remove(router.id).then((removed) => {
+                    if (removed) setRemoving(null);
+                  });
                 }}
               >
                 {t("Confirm removal")}
@@ -294,6 +291,7 @@ export function RouterConnections() {
         className="space-y-4 rounded-xl border p-5"
         onSubmit={(event) => {
           event.preventDefault();
+          if (draftPassword === null) return;
           try {
             const profile = decode({
               ...draft,
@@ -361,8 +359,11 @@ export function RouterConnections() {
           <Input
             type="text"
             autoComplete="current-password"
-            value={draftPassword}
-            onChange={(event) => setDraftPassword(event.target.value)}
+            value={draftPassword ?? ""}
+            onChange={(event) => {
+              draftRequest.current++;
+              setDraftPassword(event.target.value);
+            }}
           />
         </label>
         <details className="space-y-4">
@@ -429,8 +430,14 @@ export function RouterConnections() {
           )}
         </details>
         {formError && <p role="alert">{t(formError)}</p>}
-        <div className="flex gap-2">
-          <Button type="submit" disabled={model.closing || model.state.kind === "connecting"}>
+        <p className="text-sm text-muted-foreground">
+          {t("Your password is saved on this device for automatic connection.")}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="submit"
+            disabled={draftPassword === null || model.closing || model.state.kind === "connecting"}
+          >
             {t("Save and connect")}
           </Button>
           <Button variant="outline" onClick={() => resetDraft()}>

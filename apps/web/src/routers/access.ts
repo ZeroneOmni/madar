@@ -41,7 +41,11 @@ export async function routerRequest(path: string, input: unknown, signal?: Abort
   });
 }
 export async function checkRouter(profileId: string, signal: AbortSignal) {
-  const response = await routerRequest("/api/routers/status", { profileId }, signal);
+  const response = await routerRequest(
+    "/api/routers/status",
+    { profileId },
+    AbortSignal.any([signal, AbortSignal.timeout(75000)]),
+  );
   if (!response.ok) throw new Error("Router check unavailable");
   return decodeResult(await response.json());
 }

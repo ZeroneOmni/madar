@@ -1,4 +1,31 @@
 export const routerArabic = {
+  "Retry disconnect": "إعادة محاولة قطع الاتصال",
+  "Could not load the saved password. Enter it before saving.":
+    "تعذر تحميل كلمة المرور المحفوظة. أدخلها قبل الحفظ.",
+  "Router connection status": "حالة الاتصال بالراوتر",
+  "Connected for this session. Reopening will require your password.":
+    "متصل لهذه الجلسة. ستحتاج إلى كلمة المرور عند إعادة فتح مدار.",
+  "Needs attention": "يحتاج إلى إجراء",
+  "Automatic connection is off. Choose Connect to resume.":
+    "الاتصال التلقائي متوقف. اضغط اتصال لاستئنافه.",
+  "Retrying every 30 seconds. Madar will keep trying until the router returns.":
+    "يعيد مدار المحاولة كل 30 ثانية حتى يعود الراوتر للاتصال.",
+  "Update the connection details to continue.": "حدّث بيانات الاتصال للمتابعة.",
+  "Connects when Madar opens and recovers automatically after an outage.":
+    "يتصل عند فتح مدار ويستعيد الاتصال تلقائيًا بعد الانقطاع.",
+  "Saved password will be used.": "ستُستخدم كلمة المرور المحفوظة.",
+  "Your password is saved on this device for automatic connection.":
+    "تُحفظ كلمة المرور على هذا الجهاز للاتصال تلقائيًا.",
+  "Change password": "تغيير كلمة المرور",
+  "Try now": "حاول الآن",
+  "Enter your router password to restore automatic connection.":
+    "أدخل كلمة مرور الراوتر لاستعادة الاتصال التلقائي.",
+  "Your password could not be saved on this device. Reopening will require your password.":
+    "تعذر حفظ كلمة المرور على هذا الجهاز. ستحتاج إلى إدخالها عند إعادة فتح مدار.",
+  "Automatic connection is off, but Madar could not close the router session. Try Disconnect again.":
+    "الاتصال التلقائي متوقف، لكن تعذر إغلاق جلسة الراوتر. حاول قطع الاتصال مجددًا.",
+  "Could not remove the saved password. Try removing the router again.":
+    "تعذر حذف كلمة المرور المحفوظة. حاول إزالة الراوتر مجددًا.",
   "Discover routers": "اكتشاف الراوترات",
   "Find your router": "اعثر على الراوتر",
   "Automatic discovery, once a minute": "اكتشاف تلقائي مرة كل دقيقة",

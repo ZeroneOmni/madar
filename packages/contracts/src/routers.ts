@@ -14,6 +14,13 @@ export const RouterProfile = Schema.Struct({
 export type RouterProfile = typeof RouterProfile.Type;
 export const RouterProbeInput = Schema.Struct({ profile: RouterProfile, password: Schema.String });
 export type RouterProbeInput = typeof RouterProbeInput.Type;
+
+export const RouterCredentialRequest = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal("get"), profile: RouterProfile }),
+  Schema.Struct({ kind: Schema.Literal("set"), ...RouterProbeInput.fields }),
+  Schema.Struct({ kind: Schema.Literal("remove"), profileId: Schema.NonEmptyString }),
+]);
+export type RouterCredentialRequest = typeof RouterCredentialRequest.Type;
 export const RouterProbeResult = Schema.Union([
   Schema.Struct({
     kind: Schema.Literal("connected"),
