@@ -18,6 +18,8 @@ if (clientPlatform === "darwin") {
 }
 
 contextBridge.exposeInMainWorld("desktopBridge", {
+  routerCredentials: (request) =>
+    ipcRenderer.invoke(IpcChannels.ROUTER_CREDENTIALS_CHANNEL, request),
   showNotification: (input) => ipcRenderer.invoke(IpcChannels.SHOW_NOTIFICATION_CHANNEL, input),
   notificationsSupported: () => ipcRenderer.invoke(IpcChannels.NOTIFICATIONS_SUPPORTED_CHANNEL),
   onNotificationActivate: (listener) => {

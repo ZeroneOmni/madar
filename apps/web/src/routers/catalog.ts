@@ -4,9 +4,10 @@ import * as Schema from "effect/Schema";
 const Catalog = Schema.Struct({
   routers: Schema.Array(RouterProfile),
   selected: Schema.NullOr(Schema.String),
+  autoConnect: Schema.optionalKey(Schema.Boolean),
 });
 export type Catalog = typeof Catalog.Type;
-export const emptyCatalog: Catalog = { routers: [], selected: null };
+export const emptyCatalog: Catalog = { routers: [], selected: null, autoConnect: false };
 export const CATALOG_KEY = "madar:routers";
 const SavedCatalog = Schema.Struct({
   routers: Schema.Array(
@@ -16,6 +17,7 @@ const SavedCatalog = Schema.Struct({
     }),
   ),
   selected: Schema.NullOr(Schema.String),
+  autoConnect: Schema.optionalKey(Schema.Boolean),
 });
 const decode = Schema.decodeSync(Schema.fromJsonString(SavedCatalog));
 export function decodeCatalog(raw: string | null): Catalog {
@@ -26,6 +28,7 @@ export function decodeCatalog(raw: string | null): Catalog {
   );
   const catalog: Catalog = {
     routers,
+    autoConnect: saved.autoConnect === true,
     selected:
       saved.selected !== null &&
       saved.routers.some(
