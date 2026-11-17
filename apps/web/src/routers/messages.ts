@@ -1,4 +1,5 @@
 export const routerArabic = {
+  "Loading saved password…": "جارٍ تحميل كلمة المرور المحفوظة…",
   "Retry disconnect": "إعادة محاولة قطع الاتصال",
   "Could not load the saved password. Enter it before saving.":
     "تعذر تحميل كلمة المرور المحفوظة. أدخلها قبل الحفظ.",

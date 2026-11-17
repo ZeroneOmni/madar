@@ -268,11 +268,14 @@ it("waits for a saved password before allowing an edited router to be saved", as
   using _request = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => reply(url));
   await using screen = await render(<Connection />);
   await expect.element(screen.getByText("Saved password will be used.")).toBeVisible();
-  const password = Promise.withResolvers<string | null>();
-  fixture.credentials.mockReturnValueOnce(password.promise);
+  let complete: (value: string | null) => void = () => {};
+  const password = new Promise<string | null>((resolve) => {
+    complete = resolve;
+  });
+  fixture.credentials.mockReturnValueOnce(password);
   await userEvent.click(screen.getByRole("button", { name: "Edit", exact: true }));
   await expect.element(screen.getByRole("button", { name: "Save and connect" })).toBeDisabled();
-  password.resolve("fixture-password");
+  complete("fixture-password");
   await expect
     .element(screen.getByRole("textbox", { name: "Router account password" }).last())
     .toHaveValue("fixture-password");
@@ -328,4 +331,56 @@ it("keeps the current router selected when closing its session fails during swit
   await userEvent.click(screen.getByRole("button", { name: "Select", exact: true }));
   await expect.element(screen.getByRole("button", { name: "Retry disconnect" })).toBeEnabled();
   expect(JSON.parse(localStorage.getItem(CATALOG_KEY)!).selected).toBe(profile.id);
+});
+
+it("waits for the active router password before allowing Connect", async () => {
+  using fixture = setup(false);
+  let complete: (value: string | null) => void = () => {};
+  const password = new Promise<string | null>((resolve) => {
+    complete = resolve;
+  });
+  fixture.credentials.mockReturnValueOnce(password);
+  using request = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => reply(url));
+  await using screen = await render(<Connection />);
+  await expect.element(screen.getByRole("button", { name: "Connect", exact: true })).toBeDisabled();
+  complete("fixture-password");
+  await expect.element(screen.getByText("Saved password will be used.")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Connect", exact: true }));
+  await expect
+    .element(screen.getByRole("status", { name: "Router connection status" }))
+    .toHaveTextContent("Connected");
+  expect(request.mock.calls.find(([url]) => String(url).endsWith("/probe"))?.[1]?.body).toBe(
+    JSON.stringify({ profile, password: "fixture-password" }),
+  );
+  expect(fixture.passwords.get(profile.id)).toBe("fixture-password");
+});
+
+it("retains the previous connection and draft when Save and connect cannot close its session", async () => {
+  using fixture = setup();
+  using request = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (url) =>
+      String(url).endsWith("/disconnect") ? jsonResponse({ disconnected: false }) : reply(url),
+    );
+  await using screen = await render(<Connection />);
+  await expect
+    .element(screen.getByRole("status", { name: "Router connection status" }))
+    .toHaveTextContent("Connected");
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Hostname or IP address" }),
+    "new.local",
+  );
+  await userEvent.type(screen.getByRole("textbox", { name: "Router account username" }), "admin");
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Router account password" }).last(),
+    "new-password",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Save and connect" }));
+  await expect.element(screen.getByRole("button", { name: "Retry disconnect" })).toBeEnabled();
+  await expect
+    .element(screen.getByRole("textbox", { name: "Hostname or IP address" }))
+    .toHaveValue("new.local");
+  expect(JSON.parse(localStorage.getItem(CATALOG_KEY)!).selected).toBe(profile.id);
+  expect(fixture.passwords.size).toBe(1);
+  expect(request.mock.calls.filter(([url]) => String(url).endsWith("/probe"))).toHaveLength(1);
 });

@@ -37,14 +37,20 @@ export function useRouterModel() {
     input: RouterProbeInput;
     abort: AbortController;
   } | null>(null);
-  const [credential, setCredential] = useState<RouterProfile | null>(null);
+  const [credential, setCredential] = useState<{ profile: RouterProfile; saved: boolean } | null>(
+    null,
+  );
   const [closing, setClosing] = useState(false);
   const [closeFailed, setCloseFailed] = useState(false);
   const pending = useRef<AbortController | null>(null);
   const stop = useRef<(() => void) | null>(null);
   const credentialRevision = useRef(0);
   const active = catalog.routers.find(({ id }) => id === catalog.selected);
-  const passwordSaved = !!(active && credential && sameAccount(active, credential));
+  const credentialsLoading = !!(
+    active &&
+    (!credential || !sameAccount(active, credential.profile))
+  );
+  const passwordSaved = !credentialsLoading && credential?.saved === true;
 
   const update = useStableCallback((next: Catalog) => {
     try {
@@ -64,11 +70,11 @@ export function useRouterModel() {
     const revision = credentialRevision.current;
     if (active)
       void readPassword(active)
+        .catch(() => null)
         .then((password) => {
           if (!disposed && revision === credentialRevision.current)
-            setCredential(password === null ? null : active);
-        })
-        .catch(() => {});
+            setCredential({ profile: active, saved: password !== null });
+        });
     return () => {
       disposed = true;
     };
@@ -189,9 +195,8 @@ export function useRouterModel() {
           )
         : false;
       if (abort.signal.aborted) return;
-      if (saved) setCredential(profile);
-      else {
-        setCredential(null);
+      setCredential({ profile, saved });
+      if (!saved) {
         update({ ...currentCatalog.current, autoConnect: false });
         setError(
           "Your password could not be saved on this device. Reopening will require your password.",
@@ -199,6 +204,19 @@ export function useRouterModel() {
       }
     }
     setSession({ input: { profile, password: value }, abort });
+  }
+  async function save(profile: RouterProfile, password: string) {
+    if (closing || !(await disconnect())) return false;
+    if (
+      !update({
+        routers: [...currentCatalog.current.routers.filter(({ id }) => id !== profile.id), profile],
+        selected: profile.id,
+        autoConnect: false,
+      })
+    )
+      return false;
+    await connect(password, profile);
+    return true;
   }
   async function remove(id: string) {
     if (id === currentCatalog.current.selected && !(await disconnect())) return false;
@@ -213,7 +231,7 @@ export function useRouterModel() {
       setError("Could not remove the saved password. Try removing the router again.");
       return false;
     }
-    if (credential?.id === id) {
+    if (credential?.profile.id === id) {
       setCredential(null);
       credentialRevision.current++;
     }
@@ -233,7 +251,8 @@ export function useRouterModel() {
     closing,
     closeFailed,
     passwordSaved,
-    update,
+    credentialsLoading,
+    save,
     select,
     connect,
     disconnect,

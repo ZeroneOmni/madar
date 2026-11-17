@@ -102,7 +102,7 @@ export function RouterConnections() {
   const active = model.catalog.routers.find((router) => router.id === model.catalog.selected);
   const connected = model.state.kind === "connected" ? model.state : null;
   const needsPassword =
-    !model.passwordSaved ||
+    (!model.credentialsLoading && !model.passwordSaved) ||
     changingPassword ||
     (model.state.kind === "failed" &&
       ["authentication", "credentials"].includes(model.state.reason));
@@ -169,12 +169,15 @@ export function RouterConnections() {
               className="space-y-3"
               onSubmit={(event) => {
                 event.preventDefault();
+                if (model.credentialsLoading) return;
                 void model.connect(needsPassword ? password : undefined);
                 setChangingPassword(false);
                 setPassword("");
               }}
             >
-              {needsPassword ? (
+              {model.credentialsLoading ? (
+                <p className="text-sm text-muted-foreground">{t("Loading saved password…")}</p>
+              ) : needsPassword ? (
                 <label className="block space-y-1">
                   <span>{t("Router account password")}</span>
                   <Input
@@ -197,10 +200,10 @@ export function RouterConnections() {
                   {t("Native API is an unencrypted backup. Use it only on a trusted network.")}
                 </p>
               )}
-              <Button type="submit" disabled={model.closing}>
+              <Button type="submit" disabled={model.closing || model.credentialsLoading}>
                 {t("Connect")}
               </Button>
-              {!needsPassword && (
+              {!needsPassword && !model.credentialsLoading && (
                 <Button variant="ghost" onClick={() => setChangingPassword(true)}>
                   {t("Change password")}
                 </Button>
@@ -299,17 +302,9 @@ export function RouterConnections() {
               host: draft.host.trim(),
               username: draft.username.trim(),
             });
-            const saved = {
-              routers: [
-                ...model.catalog.routers.filter((router) => router.id !== profile.id),
-                profile,
-              ],
-              selected: profile.id,
-            };
-            if (model.update(saved)) {
-              void model.connect(draftPassword, profile);
-              resetDraft();
-            }
+            void model.save(profile, draftPassword).then((saved) => {
+              if (saved) resetDraft();
+            });
           } catch {
             setFormError("Check the connection fields and try again.");
           }
