@@ -8,7 +8,7 @@ import * as Layer from "effect/Layer";
 import * as RouterSecureSetup from "./RouterSecureSetup.ts";
 import * as RouterApi from "./RouterApi.ts";
 import { routerFixture } from "../vouchers/routerFixture.ts";
-import { TEST_KEY, TEST_CERT } from "./tlsFixture.ts";
+import { TEST_KEY, TEST_CERT } from "../tlsFixture.ts";
 
 const routerServices = RouterSecureSetup.layer.pipe(Layer.provideMerge(RouterApi.layer));
 

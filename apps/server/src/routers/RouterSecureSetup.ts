@@ -1,5 +1,4 @@
 // @effect-diagnostics nodeBuiltinImport:off
-// @effect-diagnostics globalTimersInEffect:off -- Network callbacks own bounded setup deadlines.
 import * as NodeCrypto from "node:crypto";
 import * as NodeModule from "node:module";
 import * as NodeNet from "node:net";
@@ -27,6 +26,8 @@ class SetupError extends Schema.TaggedError<SetupError>()("SetupError", {
     "setup",
   ]),
 }) {}
+
+const networkFailure = () => Effect.fail(new SetupError({ reason: "network" }));
 
 function setupScript(host: string, name: string) {
   const san = `${NodeNet.isIP(host) ? "IP" : "DNS"}:${host}`;
@@ -57,18 +58,12 @@ const ssh = Effect.fn("RouterSecureSetup.ssh")(function* (
     const client = new Client();
     let done = false;
     let output = "";
-    let receivedKey = false;
     const finish = (result: Effect.Effect<string, SetupError>) => {
       if (done) return;
       done = true;
-      clearTimeout(deadline);
       client.destroy();
       resume(result);
     };
-    const deadline = setTimeout(
-      () => finish(Effect.fail(new SetupError({ reason: "network" }))),
-      120000,
-    );
     client.on("error", (error: Error & { level?: string }) => {
       finish(
         Effect.fail(
@@ -78,7 +73,7 @@ const ssh = Effect.fn("RouterSecureSetup.ssh")(function* (
         ),
       );
     });
-    client.on("close", () => finish(Effect.fail(new SetupError({ reason: "network" }))));
+    client.on("close", () => finish(networkFailure()));
     client.on("ready", () => {
       if (input.kind !== "configure") return;
       client.exec(
@@ -118,7 +113,6 @@ const ssh = Effect.fn("RouterSecureSetup.ssh")(function* (
       readyTimeout: 15000,
       hostVerifier: (key: Buffer) => {
         const fingerprint = `SHA256:${NodeCrypto.createHash("sha256").update(key).digest("base64").replace(/=+$/, "")}`;
-        receivedKey = true;
         if (input.kind === "inspect") {
           finish(Effect.succeed(fingerprint));
           return false;
@@ -131,11 +125,10 @@ const ssh = Effect.fn("RouterSecureSetup.ssh")(function* (
       },
     });
     return Effect.sync(() => {
-      clearTimeout(deadline);
-      // Destroy only the connection owned by this request, including pre-auth inspection.
-      if (!done || receivedKey) client.destroy();
+      done = true;
+      client.destroy();
     });
-  });
+  }).pipe(Effect.timeoutOrElse({ duration: "2 minutes", orElse: networkFailure }));
 });
 
 const certificate = Effect.fn("RouterSecureSetup.certificate")(function* (
@@ -153,11 +146,10 @@ const certificate = Effect.fn("RouterSecureSetup.certificate")(function* (
       rejectUnauthorized: false,
       minVersion: "TLSv1.2",
     });
-    const deadline = setTimeout(() => {
+    socket.on("error", () => {
       socket.destroy();
-      resume(Effect.fail(new SetupError({ reason: "network" })));
-    }, 10000);
-    socket.on("error", () => resume(Effect.fail(new SetupError({ reason: "network" }))));
+      resume(networkFailure());
+    });
     socket.once("secureConnect", () => {
       try {
         const cert = new NodeCrypto.X509Certificate(socket.getPeerCertificate().raw);
@@ -185,11 +177,8 @@ const certificate = Effect.fn("RouterSecureSetup.certificate")(function* (
         socket.destroy();
       }
     });
-    return Effect.sync(() => {
-      clearTimeout(deadline);
-      socket.destroy();
-    });
-  });
+    return Effect.sync(() => socket.destroy());
+  }).pipe(Effect.timeoutOrElse({ duration: "10 seconds", orElse: networkFailure }));
 });
 
 export class RouterSecureSetup extends Context.Service<

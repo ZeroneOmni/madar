@@ -4,43 +4,34 @@ export const routerArabic = {
   "API-SSL (already configured)": "API-SSL (مُعد مسبقًا)",
   "Native API is unencrypted. Use it on a trusted network, or set up API-SSL.":
     "اتصال API العادي غير مشفّر. استخدم شبكة موثوقة أو أعدّ API-SSL.",
-  "API-SSL verifies the router certificate before sending your password.":
-    "يتحقق API-SSL من شهادة الراوتر قبل إرسال كلمة المرور.",
   "Enter the router address and username before setting up API-SSL.":
     "أدخل عنوان الراوتر واسم المستخدم قبل إعداد API-SSL.",
   "Set up API-SSL again to verify the certificate for the new address or port.":
     "أعد إعداد API-SSL للتحقق من شهادة العنوان أو المنفذ الجديد.",
   "Secure connection ready": "الاتصال الآمن جاهز",
-  "Encrypt the connection to {host}.": "شفّر الاتصال مع {host}.",
-  "Madar verified the certificate and signed in over API-SSL. Save to use this connection.":
-    "تحقق مدار من الشهادة وسجّل الدخول عبر API-SSL. احفظ لاستخدام هذا الاتصال.",
-  "Existing native API access is still available on the router.":
-    "يبقى اتصال API العادي متاحًا على الراوتر.",
-  "When setup changes the endpoint or account, Madar saves a separate connection. Select the original connection to view its voucher history.":
-    "عندما يغيّر الإعداد عنوان الاتصال أو منفذه أو بروتوكوله أو اسم المستخدم، يحفظ مدار اتصالًا منفصلًا. اختر الاتصال الأصلي لعرض سجل قسائمه.",
-  "Is this your router? Only continue on a network you trust. For stronger verification, compare this SSH fingerprint through an existing trusted connection.":
-    "هل هذا هو الراوتر الخاص بك؟ تابع على شبكة تثق بها فقط. للتحقق بدقة أكبر، قارن بصمة SSH عبر اتصال موثوق قائم.",
+  "Certificate and API-SSL sign-in verified.": "تم التحقق من الشهادة وتسجيل الدخول عبر API-SSL.",
+  "If the address, port, protocol, or account changes, the original connection keeps its voucher history.":
+    "إذا تغيّر العنوان أو المنفذ أو البروتوكول أو الحساب، يبقى سجل القسائم في الاتصال الأصلي.",
+  "Approve this SSH fingerprint only on a trusted network. Compare it through an existing trusted connection if you can.":
+    "وافق على بصمة SSH هذه على شبكة موثوقة فقط. قارنها عبر اتصال موثوق قائم إن أمكن.",
   "SSH fingerprint": "بصمة SSH",
-  "Your password is sent only after you approve this router identity. Madar then creates a certificate if needed and enables API-SSL. Firewall and native API settings are kept.":
-    "تُرسل كلمة المرور بعد موافقتك على هوية الراوتر فقط. ينشئ مدار شهادة عند الحاجة ويفعّل API-SSL مع إبقاء إعدادات الجدار الناري وAPI العادي.",
-  "Open WinBox Terminal on this router, paste this setup block, and wait for MADAR_PORT and MADAR_FINGERPRINT. Paste those values below.":
-    "افتح Terminal في WinBox على هذا الراوتر، والصق أوامر الإعداد، وانتظر ظهور MADAR_PORT وMADAR_FINGERPRINT. أدخل القيمتين أدناه.",
+  "Approval sends your password over SSH and enables API-SSL, creating a certificate if needed.":
+    "بعد الموافقة، يرسل مدار كلمة المرور عبر SSH ويفعّل API-SSL وينشئ شهادة عند الحاجة.",
+  "Run the setup block in WinBox Terminal. Enter the reported MADAR_PORT and MADAR_FINGERPRINT below.":
+    "نفّذ أوامر الإعداد في Terminal داخل WinBox. أدخل قيمتَي MADAR_PORT وMADAR_FINGERPRINT أدناه.",
   "Router setup block": "أوامر إعداد الراوتر",
   "API-SSL port": "منفذ API-SSL",
   "Certificate fingerprint": "بصمة الشهادة",
-  "The setup keeps any existing API-SSL certificate and port. No private keys leave your router.":
-    "يحتفظ الإعداد بشهادة API-SSL ومنفذه الحاليين إن وُجدا. لا تغادر المفاتيح الخاصة الراوتر.",
-  "Madar can prepare your router automatically using SSH and the account you entered. You need administrator access.":
-    "يمكن لمدار إعداد الراوتر تلقائيًا عبر SSH باستخدام الحساب الذي أدخلته. تحتاج إلى صلاحيات مسؤول.",
-  "You will approve the router identity before setup. No certificate downloads or computer settings are needed.":
-    "ستوافق على هوية الراوتر قبل الإعداد. لا حاجة لتنزيل شهادات أو تعديل إعدادات الكمبيوتر.",
+  "Automatic setup uses SSH and requires a router administrator account.":
+    "يستخدم الإعداد التلقائي SSH ويتطلب حساب مسؤول على الراوتر.",
   "SSH settings": "إعدادات SSH",
   "SSH port": "منفذ SSH",
   "Checking router identity…": "جارٍ التحقق من هوية الراوتر…",
-  "Preparing secure access… This can take up to two minutes. Keep this window open.":
-    "جارٍ إعداد الاتصال الآمن… قد يستغرق ذلك دقيقتين. أبقِ هذه النافذة مفتوحة.",
+  "Preparing secure access… This can take up to two minutes.":
+    "جارٍ إعداد الاتصال الآمن… قد يستغرق ذلك دقيقتين.",
+  "Preparing WinBox instructions…": "جارٍ تجهيز أوامر WinBox…",
   "Saving secure connection…": "جارٍ حفظ الاتصال الآمن…",
-  "Verifying certificate…": "جارٍ التحقق من الشهادة…",
+  "Verifying secure connection…": "جارٍ التحقق من الاتصال الآمن…",
   "Use WinBox instead": "الإعداد عبر WinBox",
   "Save and connect securely": "حفظ واتصال آمن",
   "Trust router and set up": "الوثوق بالراوتر وإعداده",

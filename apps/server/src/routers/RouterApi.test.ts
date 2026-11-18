@@ -6,7 +6,7 @@ import * as Effect from "effect/Effect";
 import * as RouterApi from "./RouterApi.ts";
 import { routerFixture } from "../vouchers/routerFixture.ts";
 
-import { TEST_KEY, TEST_CERT } from "./tlsFixture.ts";
+import { TEST_KEY, TEST_CERT } from "../tlsFixture.ts";
 
 it.effect("preserves persistent router keys when certificates are added or renewed", () =>
   Effect.sync(() => {

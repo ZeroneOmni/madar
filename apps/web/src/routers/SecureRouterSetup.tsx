@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import type { RouterProfile, RouterSecureRequest, RouterSecureResult } from "@madar/contracts";
-import { ShieldCheck } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
@@ -31,6 +30,18 @@ const errors = {
   busy: "Another secure setup is running. Wait for it to finish, then try again.",
 };
 
+const pendingMessages = {
+  inspect: "Checking router identity…",
+  configure: "Preparing secure access… This can take up to two minutes.",
+  instructions: "Preparing WinBox instructions…",
+  verify: "Verifying secure connection…",
+  saving: "Saving secure connection…",
+};
+
+function validPort(port: number) {
+  return Number.isInteger(port) && port >= 1 && port <= 65535;
+}
+
 export function SecureRouterSetup({
   profile,
   password,
@@ -45,7 +56,9 @@ export function SecureRouterSetup({
   onReady: (profile: RouterProfile) => Promise<boolean>;
 }) {
   const { t } = useLocale();
-  const [result, setResult] = useState<RouterSecureResult | null>(null);
+  const [result, setResult] = useState<Exclude<RouterSecureResult, { kind: "failed" }> | null>(
+    null,
+  );
   const [busy, setBusy] = useState<RouterSecureRequest["kind"] | "saving" | null>(null);
   const [error, setError] = useState("");
   const [sshPort, setSshPort] = useState(22);
@@ -73,6 +86,37 @@ export function SecureRouterSetup({
       if (!abort.signal.aborted) setBusy(null);
     }
   }
+  async function advance() {
+    switch (result?.kind) {
+      case "ready": {
+        setBusy("saving");
+        setError("");
+        const saved = await onReady(result.profile).catch(() => false);
+        setBusy(null);
+        if (saved) onClose();
+        else setError("Could not save the secure connection. Try again.");
+        return;
+      }
+      case "host-key":
+        return run({ kind: "configure", profile, password, sshPort, hostKey: result.fingerprint });
+      case "instructions":
+        return run({ kind: "verify", profile, password, port: tlsPort, fingerprint });
+      default:
+        return run({ kind: "inspect", profile, sshPort });
+    }
+  }
+  const action =
+    result?.kind === "ready"
+      ? "Save and connect securely"
+      : result?.kind === "host-key"
+        ? "Trust router and set up"
+        : result?.kind === "instructions"
+          ? "Verify secure connection"
+          : "Continue";
+  const invalid =
+    result?.kind === "instructions"
+      ? !validPort(tlsPort) || !/^[a-fA-F0-9: -]{40,100}$/.test(fingerprint)
+      : !result && !validPort(sshPort);
   const changingRouter = busy === "configure" || busy === "saving";
   return (
     <Dialog
@@ -87,25 +131,17 @@ export function SecureRouterSetup({
             {t(result?.kind === "ready" ? "Secure connection ready" : "Set up API-SSL")}
           </DialogTitle>
           <DialogDescription>
-            {t("Encrypt the connection to {host}.", { host: profile.host })}
+            <bdi dir="ltr">{profile.host}</bdi>
           </DialogDescription>
         </DialogHeader>
         <DialogPanel>
           {result?.kind === "ready" ? (
             <div className="space-y-3">
-              <ShieldCheck size={28} aria-hidden="true" />
-              <p>
-                {t(
-                  "Madar verified the certificate and signed in over API-SSL. Save to use this connection.",
-                )}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {t("Existing native API access is still available on the router.")}
-              </p>
+              <p>{t("Certificate and API-SSL sign-in verified.")}</p>
               {existing && (
                 <p className="text-sm text-muted-foreground">
                   {t(
-                    "When setup changes the endpoint or account, Madar saves a separate connection. Select the original connection to view its voucher history.",
+                    "If the address, port, protocol, or account changes, the original connection keeps its voucher history.",
                   )}
                 </p>
               )}
@@ -114,13 +150,13 @@ export function SecureRouterSetup({
             <div className="space-y-4">
               <p>
                 {t(
-                  "Is this your router? Only continue on a network you trust. For stronger verification, compare this SSH fingerprint through an existing trusted connection.",
+                  "Approve this SSH fingerprint only on a trusted network. Compare it through an existing trusted connection if you can.",
                 )}
               </p>
               <CopyableText value={result.fingerprint} label="SSH fingerprint" />
               <p className="text-sm text-muted-foreground">
                 {t(
-                  "Your password is sent only after you approve this router identity. Madar then creates a certificate if needed and enables API-SSL. Firewall and native API settings are kept.",
+                  "Approval sends your password over SSH and enables API-SSL, creating a certificate if needed.",
                 )}
               </p>
             </div>
@@ -128,7 +164,7 @@ export function SecureRouterSetup({
             <div className="space-y-4">
               <p>
                 {t(
-                  "Open WinBox Terminal on this router, paste this setup block, and wait for MADAR_PORT and MADAR_FINGERPRINT. Paste those values below.",
+                  "Run the setup block in WinBox Terminal. Enter the reported MADAR_PORT and MADAR_FINGERPRINT below.",
                 )}
               </p>
               <details>
@@ -154,24 +190,10 @@ export function SecureRouterSetup({
                   autoComplete="off"
                 />
               </label>
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  "The setup keeps any existing API-SSL certificate and port. No private keys leave your router.",
-                )}
-              </p>
             </div>
           ) : (
             <div className="space-y-4">
-              <p>
-                {t(
-                  "Madar can prepare your router automatically using SSH and the account you entered. You need administrator access.",
-                )}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  "You will approve the router identity before setup. No certificate downloads or computer settings are needed.",
-                )}
-              </p>
+              <p>{t("Automatic setup uses SSH and requires a router administrator account.")}</p>
               <details>
                 <summary className="cursor-pointer text-sm text-muted-foreground">
                   {t("SSH settings")}
@@ -191,15 +213,7 @@ export function SecureRouterSetup({
           )}
           {busy && (
             <p role="status" className="text-sm text-muted-foreground">
-              {t(
-                busy === "inspect"
-                  ? "Checking router identity…"
-                  : busy === "configure"
-                    ? "Preparing secure access… This can take up to two minutes. Keep this window open."
-                    : busy === "saving"
-                      ? "Saving secure connection…"
-                      : "Verifying certificate…",
-              )}
+              {t(pendingMessages[busy])}
             </p>
           )}
           {error && (
@@ -221,61 +235,9 @@ export function SecureRouterSetup({
               {t("Use WinBox instead")}
             </Button>
           )}
-          {result?.kind === "ready" ? (
-            <Button
-              disabled={!!busy}
-              onClick={async () => {
-                setBusy("saving");
-                try {
-                  if (await onReady(result.profile)) onClose();
-                  else setError("Could not save the secure connection. Try again.");
-                } catch {
-                  setError("Could not save the secure connection. Try again.");
-                } finally {
-                  setBusy(null);
-                }
-              }}
-            >
-              {t("Save and connect securely")}
-            </Button>
-          ) : result?.kind === "host-key" ? (
-            <Button
-              disabled={!!busy}
-              onClick={() =>
-                void run({
-                  kind: "configure",
-                  profile,
-                  password,
-                  sshPort,
-                  hostKey: result.fingerprint,
-                })
-              }
-            >
-              {t("Trust router and set up")}
-            </Button>
-          ) : result?.kind === "instructions" ? (
-            <Button
-              disabled={
-                !!busy ||
-                !/^(?:[a-fA-F0-9: -]{40,100})$/.test(fingerprint) ||
-                !Number.isInteger(tlsPort) ||
-                tlsPort < 1 ||
-                tlsPort > 65535
-              }
-              onClick={() =>
-                void run({ kind: "verify", profile, password, port: tlsPort, fingerprint })
-              }
-            >
-              {t("Verify secure connection")}
-            </Button>
-          ) : (
-            <Button
-              disabled={!!busy || !Number.isInteger(sshPort) || sshPort < 1 || sshPort > 65535}
-              onClick={() => void run({ kind: "inspect", profile, sshPort })}
-            >
-              {t("Continue")}
-            </Button>
-          )}
+          <Button disabled={!!busy || invalid} onClick={() => void advance()}>
+            {t(action)}
+          </Button>
         </DialogFooter>
       </DialogPopup>
     </Dialog>

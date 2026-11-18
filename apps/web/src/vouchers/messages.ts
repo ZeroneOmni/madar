@@ -6,10 +6,6 @@ export const voucherArabic = {
   "API-SSL": "الواجهة المشفّرة (API-SSL)",
   "Native API": "الواجهة الأصلية (API)",
   "Open vouchers": "فتح القسائم",
-  "Native API is an unencrypted backup. Use it only on a trusted network.":
-    "الواجهة الأصلية اتصال احتياطي غير مشفّر. استخدمها على شبكة موثوقة فقط.",
-  "API-SSL (recommended)": "الواجهة المشفّرة، موصى بها (API-SSL)",
-  "Native API (backup)": "الواجهة الأصلية، احتياطية (API)",
   "Router access denied. Check the account's read, write and API permissions.":
     "رُفض الوصول إلى الراوتر. تحقق من صلاحيات القراءة والكتابة والوصول إلى الواجهة البرمجية للحساب.",
   "Could not close the router connection. Try disconnecting again.":

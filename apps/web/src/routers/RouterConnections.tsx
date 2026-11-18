@@ -127,15 +127,19 @@ export function RouterConnections() {
         });
     }
   }
+  function readDraft() {
+    const host = draft.host.trim();
+    return decode({
+      ...draft,
+      host,
+      name: draft.name.trim() || host,
+      username: draft.username.trim(),
+    });
+  }
   function openSecure() {
     if (draftPassword === null) return;
     try {
-      const profile = decode({
-        ...draft,
-        name: draft.name.trim() || draft.host.trim(),
-        host: draft.host.trim(),
-        username: draft.username.trim(),
-      });
+      const profile = readDraft();
       setFormError("");
       setSecure({ profile, password: draftPassword });
     } catch {
@@ -314,13 +318,7 @@ export function RouterConnections() {
           event.preventDefault();
           if (draftPassword === null) return;
           try {
-            const profile = decode({
-              ...draft,
-              name: draft.name.trim() || draft.host.trim(),
-              host: draft.host.trim(),
-              username: draft.username.trim(),
-            });
-            void model.save(profile, draftPassword).then((saved) => {
+            void model.save(readDraft(), draftPassword).then((saved) => {
               if (saved) resetDraft();
             });
           } catch {
@@ -446,13 +444,11 @@ export function RouterConnections() {
         <p className="text-sm text-muted-foreground">
           {t("Your password is saved on this device for automatic connection.")}
         </p>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            draft.transport === "tcp"
-              ? "Native API is unencrypted. Use it on a trusted network, or set up API-SSL."
-              : "API-SSL verifies the router certificate before sending your password.",
-          )}
-        </p>
+        {draft.transport === "tcp" && (
+          <p className="text-sm text-muted-foreground">
+            {t("Native API is unencrypted. Use it on a trusted network, or set up API-SSL.")}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button
             type="submit"
