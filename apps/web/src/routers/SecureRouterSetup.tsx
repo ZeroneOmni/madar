@@ -25,6 +25,7 @@ const errors = {
   unsupported: "Automatic setup supports RouterOS 6. Check the router version.",
   certificate:
     "The certificate could not be verified. Check the fingerprint, router address and certificate dates.",
+  api: "Could not sign in over API-SSL. Check the API-SSL port and router account.",
   setup:
     "Setup did not finish. The router may have changed. Use WinBox to check API-SSL before trying again.",
   busy: "Another secure setup is running. Wait for it to finish, then try again.",
@@ -33,11 +34,13 @@ const errors = {
 export function SecureRouterSetup({
   profile,
   password,
+  existing,
   onClose,
   onReady,
 }: {
   profile: RouterProfile;
   password: string;
+  existing: boolean;
   onClose: () => void;
   onReady: (profile: RouterProfile) => Promise<boolean>;
 }) {
@@ -93,12 +96,19 @@ export function SecureRouterSetup({
               <ShieldCheck size={28} aria-hidden="true" />
               <p>
                 {t(
-                  "Madar verified the router certificate. Save to use this secure connection from now on.",
+                  "Madar verified the certificate and signed in over API-SSL. Save to use this connection.",
                 )}
               </p>
               <p className="text-sm text-muted-foreground">
                 {t("Existing native API access is still available on the router.")}
               </p>
+              {existing && (
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "When setup changes the endpoint or account, Madar saves a separate connection. Select the original connection to view its voucher history.",
+                  )}
+                </p>
+              )}
             </div>
           ) : result?.kind === "host-key" ? (
             <div className="space-y-4">
@@ -252,7 +262,9 @@ export function SecureRouterSetup({
                 tlsPort < 1 ||
                 tlsPort > 65535
               }
-              onClick={() => void run({ kind: "verify", profile, port: tlsPort, fingerprint })}
+              onClick={() =>
+                void run({ kind: "verify", profile, password, port: tlsPort, fingerprint })
+              }
             >
               {t("Verify secure connection")}
             </Button>

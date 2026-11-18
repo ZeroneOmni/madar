@@ -1,5 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeCrypto from "node:crypto";
+import * as NodeHttps from "node:https";
 import { Server, type Connection } from "ssh2";
 import { expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -8,6 +9,8 @@ import * as RouterSecureSetup from "./RouterSecureSetup.ts";
 import * as RouterApi from "./RouterApi.ts";
 import { routerFixture } from "../vouchers/routerFixture.ts";
 import { TEST_KEY, TEST_CERT } from "./tlsFixture.ts";
+
+const routerServices = RouterSecureSetup.layer.pipe(Layer.provideMerge(RouterApi.layer));
 
 async function sshFixture(output: string) {
   const { privateKey } = NodeCrypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -76,8 +79,8 @@ it.live(
         ),
       );
       yield* Effect.gen(function* () {
-        const secure = yield* RouterSecureSetup.RouterSecureSetup;
-        const inspected = yield* secure.run({
+        const { run } = yield* RouterSecureSetup.RouterSecureSetup;
+        const inspected = yield* run({
           kind: "inspect",
           profile: router.profile,
           sshPort: ssh.port,
@@ -87,7 +90,7 @@ it.live(
         expect(ssh.commands).toEqual([]);
         if (inspected.kind !== "host-key") throw new Error("Missing SSH identity");
         expect(
-          yield* secure.run({
+          yield* run({
             kind: "configure",
             profile: router.profile,
             sshPort: ssh.port,
@@ -96,7 +99,7 @@ it.live(
           }),
         ).toEqual({ kind: "failed", reason: "host-key" });
         expect(ssh.authentications).toEqual([]);
-        const configured = yield* secure.run({
+        const configured = yield* run({
           kind: "configure",
           profile: router.profile,
           sshPort: ssh.port,
@@ -104,11 +107,15 @@ it.live(
           hostKey: inspected.fingerprint,
         });
         expect(configured.kind).toBe("ready");
-        expect(router.commands).toEqual([]);
+        expect(router.commands.map(([command]) => command)).toEqual([
+          "/login",
+          "/system/identity/print",
+          "/system/resource/print",
+        ]);
         expect(ssh.commands).toHaveLength(1);
         expect(ssh.commands[0]).not.toContain("fixture");
         expect(ssh.commands[0]).not.toMatch(/[\r\n]/);
-        const instructions = yield* secure.run({ kind: "instructions", profile: router.profile });
+        const instructions = yield* run({ kind: "instructions", profile: router.profile });
         expect(instructions.kind).toBe("instructions");
         if (instructions.kind === "instructions") expect(instructions.script).toContain("\n");
         if (configured.kind !== "ready") throw new Error("Missing secure profile");
@@ -122,7 +129,7 @@ it.live(
             "owner",
           ),
         ).toEqual({ kind: "failed", reason: "tls" });
-      }).pipe(Effect.provide(Layer.merge(RouterSecureSetup.layer, RouterApi.layer)));
+      }).pipe(Effect.provide(routerServices));
     }).pipe(Effect.scoped),
 );
 
@@ -132,21 +139,60 @@ it.live("checks WinBox fingerprints and refuses a mismatch without sending API c
       Effect.promise(() => routerFixture(0, { tls: { key: TEST_KEY, cert: TEST_CERT } })),
     );
     yield* Effect.gen(function* () {
-      const secure = yield* RouterSecureSetup.RouterSecureSetup;
-      const input = { kind: "verify" as const, profile: router.profile, port: router.profile.port };
-      expect(yield* secure.run({ ...input, fingerprint: "a".repeat(64) })).toEqual({
+      const { run } = yield* RouterSecureSetup.RouterSecureSetup;
+      const input = {
+        kind: "verify" as const,
+        profile: router.profile,
+        port: router.profile.port,
+        password: "fixture",
+      };
+      expect(yield* run({ ...input, fingerprint: "a".repeat(64) })).toEqual({
         kind: "failed",
         reason: "certificate",
       });
+      expect(router.commands).toEqual([]);
       expect(
-        yield* secure.run({
+        yield* run({
           ...input,
           fingerprint: new NodeCrypto.X509Certificate(TEST_CERT).fingerprint,
         }),
       ).toMatchObject({ kind: "ready", profile: { tlsCertificate: TEST_CERT.trim() + "\n" } });
-      expect(router.commands).toEqual([]);
-    }).pipe(Effect.provide(RouterSecureSetup.layer));
+    }).pipe(Effect.provide(routerServices));
   }).pipe(Effect.scoped),
+);
+
+it.live(
+  "rejects an HTTPS port with the right certificate without disturbing the active API session",
+  () =>
+    Effect.gen(function* () {
+      const router = yield* Effect.acquireDisposable(Effect.promise(() => routerFixture(0)));
+      const https = yield* Effect.acquireDisposable(
+        Effect.promise(async () => {
+          const server = NodeHttps.createServer({ key: TEST_KEY, cert: TEST_CERT });
+          server.on("clientError", (_error, socket) => socket.destroy());
+          await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+          const address = server.address();
+          if (!address || typeof address === "string")
+            throw new Error("Missing HTTPS fixture address");
+          return { port: address.port, [Symbol.asyncDispose]: () => server[Symbol.asyncDispose]() };
+        }),
+      );
+      const api = yield* RouterApi.RouterApi;
+      const { run } = yield* RouterSecureSetup.RouterSecureSetup;
+      expect(
+        yield* api.connect({ profile: router.profile, password: "fixture" }, "owner"),
+      ).toMatchObject({ kind: "connected" });
+      expect(
+        yield* run({
+          kind: "verify",
+          profile: router.profile,
+          port: https.port,
+          password: "fixture",
+          fingerprint: new NodeCrypto.X509Certificate(TEST_CERT).fingerprint256,
+        }),
+      ).toEqual({ kind: "failed", reason: "api" });
+      expect(yield* api.status(router.profile.id, "owner")).toMatchObject({ kind: "connected" });
+    }).pipe(Effect.provide(routerServices), Effect.scoped),
 );
 
 it.live(
@@ -161,8 +207,8 @@ it.live(
       ] as const) {
         const ssh = yield* Effect.acquireDisposable(Effect.promise(() => sshFixture(output)));
         yield* Effect.gen(function* () {
-          const secure = yield* RouterSecureSetup.RouterSecureSetup;
-          const identity = yield* secure.run({
+          const { run } = yield* RouterSecureSetup.RouterSecureSetup;
+          const identity = yield* run({
             kind: "inspect",
             profile: router.profile,
             sshPort: ssh.port,
@@ -174,16 +220,16 @@ it.live(
             sshPort: ssh.port,
             hostKey: identity.fingerprint,
           };
-          expect(yield* secure.run({ ...input, password: "wrong" })).toEqual({
+          expect(yield* run({ ...input, password: "wrong" })).toEqual({
             kind: "failed",
             reason: "authentication",
           });
           expect(ssh.commands).toEqual([]);
-          expect(yield* secure.run({ ...input, password: "fixture" })).toEqual({
+          expect(yield* run({ ...input, password: "fixture" })).toEqual({
             kind: "failed",
             reason,
           });
-        }).pipe(Effect.provide(RouterSecureSetup.layer));
+        }).pipe(Effect.provide(routerServices));
       }
     }).pipe(Effect.scoped),
 );

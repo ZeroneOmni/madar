@@ -2,7 +2,14 @@ import type { RouterProbeInput, RouterProfile } from "@madar/contracts";
 import { useEffect, useRef, useState } from "react";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { checkRouter, disconnectRouter, probeRouter } from "./access";
-import { CATALOG_KEY, decodeCatalog, emptyCatalog, saveCatalog, type Catalog } from "./catalog";
+import {
+  CATALOG_KEY,
+  decodeCatalog,
+  emptyCatalog,
+  profileForSave,
+  saveCatalog,
+  type Catalog,
+} from "./catalog";
 import { superviseConnection, type ConnectionState } from "./supervisor";
 
 function readCatalog() {
@@ -196,7 +203,13 @@ export function useRouterModel() {
     }
     setSession({ input: { profile, password: value }, abort });
   }
-  async function save(profile: RouterProfile, password: string) {
+  async function save(draft: RouterProfile, password: string, secureProfileId?: string) {
+    const previous = currentCatalog.current.routers.find(({ id }) => id === draft.id);
+    const profile = profileForSave(draft, previous, secureProfileId);
+    if (!profile) {
+      setError("Set up API-SSL again to verify the certificate for the new address or port.");
+      return false;
+    }
     if (closing || !(await disconnect())) return false;
     if (
       !update({

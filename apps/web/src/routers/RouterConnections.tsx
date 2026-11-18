@@ -477,9 +477,10 @@ export function RouterConnections() {
         <SecureRouterSetup
           profile={secure.profile}
           password={secure.password}
+          existing={model.catalog.routers.some(({ id }) => id === secure.profile.id)}
           onClose={() => setSecure(null)}
           onReady={async (profile) => {
-            const saved = await model.save(profile, secure.password);
+            const saved = await model.save(profile, secure.password, randomUUID());
             if (saved) resetDraft();
             return saved;
           }}

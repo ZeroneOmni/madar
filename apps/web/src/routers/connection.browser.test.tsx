@@ -106,7 +106,7 @@ it("uses native API by default and leaves secure setup optional", async () => {
   expect(request.mock.calls.filter(([url]) => String(url).endsWith("/secure"))).toHaveLength(0);
 });
 
-it("approves the SSH identity before setup, then saves and connects with the verified certificate", async () => {
+it("approves the SSH identity and saves the secure connection alongside the original", async () => {
   using fixture = setup(false);
   const configuring = responseGate();
   const fingerprint = `SHA256:${"a".repeat(43)}`;
@@ -118,19 +118,10 @@ it("approves the SSH identity before setup, then saves and connects with the ver
       : configuring.promise;
   });
   await using screen = await render(<Connection />);
-  await userEvent.fill(
-    screen.getByRole("textbox", { name: "Hostname or IP address", exact: true }),
-    "192.168.88.1",
-  );
-  await userEvent.fill(
-    screen.getByRole("textbox", { name: "Router account username", exact: true }),
-    "admin",
-  );
-  await userEvent.fill(
-    screen.getByRole("textbox", { name: "Router account password", exact: true }),
-    "fixture-password",
-  );
-  await userEvent.click(screen.getByRole("button", { name: "Set up API-SSL", exact: true }));
+  await userEvent.click(screen.getByRole("button", { name: "Edit", exact: true }));
+  const setupSecure = screen.getByRole("button", { name: "Set up API-SSL", exact: true });
+  await expect.element(setupSecure).toBeEnabled();
+  await userEvent.click(setupSecure);
   await expect.element(page.getByRole("dialog")).toBeVisible();
   expect(request.mock.calls.filter(([url]) => String(url).endsWith("/secure"))).toHaveLength(0);
   await userEvent.click(page.getByRole("button", { name: "Continue", exact: true }));
@@ -165,14 +156,22 @@ it("approves the SSH identity before setup, then saves and connects with the ver
   await expect
     .element(screen.getByRole("status", { name: "Router connection status" }))
     .toHaveTextContent("Connected");
-  const secureProfile = JSON.parse(localStorage.getItem(CATALOG_KEY)!).routers.find(
-    (router: RouterProfile) => router.host === "192.168.88.1",
+  const catalog = JSON.parse(localStorage.getItem(CATALOG_KEY)!);
+  const secureProfile = catalog.routers.find(
+    (router: RouterProfile) => router.id === catalog.selected,
   );
   expect(secureProfile).toMatchObject({
+    name: "Office (API-SSL)",
+    host: profile.host,
     transport: "tls",
     port: 8729,
     tlsCertificate: "fixture-public-certificate",
   });
+  expect(secureProfile.id).not.toBe(profile.id);
+  expect(catalog.routers.find((router: RouterProfile) => router.id === profile.id)).toEqual(
+    profile,
+  );
+  expect(fixture.passwords.get(profile.id)).toBe("fixture-password");
   expect(localStorage.getItem(CATALOG_KEY)).not.toContain("fixture-password");
 });
 

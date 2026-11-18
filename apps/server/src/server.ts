@@ -85,7 +85,10 @@ const layerRoutes = Layer.mergeAll(
         ),
       ).pipe(
         Layer.provide(
-          Layer.mergeAll(RouterApi.layer, RouterDiscovery.layer, RouterSecureSetup.layer),
+          Layer.merge(
+            RouterDiscovery.layer,
+            RouterSecureSetup.layer.pipe(Layer.provideMerge(RouterApi.layer)),
+          ),
         ),
       ),
     ),

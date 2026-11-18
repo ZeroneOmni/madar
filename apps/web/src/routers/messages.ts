@@ -8,12 +8,16 @@ export const routerArabic = {
     "يتحقق API-SSL من شهادة الراوتر قبل إرسال كلمة المرور.",
   "Enter the router address and username before setting up API-SSL.":
     "أدخل عنوان الراوتر واسم المستخدم قبل إعداد API-SSL.",
+  "Set up API-SSL again to verify the certificate for the new address or port.":
+    "أعد إعداد API-SSL للتحقق من شهادة العنوان أو المنفذ الجديد.",
   "Secure connection ready": "الاتصال الآمن جاهز",
   "Encrypt the connection to {host}.": "شفّر الاتصال مع {host}.",
-  "Madar verified the router certificate. Save to use this secure connection from now on.":
-    "تحقق مدار من شهادة الراوتر. احفظ لاستخدام الاتصال الآمن من الآن.",
+  "Madar verified the certificate and signed in over API-SSL. Save to use this connection.":
+    "تحقق مدار من الشهادة وسجّل الدخول عبر API-SSL. احفظ لاستخدام هذا الاتصال.",
   "Existing native API access is still available on the router.":
     "يبقى اتصال API العادي متاحًا على الراوتر.",
+  "When setup changes the endpoint or account, Madar saves a separate connection. Select the original connection to view its voucher history.":
+    "عندما يغيّر الإعداد عنوان الاتصال أو منفذه أو بروتوكوله أو اسم المستخدم، يحفظ مدار اتصالًا منفصلًا. اختر الاتصال الأصلي لعرض سجل قسائمه.",
   "Is this your router? Only continue on a network you trust. For stronger verification, compare this SSH fingerprint through an existing trusted connection.":
     "هل هذا هو الراوتر الخاص بك؟ تابع على شبكة تثق بها فقط. للتحقق بدقة أكبر، قارن بصمة SSH عبر اتصال موثوق قائم.",
   "SSH fingerprint": "بصمة SSH",
@@ -54,6 +58,8 @@ export const routerArabic = {
     "يدعم الإعداد التلقائي RouterOS 6. تحقق من إصدار الراوتر.",
   "The certificate could not be verified. Check the fingerprint, router address and certificate dates.":
     "تعذر التحقق من الشهادة. تحقق من البصمة وعنوان الراوتر وتواريخ الشهادة.",
+  "Could not sign in over API-SSL. Check the API-SSL port and router account.":
+    "تعذر تسجيل الدخول عبر API-SSL. تحقق من المنفذ وحساب الراوتر.",
   "Setup did not finish. The router may have changed. Use WinBox to check API-SSL before trying again.":
     "لم يكتمل الإعداد. ربما تغيرت إعدادات الراوتر. تحقق من API-SSL في WinBox قبل المحاولة مجددًا.",
   "Another secure setup is running. Wait for it to finish, then try again.":

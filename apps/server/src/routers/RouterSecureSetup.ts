@@ -1,15 +1,19 @@
 // @effect-diagnostics nodeBuiltinImport:off
 // @effect-diagnostics globalTimersInEffect:off -- Network callbacks own bounded setup deadlines.
 import * as NodeCrypto from "node:crypto";
+import * as NodeModule from "node:module";
 import * as NodeNet from "node:net";
 import * as NodeTls from "node:tls";
-import { Client } from "ssh2";
+import type * as Ssh2 from "ssh2";
 import * as Context from "effect/Context";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import type { RouterProfile, RouterSecureRequest, RouterSecureResult } from "@madar/contracts";
+import * as RouterApi from "./RouterApi.ts";
+
+const requireSsh = NodeModule.createRequire(import.meta.url);
 
 class SetupError extends Schema.TaggedError<SetupError>()("SetupError", {
   reason: Schema.Literals([
@@ -19,6 +23,7 @@ class SetupError extends Schema.TaggedError<SetupError>()("SetupError", {
     "permission",
     "unsupported",
     "certificate",
+    "api",
     "setup",
   ]),
 }) {}
@@ -48,6 +53,7 @@ const ssh = Effect.fn("RouterSecureSetup.ssh")(function* (
   input: Extract<RouterSecureRequest, { kind: "inspect" | "configure" }>,
 ) {
   return yield* Effect.callback<string, SetupError>((resume) => {
+    const { Client } = requireSsh("ssh2") as typeof Ssh2;
     const client = new Client();
     let done = false;
     let output = "";
@@ -193,7 +199,8 @@ export class RouterSecureSetup extends Context.Service<
   }
 >()("madar/routers/RouterSecureSetup") {}
 
-const make = Effect.sync(() => {
+const make = Effect.gen(function* () {
+  const api = yield* RouterApi.RouterApi;
   let running = false;
   const run = Effect.fn("RouterSecureSetup.run")(function* (input: RouterSecureRequest) {
     if (running) return { kind: "failed", reason: "busy" } as const;
@@ -209,20 +216,22 @@ const make = Effect.sync(() => {
         } as const;
       if (input.kind === "inspect")
         return { kind: "host-key", fingerprint: yield* ssh(input) } as const;
-      if (input.kind === "verify")
-        return {
-          kind: "ready",
-          profile: yield* certificate(input.profile, input.port, input.fingerprint),
-        } as const;
-      const output = yield* ssh(input);
-      const port = Number(/^MADAR_PORT=(\d+)\s*$/m.exec(output)?.[1]);
-      const fingerprint = /^MADAR_FINGERPRINT=([a-fA-F0-9: -]+)\s*$/m.exec(output)?.[1];
-      if (!Number.isInteger(port) || port < 1 || port > 65535 || !fingerprint)
-        return yield* new SetupError({ reason: "setup" });
-      return {
-        kind: "ready",
-        profile: yield* certificate(input.profile, port, fingerprint.trim()),
-      } as const;
+      let port: number;
+      let fingerprint: string;
+      if (input.kind === "verify") {
+        ({ port, fingerprint } = input);
+      } else {
+        const output = yield* ssh(input);
+        port = Number(/^MADAR_PORT=(\d+)\s*$/m.exec(output)?.[1]);
+        fingerprint = /^MADAR_FINGERPRINT=([a-fA-F0-9: -]+)\s*$/m.exec(output)?.[1]?.trim() ?? "";
+        if (!Number.isInteger(port) || port < 1 || port > 65535 || !fingerprint)
+          return yield* new SetupError({ reason: "setup" });
+      }
+      const profile = yield* certificate(input.profile, port, fingerprint);
+      yield* api
+        .verify({ profile, password: input.password })
+        .pipe(Effect.mapError(() => new SetupError({ reason: "api" })));
+      return { kind: "ready", profile } as const;
     }).pipe(
       Effect.catchTags({
         SetupError: (error) => Effect.succeed({ kind: "failed", reason: error.reason } as const),

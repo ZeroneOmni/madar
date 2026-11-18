@@ -152,6 +152,7 @@ export class RouterApi extends Context.Service<
   RouterApi,
   {
     readonly connect: (input: RouterProbeInput, owner: string) => Effect.Effect<RouterProbeResult>;
+    readonly verify: (input: RouterProbeInput) => Effect.Effect<void, RouterApiError>;
     readonly status: (id: string, owner: string) => Effect.Effect<RouterProbeResult>;
     readonly disconnect: (id: string, owner: string) => Effect.Effect<boolean>;
     readonly execute: (
@@ -298,8 +299,19 @@ const make = Effect.gen(function* () {
     );
     return yield* socket.request(words);
   }, lock.withPermits(1));
+  const verify = Effect.fn("RouterApi.verify")(function* (input: RouterProbeInput) {
+    const session: Session = { input, owner: "", socket: null, identity: "", version: "" };
+    yield* open(session).pipe(
+      Effect.timeoutOrElse({
+        duration: "10 seconds",
+        orElse: () => Effect.fail(new RouterApiError({ reason: "timeout" })),
+      }),
+      Effect.ensuring(Effect.sync(() => session.socket?.close())),
+    );
+  });
   return RouterApi.of({
     connect,
+    verify,
     status,
     execute,
     disconnect: Effect.fn("RouterApi.disconnect")(

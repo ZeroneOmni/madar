@@ -49,3 +49,31 @@ export function saveCatalog(storage: Pick<Storage, "setItem">, catalog: Catalog)
   decodeCatalog(serialized);
   storage.setItem(CATALOG_KEY, serialized);
 }
+
+export function profileForSave(
+  profile: RouterProfile,
+  previous?: RouterProfile,
+  secureProfileId?: string,
+) {
+  const sameHost =
+    previous !== undefined && previous.host.toLowerCase() === profile.host.toLowerCase();
+  const sameEndpoint =
+    sameHost && previous.port === profile.port && previous.transport === profile.transport;
+  if (profile.transport === "tls" && previous?.tlsCertificate && !sameEndpoint && !secureProfileId)
+    return null;
+
+  const { tlsCertificate, ...endpoint } = profile;
+  const pin = secureProfileId ? tlsCertificate : sameEndpoint ? previous.tlsCertificate : undefined;
+  const sameAccount = previous?.username === profile.username;
+  const separate = previous && secureProfileId && (!sameEndpoint || !sameAccount);
+  const nameQualifier = sameAccount ? "API-SSL" : profile.username;
+  return {
+    ...endpoint,
+    id: separate ? secureProfileId : profile.id,
+    name:
+      separate && profile.name === previous.name
+        ? `${profile.name} (${nameQualifier})`
+        : profile.name,
+    ...(profile.transport === "tls" && pin ? { tlsCertificate: pin } : {}),
+  };
+}
