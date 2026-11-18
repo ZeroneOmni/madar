@@ -25,7 +25,7 @@ export function WelcomePage({ onContinue }: { onContinue: () => void }) {
         </p>
         <p className="text-sm text-muted-foreground">
           {t(
-            "Connect through API-SSL to browse customer vouchers, create batches, manage profiles and check usage.",
+            "Connect to your router to browse customer vouchers, create batches, manage profiles and check usage.",
           )}
         </p>
       </div>

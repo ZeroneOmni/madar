@@ -52,6 +52,20 @@ class ApiSocket {
               port: profile.port,
               servername: NodeNet.isIP(profile.host) ? undefined : profile.host,
               rejectUnauthorized: true,
+              ...(profile.tlsCertificate
+                ? {
+                    ca: profile.tlsCertificate,
+                    allowPartialTrustChain: true,
+                    checkServerIdentity: (host: string, cert: NodeTls.PeerCertificate) => {
+                      const pinned = new NodeCrypto.X509Certificate(profile.tlsCertificate!);
+                      return cert.raw.equals(pinned.raw)
+                        ? NodeTls.checkServerIdentity(host, cert)
+                        : Object.assign(new Error("Router certificate changed"), {
+                            code: "CERT_CHANGED",
+                          });
+                    },
+                  }
+                : {}),
             },
             () => ready(),
           )
@@ -138,6 +152,7 @@ export class RouterApi extends Context.Service<
   RouterApi,
   {
     readonly connect: (input: RouterProbeInput, owner: string) => Effect.Effect<RouterProbeResult>;
+    readonly verify: (input: RouterProbeInput) => Effect.Effect<void, RouterApiError>;
     readonly status: (id: string, owner: string) => Effect.Effect<RouterProbeResult>;
     readonly disconnect: (id: string, owner: string) => Effect.Effect<boolean>;
     readonly execute: (
@@ -275,7 +290,8 @@ const make = Effect.gen(function* () {
     if (
       !session ||
       session.owner !== owner ||
-      routerKey(session.input.profile) !== routerKey(profile)
+      routerKey(session.input.profile) !== routerKey(profile) ||
+      session.input.profile.tlsCertificate !== profile.tlsCertificate
     )
       return yield* new RouterApiError({ reason: "disconnected" });
     const socket = yield* open(session).pipe(
@@ -283,8 +299,19 @@ const make = Effect.gen(function* () {
     );
     return yield* socket.request(words);
   }, lock.withPermits(1));
+  const verify = Effect.fn("RouterApi.verify")(function* (input: RouterProbeInput) {
+    const session: Session = { input, owner: "", socket: null, identity: "", version: "" };
+    yield* open(session).pipe(
+      Effect.timeoutOrElse({
+        duration: "10 seconds",
+        orElse: () => Effect.fail(new RouterApiError({ reason: "timeout" })),
+      }),
+      Effect.ensuring(Effect.sync(() => session.socket?.close())),
+    );
+  });
   return RouterApi.of({
     connect,
+    verify,
     status,
     execute,
     disconnect: Effect.fn("RouterApi.disconnect")(

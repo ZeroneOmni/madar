@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import type { RouterCredentialRequest, RouterProfile } from "@madar/contracts";
 import { render, fakeTimers } from "../../test/render";
 import { RouterConnections, RouterProvider } from "./RouterConnections";
@@ -78,6 +78,152 @@ function responseGate() {
   });
   return { promise, resolve };
 }
+
+it("uses native API by default and leaves secure setup optional", async () => {
+  using _fixture = setup(false);
+  using request = vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => reply(url));
+  await using screen = await render(<Connection />);
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Hostname or IP address", exact: true }),
+    "192.168.88.1",
+  );
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Router account username", exact: true }),
+    "admin",
+  );
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Router account password", exact: true }),
+    "fixture-password",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Save and connect", exact: true }));
+  await expect
+    .element(screen.getByRole("status", { name: "Router connection status" }))
+    .toHaveTextContent("Connected");
+  const input = JSON.parse(
+    String(request.mock.calls.find(([url]) => String(url).endsWith("/probe"))?.[1]?.body),
+  );
+  expect(input.profile).toMatchObject({ host: "192.168.88.1", transport: "tcp", port: 8728 });
+  expect(request.mock.calls.filter(([url]) => String(url).endsWith("/secure"))).toHaveLength(0);
+});
+
+it("approves the SSH identity and saves the secure connection alongside the original", async () => {
+  using fixture = setup(false);
+  const configuring = responseGate();
+  const fingerprint = `SHA256:${"a".repeat(43)}`;
+  using request = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+    if (!String(url).endsWith("/secure")) return reply(url);
+    const input = JSON.parse(String(init?.body));
+    return input.kind === "inspect"
+      ? jsonResponse({ kind: "host-key", fingerprint })
+      : configuring.promise;
+  });
+  await using screen = await render(<Connection />);
+  await userEvent.click(screen.getByRole("button", { name: "Edit", exact: true }));
+  const setupSecure = screen.getByRole("button", { name: "Set up API-SSL", exact: true });
+  await expect.element(setupSecure).toBeEnabled();
+  await userEvent.click(setupSecure);
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  expect(request.mock.calls.filter(([url]) => String(url).endsWith("/secure"))).toHaveLength(0);
+  await userEvent.click(page.getByRole("button", { name: "Continue", exact: true }));
+  await expect.element(page.getByText(fingerprint, { exact: true })).toBeVisible();
+  const inspected = JSON.parse(
+    String(request.mock.calls.find(([url]) => String(url).endsWith("/secure"))?.[1]?.body),
+  );
+  expect(inspected).not.toHaveProperty("password");
+  expect(fixture.credentials.mock.calls.filter(([input]) => input.kind === "set")).toHaveLength(0);
+  await userEvent.click(page.getByRole("button", { name: "Trust router and set up", exact: true }));
+  await expect
+    .element(page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }))
+    .toBeDisabled();
+  configuring.resolve(
+    jsonResponse({
+      kind: "ready",
+      profile: {
+        ...inspected.profile,
+        transport: "tls",
+        port: 8729,
+        tlsCertificate: "fixture-public-certificate",
+      },
+    }),
+  );
+  await expect
+    .element(page.getByRole("heading", { name: "Secure connection ready", exact: true }))
+    .toBeVisible();
+  expect(JSON.parse(localStorage.getItem(CATALOG_KEY)!).routers).toEqual([profile]);
+  await userEvent.click(
+    page.getByRole("button", { name: "Save and connect securely", exact: true }),
+  );
+  await expect
+    .element(screen.getByRole("status", { name: "Router connection status" }))
+    .toHaveTextContent("Connected");
+  const catalog = JSON.parse(localStorage.getItem(CATALOG_KEY)!);
+  const secureProfile = catalog.routers.find(
+    (router: RouterProfile) => router.id === catalog.selected,
+  );
+  expect(secureProfile).toMatchObject({
+    name: "Office (API-SSL)",
+    host: profile.host,
+    transport: "tls",
+    port: 8729,
+    tlsCertificate: "fixture-public-certificate",
+  });
+  expect(secureProfile.id).not.toBe(profile.id);
+  expect(catalog.routers.find((router: RouterProfile) => router.id === profile.id)).toEqual(
+    profile,
+  );
+  expect(fixture.passwords.get(profile.id)).toBe("fixture-password");
+  expect(localStorage.getItem(CATALOG_KEY)).not.toContain("fixture-password");
+});
+
+it("offers WinBox after SSH failure and keeps the saved connection when certificate verification fails or setup is cancelled", async () => {
+  using _fixture = setup(false);
+  using _request = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+    if (!String(url).endsWith("/secure")) return reply(url);
+    const input = JSON.parse(String(init?.body));
+    return jsonResponse(
+      input.kind === "instructions"
+        ? { kind: "instructions", script: ":put fixture-setup" }
+        : { kind: "failed", reason: input.kind === "verify" ? "certificate" : "network" },
+    );
+  });
+  await using screen = await render(<Connection />);
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Hostname or IP address", exact: true }),
+    "192.168.88.1",
+  );
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Router account username", exact: true }),
+    "admin",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Set up API-SSL", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Continue", exact: true }));
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent(
+      "Could not reach the router. Check SSH or API-SSL access and firewall settings.",
+    );
+  await userEvent.click(page.getByRole("button", { name: "Use WinBox instead", exact: true }));
+  await userEvent.fill(
+    page.getByRole("textbox", { name: "Certificate fingerprint", exact: true }),
+    "a".repeat(64),
+  );
+  await userEvent.click(
+    page.getByRole("button", { name: "Verify secure connection", exact: true }),
+  );
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent(
+      "The certificate could not be verified. Check the fingerprint, router address and certificate dates.",
+    );
+  await userEvent.click(
+    page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }),
+  );
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem(CATALOG_KEY)!).routers).toEqual([profile]);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Hostname or IP address", exact: true }))
+    .toHaveValue("192.168.88.1");
+});
 
 it("resumes with the saved password, remembers Disconnect across reopening, and reconnects only on Connect", async () => {
   using fixture = setup();

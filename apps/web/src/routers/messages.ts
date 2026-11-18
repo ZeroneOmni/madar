@@ -1,4 +1,60 @@
 export const routerArabic = {
+  Continue: "متابعة",
+  "Set up API-SSL": "إعداد API-SSL",
+  "API-SSL (already configured)": "API-SSL (مُعد مسبقًا)",
+  "Native API is unencrypted. Use it on a trusted network, or set up API-SSL.":
+    "اتصال API العادي غير مشفّر. استخدم شبكة موثوقة أو أعدّ API-SSL.",
+  "Enter the router address and username before setting up API-SSL.":
+    "أدخل عنوان الراوتر واسم المستخدم قبل إعداد API-SSL.",
+  "Set up API-SSL again to verify the certificate for the new address or port.":
+    "أعد إعداد API-SSL للتحقق من شهادة العنوان أو المنفذ الجديد.",
+  "Secure connection ready": "الاتصال الآمن جاهز",
+  "Certificate and API-SSL sign-in verified.": "تم التحقق من الشهادة وتسجيل الدخول عبر API-SSL.",
+  "If the address, port, protocol, or account changes, the original connection keeps its voucher history.":
+    "إذا تغيّر العنوان أو المنفذ أو البروتوكول أو الحساب، يبقى سجل القسائم في الاتصال الأصلي.",
+  "Approve this SSH fingerprint only on a trusted network. Compare it through an existing trusted connection if you can.":
+    "وافق على بصمة SSH هذه على شبكة موثوقة فقط. قارنها عبر اتصال موثوق قائم إن أمكن.",
+  "SSH fingerprint": "بصمة SSH",
+  "Approval sends your password over SSH and enables API-SSL, creating a certificate if needed.":
+    "بعد الموافقة، يرسل مدار كلمة المرور عبر SSH ويفعّل API-SSL وينشئ شهادة عند الحاجة.",
+  "Run the setup block in WinBox Terminal. Enter the reported MADAR_PORT and MADAR_FINGERPRINT below.":
+    "نفّذ أوامر الإعداد في Terminal داخل WinBox. أدخل قيمتَي MADAR_PORT وMADAR_FINGERPRINT أدناه.",
+  "Router setup block": "أوامر إعداد الراوتر",
+  "API-SSL port": "منفذ API-SSL",
+  "Certificate fingerprint": "بصمة الشهادة",
+  "Automatic setup uses SSH and requires a router administrator account.":
+    "يستخدم الإعداد التلقائي SSH ويتطلب حساب مسؤول على الراوتر.",
+  "SSH settings": "إعدادات SSH",
+  "SSH port": "منفذ SSH",
+  "Checking router identity…": "جارٍ التحقق من هوية الراوتر…",
+  "Preparing secure access… This can take up to two minutes.":
+    "جارٍ إعداد الاتصال الآمن… قد يستغرق ذلك دقيقتين.",
+  "Preparing WinBox instructions…": "جارٍ تجهيز أوامر WinBox…",
+  "Saving secure connection…": "جارٍ حفظ الاتصال الآمن…",
+  "Verifying secure connection…": "جارٍ التحقق من الاتصال الآمن…",
+  "Use WinBox instead": "الإعداد عبر WinBox",
+  "Save and connect securely": "حفظ واتصال آمن",
+  "Trust router and set up": "الوثوق بالراوتر وإعداده",
+  "Verify secure connection": "التحقق من الاتصال الآمن",
+  "Could not save the secure connection. Try again.": "تعذر حفظ الاتصال الآمن. حاول مجددًا.",
+  "Could not reach the router. Check SSH or API-SSL access and firewall settings.":
+    "تعذر الوصول إلى الراوتر. تحقق من اتصال SSH أو API-SSL وإعدادات الجدار الناري.",
+  "SSH login rejected. Check the router username and password.":
+    "رُفض تسجيل دخول SSH. تحقق من اسم مستخدم الراوتر وكلمة المرور.",
+  "The router identity changed. Close setup and verify the router before trying again.":
+    "تغيرت هوية الراوتر. أغلق الإعداد وتحقق من الراوتر قبل المحاولة مجددًا.",
+  "This account cannot configure secure access. Use an administrator account or ask your administrator to run the setup in WinBox.":
+    "لا يملك هذا الحساب صلاحية إعداد الاتصال الآمن. استخدم حساب مسؤول أو اطلب من المسؤول تنفيذ الإعداد في WinBox.",
+  "Automatic setup supports RouterOS 6. Check the router version.":
+    "يدعم الإعداد التلقائي RouterOS 6. تحقق من إصدار الراوتر.",
+  "The certificate could not be verified. Check the fingerprint, router address and certificate dates.":
+    "تعذر التحقق من الشهادة. تحقق من البصمة وعنوان الراوتر وتواريخ الشهادة.",
+  "Could not sign in over API-SSL. Check the API-SSL port and router account.":
+    "تعذر تسجيل الدخول عبر API-SSL. تحقق من المنفذ وحساب الراوتر.",
+  "Setup did not finish. The router may have changed. Use WinBox to check API-SSL before trying again.":
+    "لم يكتمل الإعداد. ربما تغيرت إعدادات الراوتر. تحقق من API-SSL في WinBox قبل المحاولة مجددًا.",
+  "Another secure setup is running. Wait for it to finish, then try again.":
+    "هناك إعداد آمن قيد التنفيذ. انتظر اكتماله ثم حاول مجددًا.",
   "Loading saved password…": "جارٍ تحميل كلمة المرور المحفوظة…",
   "Retry disconnect": "إعادة محاولة قطع الاتصال",
   "Could not load the saved password. Enter it before saving.":
