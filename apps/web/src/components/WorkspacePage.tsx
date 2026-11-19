@@ -202,6 +202,8 @@ export function Detail({
 
 const dotTone = {
   success: "bg-success",
+  // Hollow green: usable but idle, so filled green can mean "in use now".
+  ready: "border-2 border-success",
   info: "bg-info",
   warning: "bg-warning",
   danger: "bg-destructive",

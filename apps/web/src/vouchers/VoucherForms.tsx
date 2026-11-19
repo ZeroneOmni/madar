@@ -25,8 +25,8 @@ function formatCountText(value: string, locale: Locale) {
 
 const voucherStates = {
   online: { label: "Online", tone: "success" },
-  enabled: { label: "Enabled", tone: "muted" },
-  disabled: { label: "Disabled", tone: "warning" },
+  enabled: { label: "Enabled", tone: "ready" },
+  disabled: { label: "Disabled", tone: "muted" },
 } as const;
 
 export function VoucherState({ voucher }: { voucher: Voucher }) {
