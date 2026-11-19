@@ -1,5 +1,16 @@
 import { useLocale } from "../useLocale";
+import { formatDateTime, formatNumber } from "../locale";
 import { useEffect, useState } from "react";
+import { Bell, CircleAlert, CircleCheck, Info, Settings2 } from "lucide-react";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "../components/ui/empty";
+import { IconTile, Notice, PageFrame, PageHeader, Panel } from "../components/WorkspacePage";
+import { cn } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import {
@@ -138,106 +149,148 @@ export function NotificationSettings() {
   );
 }
 
+const levelIcons = { success: CircleCheck, error: CircleAlert, info: Info };
+const levelTones = {
+  success: "text-success-foreground",
+  error: "text-destructive-foreground",
+  info: "text-muted-foreground",
+};
+
 export function NotificationCenter({ onNavigate }: { onNavigate: (path: string) => void }) {
   const { t, locale } = useLocale();
   const { items, error } = useNotificationInbox();
   const [writeError, setWriteError] = useState("");
   const preferences = useNotificationPreferences();
+  const unread = items.filter((item) => !item.read).length;
   function result(saved: boolean) {
     setWriteError(saved ? "" : t("Could not update notification history. Try again."));
   }
   return (
-    <section
-      className="mx-auto max-w-3xl space-y-5 p-(--workspace-page-padding)"
-      aria-label={t("Notification history")}
-    >
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">{t("Notifications")}</h1>
-        <span className="text-sm text-muted-foreground">
-          {t("{count} unread", { count: items.filter((item) => !item.read).length })}
-        </span>
-        <Button
-          variant="outline"
-          onClick={() => result(clearNotifications())}
-          disabled={!error && items.length === 0}
-        >
-          {t("Clear history")}
-        </Button>
-        <Button variant="ghost" onClick={() => onNavigate("/settings/notifications")}>
-          {t("Notification settings")}
-        </Button>
-      </div>
+    <PageFrame>
+      <PageHeader
+        title={t("Notifications")}
+        description={t("{count} unread", { count: formatNumber(unread, locale) })}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => onNavigate("/settings/notifications")}>
+              <Settings2 />
+              {t("Notification settings")}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => result(clearNotifications())}
+              disabled={!error && items.length === 0}
+            >
+              {t("Clear history")}
+            </Button>
+          </>
+        }
+      />
       {error || writeError ? (
-        <p role="alert" className="text-sm text-destructive">
+        <Notice tone="error" icon={<CircleAlert />} announce>
           {t(writeError || error || "")}
-        </p>
+        </Notice>
       ) : null}
-      {items.length === 0 ? (
-        <p className="text-muted-foreground">
-          {t("No notifications yet. Results from settings changes and app updates appear here.")}
-        </p>
-      ) : (
-        <ul className="space-y-3">
-          {items.map((item) => (
-            <li key={item.id} className="space-y-2 rounded-lg border p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-medium">{t(item.title)}</h2>
-                {item.read ? (
-                  <span className="text-xs text-muted-foreground">{t("Read")}</span>
-                ) : (
-                  <span className="text-xs">{t("Unread")}</span>
-                )}
-              </div>
-              {item.message ? (
-                <p className="text-sm text-muted-foreground">{t(item.message)}</p>
-              ) : null}
-              <time className="text-xs text-muted-foreground" dateTime={item.createdAt}>
-                {new Date(item.createdAt).toLocaleString(locale)}
-              </time>
-              {item.desktopError ? (
-                <p role="alert" className="text-sm text-destructive">
-                  {t(item.desktopError)}
-                </p>
-              ) : null}
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (updateNotification(item.id, { read: true })) onNavigate(item.path);
-                    else result(false);
-                  }}
-                >
-                  {t("Open")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => result(updateNotification(item.id, { read: !item.read }))}
-                >
-                  {item.read ? t("Mark unread") : t("Mark read")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => result(dismissNotification(item.id))}
-                >
-                  {t("Dismiss")}
-                </Button>
-                {item.desktopError && preferences.desktop ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void deliverDesktopNotification(item)}
+      <section aria-label={t("Notification history")}>
+        {items.length === 0 ? (
+          <Panel>
+            <Empty size="compact">
+              <EmptyMedia variant="icon">
+                <Bell />
+              </EmptyMedia>
+              <EmptyHeader>
+                <EmptyTitle>{t("No notifications yet.")}</EmptyTitle>
+                <EmptyDescription>
+                  {t("Results from settings changes and app updates appear here.")}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </Panel>
+        ) : (
+          <Panel>
+            <ul className="divide-y divide-border/50">
+              {items.map((item) => {
+                const Icon = levelIcons[item.level];
+                return (
+                  <li
+                    key={item.id}
+                    className={cn("flex gap-3 px-4 py-3.5 sm:px-5", !item.read && "bg-primary/3")}
                   >
-                    {t("Retry desktop delivery")}
-                  </Button>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+                    <IconTile size="sm" className={cn("mt-0.5", levelTones[item.level])}>
+                      <Icon />
+                      {!item.read ? (
+                        <span className="absolute -end-0.5 -top-0.5 size-2 rounded-full bg-primary ring-2 ring-background" />
+                      ) : null}
+                    </IconTile>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                        <h2
+                          className={cn(
+                            "text-sm",
+                            item.read ? "text-foreground/80" : "font-semibold text-foreground",
+                          )}
+                        >
+                          {t(item.title)}
+                        </h2>
+                        <span className="sr-only">{item.read ? t("Read") : t("Unread")}</span>
+                        <time
+                          className="shrink-0 text-xs text-muted-foreground tabular-nums"
+                          dateTime={item.createdAt}
+                        >
+                          {formatDateTime(item.createdAt, locale)}
+                        </time>
+                      </div>
+                      {item.message ? (
+                        <p className="text-sm text-muted-foreground">{t(item.message)}</p>
+                      ) : null}
+                      {item.desktopError ? (
+                        <p role="alert" className="text-sm text-destructive">
+                          {t(item.desktopError)}
+                        </p>
+                      ) : null}
+                      <div className="-ms-2 flex flex-wrap gap-1 pt-1">
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => {
+                            if (updateNotification(item.id, { read: true })) onNavigate(item.path);
+                            else result(false);
+                          }}
+                        >
+                          {t("Open")}
+                        </Button>
+                        <Button
+                          variant="ghost-muted"
+                          size="xs"
+                          onClick={() => result(updateNotification(item.id, { read: !item.read }))}
+                        >
+                          {item.read ? t("Mark unread") : t("Mark read")}
+                        </Button>
+                        <Button
+                          variant="ghost-muted"
+                          size="xs"
+                          onClick={() => result(dismissNotification(item.id))}
+                        >
+                          {t("Dismiss")}
+                        </Button>
+                        {item.desktopError && preferences.desktop ? (
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => void deliverDesktopNotification(item)}
+                          >
+                            {t("Retry desktop delivery")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Panel>
+        )}
+      </section>
+    </PageFrame>
   );
 }

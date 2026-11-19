@@ -11,6 +11,9 @@ import {
   DialogPanel,
   DialogFooter,
 } from "../components/ui/dialog";
+import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { Spinner } from "../components/ui/spinner";
+import { Notice } from "../components/WorkspacePage";
 import { CopyableText } from "../shell/CopyableText";
 import { useLocale } from "../useLocale";
 import { setupSecureRouter } from "./access";
@@ -137,7 +140,9 @@ export function SecureRouterSetup({
         <DialogPanel>
           {result?.kind === "ready" ? (
             <div className="space-y-3">
-              <p>{t("Certificate and API-SSL sign-in verified.")}</p>
+              <Notice tone="success" icon={<ShieldCheck />}>
+                {t("Certificate and API-SSL sign-in verified.")}
+              </Notice>
               {existing && (
                 <p className="text-sm text-muted-foreground">
                   {t(
@@ -148,12 +153,12 @@ export function SecureRouterSetup({
             </div>
           ) : result?.kind === "host-key" ? (
             <div className="space-y-4">
-              <p>
+              <Notice tone="warning" icon={<ShieldAlert />}>
                 {t(
                   "Approve this SSH fingerprint only on a trusted network. Compare it through an existing trusted connection if you can.",
                 )}
-              </p>
-              <CopyableText value={result.fingerprint} label="SSH fingerprint" />
+              </Notice>
+              <CopyableText value={result.fingerprint} label="SSH fingerprint" size="block" />
               <p className="text-sm text-muted-foreground">
                 {t(
                   "Approval sends your password over SSH and enables API-SSL, creating a certificate if needed.",
@@ -162,57 +167,59 @@ export function SecureRouterSetup({
             </div>
           ) : result?.kind === "instructions" ? (
             <div className="space-y-4">
-              <p>
+              <p className="text-sm">
                 {t(
                   "Run the setup block in WinBox Terminal. Enter the reported MADAR_PORT and MADAR_FINGERPRINT below.",
                 )}
               </p>
-              <details>
-                <summary className="cursor-pointer text-sm">{t("Router setup block")}</summary>
-                <CopyableText value={result.script} label="Router setup block" />
-              </details>
-              <label className="block space-y-1">
-                <span>{t("API-SSL port")}</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={65535}
-                  value={tlsPort}
-                  onChange={(event) => setTlsPort(Number(event.target.value))}
-                />
-              </label>
-              <label className="block space-y-1">
-                <span>{t("Certificate fingerprint")}</span>
-                <Input
-                  dir="ltr"
-                  value={fingerprint}
-                  onChange={(event) => setFingerprint(event.target.value)}
-                  autoComplete="off"
-                />
-              </label>
+              <CopyableText value={result.script} label="Router setup block" size="block" />
+              <div className="grid gap-4 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                <label className="block space-y-1.5">
+                  <span className="block text-sm font-medium">{t("API-SSL port")}</span>
+                  <Input
+                    type="number"
+                    dir="ltr"
+                    min={1}
+                    max={65535}
+                    value={tlsPort}
+                    onChange={(event) => setTlsPort(Number(event.target.value))}
+                  />
+                </label>
+                <label className="block space-y-1.5">
+                  <span className="block text-sm font-medium">{t("Certificate fingerprint")}</span>
+                  <Input
+                    dir="ltr"
+                    value={fingerprint}
+                    onChange={(event) => setFingerprint(event.target.value)}
+                    autoComplete="off"
+                  />
+                </label>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <p>{t("Automatic setup uses SSH and requires a router administrator account.")}</p>
-              <details>
-                <summary className="cursor-pointer text-sm text-muted-foreground">
-                  {t("SSH settings")}
-                </summary>
-                <label className="mt-3 block space-y-1">
-                  <span>{t("SSH port")}</span>
+              <p className="text-sm">
+                {t("Automatic setup uses SSH and requires a router administrator account.")}
+              </p>
+              <label className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-card/40 px-3 py-2.5">
+                <span className="text-sm text-muted-foreground">{t("SSH port")}</span>
+                <span className="w-24">
                   <Input
                     type="number"
+                    dir="ltr"
+                    size="sm"
                     min={1}
                     max={65535}
                     value={sshPort}
                     onChange={(event) => setSshPort(Number(event.target.value))}
                   />
-                </label>
-              </details>
+                </span>
+              </label>
             </div>
           )}
           {busy && (
-            <p role="status" className="text-sm text-muted-foreground">
+            <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Spinner size="sm" aria-hidden="true" role="presentation" />
               {t(pendingMessages[busy])}
             </p>
           )}

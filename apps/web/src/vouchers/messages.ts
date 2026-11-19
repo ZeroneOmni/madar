@@ -1,4 +1,10 @@
 export const voucherArabic = {
+  "Create up to {count} vouchers at once.": "أنشئ حتى {count} قسيمة دفعة واحدة.",
+  "Leave blank to generate one.": "اتركه فارغًا ليُولَّد تلقائيًا.",
+  "Leave blank to create the voucher without a password.":
+    "اتركها فارغة لإنشاء القسيمة بدون كلمة مرور.",
+  "Generated usernames start with this text.": "تبدأ أسماء المستخدمين المولّدة بهذا النص.",
+  "{name}, valid for {duration}": "{name}، صالحة لمدة {duration}",
   "Connect to your router to browse customer vouchers, create batches, manage profiles and check usage.":
     "اتصل بالراوتر لاستعراض قسائم العملاء وإنشائها وإدارة باقاتها ومتابعة الاستهلاك.",
   "{name} is planned for a later release. Voucher management and usage are available in Vouchers.":
@@ -14,8 +20,6 @@ export const voucherArabic = {
   "Create vouchers": "إنشاء قسائم",
   Quantity: "العدد",
   "Shared users": "عدد الاتصالات المتزامنة",
-  "Username (blank generates one)": "اسم المستخدم، اتركه فارغًا للتوليد التلقائي",
-  "Password (blank stays empty)": "كلمة المرور، اتركها فارغة لتبقى بدون كلمة مرور",
   "Username prefix": "بادئة أسماء المستخدمين",
   Profile: "الباقة",
   "No profile": "بدون باقة",
@@ -65,7 +69,6 @@ export const voucherArabic = {
   "Profile activation adds a new assignment. Existing sessions may continue until the network applies the change.":
     "يضيف تفعيل الباقة اشتراكًا جديدًا للقسيمة. قد تستمر الجلسات الحالية إلى أن تُطبّق الشبكة التغيير.",
   "Loading saved vouchers…": "جارٍ تحميل القسائم المحفوظة…",
-  "{count} vouchers": "عدد القسائم: {count}",
   "Last full refresh: {time}": "آخر تحديث كامل: {time}",
   "Initial download not completed": "لم يكتمل جلب القسائم لأول مرة",
   "Export this page": "تصدير هذه الصفحة",
@@ -120,7 +123,6 @@ export const voucherArabic = {
   Started: "البداية",
   Ended: "النهاية",
   edit: "تعديل",
-  "Connection settings": "إعدادات الاتصال",
   "Connect to router": "الاتصال بالراوتر",
   "Refresh customers and profiles": "تحديث العملاء والباقات",
   "Loading customers…": "جارٍ تحميل العملاء…",

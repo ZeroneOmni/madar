@@ -8,6 +8,21 @@ export function resolveLocale(saved: string | null): Locale {
   return "ar";
 }
 
+const numberingSystem = (locale: Locale) => (locale === "ar" ? "arab" : "latn");
+
+export function formatNumber(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(locale, { numberingSystem: numberingSystem(locale) }).format(value);
+}
+
+export function formatDateTime(value: string, locale: Locale): string {
+  return new Date(value).toLocaleString(locale, {
+    numberingSystem: numberingSystem(locale),
+    calendar: "gregory",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 export function translate(
   locale: Locale,
   message: string,

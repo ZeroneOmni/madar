@@ -5,7 +5,7 @@ import { useLocale } from "./useLocale";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useDocumentLocale } from "./useLocale";
 import { useEffect } from "react";
-import { TriangleAlert } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { QuitHoldOverlay } from "./components/QuitHoldOverlay";
 import { WorkspacePageHeader } from "./components/WorkspacePageHeader";
 import { Button } from "./components/ui/button";
@@ -14,6 +14,7 @@ import { ToastProvider } from "./components/ui/toast";
 import { isElectron } from "./env";
 import { useTheme } from "./hooks/useTheme";
 import { installDesktopPasteAsText } from "./lib/desktopPasteAsText";
+import { cn } from "./lib/utils";
 import { CommandMenu, useShellCommands } from "./shell/commands";
 import { ShortcutSettings } from "./shell/shortcuts";
 import { SettingsPage } from "./shell/settings";
@@ -22,105 +23,14 @@ import { WelcomePage } from "./shell/WelcomePage";
 import { ShellSidebar } from "./shell/ShellSidebar";
 import { WorkspaceChrome } from "./shell/WorkspaceChrome";
 import { useNavigation } from "./shell/useNavigation";
-import { destinations, routeLabel } from "./shell/navigation";
+import { routeLabel } from "./shell/navigation";
 import { navigateShell, useShellPath } from "./shell/routes";
-import { CopyableText } from "./shell/CopyableText";
+import { DestinationPage, OverviewPage } from "./shell/WorkspacePages";
 import {
   NotificationCenter,
   NotificationSettings,
   NotificationsCoordinator,
 } from "./shell/notificationsUI";
-
-function Overview({ onNavigate }: { onNavigate: (path: string) => void }) {
-  const { t } = useLocale();
-  return (
-    <section className="mx-auto max-w-4xl space-y-8 p-(--workspace-page-padding)">
-      <div className="space-y-3">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          {t("Your User Manager workspace")}
-        </h1>
-        <p className="text-muted-foreground">
-          {t("Organize your work and configure Madar from one place.")}
-        </p>
-      </div>
-      <div className="space-y-3 rounded-xl border p-5">
-        <h2 className="font-semibold">{t("Router connection")}</h2>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            "Connect to your router to browse customer vouchers, create batches, manage profiles and check usage.",
-          )}
-        </p>
-        <p className="text-sm">
-          {t(
-            "You can organize navigation, customize shortcuts, and set notification preferences now.",
-          )}
-        </p>
-        <Button variant="outline" onClick={() => onNavigate("/routers")}>
-          {t("Manage connections")}
-        </Button>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {destinations
-          .filter((item) => item.id !== "overview" && item.id !== "notifications")
-          .map((item) => (
-            <section key={item.id} className="space-y-3 rounded-xl border p-5">
-              <h2 className="font-semibold">{t(item.label)}</h2>
-              <p className="text-sm text-muted-foreground">{t(item.description)}</p>
-              <Button variant="outline" onClick={() => onNavigate("/" + item.id)}>
-                {t("Open {name}", { name: t(item.label).toLowerCase() })}
-              </Button>
-            </section>
-          ))}
-      </div>
-      <section className="space-y-3 rounded-xl border p-5">
-        <h2 className="font-semibold">{t("Local workspace")}</h2>
-        <p className="text-sm text-muted-foreground">
-          {t("This address identifies the app you are using.")}
-        </p>
-        <CopyableText value={window.location.origin} label={t("Local app address")} />
-      </section>
-    </section>
-  );
-}
-
-function DestinationPage({
-  path,
-  onNavigate,
-}: {
-  path: string;
-  onNavigate: (path: string) => void;
-}) {
-  const { t } = useLocale();
-  const destination = destinations.find((item) => "/" + item.id === path);
-  return (
-    <section className="mx-auto max-w-3xl space-y-6 p-(--workspace-page-padding)">
-      <h1 className="text-3xl font-semibold">
-        {destination ? t(destination.label) : t("Page not found")}
-      </h1>
-      <div className="space-y-3 rounded-xl border p-6">
-        <TriangleAlert aria-hidden="true" />
-        <h2 className="font-medium">
-          {destination
-            ? t("User Manager operations are not available yet")
-            : t("This page is unavailable")}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {destination
-            ? t(
-                "{name} is planned for a later release. Voucher management and usage are available in Vouchers.",
-                { name: t(destination.label) },
-              )
-            : t(
-                "The link may be out of date. Choose a destination in the sidebar or return to the overview.",
-              )}
-        </p>
-        <Button variant="outline" onClick={() => onNavigate("/overview")}>
-          {t("Return to overview")}
-        </Button>
-      </div>
-    </section>
-  );
-}
 
 function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigation> }) {
   const { t } = useLocale();
@@ -155,13 +65,16 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
         <WorkspacePageHeader electron={isElectron}>
           <nav
             aria-label={t("Workspace breadcrumbs")}
-            className="[-webkit-app-region:no-drag] flex min-w-0 items-center gap-2 text-sm"
+            className="[-webkit-app-region:no-drag] flex min-w-0 items-center gap-1 text-sm"
           >
-            <Button variant="link" size="sm" onClick={() => navigate("/overview")}>
+            <Button variant="ghost-muted" size="xs" onClick={() => navigate("/overview")}>
               {t("Madar")}
             </Button>
-            <span aria-hidden="true">/</span>
-            <span className="truncate" aria-current="page">
+            <ChevronRight
+              aria-hidden="true"
+              className="size-3.5 shrink-0 text-muted-foreground/50 rtl:rotate-180"
+            />
+            <span className="truncate px-1 font-medium text-foreground" aria-current="page">
               {t(routeLabel(path))}
             </span>
           </nav>
@@ -187,7 +100,9 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
             </Button>
           </div>
         ) : null}
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          className={cn("min-h-0 flex-1 overflow-y-auto", !settingsPage && "scrollbar-gutter-both")}
+        >
           {settingsPage ? (
             <SettingsPage
               path={path}
@@ -198,7 +113,7 @@ function ShellContent({ navigation }: { navigation: ReturnType<typeof useNavigat
           ) : path === "/welcome" ? (
             <WelcomePage onContinue={() => navigate("/overview")} />
           ) : path === "/overview" ? (
-            <Overview onNavigate={navigate} />
+            <OverviewPage onNavigate={navigate} />
           ) : path === "/routers" ? (
             <RouterConnections />
           ) : path === "/vouchers" ? (

@@ -7,6 +7,7 @@ import { AppearanceSettingsPanel } from "../components/settings/AppearanceSettin
 import { notifyShell } from "./notifications";
 import { resolveSettingsPath } from "./settingsSearch";
 import { resetOnboarding } from "./settingsState";
+import { PageFrame } from "../components/WorkspacePage";
 
 function DesktopQuitSettings() {
   const { t } = useLocale();
@@ -174,10 +175,8 @@ export function SettingsPage({
   }, [target]);
   return (
     <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <div className="min-w-0 flex-1 overflow-y-auto scrollbar-gutter-both p-5 sm:p-8">
-        <div
-          className={`mx-auto space-y-7 ${section?.id === "appearance" ? "max-w-5xl" : "max-w-3xl"}`}
-        >
+      <div className="min-w-0 flex-1 overflow-y-auto scrollbar-gutter-both">
+        <PageFrame wide={section?.id === "appearance"}>
           <nav aria-label={t("Settings breadcrumbs")} className="flex items-center gap-2 text-sm">
             <Button variant="link" size="sm" onClick={() => onNavigate("/")}>
               {t("Workspace")}
@@ -259,7 +258,7 @@ export function SettingsPage({
               {notificationSettings}
             </section>
           ) : null}
-        </div>
+        </PageFrame>
       </div>
     </div>
   );

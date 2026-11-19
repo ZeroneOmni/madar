@@ -29,6 +29,11 @@ export const DestinationId = Schema.Literals([
   "notifications",
 ]);
 export type DestinationId = typeof DestinationId.Type;
+export const plannedDestinations: ReadonlySet<DestinationId> = new Set([
+  "subscriptions",
+  "card-designs",
+  "usage",
+]);
 const NavItem = Schema.Struct({ id: DestinationId, group: Schema.String });
 const NavGroup = Schema.Struct({
   id: Schema.String,
