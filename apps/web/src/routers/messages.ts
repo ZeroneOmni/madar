@@ -1,4 +1,8 @@
 export const routerArabic = {
+  "Add a router": "إضافة راوتر",
+  "Madar manages one RouterOS 6 router through its API. Passwords stay on this device.":
+    "يدير مدار راوترًا واحدًا يعمل بنظام RouterOS 6 عبر واجهته البرمجية. تبقى كلمات المرور على هذا الجهاز.",
+  "No router selected": "لم تختر راوترًا بعد",
   Continue: "متابعة",
   "Set up API-SSL": "إعداد API-SSL",
   "API-SSL (already configured)": "API-SSL (مُعد مسبقًا)",
@@ -24,7 +28,6 @@ export const routerArabic = {
   "Certificate fingerprint": "بصمة الشهادة",
   "Automatic setup uses SSH and requires a router administrator account.":
     "يستخدم الإعداد التلقائي SSH ويتطلب حساب مسؤول على الراوتر.",
-  "SSH settings": "إعدادات SSH",
   "SSH port": "منفذ SSH",
   "Checking router identity…": "جارٍ التحقق من هوية الراوتر…",
   "Preparing secure access… This can take up to two minutes.":
@@ -169,7 +172,7 @@ export const routerArabic = {
   "Router name": "اسم جهاز التوجيه",
   "Hostname or IP address": "اسم المضيف أو عنوان IP",
   "Router address": "عنوان جهاز التوجيه",
-  "Router identity": "هوية جهاز التوجيه",
+  "Router identity": "هوية الراوتر",
   "Router password": "كلمة مرور جهاز التوجيه",
   Username: "اسم المستخدم",
   Label: "التسمية",
@@ -201,7 +204,7 @@ export const routerArabic = {
   Selected: "محدد",
   Edit: "تعديل",
   Select: "اختيار",
-  "Remove this saved router?": "هل تريد إزالة جهاز التوجيه المحفوظ؟",
+  "Remove this saved router?": "هل تريد إزالة هذا الراوتر المحفوظ؟",
   "Confirm removal": "تأكيد الإزالة",
   "API (unencrypted)": "API (غير مشفر)",
   "Select a saved router or add one below.": "اختر جهاز توجيه محفوظًا أو أضف جهازًا أدناه.",
@@ -220,11 +223,11 @@ export const routerArabic = {
   "Could not save routers. Previous settings are still active.":
     "تعذر حفظ أجهزة التوجيه. لا تزال الإعدادات السابقة فعالة.",
   "Router unreachable. Check the host, API port, firewall, and API service.":
-    "تعذر الوصول إلى جهاز التوجيه. تحقق من المضيف ومنفذ API والجدار الناري وخدمة API.",
+    "تعذر الوصول إلى الراوتر. تحقق من المضيف ومنفذ API والجدار الناري وخدمة API.",
   "TLS verification failed. Configure a trusted API-SSL certificate matching the router host.":
-    "فشل التحقق من TLS. اضبط شهادة API-SSL موثوقة تطابق اسم مضيف جهاز التوجيه.",
+    "فشل التحقق من TLS. اضبط شهادة API-SSL موثوقة تطابق اسم مضيف الراوتر.",
   "Router did not respond in time. Check connectivity and the API service.":
-    "لم يستجب جهاز التوجيه في الوقت المحدد. تحقق من الاتصال وخدمة API.",
+    "لم يستجب الراوتر في الوقت المحدد. تحقق من الاتصال وخدمة API.",
   "Login rejected. Check the username, password, and API access policy.":
     "رُفض تسجيل الدخول. تحقق من اسم المستخدم وكلمة المرور وسياسة الوصول إلى API.",
   "Router access denied. The account needs permission to read system identity and resources.":
@@ -234,5 +237,5 @@ export const routerArabic = {
   "Supported target: RouterOS 6 using the binary API.":
     "النظام المدعوم: RouterOS 6 عبر الواجهة الثنائية API.",
   "Madar could not check the router. Check the app connection and sign in again if needed.":
-    "تعذر على مدار فحص جهاز التوجيه. تحقق من اتصال التطبيق وسجل الدخول مجددًا عند الحاجة.",
+    "تعذر على مدار فحص الراوتر. تحقق من اتصال التطبيق وسجل الدخول مجددًا عند الحاجة.",
 };

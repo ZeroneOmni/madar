@@ -24,7 +24,7 @@ import {
   DialogFooter,
 } from "../components/ui/dialog";
 import { Textarea } from "../components/ui/textarea";
-import { SettingsSection } from "../components/settings/appearanceLayout";
+import { PageSection, Panel } from "../components/WorkspacePage";
 import {
   DEFAULT_SHORTCUTS,
   decodeShortcuts,
@@ -371,68 +371,70 @@ export function ShortcutSettings() {
   const saved = () => setStatus(t("Shortcut saved."));
   return (
     <section aria-label={t("Keyboard shortcuts")} className="space-y-8">
-      <SettingsSection title={t("Keybindings")}>
-        <div className="flex flex-wrap items-center gap-2 px-3 py-3 sm:px-4">
-          <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
-            <InputGroup>
-              <InputGroupAddon>
-                <SearchIcon aria-hidden />
-              </InputGroupAddon>
-              <InputGroupInput
-                size="sm"
-                type="search"
-                aria-label={t("Search keybindings")}
-                placeholder={t("Search keybindings")}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Escape") return;
-                  event.preventDefault();
-                  if (query) setQuery("");
-                  else event.currentTarget.blur();
-                }}
-              />
-            </InputGroup>
+      <PageSection title={t("Keybindings")}>
+        <Panel>
+          <div className="flex flex-wrap items-center gap-2 px-3 py-3 sm:px-4">
+            <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
+              <InputGroup>
+                <InputGroupAddon>
+                  <SearchIcon aria-hidden />
+                </InputGroupAddon>
+                <InputGroupInput
+                  size="sm"
+                  type="search"
+                  aria-label={t("Search keybindings")}
+                  placeholder={t("Search keybindings")}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Escape") return;
+                    event.preventDefault();
+                    if (query) setQuery("");
+                    else event.currentTarget.blur();
+                  }}
+                />
+              </InputGroup>
+            </div>
+            <Button
+              variant="outline"
+              disabled={adding || !available.length}
+              onClick={() => {
+                setAdding(true);
+                setCommand(available[0] ?? null);
+              }}
+            >
+              <PlusIcon aria-hidden />
+              {t("Add keybinding")}
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={t("Edit keybindings JSON")}
+              title={t("Edit keybindings JSON")}
+              onClick={() => setJsonOpen(true)}
+            >
+              <FileJsonIcon aria-hidden />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t("Reset all shortcuts")}
+              title={t("Reset all shortcuts")}
+              onClick={() => {
+                try {
+                  saveShortcuts({ ...DEFAULT_SHORTCUTS });
+                  setStatus(t("Default shortcuts restored."));
+                  setResetError("");
+                } catch {
+                  setResetError(t("Could not reset shortcuts. Try again."));
+                }
+              }}
+            >
+              <Undo2Icon aria-hidden />
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            disabled={adding || !available.length}
-            onClick={() => {
-              setAdding(true);
-              setCommand(available[0] ?? null);
-            }}
-          >
-            <PlusIcon aria-hidden />
-            {t("Add keybinding")}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={t("Edit keybindings JSON")}
-            title={t("Edit keybindings JSON")}
-            onClick={() => setJsonOpen(true)}
-          >
-            <FileJsonIcon aria-hidden />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t("Reset all shortcuts")}
-            title={t("Reset all shortcuts")}
-            onClick={() => {
-              try {
-                saveShortcuts({ ...DEFAULT_SHORTCUTS });
-                setStatus(t("Default shortcuts restored."));
-                setResetError("");
-              } catch {
-                setResetError(t("Could not reset shortcuts. Try again."));
-              }
-            }}
-          >
-            <Undo2Icon aria-hidden />
-          </Button>
-        </div>
-      </SettingsSection>
+        </Panel>
+      </PageSection>
       {error ? (
         <p role="alert" className="text-sm text-destructive">
           {t(error)}
@@ -444,59 +446,63 @@ export function ShortcutSettings() {
         </p>
       ) : null}
       {adding ? (
-        <SettingsSection title={t("Add keybinding")}>
-          <div className="flex items-center gap-2 px-3 py-3 sm:px-4">
-            <div className="min-w-0 flex-1">
-              <Select
-                value={command}
-                onValueChange={setCommand}
-                items={available.map((id) => ({ value: id, label: t(COMMAND_LABELS[id]) }))}
-              >
-                <SelectTrigger aria-label={t("Command")}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectPopup>
-                  {available.map((id) => (
-                    <SelectItem key={id} value={id}>
-                      {t(COMMAND_LABELS[id])}
-                    </SelectItem>
-                  ))}
-                </SelectPopup>
-              </Select>
+        <PageSection title={t("Add keybinding")}>
+          <Panel>
+            <div className="flex items-center gap-2 px-3 py-3 sm:px-4">
+              <div className="min-w-0 flex-1">
+                <Select
+                  value={command}
+                  onValueChange={setCommand}
+                  items={available.map((id) => ({ value: id, label: t(COMMAND_LABELS[id]) }))}
+                >
+                  <SelectTrigger aria-label={t("Command")}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {available.map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {t(COMMAND_LABELS[id])}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setAdding(false)}>
+                {t("Cancel")}
+              </Button>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setAdding(false)}>
-              {t("Cancel")}
-            </Button>
-          </div>
-          {command && !shortcuts[command] ? (
-            <ShortcutEditor
-              key={command}
-              command={command}
-              current=""
-              shortcuts={shortcuts}
-              startEditing
-              onCancel={() => setAdding(false)}
-              onSaved={() => {
-                saved();
-                setAdding(false);
-                setQuery("");
-              }}
-            />
-          ) : null}
-        </SettingsSection>
+            {command && !shortcuts[command] ? (
+              <ShortcutEditor
+                key={command}
+                command={command}
+                current=""
+                shortcuts={shortcuts}
+                startEditing
+                onCancel={() => setAdding(false)}
+                onSaved={() => {
+                  saved();
+                  setAdding(false);
+                  setQuery("");
+                }}
+              />
+            ) : null}
+          </Panel>
+        </PageSection>
       ) : null}
       {filtered.length ? (
-        <SettingsSection title={t("Navigation")}>
-          {filtered.map((id) => (
-            <ShortcutEditor
-              key={`${id}:${shortcuts[id]}`}
-              command={id}
-              current={shortcuts[id]}
-              shortcuts={shortcuts}
-              onSaved={saved}
-            />
-          ))}
-        </SettingsSection>
+        <PageSection title={t("Navigation")}>
+          <Panel>
+            {filtered.map((id) => (
+              <ShortcutEditor
+                key={`${id}:${shortcuts[id]}`}
+                command={id}
+                current={shortcuts[id]}
+                shortcuts={shortcuts}
+                onSaved={saved}
+              />
+            ))}
+          </Panel>
+        </PageSection>
       ) : (
         <p className="py-12 text-center text-sm text-muted-foreground">
           {t("No keybindings match your search.")}

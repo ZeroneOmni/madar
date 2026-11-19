@@ -3,6 +3,7 @@ import { useState } from "react";
 import { randomUUID } from "../lib/utils";
 import {
   ArrowDown,
+  ArrowDownUp,
   ArrowLeft,
   ArrowRight,
   Keyboard,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../components/ui/tooltip";
 import {
   Select,
   SelectTrigger,
@@ -54,7 +56,7 @@ const settingsIcons = {
   notifications: Bell,
 };
 
-function ShellSidebarHeader({ title }: { title: string }) {
+function ShellSidebarHeader({ title, brand }: { title: string; brand: boolean }) {
   const { isMobile, open } = useSidebar();
   if (!isMobile && !open) {
     return <div className="h-(--workspace-topbar-height) shrink-0" />;
@@ -62,6 +64,7 @@ function ShellSidebarHeader({ title }: { title: string }) {
   return (
     <div className="shrink-0 pt-(--shell-sidebar-caption-height)">
       <div className="drag-region flex h-(--workspace-topbar-height) min-w-0 items-center ps-(--shell-brand-inset) pe-3">
+        {brand ? <img src="/brand/madar-logo.svg" alt="" className="me-2 size-6 shrink-0" /> : null}
         <span className="truncate text-lg font-semibold">{title}</span>
       </div>
     </div>
@@ -163,7 +166,7 @@ function SettingsNavigation({
   );
 }
 
-const icons = {
+export const destinationIcons = {
   overview: Home,
   vouchers: Ticket,
   subscriptions: Waypoints,
@@ -214,7 +217,7 @@ export function ShellSidebar({
       <SidebarMenu>
         {items.map((item, index) => {
           const destination = destinations.find((d) => d.id === item.id)!;
-          const Icon = icons[item.id];
+          const Icon = destinationIcons[item.id];
           return (
             <SidebarMenuItem
               key={item.id}
@@ -350,7 +353,7 @@ export function ShellSidebar({
         }
       }}
     >
-      <ShellSidebarHeader title={settingsPage ? t("Settings") : t("Madar")} />
+      <ShellSidebarHeader title={settingsPage ? t("Settings") : t("Madar")} brand={!settingsPage} />
       {settingsPage ? (
         <SettingsNavigation path={path} onNavigate={navigate} returnPath={returnPath} />
       ) : compact ? (
@@ -407,7 +410,35 @@ export function ShellSidebar({
                   setDragged(null);
                 }}
               >
-                <h2 className="mb-2 text-xs font-medium text-muted-foreground">{t("Workspace")}</h2>
+                <div className="mb-1 flex min-h-7 items-center justify-between gap-2 ps-2">
+                  <h2 className="text-xs font-medium text-muted-foreground">{t("Workspace")}</h2>
+                  {/* One mounted toggle keeps keyboard focus when organizing starts or ends. */}
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant={organizing ? "outline" : "ghost-muted"}
+                          size={organizing ? "xs" : "icon-xs"}
+                          aria-pressed={organizing}
+                          onClick={() => {
+                            setEditing(!editing);
+                            setDragged(null);
+                          }}
+                        />
+                      }
+                    >
+                      {organizing ? (
+                        t("Done")
+                      ) : (
+                        <>
+                          <ArrowDownUp />
+                          <span className="sr-only">{t("Organize navigation")}</span>
+                        </>
+                      )}
+                    </TooltipTrigger>
+                    <TooltipPopup>{t("Organize navigation")}</TooltipPopup>
+                  </Tooltip>
+                </div>
                 {rows("")}
               </section>
               {state.groups.map((group) => (
@@ -508,21 +539,14 @@ export function ShellSidebar({
             </nav>
           </SidebarContent>
           <SidebarFooter>
-            <Button
-              variant={organizing ? "outline" : "ghost"}
-              size="sm"
-              aria-pressed={organizing}
-              onClick={() => {
-                setEditing(!editing);
-                setDragged(null);
-              }}
-            >
-              {organizing ? t("Done") : t("Organize navigation")}
-            </Button>
-            <Button variant="ghost" onClick={() => navigate("/settings/general")}>
-              <Settings />
-              {t("Settings")}
-            </Button>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => navigate("/settings/general")}>
+                  <Settings />
+                  <span>{t("Settings")}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SidebarFooter>
         </>
       )}

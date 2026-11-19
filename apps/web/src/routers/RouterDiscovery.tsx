@@ -1,6 +1,7 @@
 import type { DiscoveredRouter } from "@madar/contracts";
-import { Check, Network, Router } from "lucide-react";
+import { Check, Router } from "lucide-react";
 import { useLocale } from "../useLocale";
+import { IconTile } from "../components/WorkspacePage";
 import { useRouterDiscovery } from "./discoveryState";
 
 const errors = {
@@ -27,19 +28,14 @@ export function RouterDiscovery({
     result?.kind === "complete"
       ? result.routers.filter((router) => !router.host || !saved.has(router.host))
       : [];
+  const waiting = (searching && !result) || (result?.kind === "complete" && !routers.length);
   return (
     <section
-      className="space-y-4 border-b pb-6"
+      className="space-y-3 px-3 py-4 sm:px-4"
       aria-label={t("Discover routers")}
       aria-busy={searching}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="rounded-xl bg-primary/10 p-3 text-primary">
-            <Network size={24} aria-hidden="true" />
-          </div>
-          <h2 className="min-w-0 text-lg font-semibold">{t("Find your router")}</h2>
-        </div>
+      <div className="flex items-center gap-3">
         <svg
           role="img"
           aria-label={t("Automatic discovery, once a minute")}
@@ -49,7 +45,7 @@ export function RouterDiscovery({
           strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="size-9 shrink-0 text-muted-foreground"
+          className="size-8 shrink-0 text-muted-foreground"
         >
           <path d="M5 17a13 13 0 0 1 22-8.4L31 12m0-6v6h-6" className="text-primary" />
           <path d="M31 19a13 13 0 0 1-22 8.4L5 24m0 6v-6h6" className="text-primary" />
@@ -57,38 +53,44 @@ export function RouterDiscovery({
           <path d="M18 13v5l4 2.5" />
           <circle cx="18" cy="18" r="1.5" fill="currentColor" stroke="none" />
         </svg>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <h3 className="text-sm font-medium">{t("Find your router")}</h3>
+          {waiting ? (
+            <p role="status" className="text-xs text-muted-foreground">
+              {searching ? t("Listening for router advertisements…") : t("No routers found yet.")}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {t("Discovery does not verify API access. Connections currently support RouterOS 6.")}
+            </p>
+          )}
+        </div>
       </div>
-      {((searching && !result) || (result?.kind === "complete" && !routers.length)) && (
-        <p role="status" className="rounded-lg bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          {searching
-            ? t("Listening for router advertisements…")
-            : result?.kind === "complete" && !routers.length
-              ? t("No routers found yet.")
-              : ""}
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {t(errors[error ?? "app"])}
         </p>
       )}
-      {error && <p role="alert">{t(errors[error ?? "app"])}</p>}
       {routers.length > 0 && (
-        <>
-          <ul className="max-h-72 divide-y overflow-auto rounded-xl border">
-            {routers.map((router) => (
+        <ul className="max-h-72 divide-y divide-border/50 overflow-auto rounded-lg border border-border/60 bg-background/60">
+          {routers.map((router) => {
+            const selected = !!router.host && selectedHost === router.host;
+            return (
               <li key={`${router.mac}/${router.host}`}>
                 <button
                   type="button"
-                  aria-pressed={!!router.host && selectedHost === router.host}
+                  aria-pressed={selected}
                   onClick={() => onSelect(router)}
-                  className="group flex w-full cursor-pointer items-center gap-4 px-4 py-4 text-start outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring aria-pressed:bg-primary/8"
+                  className="group flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-start outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset aria-pressed:bg-primary/6"
                 >
-                  <Router
-                    size={22}
-                    aria-hidden="true"
-                    className="shrink-0 text-muted-foreground group-aria-pressed:text-primary"
-                  />
-                  <span className="min-w-0 flex-1 space-y-1">
-                    <span className="block truncate font-semibold">
+                  <IconTile className="group-aria-pressed:border-primary/30 group-aria-pressed:bg-primary/10 group-aria-pressed:text-primary">
+                    <Router />
+                  </IconTile>
+                  <span className="min-w-0 flex-1 space-y-0.5">
+                    <span className="block truncate text-sm font-medium">
                       {router.identity || router.host || router.mac.toUpperCase()}
                     </span>
-                    <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                       {router.host && <span dir="ltr">{router.host}</span>}
                       {router.board && <span>{router.board}</span>}
                       {router.version && <span dir="ltr">RouterOS {router.version}</span>}
@@ -98,22 +100,21 @@ export function RouterDiscovery({
                     </span>
                   </span>
                   {!router.host ? (
-                    <span className="shrink-0 text-sm text-muted-foreground">
+                    <span className="shrink-0 text-xs text-warning-foreground">
                       {t("IP address needed")}
                     </span>
-                  ) : selectedHost === router.host ? (
-                    <Check size={18} aria-label={t("Selected")} className="shrink-0 text-primary" />
+                  ) : selected ? (
+                    <Check aria-label={t("Selected")} className="size-4 shrink-0 text-primary" />
                   ) : (
-                    <span className="shrink-0 text-sm text-muted-foreground">{t("Select")}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                      {t("Select")}
+                    </span>
                   )}
                 </button>
               </li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted-foreground">
-            {t("Discovery does not verify API access. Connections currently support RouterOS 6.")}
-          </p>
-        </>
+            );
+          })}
+        </ul>
       )}
     </section>
   );

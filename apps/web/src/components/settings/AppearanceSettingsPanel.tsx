@@ -8,7 +8,8 @@ import {
 import { useLocale } from "../../useLocale";
 import { Button } from "../ui/button";
 import { ThemeSettings } from "./ThemeSettings";
-import { SettingsSection, SettingsRow, SettingResetButton } from "./appearanceLayout";
+import { SettingResetButton } from "./appearanceLayout";
+import { FieldRow, PageSection, Panel } from "../WorkspacePage";
 import { TypographySection } from "./TypographySettings";
 import { PanelAnimationsPreview } from "./PanelAnimationsPreview";
 
@@ -83,12 +84,12 @@ export function AppearanceSettingsPanel() {
       </div>
     );
     return (
-      <SettingsRow
+      <FieldRow
         key={slider.key}
-        id={`setting-${slider.id}`}
-        title={t(slider.title)}
+        anchor={`setting-${slider.id}`}
+        label={t(slider.title)}
         description={t(slider.description)}
-        resetAction={
+        action={
           value !== DEFAULT_APPEARANCE[slider.key] ? (
             <SettingResetButton
               label={t(slider.title)}
@@ -96,17 +97,16 @@ export function AppearanceSettingsPanel() {
             />
           ) : null
         }
-        control={
-          slider.key === "panelAnimationDurationMs" ? (
-            <div className="grid w-full grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 sm:w-auto sm:grid-cols-[7rem_13rem] sm:gap-4">
-              <PanelAnimationsPreview durationMs={value} />
-              {control}
-            </div>
-          ) : (
-            control
-          )
-        }
-      />
+      >
+        {slider.key === "panelAnimationDurationMs" ? (
+          <div className="grid w-full grid-cols-[5rem_minmax(0,1fr)] items-center gap-3 sm:w-auto sm:grid-cols-[7rem_13rem] sm:gap-4">
+            <PanelAnimationsPreview durationMs={value} />
+            {control}
+          </div>
+        ) : (
+          control
+        )}
+      </FieldRow>
     );
   };
   return (
@@ -121,8 +121,12 @@ export function AppearanceSettingsPanel() {
         </div>
       ) : null}
       <fieldset disabled={error} className="min-w-0 space-y-8">
-        <SettingsSection title={t("Interface")}>{sliders.slice(0, 2).map(row)}</SettingsSection>
-        <SettingsSection title={t("Motion")}>{row(sliders[2])}</SettingsSection>
+        <PageSection title={t("Interface")}>
+          <Panel>{sliders.slice(0, 2).map(row)}</Panel>
+        </PageSection>
+        <PageSection title={t("Motion")}>
+          <Panel>{row(sliders[2])}</Panel>
+        </PageSection>
         <TypographySection save={save} />
       </fieldset>
       {failed ? (

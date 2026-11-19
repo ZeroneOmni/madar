@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { Input } from "../ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
-import { SettingResetButton, SettingsRow, SettingsSection } from "./appearanceLayout";
+import { SettingResetButton } from "./appearanceLayout";
+import { FieldRow, PageSection, Panel } from "../WorkspacePage";
 import { discoverInstalledFonts, FontFamilyPicker, useFontEnumeration } from "./FontFamilyPicker";
 import { isFontFamilyAvailable, isMonospaceFamily } from "../../appearanceFonts";
 import {
@@ -20,55 +21,57 @@ export function TypographySection({
   const { settings } = useAppearancePreferences();
   const { t } = useLocale();
   return (
-    <SettingsSection title={t("Typography")}>
-      {(["interface", "mono"] as const).map((kind) => {
-        const mono = kind === "mono";
-        const familyKey = mono ? "fontFamilyMono" : "fontFamilySans";
-        const sizeKey = mono ? "fontSizeMono" : "fontSizeInterface";
-        const title = t(mono ? "Monospace font" : "Interface font");
-        return (
-          <FontFamilySettingsRow
-            key={kind}
-            id={`setting-${mono ? "monospace-font" : "interface-font"}`}
-            title={title}
-            description={t(
-              mono
-                ? "Voucher codes, identifiers, and diagnostic output."
-                : "Tables, forms, menus, and other interface text.",
-            )}
-            defaultFamily={t(mono ? "System monospace" : "System default")}
-            defaultValue=""
-            value={settings[familyKey]}
-            onValueChange={(value) => save({ [familyKey]: value })}
-            onReset={() => save({ [familyKey]: "", [sizeKey]: DEFAULT_APPEARANCE[sizeKey] })}
-            requireMonospace={mono}
-            size={{
-              label: t(mono ? "Monospace font size" : "Interface font size"),
-              min: mono ? 10 : 12,
-              max: mono ? 18 : 20,
-              value: settings[sizeKey],
-              defaultValue: DEFAULT_APPEARANCE[sizeKey],
-              onChange: (value) => save({ [sizeKey]: value }),
-            }}
-            preview={
-              <div
-                className={`my-3 rounded-lg border border-border/60 bg-background p-3 ${mono ? "font-mono" : "font-sans"}`}
-              >
-                {mono ? (
-                  <pre dir="ltr">{"ABCD-1234  Il1 O0\n192.168.88.1  00:11:22:AA:BB:CC"}</pre>
-                ) : (
-                  <p>
-                    {"Madar · User Manager · 0123456789"}
-                    <br />
-                    {"مدار · إدارة المستخدمين · ٠١٢٣٤٥٦٧٨٩"}
-                  </p>
-                )}
-              </div>
-            }
-          />
-        );
-      })}
-    </SettingsSection>
+    <PageSection title={t("Typography")}>
+      <Panel>
+        {(["interface", "mono"] as const).map((kind) => {
+          const mono = kind === "mono";
+          const familyKey = mono ? "fontFamilyMono" : "fontFamilySans";
+          const sizeKey = mono ? "fontSizeMono" : "fontSizeInterface";
+          const title = t(mono ? "Monospace font" : "Interface font");
+          return (
+            <FontFamilySettingsRow
+              key={kind}
+              id={`setting-${mono ? "monospace-font" : "interface-font"}`}
+              title={title}
+              description={t(
+                mono
+                  ? "Voucher codes, identifiers, and diagnostic output."
+                  : "Tables, forms, menus, and other interface text.",
+              )}
+              defaultFamily={t(mono ? "System monospace" : "System default")}
+              defaultValue=""
+              value={settings[familyKey]}
+              onValueChange={(value) => save({ [familyKey]: value })}
+              onReset={() => save({ [familyKey]: "", [sizeKey]: DEFAULT_APPEARANCE[sizeKey] })}
+              requireMonospace={mono}
+              size={{
+                label: t(mono ? "Monospace font size" : "Interface font size"),
+                min: mono ? 10 : 12,
+                max: mono ? 18 : 20,
+                value: settings[sizeKey],
+                defaultValue: DEFAULT_APPEARANCE[sizeKey],
+                onChange: (value) => save({ [sizeKey]: value }),
+              }}
+              preview={
+                <div
+                  className={`my-3 rounded-lg border border-border/60 bg-background p-3 ${mono ? "font-mono" : "font-sans"}`}
+                >
+                  {mono ? (
+                    <pre dir="ltr">{"ABCD-1234  Il1 O0\n192.168.88.1  00:11:22:AA:BB:CC"}</pre>
+                  ) : (
+                    <p>
+                      {"Madar · User Manager · 0123456789"}
+                      <br />
+                      {"مدار · إدارة المستخدمين · ٠١٢٣٤٥٦٧٨٩"}
+                    </p>
+                  )}
+                </div>
+              }
+            />
+          );
+        })}
+      </Panel>
+    </PageSection>
   );
 }
 
@@ -245,19 +248,23 @@ function FontFamilySettingsRow({
     </div>
   );
   return (
-    <SettingsRow
-      {...(id !== undefined ? { id } : {})}
-      title={title}
+    <FieldRow
+      {...(id !== undefined ? { anchor: id } : {})}
+      label={title}
       description={description}
-      resetAction={resetAction}
-      control={control}
+      action={resetAction}
+      below={
+        <>
+          {draftPending ? (
+            <p role="alert" className="mt-2 text-xs text-destructive">
+              {t("Font unavailable or unsuitable. Your previous font is still active.")}
+            </p>
+          ) : null}
+          {preview}
+        </>
+      }
     >
-      {draftPending ? (
-        <p role="alert" className="mt-2 text-xs text-destructive">
-          {t("Font unavailable or unsuitable. Your previous font is still active.")}
-        </p>
-      ) : null}
-      {preview}
-    </SettingsRow>
+      {control}
+    </FieldRow>
   );
 }

@@ -5,6 +5,16 @@ export const arabic = {
   ...routerArabic,
   ...voucherArabic,
   Madar: "مدار",
+  "No notifications yet.": "لا توجد إشعارات بعد.",
+  "Results from settings changes and app updates appear here.":
+    "تظهر هنا نتائج تغييرات الإعدادات وتحديثات التطبيق.",
+  "What you can do": "ما يمكنك فعله",
+  "Check your router and open the tools you use every day.":
+    "تابع حالة الراوتر وافتح الأدوات التي تستخدمها يوميًا.",
+  Router: "الراوتر",
+  Tools: "الأدوات",
+  Planned: "لاحقًا",
+  "This device": "هذا الجهاز",
   English: "الإنجليزية",
   "Copied!": "تم النسخ",
   "Failed to copy": "تعذّر النسخ",
@@ -56,13 +66,9 @@ export const arabic = {
   Commands: "الأوامر",
   "Organize navigation": "تنظيم التنقل",
   "Your User Manager workspace": "مساحة عمل مدير المستخدمين",
-  "Organize your work and configure Madar from one place.": "نظّم عملك واضبط مدار من مكان واحد.",
-  "Router connection": "الاتصال بالموجّه",
+  "Router connection": "الاتصال بالراوتر",
   "No router is connected. User Manager operations are unavailable until a supported RouterOS version and connection method are chosen.":
     "لا يوجد موجّه متصل. ستتوفر عمليات مدير المستخدمين بعد اختيار إصدار RouterOS مدعوم وطريقة الاتصال.",
-  "You can organize navigation, customize shortcuts, and set notification preferences now.":
-    "يمكنك الآن تنظيم التنقل وتخصيص الاختصارات وضبط تفضيلات الإشعارات.",
-  "Local workspace": "مساحة العمل المحلية",
   "This address identifies the app you are using.": "هذا عنوان التطبيق الذي تستخدمه.",
   "Local app address": "عنوان التطبيق المحلي",
   "Page not found": "الصفحة غير موجودة",
@@ -100,7 +106,6 @@ export const arabic = {
   "Manage voucher card designs.": "إدارة تصاميم بطاقات القسائم.",
   "Check User Manager usage.": "متابعة استخدام مدير المستخدمين.",
   "Results and notices from this workspace.": "النتائج والتنبيهات من مساحة العمل هذه.",
-  "Open {name}": "فتح {name}",
   "Madar has no RouterOS integration configured yet. Live {name} will appear here when a supported router connection is available.":
     "لم يُضبط تكامل RouterOS في مدار بعد. ستظهر بيانات {name} هنا عند توفر اتصال بموجّه مدعوم.",
   "Workspace destinations": "صفحات مساحة العمل",
@@ -215,8 +220,6 @@ export const arabic = {
   "{count} unread": "غير المقروءة: {count}",
   "Clear history": "مسح السجل",
   "Notification settings": "إعدادات الإشعارات",
-  "No notifications yet. Results from settings changes and app updates appear here.":
-    "لا توجد إشعارات بعد. ستظهر هنا نتائج تغييرات الإعدادات وتحديثات التطبيق.",
   Read: "مقروء",
   Unread: "غير مقروء",
   Open: "فتح",
