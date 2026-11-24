@@ -87,8 +87,10 @@ export default Effect.gen(function* () {
     router_key TEXT NOT NULL, customer TEXT NOT NULL, username TEXT NOT NULL,
     router_id TEXT NOT NULL, profile TEXT NOT NULL,
     source TEXT NOT NULL CHECK (source IN ('activation', 'new', 'profile-change', 'counter-reset')),
-    activated_at TEXT, download INTEGER NOT NULL, upload INTEGER NOT NULL, uptime INTEGER NOT NULL,
+    activated_at TEXT, sessions_after TEXT,
+    download INTEGER NOT NULL, upload INTEGER NOT NULL, uptime INTEGER NOT NULL,
     recorded_at TEXT NOT NULL, first_login_at TEXT, first_login_checked_through TEXT,
+    first_login_attempted_at TEXT,
     PRIMARY KEY(router_key, customer, username)
   ) WITHOUT ROWID`;
   yield* sql`CREATE TABLE voucher_batches (

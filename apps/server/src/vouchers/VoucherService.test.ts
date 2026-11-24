@@ -382,10 +382,10 @@ it.live("reads sessions for a bounded number of first logins per refresh", () =>
       yield* vouchers.sync(scope, "owner");
       for (const user of router.users.values()) {
         user["download-used"] = "100";
-        user["last-seen"] = "nov/24/2026 08:00:00";
+        user["last-seen"] = "nov/24/2026 10:00:00";
         router.sessions.push(
-          { user: user.username!, customer: "admin", "from-time": "nov/24/2026 07:00:00" },
-          { user: user.username!, customer: "admin", "from-time": "nov/24/2026 07:30:00" },
+          { user: user.username!, customer: "admin", "from-time": "nov/24/2026 09:00:00" },
+          { user: user.username!, customer: "admin", "from-time": "nov/24/2026 09:30:00" },
         );
       }
       const sessionReads = () =>
@@ -405,7 +405,66 @@ it.live("reads sessions for a bounded number of first logins per refresh", () =>
         offset: 0,
         limit: 50,
       });
-      expect(page.items.every((row) => row.firstLoginAt === "2026-11-24 07:00:00")).toBe(true);
+      expect(page.items.every((row) => row.firstLoginAt === "2026-11-24 09:00:00")).toBe(true);
+    }).pipe(Effect.provide(services));
+  }).pipe(Effect.scoped),
+);
+
+it.live("ignores a reused username's old sessions and survives a failed session read", () =>
+  Effect.gen(function* () {
+    const router = yield* Effect.acquireDisposable(Effect.promise(() => routerFixture(0)));
+    yield* Effect.gen(function* () {
+      const api = yield* RouterApi.RouterApi;
+      const vouchers = yield* VoucherService.VoucherService;
+      yield* api.connect({ profile: router.profile, password: "fixture" }, "owner");
+      const scope = { router: router.profile, customer: "admin" };
+      const user = (id: string, username: string) => ({
+        ".id": id,
+        customer: "admin",
+        username,
+        "actual-profile": "Day",
+        "download-used": "0",
+        "upload-used": "0",
+        "uptime-used": "0s",
+        "last-seen": "never",
+      });
+      router.users.set("*1", user("*1", "reused"));
+      router.users.set("*2", user("*2", "quiet"));
+      // Sessions of an earlier voucher with the same username stay in the router's history.
+      router.sessions.push({
+        user: "reused",
+        customer: "admin",
+        "from-time": "nov/20/2026 10:00:00",
+      });
+      yield* vouchers.sync(scope, "owner");
+      for (const id of ["*1", "*2"]) {
+        router.users.get(id)!["download-used"] = "100";
+        router.users.get(id)!["last-seen"] = "nov/24/2026 09:30:00";
+      }
+      router.sessions.push({
+        user: "reused",
+        customer: "admin",
+        "from-time": "nov/24/2026 09:00:00",
+      });
+      router.rejectNext("/tool/user-manager/session/print");
+      yield* vouchers.sync(scope, "owner");
+      yield* vouchers.sync(scope, "owner");
+      const page = yield* vouchers.list({
+        ...scope,
+        search: "",
+        status: "all",
+        profile: "",
+        sort: { field: "username", direction: "asc" },
+        offset: 0,
+        limit: 50,
+      });
+      const byName = new Map(page.items.map((row) => [row.username, row]));
+      expect(byName.get("reused")?.firstLoginAt).toBe("2026-11-24 09:00:00");
+      // No session found is not proof that the voucher never started.
+      expect(byName.get("quiet")?.remaining).toMatchObject({
+        state: "unknown",
+        reason: "first-login",
+      });
     }).pipe(Effect.provide(services));
   }).pipe(Effect.scoped),
 );

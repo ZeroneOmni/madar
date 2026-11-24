@@ -1,7 +1,17 @@
 import * as Schema from "effect/Schema";
 import { VoucherSort, type VoucherSortField } from "@madar/contracts";
 
-export type ColumnKey = Exclude<VoucherSortField, "comment">;
+/** Router fields that sort but are shown inside another column. */
+const sortOnly = {
+  comment: { label: "Comment", group: "default" },
+  macBind: { label: "Locks to the first device", group: "subscription" },
+  activeFlag: { label: "Router flag A", group: "subscription" },
+  incompleteFlag: { label: "Router flag I", group: "subscription" },
+} as const;
+type SortOnly = keyof typeof sortOnly;
+export const sortOnlyFields = Object.keys(sortOnly) as SortOnly[];
+export const sortOnlyGroup = (field: SortOnly) => sortOnly[field].group;
+export type ColumnKey = Exclude<VoucherSortField, SortOnly>;
 export type ColumnGroup = "default" | "usage" | "subscription" | "subscriber" | "madar";
 export interface ColumnDefinition {
   readonly key: ColumnKey;
@@ -71,7 +81,7 @@ export const columnGroups: readonly { group: ColumnGroup; label: string }[] = [
 const byKey = new Map(columnDefinitions.map((column) => [column.key, column]));
 export const columnOf = (key: ColumnKey) => byKey.get(key)!;
 export const sortLabel = (field: VoucherSortField) =>
-  field === "comment" ? "Comment" : columnOf(field).label;
+  field in sortOnly ? sortOnly[field as SortOnly].label : columnOf(field as ColumnKey).label;
 
 export const DEFAULT_COLUMNS: readonly ColumnKey[] = columnDefinitions
   .filter((column) => column.group === "default")

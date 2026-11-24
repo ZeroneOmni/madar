@@ -252,7 +252,7 @@ it.effect("ends validity from activation for starts-at=now and from first login 
 
     yield* store.replace(
       scope,
-      [week, lapsed, { ...day, download: 100, lastSeen: "2026-11-24 11:00:00" }],
+      [week, lapsed, { ...day, download: 100, lastSeen: "2026-11-24 12:30:00" }],
       "t2",
     );
     expect((yield* find("day")).remaining).toMatchObject({
@@ -260,7 +260,11 @@ it.effect("ends validity from activation for starts-at=now and from first login 
       reason: "first-login",
     });
     const [candidate] = yield* store.firstLoginCandidates(scope, 10);
-    expect(candidate).toMatchObject({ username: "day", lastSeen: "2026-11-24 11:00:00" });
+    expect(candidate).toMatchObject({
+      username: "day",
+      lastSeen: "2026-11-24 12:30:00",
+      sessionsAfter: "2026-11-24 12:00:00",
+    });
     yield* store.saveFirstLogin(scope, candidate!, "2026-11-24 06:00:00");
     expect(yield* store.firstLoginCandidates(scope, 10)).toEqual([]);
     const row = yield* find("day");
@@ -532,5 +536,125 @@ it.effect("serves the first click on each default column from an index", () =>
       expect(details, field).toContain("USING COVERING INDEX");
       expect(details, field).not.toContain("TEMP B-TREE");
     }
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("treats counters that drop between refreshes as a reset, not exact usage", () =>
+  Effect.gen(function* () {
+    const { store, find } = yield* setup;
+    const fresh = voucher("*1", "dropped");
+    yield* store.replace(scope, [fresh], "t1");
+    yield* store.replace(
+      scope,
+      [{ ...fresh, download: 900, lastSeen: "2026-11-24 10:00:00" }],
+      "t2",
+    );
+    expect((yield* find("dropped")).remaining).toMatchObject({
+      amount: 2 * GiB - 900,
+      basis: "new",
+    });
+    yield* store.replace(
+      scope,
+      [{ ...fresh, download: 20, lastSeen: "2026-11-24 11:00:00" }],
+      "t3",
+    );
+    expect((yield* find("dropped")).remaining).toMatchObject({
+      amount: 2 * GiB - 20,
+      basis: "counter-reset",
+    });
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("keeps a Madar activation when an unused voucher's comment changes", () =>
+  Effect.gen(function* () {
+    const { store, find } = yield* setup;
+    const week = voucher("*1", "kept-week", { profile: "Week" });
+    yield* store.replace(scope, [week], "t1");
+    yield* store.upsert(scope, week, "2026-11-23 12:00:00");
+    yield* store.replace(scope, [{ ...week, comment: "edited" }], "t2");
+    expect((yield* find("kept-week")).remaining).toMatchObject({
+      state: "ends",
+      basis: "activation",
+      endsAt: "2026-11-30 12:00:00",
+    });
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("places time-only quotas after data quotas and blank flags last", () =>
+  Effect.gen(function* () {
+    const { store } = yield* setup;
+    yield* store.replace(
+      scope,
+      [
+        voucher("*1", "q-open", { profile: "Open" }),
+        voucher("*2", "q-week", { profile: "Week", active: true }),
+        voucher("*3", "q-data", { profile: "2GB", incomplete: true }),
+        voucher("*4", "q-none", { profile: "" }),
+      ],
+      "t1",
+    );
+    const names = (sort: VoucherQuery["sort"]) =>
+      store.list(query({ sort })).pipe(Effect.map((page) => page.items.map((row) => row.username)));
+    expect(yield* names({ field: "quota", direction: "asc" })).toEqual([
+      "q-data",
+      "q-week",
+      "q-none",
+      "q-open",
+    ]);
+    expect(yield* names({ field: "flags", direction: "asc" })).toEqual([
+      "q-data",
+      "q-week",
+      "q-none",
+      "q-open",
+    ]);
+    expect(yield* names({ field: "activeFlag", direction: "desc" })).toEqual([
+      "q-week",
+      "q-data",
+      "q-none",
+      "q-open",
+    ]);
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("keeps a baseline when a counter becomes unreadable", () =>
+  Effect.gen(function* () {
+    const { store, find } = yield* setup;
+    const used = voucher("*1", "blurred", {
+      download: GiB,
+      uptime: 600,
+      lastSeen: "2026-11-24 10:00:00",
+    });
+    yield* store.replace(scope, [used], "t1");
+    yield* store.upsert(scope, used, "2026-11-24 11:00:00");
+    yield* store.replace(scope, [{ ...used, uptime: null }], "t2");
+    expect((yield* find("blurred")).remaining).toMatchObject({
+      amount: 2 * GiB,
+      basis: "activation",
+    });
+    // A readable drop still counts as a reset while another counter is unreadable.
+    yield* store.replace(scope, [{ ...used, download: 20, upload: null, uptime: null }], "t3");
+    expect((yield* find("blurred")).remaining.basis).toBe("counter-reset");
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("rotates first-login lookups so failing reads do not block the others", () =>
+  Effect.gen(function* () {
+    const { store } = yield* setup;
+    const day = (id: string, name: string) => voucher(id, name, { profile: "Day" });
+    yield* store.replace(scope, [day("*1", "d-1"), day("*2", "d-2"), day("*3", "d-3")], "t1");
+    yield* store.replace(
+      scope,
+      ["*1", "*2", "*3"].map((id, index) => ({
+        ...day(id, `d-${index + 1}`),
+        download: 10,
+        lastSeen: `2026-11-24 13:0${index}:00`,
+      })),
+      "t2",
+    );
+    const first = yield* store.firstLoginCandidates(scope, 2);
+    expect(first.map((item) => item.username)).toEqual(["d-3", "d-2"]);
+    for (const candidate of first) yield* store.saveFirstLogin(scope, candidate, null, "failed");
+    const next = yield* store.firstLoginCandidates(scope, 2);
+    expect(next.map((item) => item.username)).toEqual(["d-1", "d-3"]);
   }).pipe(Effect.provide(layer)),
 );

@@ -20,7 +20,7 @@ const unknownReasons: Record<Exclude<VoucherRemaining["reason"], "">, string> = 
     "Madar did not see this profile start, and the router's counters include earlier profiles. Activate the profile from Madar to start counting.",
   activation:
     "Madar does not know when this profile was activated, so it cannot calculate the end.",
-  "first-login": "Madar will look for the first login at the next refresh.",
+  "first-login": "Madar has not found the first login in the router's session records yet.",
   clock: "Madar could not read the router's clock, so it cannot calculate the end.",
 };
 const bases: Record<Exclude<VoucherRemaining["basis"], "">, string> = {

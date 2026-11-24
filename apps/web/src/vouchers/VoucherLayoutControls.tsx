@@ -36,6 +36,8 @@ import {
   DEFAULT_SORT,
   moveColumn,
   sortLabel,
+  sortOnlyFields,
+  sortOnlyGroup,
   type ColumnKey,
 } from "./columns";
 
@@ -283,9 +285,10 @@ const sortGroups: readonly { label: string; fields: readonly VoucherSortField[] 
   { label: "Main", fields: ["username", "comment", ...DEFAULT_COLUMNS.slice(1)] },
   ...columnGroups.slice(1).map(({ group, label }) => ({
     label,
-    fields: columnDefinitions
-      .filter((column) => column.group === group)
-      .map((column) => column.key),
+    fields: [
+      ...columnDefinitions.filter((column) => column.group === group).map((column) => column.key),
+      ...sortOnlyFields.filter((field) => sortOnlyGroup(field) === group),
+    ],
   })),
 ];
 
@@ -302,7 +305,7 @@ export function SortMenu({
 }) {
   const { t } = useLocale();
   const field = t(sortLabel(sort.field));
-  const visible = sort.field !== "comment" && columns.includes(sort.field);
+  const visible = columns.some((column) => column === sort.field);
   const isDefault = sort.field === DEFAULT_SORT.field && sort.direction === DEFAULT_SORT.direction;
   const arrow = sort.direction === "asc" ? "↑" : "↓";
   const change = (next: VoucherSort) => {

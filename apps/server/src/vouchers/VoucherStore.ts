@@ -1,7 +1,9 @@
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import * as DateTime from "effect/DateTime";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as SqlClient from "effect/sql/SqlClient";
 import * as NodeSqliteClient from "@madar/shared/nodeSqliteClient";
@@ -62,7 +64,8 @@ export interface CatalogInput {
 export interface FirstLoginCandidate {
   readonly username: string;
   readonly routerId: string;
-  readonly activatedAt: string | null;
+  /** Router-local time; earlier sessions belong to an older profile or an older voucher. */
+  readonly sessionsAfter: string;
   readonly lastSeen: string;
 }
 
@@ -138,9 +141,14 @@ interface Baseline {
   profile: string;
   source: string;
   activated_at: string | null;
+  sessions_after: string | null;
   download: number;
   upload: number;
   uptime: number;
+  recorded_at: string;
+  first_login_at: string | null;
+  first_login_checked_through: string | null;
+  first_login_attempted_at: string | null;
 }
 type Previous = RouterColumns & { id: string };
 const unused = (voucher: RouterVoucher) =>
@@ -185,7 +193,7 @@ joined AS (
     q.name IS NOT NULL AS q_known, q.validity AS q_validity, q.starts_at AS q_starts_at,
     q.price AS q_price, q.q_transfer, q.q_download, q.q_upload, q.q_uptime, q.q_unclear,
     b.source AS b_source, b.activated_at AS b_activated_at, b.download AS b_download,
-    b.upload AS b_upload, b.uptime AS b_uptime, b.first_login_at,
+    b.upload AS b_upload, b.uptime AS b_uptime, b.first_login_at, b.sessions_after AS b_sessions_after,
     b.first_login_checked_through,
     bt.id AS batch_id, bt.created_at AS batch_created_at, bt.requested AS batch_requested,
     bt.profile AS batch_profile, bt.comment AS batch_comment,
@@ -211,11 +219,9 @@ measured AS (
     CASE WHEN q_validity > 0 THEN
       CASE q_starts_at WHEN 'now' THEN b_activated_at WHEN 'logon' THEN first_login_at END
     END AS valid_from,
-    q_validity > 0 AND q_starts_at = 'logon' AND first_login_at IS NULL AND (
-      last_seen_never = 1
-      OR (b_activated_at IS NOT NULL AND last_seen < b_activated_at)
-      OR (first_login_checked_through IS NOT NULL AND last_seen <= first_login_checked_through)
-    ) AS not_started
+    COALESCE(q_validity > 0 AND q_starts_at = 'logon' AND first_login_at IS NULL AND (
+      last_seen_never = 1 OR last_seen < COALESCE(b_activated_at, b_sessions_after)
+    ), 0) AS not_started
   FROM joined
 ),
 reasoned AS (
@@ -272,14 +278,19 @@ const sortKeys: Record<VoucherSortField, string> = {
   activeSessions: "active_sessions",
   created: "registration_date",
   price: "q_price",
-  quota: "COALESCE(q_transfer, q_download, q_upload)",
+  // Data quotas first, then plans limited only by time; unlimited plans have no quota.
+  quota:
+    "COALESCE(q_transfer, q_download, q_upload, 1000000000000000000 + COALESCE(q_uptime, NULLIF(q_validity, 0)))",
   sharedUsers: "CASE WHEN shared_users_unlimited THEN 9e18 ELSE shared_users END",
   macLock: "NULLIF(lower(caller_id), '')",
+  macBind: "caller_id_bind",
   ipAddress: "NULLIF(ip_address, '')",
   ipv6Dns: "NULLIF(ipv6_dns, '')",
   ipv6Prefix: "NULLIF(ipv6_prefix, '')",
   wireless: "NULLIF(lower(wireless_enc_algo), '')",
-  flags: "active * 2 + incomplete",
+  flags: "NULLIF(active * 2 + incomplete, 0)",
+  activeFlag: "active",
+  incompleteFlag: "incomplete",
   firstName: "NULLIF(lower(first_name), '')",
   lastName: "NULLIF(lower(last_name), '')",
   phone: "NULLIF(phone, '')",
@@ -455,6 +466,7 @@ export class VoucherStore extends Context.Service<
       scope: VoucherScope,
       candidate: FirstLoginCandidate,
       firstLoginAt: string | null,
+      outcome?: "read" | "failed",
     ) => Effect.Effect<void, VoucherFailure>;
     readonly createBatch: (
       scope: VoucherScope,
@@ -489,12 +501,15 @@ export class VoucherStore extends Context.Service<
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const nowSeconds = Clock.currentTimeMillis.pipe(Effect.map((ms) => Math.floor(ms / 1000)));
-  const routerNowFor = Effect.fnUntraced(function* (key: string) {
+  const clockOffsetFor = Effect.fnUntraced(function* (key: string) {
     const rows = yield* sql<{
       clock_offset: number | null;
     }>`SELECT clock_offset FROM voucher_routers WHERE router_key = ${key}`;
-    const offset = rows[0]?.clock_offset;
-    return offset === null || offset === undefined ? null : (yield* nowSeconds) + offset;
+    return rows[0]?.clock_offset ?? null;
+  });
+  const routerNowFor = Effect.fnUntraced(function* (key: string) {
+    const offset = yield* clockOffsetFor(key);
+    return offset === null ? null : (yield* nowSeconds) + offset;
   });
 
   const catalog = Effect.fn("VoucherStore.catalog")(function* (key: string) {
@@ -610,15 +625,24 @@ const make = Effect.gen(function* () {
     activations: ReadonlyMap<string, string | null>,
   ) {
     const key = routerKey(scope.router);
+    const offset = yield* clockOffsetFor(key);
+    const observed = DateTime.make(time);
     const routerNow = yield* routerNowFor(key);
-    const estimatedAt = routerNow === null ? null : epochToNaive(routerNow * 1000);
+    // Router-local time of the observation; refreshes pass the time taken before the router read.
+    const estimatedAt =
+      offset !== null && Option.isSome(observed)
+        ? epochToNaive(DateTime.toEpochMillis(observed.value) + offset * 1000)
+        : routerNow === null
+          ? null
+          : epochToNaive(routerNow * 1000);
     const changed = vouchers.filter((voucher) => {
       const old = previous.get(voucher.id);
       return !old || signature(old) !== signature(toColumns(voucher));
     });
     // An activation that left router columns unchanged still records its baseline.
+    const changedSet = new Set(changed);
     const touched = vouchers.filter(
-      (voucher) => activations.has(voucher.id) || changed.includes(voucher),
+      (voucher) => activations.has(voucher.id) || changedSet.has(voucher),
     );
     if (touched.length === 0) return;
     for (const voucher of changed) {
@@ -649,7 +673,9 @@ const make = Effect.gen(function* () {
     for (let start = 0; start < touched.length; start += 100) {
       const names = touched.slice(start, start + 100).map((voucher) => voucher.username);
       for (const row of yield* sql<Baseline>`SELECT username, router_id, profile, source, activated_at,
-          download, upload, uptime FROM voucher_baselines WHERE router_key = ${key}
+          sessions_after, download, upload, uptime, recorded_at, first_login_at,
+          first_login_checked_through, first_login_attempted_at
+          FROM voucher_baselines WHERE router_key = ${key}
           AND customer = ${scope.customer} AND ${sql.in("username", names)}`)
         baselines.set(row.username, row);
     }
@@ -664,33 +690,65 @@ const make = Effect.gen(function* () {
         uptime: voucher.uptime ?? 0,
       };
       const parsed = voucher.download !== null && voucher.upload !== null;
-      let next: { source: string; activatedAt: string | null; counters: typeof counters } | null =
-        null;
+      const sample = { download: voucher.download, upload: voucher.upload, uptime: voucher.uptime };
+      const seen = old
+        ? {
+            download: old.download_used as number | null,
+            upload: old.upload_used as number | null,
+            uptime: old.uptime_used as number | null,
+          }
+        : null;
+      // An unreadable counter is not a drop; only readable values on both sides are compared.
+      const dropped = (from: { [K in keyof typeof sample]: number | null } | null) =>
+        from !== null &&
+        (["download", "upload", "uptime"] as const).some(
+          (key) => sample[key] !== null && from[key] !== null && sample[key]! < from[key]!,
+        );
+      const fresh = !baseline || baseline.profile !== voucher.profile;
+      let next: {
+        source: string;
+        activatedAt: string | null;
+        sessionsAfter: string | null;
+        counters: typeof counters;
+        /** A reset keeps the first-login state and the time the baseline was first recorded. */
+        kept?: Pick<
+          Baseline,
+          | "recorded_at"
+          | "first_login_at"
+          | "first_login_checked_through"
+          | "first_login_attempted_at"
+        >;
+      } | null = null;
       if (activations.has(voucher.id)) {
+        const activatedAt = activations.get(voucher.id) ?? null;
+        if (parsed)
+          next = { source: "activation", activatedAt, sessionsAfter: activatedAt, counters };
+      } else if (fresh && unused(voucher)) {
+        next = { source: "new", activatedAt: null, sessionsAfter: estimatedAt, counters };
+      } else if (baseline && baseline.profile !== voucher.profile) {
         if (parsed)
           next = {
-            source: "activation",
-            activatedAt: activations.get(voucher.id) ?? null,
+            source: "profile-change",
+            activatedAt: estimatedAt,
+            sessionsAfter: estimatedAt,
             counters,
           };
-      } else if (unused(voucher)) {
-        if (!baseline || baseline.profile !== voucher.profile || baseline.source !== "new")
-          next = { source: "new", activatedAt: null, counters };
-      } else if (baseline && baseline.profile !== voucher.profile) {
-        if (parsed) next = { source: "profile-change", activatedAt: estimatedAt, counters };
       } else if (!baseline && old && old.profile !== voucher.profile) {
-        if (parsed) next = { source: "profile-change", activatedAt: estimatedAt, counters };
-      } else if (
-        baseline &&
-        parsed &&
-        (counters.download < baseline.download ||
-          counters.upload < baseline.upload ||
-          counters.uptime < baseline.uptime)
-      ) {
+        if (parsed)
+          next = {
+            source: "profile-change",
+            activatedAt: estimatedAt,
+            sessionsAfter: estimatedAt,
+            counters,
+          };
+      } else if (baseline && (dropped(baseline) || dropped(seen))) {
+        // Counters went down since the baseline or the last refresh: another tool reset them.
         next = {
           source: "counter-reset",
           activatedAt: baseline.activated_at,
+          sessionsAfter: baseline.sessions_after,
           counters: { download: 0, upload: 0, uptime: 0 },
+          kept: baseline,
         };
       }
       if (stored && stored.router_id !== voucher.id)
@@ -705,12 +763,14 @@ const make = Effect.gen(function* () {
           profile: voucher.profile,
           source: next.source,
           activated_at: next.activatedAt,
+          sessions_after: next.sessionsAfter,
           download: next.counters.download,
           upload: next.counters.upload,
           uptime: next.counters.uptime,
-          recorded_at: time,
-          first_login_at: null,
-          first_login_checked_through: null,
+          recorded_at: next.kept?.recorded_at ?? time,
+          first_login_at: next.kept?.first_login_at ?? null,
+          first_login_checked_through: next.kept?.first_login_checked_through ?? null,
+          first_login_attempted_at: next.kept?.first_login_attempted_at ?? null,
         });
     }
     for (let start = 0; start < recorded.length; start += 100)
@@ -895,8 +955,11 @@ const make = Effect.gen(function* () {
     limit: number,
   ) {
     const key = routerKey(scope.router);
+    // A cutoff missed while the clock was unreadable is rebuilt from the Madar time it was recorded.
+    const shift = `${(yield* clockOffsetFor(key)) ?? ""} seconds`;
     return yield* sql<FirstLoginCandidate>`SELECT v.username, v.id AS "routerId",
-        b.activated_at AS "activatedAt", v.last_seen AS "lastSeen"
+        COALESCE(b.activated_at, b.sessions_after, datetime(b.recorded_at, ${shift})) AS "sessionsAfter",
+        v.last_seen AS "lastSeen"
       FROM voucher_cache v
       JOIN voucher_baselines b ON b.router_key = v.router_key AND b.customer = v.customer
         AND b.username = v.username AND b.router_id = v.id AND b.profile = v.profile
@@ -904,9 +967,9 @@ const make = Effect.gen(function* () {
       WHERE v.router_key = ${key} AND v.customer = ${scope.customer}
         AND p.validity > 0 AND p.starts_at = 'logon' AND b.first_login_at IS NULL
         AND v.last_seen IS NOT NULL
-        AND (b.activated_at IS NULL OR v.last_seen >= b.activated_at)
+        AND v.last_seen >= COALESCE(b.activated_at, b.sessions_after, datetime(b.recorded_at, ${shift}))
         AND (b.first_login_checked_through IS NULL OR v.last_seen > b.first_login_checked_through)
-      ORDER BY b.first_login_checked_through IS NOT NULL, v.last_seen DESC
+      ORDER BY b.first_login_attempted_at IS NOT NULL, b.first_login_attempted_at, v.last_seen DESC
       LIMIT ${limit}`;
   }, Effect.mapError(storageError));
 
@@ -914,9 +977,16 @@ const make = Effect.gen(function* () {
     scope: VoucherScope,
     candidate: FirstLoginCandidate,
     firstLoginAt: string | null,
+    outcome: "read" | "failed" = "read",
   ) {
-    yield* sql`UPDATE voucher_baselines SET first_login_at = ${firstLoginAt},
-      first_login_checked_through = ${candidate.lastSeen}
+    const attempted = DateTime.formatIso(DateTime.makeUnsafe(yield* Clock.currentTimeMillis));
+    // A failed read only moves the voucher behind the others; it is retried later.
+    yield* outcome === "failed"
+      ? sql`UPDATE voucher_baselines SET first_login_attempted_at = ${attempted}
+          WHERE router_key = ${routerKey(scope.router)} AND customer = ${scope.customer}
+          AND username = ${candidate.username} AND router_id = ${candidate.routerId}`
+      : sql`UPDATE voucher_baselines SET first_login_at = ${firstLoginAt},
+      first_login_checked_through = ${candidate.lastSeen}, first_login_attempted_at = ${attempted}
       WHERE router_key = ${routerKey(scope.router)} AND customer = ${scope.customer}
       AND username = ${candidate.username} AND router_id = ${candidate.routerId}`;
   }, Effect.mapError(storageError));

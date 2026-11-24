@@ -226,8 +226,8 @@ export const voucherArabic = {
     "لم يرصد مدار بدء هذه الباقة، وعدادات الراوتر تشمل استهلاك الباقات السابقة. فعّل الباقة من مدار ليبدأ الحساب.",
   "Madar does not know when this profile was activated, so it cannot calculate the end.":
     "لا يعرف مدار وقت تفعيل هذه الباقة، لذا لا يمكنه حساب موعد انتهائها.",
-  "Madar will look for the first login at the next refresh.":
-    "سيبحث مدار عن أول تسجيل دخول عند التحديث التالي.",
+  "Madar has not found the first login in the router's session records yet.":
+    "لم يعثر مدار بعد على أول تسجيل دخول في سجلات جلسات الراوتر.",
   "Madar could not read the router's clock, so it cannot calculate the end.":
     "تعذّر على مدار قراءة ساعة الراوتر، لذا لا يمكنه حساب موعد الانتهاء.",
   "Counted from when Madar activated this profile.": "محسوب منذ أن فعّل مدار هذه الباقة.",
@@ -311,4 +311,6 @@ export const voucherArabic = {
   "Nearly used up or expiring": "قاربت على النفاد أو الانتهاء",
   "Used up or expired": "نفدت أو انتهت صلاحيتها",
   "Remaining unknown": "المتبقي غير معروف",
+  "Router flag A": "علامة الراوتر A",
+  "Router flag I": "علامة الراوتر I",
 } as const;

@@ -173,6 +173,8 @@ const make = Effect.gen(function* () {
     id: string,
     activatedAt?: string | null,
   ) {
+    // Taken before the read: a login after it must not fall before Madar's first-sighting cutoff.
+    const time = yield* now;
     const rows = yield* read(scope, owner, [
       `${userMenu}/print`,
       `=.proplist=${fields}`,
@@ -181,7 +183,7 @@ const make = Effect.gen(function* () {
     ]);
     if (rows.length !== 1 || rows[0]![".id"] !== id || rows[0]!.customer !== scope.customer)
       return yield* new VoucherFailure({ reason: "not-found" });
-    const [voucher] = yield* parseRows(rows, yield* now);
+    const [voucher] = yield* parseRows(rows, time);
     yield* store.upsert(scope, voucher!, activatedAt);
     return voucher!;
   });
@@ -276,16 +278,20 @@ const make = Effect.gen(function* () {
       VoucherStore.FIRST_LOGIN_READS_PER_REFRESH,
     );
     for (const candidate of candidates) {
+      // The voucher refresh is already saved; a failed lookup is retried at the next refresh.
       const sessions = yield* read(scope, owner, [
         "/tool/user-manager/session/print",
         "=.proplist=from-time",
         `?user=${candidate.username}`,
         `?customer=${scope.customer}`,
-      ]);
+      ]).pipe(Effect.orElseSucceed(() => null));
+      if (sessions === null) {
+        yield* store.saveFirstLogin(scope, candidate, null, "failed");
+        continue;
+      }
       const starts = sessions
         .map((row) => Values.parseRouterDateTime(row["from-time"] ?? ""))
-        .filter((value): value is string => value !== null)
-        .filter((value) => candidate.activatedAt === null || value >= candidate.activatedAt)
+        .filter((value): value is string => value !== null && value >= candidate.sessionsAfter)
         .sort();
       yield* store.saveFirstLogin(scope, candidate, starts[0] ?? null);
     }
@@ -294,12 +300,12 @@ const make = Effect.gen(function* () {
     const catalog = yield* discover(scope.router, owner);
     if (!catalog.customers.includes(scope.customer))
       return yield* new VoucherFailure({ reason: "not-found" });
+    const time = yield* now;
     const rows = yield* read(scope, owner, [
       `${userMenu}/print`,
       `=.proplist=${fields}`,
       `?customer=${scope.customer}`,
     ]);
-    const time = yield* now;
     const vouchers = yield* parseRows(rows, time);
     if (
       vouchers.some(
