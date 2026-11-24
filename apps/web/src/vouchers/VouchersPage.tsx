@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import type {
   RouterProfile,
+  VoucherField,
+  VoucherFieldFilter,
+  VoucherFieldValue,
   VoucherRow,
   VoucherCatalog,
   VoucherQuery,
@@ -65,7 +68,21 @@ import { useStableCallback } from "../hooks/useStableCallback";
 import { randomUUID } from "../lib/utils";
 import { voucherClient, voucherError, downloadCsv, VoucherRequestError } from "./client";
 import { VoucherCreateForm, VoucherInspector } from "./VoucherForms";
-import { columnOf, type ColumnKey } from "./columns";
+import {
+  columnOf,
+  fieldIdOf,
+  querySort,
+  type ColumnId,
+  type ColumnKey,
+  type ViewSort,
+} from "./columns";
+import {
+  BulkFieldDialog,
+  describeFilter,
+  FieldFilterDialog,
+  formatFieldValue,
+  VoucherFieldsDialog,
+} from "./VoucherFields";
 import { cellText } from "./VoucherCells";
 import { ColumnsPopover, SortMenu } from "./VoucherLayoutControls";
 import { VoucherTable } from "./VoucherTable";
@@ -126,6 +143,19 @@ function VoucherWorkspace({ router, connected }: { router: RouterProfile; connec
   const [customer, setCustomer] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fields, setFields] = useState<readonly VoucherField[] | null>(null);
+  useEffect(() => {
+    const abort = new AbortController();
+    void voucherClient
+      .fields(abort.signal)
+      .then((value) => {
+        if (!abort.signal.aborted) setFields(value);
+      })
+      .catch(() => {
+        if (!abort.signal.aborted) setFields([]);
+      });
+    return () => abort.abort();
+  }, []);
   useEffect(() => {
     const abort = new AbortController();
     void voucherClient
@@ -205,6 +235,8 @@ function VoucherWorkspace({ router, connected }: { router: RouterProfile; connec
           catalog={catalog}
           connected={connected}
           onCatalog={setCatalog}
+          fields={fields}
+          onFields={setFields}
         />
       ) : (
         <Panel>
@@ -241,18 +273,39 @@ function CustomerVouchers({
   catalog,
   connected,
   onCatalog,
+  fields: loadedFields,
+  onFields,
 }: {
   router: RouterProfile;
   customer: string;
   catalog: VoucherCatalog;
   connected: boolean;
   onCatalog: (value: VoucherCatalog) => void;
+  fields: readonly VoucherField[] | null;
+  onFields: (fields: readonly VoucherField[]) => void;
 }) {
   const { t, locale, direction } = useLocale();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<VoucherQuery["status"]>("all");
   const [profile, setProfile] = useState("");
-  const layout = useVoucherLayout();
+  const fields = loadedFields ?? [];
+  const fieldById = new Map(fields.map((field) => [field.id, field]));
+  const layout = useVoucherLayout(
+    loadedFields ? new Set(loadedFields.map((field) => field.id)) : null,
+  );
+  const [savedFilter, setFieldFilter] = useState<VoucherFieldFilter | null>(null);
+  // A filter on a deleted field no longer applies.
+  const filteredField = savedFilter ? fieldById.get(savedFilter.fieldId) : undefined;
+  const fieldFilter =
+    savedFilter &&
+    filteredField &&
+    (savedFilter.op !== "choice" ||
+      filteredField.choices.some((choice) => choice.id === savedFilter.choiceId))
+      ? savedFilter
+      : null;
+  const [fieldsDialog, setFieldsDialog] = useState<{ adding: boolean } | null>(null);
+  const [filtering, setFiltering] = useState<VoucherField | null>(null);
+  const [bulkField, setBulkField] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
@@ -276,10 +329,37 @@ function CustomerVouchers({
     search,
     status,
     profile,
-    sort: layout.sort,
+    sort: querySort(layout.sort),
+    ...(fieldFilter ? { fieldFilter } : {}),
     offset,
     limit: 50,
   };
+  const reload = () => {
+    // A field edit can move vouchers out of an active field filter; start again from page one.
+    if (fieldFilter) setOffset(0);
+    pageCache.clear();
+    setRevision((value) => value + 1);
+  };
+  async function applyBulkField(fieldId: number, value: VoucherFieldValue | null) {
+    return voucherClient
+      .setFieldValues({ ...scope, ids: selection, values: [{ fieldId, value }] })
+      .then(
+        (result) => {
+          reload();
+          void voucherClient.fields().then(onFields, () => {});
+          return result.updated < selection.length
+            ? t(
+                "Saved for {updated} of {count} vouchers. The others are no longer saved on this PC.",
+                {
+                  updated: formatNumber(result.updated, locale),
+                  count: formatNumber(selection.length, locale),
+                },
+              )
+            : "";
+        },
+        (cause) => voucherError(cause),
+      );
+  }
   const profiles = catalog.profiles.filter((item) => !item.owner || item.owner === customer);
   const refresh = useStableCallback(async () => {
     if (syncing || busy || pending) return true;
@@ -483,6 +563,7 @@ function CustomerVouchers({
             <SortMenu
               sort={layout.sort}
               columns={layout.columns}
+              fields={fields}
               onSort={(sort) => {
                 layout.setSort(sort);
                 setOffset(0);
@@ -491,11 +572,31 @@ function CustomerVouchers({
             />
             <ColumnsPopover
               columns={layout.columns}
+              fields={fields}
               onColumns={layout.setColumns}
               onAnnounce={setAnnouncement}
+              onManageFields={(adding) => setFieldsDialog({ adding })}
             />
           </div>
         </div>
+        {fieldFilter && (
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">{t("Filtered by your field:")}</span>
+            <bdi className="font-medium">
+              {describeFilter(fieldFilter, fieldById.get(fieldFilter.fieldId)!, locale, t)}
+            </bdi>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                setFieldFilter(null);
+                setOffset(0);
+              }}
+            >
+              {t("Clear filter")}
+            </Button>
+          </div>
+        )}
         <p role="status" aria-live="polite" className="sr-only">
           {announcement}
         </p>
@@ -538,6 +639,11 @@ function CustomerVouchers({
             >
               {t("Delete")}
             </Button>
+            {fields.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setBulkField(true)}>
+                {t("Set a field")}
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={() => setSelection([])}>
               {t("Clear selection")}
             </Button>
@@ -546,7 +652,10 @@ function CustomerVouchers({
         <VoucherRows
           key={`${JSON.stringify(query)}:${revision}`}
           query={query}
+          view={layout.sort}
           columns={layout.columns}
+          fields={fieldById}
+          onFilterField={setFiltering}
           selected={selection}
           onSelection={setSelection}
           onInspect={(voucher) => {
@@ -609,10 +718,49 @@ function CustomerVouchers({
               connected={connected && !busy && !syncing}
               onReview={review}
               onClose={() => setInspectorOpen(false)}
+              fields={fields}
+              onFieldsSaved={() => {
+                reload();
+                void voucherClient.fields().then(onFields, () => {});
+              }}
             />
           )}
         </SheetPopup>
       </Sheet>
+      {fieldsDialog && (
+        <VoucherFieldsDialog
+          open
+          adding={fieldsDialog.adding}
+          fields={fields}
+          onOpenChange={(open) => {
+            if (!open) setFieldsDialog(null);
+          }}
+          onFields={(next) => {
+            onFields(next);
+            reload();
+          }}
+        />
+      )}
+      {bulkField && (
+        <BulkFieldDialog
+          open
+          count={selection.length}
+          fields={fields}
+          onOpenChange={setBulkField}
+          onApply={applyBulkField}
+        />
+      )}
+      {filtering && (
+        <FieldFilterDialog
+          field={filtering}
+          onClose={() => setFiltering(null)}
+          onApply={(filter) => {
+            setFieldFilter(filter);
+            setFiltering(null);
+            setOffset(0);
+          }}
+        />
+      )}
       <Dialog
         open={pending !== null}
         onOpenChange={(open) => {
@@ -750,7 +898,10 @@ function PendingReview({ pending, customer }: { pending: VoucherMutation; custom
 
 function VoucherRows({
   query,
+  view,
   columns,
+  fields,
+  onFilterField,
   selected,
   onSelection,
   onInspect,
@@ -760,32 +911,26 @@ function VoucherRows({
   onAnnounce,
 }: {
   query: VoucherQuery;
-  columns: readonly ColumnKey[];
+  view: ViewSort;
+  columns: readonly ColumnId[];
+  fields: ReadonlyMap<number, VoucherField>;
+  onFilterField: (field: VoucherField) => void;
   selected: string[];
   onSelection: (value: string[]) => void;
   onInspect: (voucher: VoucherRow) => void;
   onOffset: (offset: number) => void;
-  onSort: (sort: VoucherQuery["sort"]) => void;
-  onColumns: (columns: readonly ColumnKey[]) => void;
+  onSort: (sort: ViewSort) => void;
+  onColumns: (columns: readonly ColumnId[]) => void;
   onAnnounce: (message: string) => void;
 }) {
   const { t, locale } = useLocale();
-  const { router, customer, search, status, profile, offset, limit } = query;
-  const { field, direction } = query.sort;
   const key = JSON.stringify(query);
+  // The parent remounts this component for every new query, so the first one is the only one.
+  const [initial] = useState(query);
   const [page, setPage] = useState<VoucherPage | null>(() => pageCache.get(key) ?? null);
   const [error, setError] = useState("");
   useEffect(() => {
-    const query: VoucherQuery = {
-      router,
-      customer,
-      search,
-      status,
-      profile,
-      sort: { field, direction },
-      offset,
-      limit,
-    };
+    const query = initial;
     const abort = new AbortController();
     void voucherClient
       .list(query, abort.signal)
@@ -807,7 +952,7 @@ function VoucherRows({
         if (!abort.signal.aborted) setError(voucherError(error));
       });
     return () => abort.abort();
-  }, [router, customer, search, status, profile, field, direction, offset, limit, key]);
+  }, [initial, key]);
   if (error)
     return (
       <div className="px-4 py-6">
@@ -817,6 +962,7 @@ function VoucherRows({
         </p>
       </div>
     );
+  const exported = columns.filter((key) => fieldIdOf(key) === null || fields.has(fieldIdOf(key)!));
   if (!page)
     return (
       <div aria-busy="true" className="space-y-3 px-4 py-4">
@@ -853,7 +999,9 @@ function VoucherRows({
         <VoucherTable
           rows={page.items}
           columns={columns}
-          sort={query.sort}
+          sort={view}
+          fields={fields}
+          onFilterField={onFilterField}
           selected={selected}
           onSelection={onSelection}
           onInspect={onInspect}
@@ -884,10 +1032,22 @@ function VoucherRows({
             disabled={!page.items.length}
             onClick={() =>
               downloadCsv("قسائم-مدار.csv", [
-                [t("Customer"), ...columns.map((key) => t(columnOf(key).label)), t("Comment")],
+                [
+                  t("Customer"),
+                  ...exported.map(
+                    (key) =>
+                      fields.get(fieldIdOf(key) ?? 0)?.name ?? t(columnOf(key as ColumnKey).label),
+                  ),
+                  t("Comment"),
+                ],
                 ...page.items.map((row) => [
                   row.customer,
-                  ...columns.map((key) => cellText(key, row, locale, t)),
+                  ...exported.map((key) => {
+                    const field = fields.get(fieldIdOf(key) ?? 0);
+                    return field
+                      ? formatFieldValue(field, row.fields[String(field.id)], locale, t)
+                      : cellText(key as ColumnKey, row, locale, t);
+                  }),
                   row.comment,
                 ]),
               ])

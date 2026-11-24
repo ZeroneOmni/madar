@@ -3,12 +3,14 @@ import * as Effect from "effect/Effect";
 import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import { requireEnvironmentScope } from "../auth/http.ts";
 import * as VoucherService from "./VoucherService.ts";
+import * as VoucherFieldStore from "./VoucherFieldStore.ts";
 
 export const layer = HttpApiBuilder.group(
   EnvironmentHttpApi,
   "vouchers",
   Effect.fnUntraced(function* (handlers) {
     const vouchers = yield* VoucherService.VoucherService;
+    const fields = yield* VoucherFieldStore.VoucherFieldStore;
     return handlers
       .handle(
         "catalog",
@@ -52,6 +54,41 @@ export const layer = HttpApiBuilder.group(
         Effect.fn("vouchers.history")(function* ({ payload }) {
           yield* requireEnvironmentScope(AuthAccessWriteScope);
           return yield* vouchers.history(payload);
+        }),
+      )
+      .handle(
+        "fields",
+        Effect.fn("vouchers.fields")(function* () {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* fields.list();
+        }),
+      )
+      .handle(
+        "saveField",
+        Effect.fn("vouchers.saveField")(function* ({ payload }) {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* fields.save(payload);
+        }),
+      )
+      .handle(
+        "reorderFields",
+        Effect.fn("vouchers.reorderFields")(function* ({ payload }) {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* fields.reorder(payload.ids);
+        }),
+      )
+      .handle(
+        "deleteField",
+        Effect.fn("vouchers.deleteField")(function* ({ payload }) {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* fields.remove(payload.id, payload.valueCount);
+        }),
+      )
+      .handle(
+        "setFieldValues",
+        Effect.fn("vouchers.setFieldValues")(function* ({ payload }) {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* fields.setValues(payload);
         }),
       );
   }),

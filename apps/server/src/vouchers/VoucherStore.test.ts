@@ -8,6 +8,7 @@ import type { VoucherQuery, VoucherScope } from "@madar/contracts";
 import LocalAuthentication from "../persistence/Migrations/001_LocalAuthentication.ts";
 import Vouchers from "../persistence/Migrations/002_Vouchers.ts";
 import VoucherColumns from "../persistence/Migrations/003_VoucherColumns.ts";
+import VoucherFields from "../persistence/Migrations/004_VoucherFields.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
 import { routerKey } from "../routers/RouterApi.ts";
 import * as VoucherStore from "./VoucherStore.ts";
@@ -488,6 +489,7 @@ it.effect("backfills the typed cache from the previous JSON rows for offline bro
         "001_LocalAuthentication": LocalAuthentication,
         "002_Vouchers": Vouchers,
         "003_VoucherColumns": VoucherColumns,
+        "004_VoucherFields": VoucherFields,
       }),
     });
     const store = yield* VoucherStore.VoucherStore;
@@ -528,8 +530,8 @@ it.effect("serves the first click on each default column from an index", () =>
       "lastSeen",
     ] as const) {
       const plan = yield* sql.unsafe<{ detail: string }>(
-        `EXPLAIN QUERY PLAN SELECT id FROM voucher_cache WHERE router_key = ? AND customer = ? AND 1
-          ORDER BY ${VoucherStore.orderBy({ field, direction: "asc" })} LIMIT 50`,
+        `EXPLAIN QUERY PLAN SELECT id FROM voucher_cache AS v0 WHERE router_key = ? AND customer = ? AND 1
+          ORDER BY ${VoucherStore.orderBy({ field, direction: "asc" }).sql} LIMIT 50`,
         ["router", "admin"],
       );
       const details = plan.map((row) => row.detail).join(" | ");

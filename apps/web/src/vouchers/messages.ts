@@ -313,4 +313,82 @@ export const voucherArabic = {
   "Remaining unknown": "المتبقي غير معروف",
   "Router flag A": "علامة الراوتر A",
   "Router flag I": "علامة الراوتر I",
+  Yes: "نعم",
+  No: "لا",
+  "Not set": "غير محدد",
+  "Saved on this PC only. Never sent to the router.":
+    "تُحفظ على هذا الجهاز فقط، ولا تُرسل إلى الراوتر أبدًا.",
+  "Saved on this PC.": "حُفظت على هذا الجهاز.",
+  "Saved on this PC": "محفوظ على هذا الجهاز",
+  "My fields": "حقولي",
+  "Save my fields": "حفظ حقولي",
+  "Add your own columns, such as a shop name or a payment date. They apply to every router and customer.":
+    "أضف أعمدتك الخاصة، مثل اسم المحل أو تاريخ الدفع. تنطبق على كل الراوترات والعملاء.",
+  "Add your own columns. They are saved on this PC only.":
+    "أضف أعمدتك الخاصة. تُحفظ على هذا الجهاز فقط.",
+  "Add a field": "إضافة حقل جديد",
+  "Add field": "إضافة حقل",
+  "Field name": "اسم الحقل",
+  Type: "النوع",
+  Number: "رقم",
+  Date: "تاريخ",
+  "Yes or no": "نعم أو لا",
+  "Choice from a list": "اختيار من قائمة",
+  "Choices, one per line": "الخيارات، خيار في كل سطر",
+  "Delete the field {name}?": "حذف الحقل {name}؟",
+  "Its values on {count} vouchers will be deleted from this PC. This cannot be undone.":
+    "ستُحذف قيمه من {count} قسيمة على هذا الجهاز. لا يمكن التراجع عن ذلك.",
+  "No voucher has a value in this field yet. This cannot be undone.":
+    "لا توجد قسيمة لها قيمة في هذا الحقل بعد. لا يمكن التراجع عن الحذف.",
+  "Delete field": "حذف الحقل",
+  "Name of {name}": "اسم الحقل {name}",
+  "Delete {name}": "حذف {name}",
+  "Removing a choice clears it from the vouchers that use it.":
+    "حذف أحد الخيارات يزيله من القسائم التي تستخدمه.",
+  "{count} vouchers have a value": "عدد القسائم التي لها قيمة: {count}",
+  "Save changes": "حفظ التغييرات",
+  "Set a field": "تعيين حقل",
+  "Set a field for {count} vouchers": "تعيين حقل لـ {count} قسيمة",
+  "Leave the value empty to clear the field on the selected vouchers.":
+    "اترك القيمة فارغة لمسح الحقل من القسائم المحددة.",
+  Field: "الحقل",
+  "Clear for {count} vouchers": "مسح من {count} قسيمة",
+  "Save for {count} vouchers": "حفظ لـ {count} قسيمة",
+  Contains: "يحتوي على",
+  Between: "بين قيمتين",
+  "Between dates": "بين تاريخين",
+  "Has a value": "له قيمة",
+  "Is empty": "فارغ",
+  "Filter by {name}": "تصفية حسب {name}",
+  "Show only vouchers whose local value matches.":
+    "اعرض فقط القسائم التي تطابق قيمتها المحفوظة على هذا الجهاز.",
+  "Show vouchers where the value": "اعرض القسائم التي قيمتها",
+  Condition: "الشرط",
+  From: "من",
+  To: "إلى",
+  "From date": "من تاريخ",
+  "To date": "إلى تاريخ",
+  "Apply filter": "تطبيق التصفية",
+  "{name} is empty": "{name} فارغ",
+  "{name} has a value": "{name} له قيمة",
+  "{name} contains “{text}”": "{name} يحتوي على «{text}»",
+  "{name} from {min} to {max}": "{name} من {min} إلى {max}",
+  "{name}: {value}": "{name}: {value}",
+  Manage: "إدارة",
+  "Filtered by your field:": "مصفّاة حسب حقلك:",
+  "Clear filter": "إزالة التصفية",
+  "Filter by this field…": "تصفية حسب هذا الحقل…",
+  "Check the field name, its choices, and that each value matches the field type.":
+    "تحقق من اسم الحقل وخياراته، ومن أن كل قيمة تطابق نوع الحقل.",
+  "A field with this name already exists. Choose another name.":
+    "يوجد حقل بهذا الاسم. اختر اسمًا آخر.",
+  "This field no longer exists. Reopen My fields to see the current list.":
+    "لم يعد هذا الحقل موجودًا. افتح «حقولي» لعرض القائمة الحالية.",
+  "This voucher is no longer saved on this PC. Refresh vouchers and try again.":
+    "لم تعد هذه القسيمة محفوظة على هذا الجهاز. حدّث القسائم وحاول مجددًا.",
+  "Finish the number or clear the field before saving.": "أكمل الرقم أو امسح الحقل قبل الحفظ.",
+  "Saved for {updated} of {count} vouchers. The others are no longer saved on this PC.":
+    "حُفظت القيمة لـ {updated} من أصل {count} قسيمة. القسائم الأخرى لم تعد محفوظة على هذا الجهاز.",
+  "The number of saved values changed. Check the new count and confirm again.":
+    "تغيّر عدد القيم المحفوظة. راجع العدد الجديد ثم أكّد مرة أخرى.",
 } as const;

@@ -11,7 +11,7 @@ const sortOnly = {
 type SortOnly = keyof typeof sortOnly;
 export const sortOnlyFields = Object.keys(sortOnly) as SortOnly[];
 export const sortOnlyGroup = (field: SortOnly) => sortOnly[field].group;
-export type ColumnKey = Exclude<VoucherSortField, SortOnly>;
+export type ColumnKey = Exclude<VoucherSortField, SortOnly | "custom">;
 export type ColumnGroup = "default" | "usage" | "subscription" | "subscriber" | "madar";
 export interface ColumnDefinition {
   readonly key: ColumnKey;
@@ -80,13 +80,13 @@ export const columnGroups: readonly { group: ColumnGroup; label: string }[] = [
 ];
 const byKey = new Map(columnDefinitions.map((column) => [column.key, column]));
 export const columnOf = (key: ColumnKey) => byKey.get(key)!;
-export const sortLabel = (field: VoucherSortField) =>
+export const sortLabel = (field: Exclude<VoucherSortField, "custom">) =>
   field in sortOnly ? sortOnly[field as SortOnly].label : columnOf(field as ColumnKey).label;
 
 export const DEFAULT_COLUMNS: readonly ColumnKey[] = columnDefinitions
   .filter((column) => column.group === "default")
   .map((column) => column.key);
-export const DEFAULT_SORT: VoucherSort = { field: "username", direction: "asc" };
+export const DEFAULT_SORT = { field: "username", direction: "asc" } as const;
 
 export const VOUCHER_LAYOUT_KEY = "madar:voucher-layout";
 /** Column keys stay plain strings so a removed or renamed key is dropped, not a decode failure. */
@@ -103,24 +103,59 @@ export const DEFAULT_LAYOUT: VoucherLayout = {
 };
 const isSortField = Schema.is(VoucherSort.fields.field);
 
-/** Known, unique column keys with Username first; an unknown sort falls back to the default. */
-export function normalizeLayout(layout: VoucherLayout) {
-  const columns = [
-    "username" as const,
-    ...new Set(
-      layout.columns.filter(
-        (key): key is ColumnKey => key !== "username" && byKey.has(key as ColumnKey),
-      ),
-    ),
-  ];
-  const sort: VoucherSort = isSortField(layout.sort.field)
-    ? { field: layout.sort.field, direction: layout.sort.direction }
-    : DEFAULT_SORT;
+/** A local field shown as a column; the number is the field's id. */
+export type FieldColumn = `field:${number}`;
+export type ColumnId = ColumnKey | FieldColumn;
+export const fieldColumn = (id: number): FieldColumn => `field:${id}`;
+export function fieldIdOf(column: string): number | null {
+  const match = /^field:([1-9]\d{0,9})$/.exec(column);
+  return match ? Number(match[1]) : null;
+}
+/** The sort the table shows: a router or Madar field, or a local field column. */
+export interface ViewSort {
+  readonly field: Exclude<VoucherSortField, "custom"> | FieldColumn;
+  readonly direction: VoucherSort["direction"];
+}
+export function querySort(sort: ViewSort): VoucherSort {
+  const fieldId = fieldIdOf(sort.field);
+  return fieldId === null
+    ? { field: sort.field as Exclude<VoucherSortField, "custom">, direction: sort.direction }
+    : { field: "custom", fieldId, direction: sort.direction };
+}
+
+/**
+ * Known, unique column keys with Username first; an unknown sort falls back to the default.
+ * Local field columns are kept until the field list is loaded (`fieldIds` null), then only if
+ * the field still exists.
+ */
+export function normalizeLayout(
+  layout: VoucherLayout,
+  fieldIds: ReadonlySet<number> | null = null,
+) {
+  const known = (key: string): key is ColumnId => {
+    const fieldId = fieldIdOf(key);
+    return fieldId === null
+      ? byKey.has(key as ColumnKey)
+      : fieldIds === null || fieldIds.has(fieldId);
+  };
+  const columns: ColumnId[] = [
+    "username",
+    ...new Set(layout.columns.filter((key) => key !== "username" && known(key))),
+  ].filter((key): key is ColumnId => known(key));
+  const field = layout.sort.field;
+  const sort: ViewSort =
+    fieldIdOf(field) !== null
+      ? known(field)
+        ? { field: field as FieldColumn, direction: layout.sort.direction }
+        : DEFAULT_SORT
+      : isSortField(field) && field !== "custom"
+        ? { field, direction: layout.sort.direction }
+        : DEFAULT_SORT;
   return { columns, sort };
 }
 
 /** Moves within the shown columns. Username stays first. */
-export function moveColumn(columns: readonly ColumnKey[], key: ColumnKey, to: number) {
+export function moveColumn<T extends string>(columns: readonly T[], key: T, to: number) {
   const from = columns.indexOf(key);
   if (from <= 0) return columns;
   const target = Math.max(1, Math.min(columns.length - 1, to));
@@ -131,9 +166,9 @@ export function moveColumn(columns: readonly ColumnKey[], key: ColumnKey, to: nu
 }
 
 /** "Left" and "right" follow what the operator sees, so RTL reverses them. */
-export function moveColumnVisually(
-  columns: readonly ColumnKey[],
-  key: ColumnKey,
+export function moveColumnVisually<T extends string>(
+  columns: readonly T[],
+  key: T,
   side: "left" | "right",
   direction: "ltr" | "rtl",
 ) {

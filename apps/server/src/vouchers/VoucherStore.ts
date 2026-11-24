@@ -18,6 +18,8 @@ import {
   type VoucherScope,
   type VoucherPage,
   type VoucherSortField,
+  type VoucherFieldFilter,
+  type VoucherFieldValue,
 } from "@madar/contracts";
 import { routerKey } from "../routers/RouterApi.ts";
 import { epochToNaive, naiveToEpoch, naturalKey } from "./routerValues.ts";
@@ -300,15 +302,59 @@ const sortKeys: Record<VoucherSortField, string> = {
   changed: "changed_at",
   firstLogin: "first_login_at",
   batch: "batch_created_at",
+  custom: "username_key",
 };
 
-/** Empty, never and unknown values are NULL and stay last in both directions. */
-export function orderBy(sort: VoucherQuery["sort"]) {
+/** One local field's value for the voucher in scope `v0`; the field id is the first parameter. */
+const fieldValueOf = `voucher_field_values fv WHERE fv.field_id = ? AND fv.router_key = v0.router_key
+  AND fv.customer = v0.customer AND fv.username = v0.username AND fv.router_id = v0.id`;
+const fieldSortKey = `(SELECT COALESCE(lower(fv.text_value), fv.number_value, fv.date_value, fv.bool_value,
+  (SELECT c.position FROM voucher_field_choices c WHERE c.id = fv.choice_id)) FROM ${fieldValueOf})`;
+type SqlValue = string | number | null;
+
+function fieldFilter(filter: VoucherFieldFilter): { sql: string; params: SqlValue[] } {
+  const exists = (condition: string, params: SqlValue[]) => ({
+    sql: `EXISTS (SELECT 1 FROM ${fieldValueOf} ${condition})`,
+    params: [filter.fieldId, ...params],
+  });
+  switch (filter.op) {
+    case "empty":
+      return { sql: `NOT EXISTS (SELECT 1 FROM ${fieldValueOf})`, params: [filter.fieldId] };
+    case "filled":
+      return exists("", []);
+    case "contains":
+      return exists("AND instr(lower(fv.text_value), lower(?)) > 0", [filter.text]);
+    case "range":
+      return exists(
+        "AND fv.number_value >= COALESCE(?, fv.number_value) AND fv.number_value <= COALESCE(?, fv.number_value)",
+        [filter.min, filter.max],
+      );
+    case "dates":
+      return exists(
+        "AND fv.date_value >= COALESCE(?, fv.date_value) AND fv.date_value <= COALESCE(?, fv.date_value)",
+        [filter.from, filter.to],
+      );
+    case "flag":
+      return exists("AND fv.bool_value = ?", [Number(filter.value)]);
+    case "choice":
+      return exists("AND fv.choice_id = ?", [filter.choiceId]);
+  }
+}
+
+/**
+ * Empty, never and unknown values are NULL and stay last in both directions. The voucher row is
+ * `v0`; a local field's id is bound as a parameter, never written into the SQL.
+ */
+export function orderBy(sort: VoucherQuery["sort"]): { sql: string; params: SqlValue[] } {
   const direction = sort.direction === "desc" ? "DESC" : "ASC";
-  const expression = sortKeys[sort.field];
-  return sort.field === "username"
-    ? `username_key ${direction}, id ${direction}`
-    : `(${expression}) IS NULL, ${expression} ${direction}, username_key, id`;
+  const fieldId = sort.field === "custom" ? sort.fieldId : undefined;
+  if (sort.field === "username" || (sort.field === "custom" && fieldId === undefined))
+    return { sql: `username_key ${direction}, id ${direction}`, params: [] };
+  const expression = fieldId === undefined ? sortKeys[sort.field] : fieldSortKey;
+  return {
+    sql: `(${expression}) IS NULL, ${expression} ${direction}, username_key, id`,
+    params: fieldId === undefined ? [] : [fieldId, fieldId],
+  };
 }
 const joinedSorts = new Set<VoucherSortField>([
   "remaining",
@@ -335,7 +381,11 @@ interface ListRow {
 const str = (value: unknown) => (typeof value === "string" ? value : "");
 const num = (value: unknown) => (typeof value === "number" ? value : null);
 const bool = (value: unknown) => value === 1;
-const toRow = (row: ListRow, syncedAt: string | undefined): VoucherRow => {
+const toRow = (
+  row: ListRow,
+  syncedAt: string | undefined,
+  fields: VoucherRow["fields"],
+): VoucherRow => {
   const observedAt = str(row.observed_at);
   const reason = str(row.rem_reason) as VoucherRow["remaining"]["reason"];
   const kind = str(row.rem_kind) as VoucherRow["remaining"]["kind"];
@@ -430,6 +480,7 @@ const toRow = (row: ListRow, syncedAt: string | undefined): VoucherRow => {
       basis:
         known || state === "unknown" ? (str(row.b_source) as VoucherRow["remaining"]["basis"]) : "",
     },
+    fields,
   };
 };
 
@@ -645,18 +696,25 @@ const make = Effect.gen(function* () {
       (voucher) => activations.has(voucher.id) || changedSet.has(voucher),
     );
     if (touched.length === 0) return;
-    for (const voucher of changed) {
+    // A rename keeps the voucher's Madar data. Every renamed voucher first moves to a name made
+    // from its router id, so a chain (A→B, B→C) or a swap never deletes data that is still in use.
+    const renamed = changed.flatMap((voucher) => {
       const old = previous.get(voucher.id);
-      if (old && old.username !== voucher.username) {
-        // A rename keeps the voucher's Madar data; stale rows for the new name belong to another voucher.
-        for (const table of ["voucher_baselines", "voucher_batch_members"]) {
-          yield* sql`DELETE FROM ${sql(table)} WHERE router_key = ${key} AND customer = ${scope.customer}
-            AND username = ${voucher.username} AND router_id != ${voucher.id}`;
-          yield* sql`UPDATE ${sql(table)} SET username = ${voucher.username} WHERE router_key = ${key}
-            AND customer = ${scope.customer} AND username = ${old.username} AND router_id = ${voucher.id}`;
-        }
+      return old && old.username !== voucher.username ? [{ voucher, from: old.username }] : [];
+    });
+    const madarTables = ["voucher_baselines", "voucher_batch_members", "voucher_field_values"];
+    for (const { voucher, from } of renamed)
+      for (const table of madarTables)
+        yield* sql`UPDATE ${sql(table)} SET username = ${`\u0000${voucher.id}`} WHERE router_key = ${key}
+          AND customer = ${scope.customer} AND username = ${from} AND router_id = ${voucher.id}`;
+    for (const { voucher } of renamed)
+      for (const table of madarTables) {
+        // Rows left under the new name belong to a voucher that no longer exists.
+        yield* sql`DELETE FROM ${sql(table)} WHERE router_key = ${key} AND customer = ${scope.customer}
+          AND username = ${voucher.username} AND router_id != ${voucher.id}`;
+        yield* sql`UPDATE ${sql(table)} SET username = ${voucher.username} WHERE router_key = ${key}
+          AND customer = ${scope.customer} AND username = ${`\u0000${voucher.id}`} AND router_id = ${voucher.id}`;
       }
-    }
     for (let start = 0; start < changed.length; start += 100) {
       const rows = changed.slice(start, start + 100).map((voucher) => ({
         router_key: key,
@@ -820,8 +878,9 @@ const make = Effect.gen(function* () {
         )}`;
       // Batch membership stays as history; the router_id join keeps it off a reused username.
       for (const row of slice)
-        yield* sql`DELETE FROM voucher_baselines WHERE router_key = ${key} AND customer = ${scope.customer}
-          AND username = ${row.username} AND router_id = ${row.id}`;
+        for (const table of ["voucher_baselines", "voucher_field_values"])
+          yield* sql`DELETE FROM ${sql(table)} WHERE router_key = ${key} AND customer = ${scope.customer}
+            AND username = ${row.username} AND router_id = ${row.id}`;
     }
   });
 
@@ -866,10 +925,37 @@ const make = Effect.gen(function* () {
       key,
       ...ids,
     ]);
+    const values = yield* sql<{
+      field_id: number;
+      username: string;
+      router_id: string;
+      text_value: string | null;
+      number_value: number | null;
+      date_value: string | null;
+      bool_value: number | null;
+      choice_id: number | null;
+    }>`SELECT field_id, username, router_id, text_value, number_value, date_value, bool_value,
+        choice_id FROM voucher_field_values WHERE router_key = ${key} AND customer = ${scope.customer}
+        AND ${sql.in(
+          "username",
+          rows.map((row) => str(row.username)),
+        )}`;
+    const fields = new Map<string, Record<string, VoucherFieldValue>>();
+    for (const value of values) {
+      const typed =
+        value.text_value ??
+        value.number_value ??
+        value.date_value ??
+        (value.bool_value === null ? value.choice_id : value.bool_value === 1);
+      if (typed === null) continue;
+      const record = fields.get(value.router_id) ?? {};
+      record[String(value.field_id)] = typed;
+      fields.set(value.router_id, record);
+    }
     const byId = new Map(rows.map((row) => [row.id, row]));
-    return ids.flatMap((id): ListRow[] => {
+    return ids.flatMap((id) => {
       const row = byId.get(id);
-      return row ? [row] : [];
+      return row ? [{ row, fields: fields.get(id) ?? {} }] : [];
     });
   });
 
@@ -877,7 +963,7 @@ const make = Effect.gen(function* () {
     function* (query: VoucherQuery) {
       const key = routerKey(query.router);
       const where: string[] = [];
-      const values: (string | number)[] = [];
+      const values: SqlValue[] = [];
       if (query.search) {
         where.push("instr(lower(username || ' ' || comment), lower(?)) > 0");
         values.push(query.search);
@@ -888,6 +974,11 @@ const make = Effect.gen(function* () {
       }
       const status = statusFilters[query.status];
       if (status) where.push(status);
+      if (query.fieldFilter) {
+        const filter = fieldFilter(query.fieldFilter);
+        where.push(filter.sql);
+        values.push(...filter.params);
+      }
       const order = orderBy(query.sort);
       // Most sorts and filters read only cached router columns; those skip the remaining joins.
       // Whole-scope scans are NOT INDEXED: SQLite otherwise walks a sort index with a row lookup each.
@@ -901,12 +992,12 @@ const make = Effect.gen(function* () {
           if (cacheOnly) {
             const scoped = `router_key = ? AND customer = ? AND ${condition}`;
             const count = yield* sql.unsafe<{ total: number }>(
-              `SELECT COUNT(*) AS total FROM voucher_cache ${query.profile ? "" : "NOT INDEXED"} WHERE ${scoped}`,
+              `SELECT COUNT(*) AS total FROM voucher_cache AS v0 ${query.profile ? "" : "NOT INDEXED"} WHERE ${scoped}`,
               [key, query.customer, ...values],
             );
             const rows = yield* sql.unsafe<{ id: string }>(
-              `SELECT id FROM voucher_cache WHERE ${scoped} ORDER BY ${order} LIMIT ? OFFSET ?`,
-              [key, query.customer, ...values, ...page],
+              `SELECT id FROM voucher_cache AS v0 WHERE ${scoped} ORDER BY ${order.sql} LIMIT ? OFFSET ?`,
+              [key, query.customer, ...values, ...order.params, ...page],
             );
             total = count[0]?.total ?? 0;
             ids = rows.map((row) => row.id);
@@ -915,14 +1006,14 @@ const make = Effect.gen(function* () {
             const params = [key, query.customer, now, key, ...values];
             // One pass: the window count avoids computing remaining twice over every row.
             const rows = yield* sql.unsafe<{ id: string; total: number }>(
-              `${rowsSql(0)} SELECT id, COUNT(*) OVER () AS total FROM ranked WHERE ${condition}
-                ORDER BY ${order} LIMIT ? OFFSET ?`,
-              [...params, ...page],
+              `${rowsSql(0)} SELECT id, COUNT(*) OVER () AS total FROM ranked AS v0 WHERE ${condition}
+                ORDER BY ${order.sql} LIMIT ? OFFSET ?`,
+              [...params, ...order.params, ...page],
             );
             total =
               rows[0]?.total ??
               (yield* sql.unsafe<{ total: number }>(
-                `${rowsSql(0)} SELECT COUNT(*) AS total FROM ranked WHERE ${condition}`,
+                `${rowsSql(0)} SELECT COUNT(*) AS total FROM ranked AS v0 WHERE ${condition}`,
                 params,
               ))[0]?.total ??
               0;
@@ -933,7 +1024,7 @@ const make = Effect.gen(function* () {
             synced_at: string;
           }>`SELECT synced_at FROM voucher_sync WHERE router_key=${key} AND customer=${query.customer}`;
           return {
-            items: rows.map((row) => toRow(row, sync[0]?.synced_at)),
+            items: rows.map((item) => toRow(item.row, sync[0]?.synced_at, item.fields)),
             total,
             syncedAt: sync[0]?.synced_at ?? null,
             complete: sync.length > 0,
@@ -947,7 +1038,7 @@ const make = Effect.gen(function* () {
 
   const row = Effect.fn("VoucherStore.row")(function* (scope: VoucherScope, id: string) {
     const [found] = yield* enrich(scope, [id]);
-    return found ? toRow(found, undefined) : null;
+    return found ? toRow(found.row, undefined, found.fields) : null;
   }, Effect.mapError(storageError));
 
   const firstLoginCandidates = Effect.fn("VoucherStore.firstLoginCandidates")(function* (

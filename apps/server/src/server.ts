@@ -24,6 +24,7 @@ import * as RouterDiscovery from "./routers/RouterDiscovery.ts";
 import * as VoucherHttp from "./vouchers/http.ts";
 import * as VoucherService from "./vouchers/VoucherService.ts";
 import * as VoucherStore from "./vouchers/VoucherStore.ts";
+import * as VoucherFieldStore from "./vouchers/VoucherFieldStore.ts";
 import * as ReplayMarkers from "./auth/replayMarkers.ts";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
 import {
@@ -81,7 +82,12 @@ const layerRoutes = Layer.mergeAll(
       Layer.merge(
         RouterHttp.layer,
         VoucherHttp.layer.pipe(
-          Layer.provide(VoucherService.layer.pipe(Layer.provide(VoucherStore.layer))),
+          Layer.provide(
+            Layer.merge(
+              VoucherService.layer.pipe(Layer.provide(VoucherStore.layer)),
+              VoucherFieldStore.layer,
+            ),
+          ),
         ),
       ).pipe(
         Layer.provide(

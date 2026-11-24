@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import type { VoucherSort, VoucherSortField } from "@madar/contracts";
+import type { VoucherField } from "@madar/contracts";
 import {
   ArrowDown,
   ArrowDownUp,
@@ -8,7 +8,9 @@ import {
   GripVertical,
   Lock,
   MoreHorizontal,
+  Plus,
   RotateCcw,
+  Settings2,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
@@ -34,42 +36,61 @@ import {
   columnOf,
   DEFAULT_COLUMNS,
   DEFAULT_SORT,
+  fieldColumn,
+  fieldIdOf,
   moveColumn,
   sortLabel,
   sortOnlyFields,
   sortOnlyGroup,
+  type ColumnId,
   type ColumnKey,
+  type ViewSort,
 } from "./columns";
 
 export function ColumnsPopover({
   columns,
+  fields,
   onColumns,
   onAnnounce,
+  onManageFields,
 }: {
-  columns: readonly ColumnKey[];
-  onColumns: (columns: readonly ColumnKey[]) => void;
+  columns: readonly ColumnId[];
+  fields: readonly VoucherField[];
+  onColumns: (columns: readonly ColumnId[]) => void;
   onAnnounce: (message: string) => void;
+  onManageFields: (adding: boolean) => void;
 }) {
   const { t, locale } = useLocale();
   const id = useId();
   const [search, setSearch] = useState("");
-  const [drag, setDrag] = useState<{ key: ColumnKey; order: readonly ColumnKey[] } | null>(null);
+  const [open, setOpen] = useState(false);
+  // The fields dialog replaces the popover rather than opening beneath it.
+  const manage = (adding: boolean) => {
+    setOpen(false);
+    onManageFields(adding);
+  };
+  const [drag, setDrag] = useState<{ key: ColumnId; order: readonly ColumnId[] } | null>(null);
   const list = useRef<HTMLUListElement>(null);
   const query = search.trim().toLocaleLowerCase(locale);
-  const matches = (key: ColumnKey) => {
-    const column = columnOf(key);
-    return (
-      !query ||
-      t(column.label).toLocaleLowerCase(locale).includes(query) ||
-      column.label.toLowerCase().includes(query)
-    );
-  };
-  const shown = (drag?.order ?? columns).filter(matches);
+  const fieldOf = (key: ColumnId) => fields.find((field) => fieldColumn(field.id) === key);
+  const name = (key: ColumnId) => fieldOf(key)?.name ?? t(columnOf(key as ColumnKey).label);
+  const matches = (key: ColumnId) =>
+    !query ||
+    name(key).toLocaleLowerCase(locale).includes(query) ||
+    (fieldIdOf(key) === null &&
+      columnOf(key as ColumnKey)
+        .label.toLowerCase()
+        .includes(query));
+  const shown = (drag?.order ?? columns).filter(
+    (key) => (fieldIdOf(key) === null || fieldOf(key)) && matches(key),
+  );
   const hidden = columnDefinitions.filter(
     (column) => !columns.includes(column.key) && matches(column.key),
   );
-  const name = (key: ColumnKey) => t(columnOf(key).label);
-  const move = (key: ColumnKey, to: number) => {
+  const hiddenFields = fields.filter(
+    (field) => !columns.includes(fieldColumn(field.id)) && matches(fieldColumn(field.id)),
+  );
+  const move = (key: ColumnId, to: number) => {
     const next = moveColumn(columns, key, to);
     if (next === columns) return;
     onColumns(next);
@@ -81,11 +102,11 @@ export function ColumnsPopover({
       }),
     );
   };
-  const show = (key: ColumnKey, visible: boolean) => {
+  const show = (key: ColumnId, visible: boolean) => {
     onColumns(visible ? [...columns, key] : columns.filter((item) => item !== key));
     onAnnounce(t(visible ? "{name} shown" : "{name} hidden", { name: name(key) }));
   };
-  const reorderKeys = (event: KeyboardEvent, key: ColumnKey) => {
+  const reorderKeys = (event: KeyboardEvent, key: ColumnId) => {
     if (!event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
     event.preventDefault();
     move(key, columns.indexOf(key) + (event.key === "ArrowUp" ? -1 : 1));
@@ -98,14 +119,16 @@ export function ColumnsPopover({
       const box = item.getBoundingClientRect();
       return event.clientY < box.top + box.height / 2;
     });
-    const target = items[over === -1 ? items.length - 1 : over]?.dataset.column as ColumnKey;
+    const target = items[over === -1 ? items.length - 1 : over]?.dataset.column as ColumnId;
     const order = moveColumn(drag.order, drag.key, drag.order.indexOf(target));
     if (order !== drag.order) setDrag({ ...drag, order });
   };
   return (
     <Popover
-      onOpenChange={(open) => {
-        if (!open) setSearch("");
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setSearch("");
       }}
     >
       <PopoverTrigger render={<Button variant="outline" size="sm" />}>
@@ -155,7 +178,7 @@ export function ColumnsPopover({
                         onCheckedChange={() => show(key, false)}
                       />
                     )}
-                    <ColumnName column={key} />
+                    <ColumnName column={key} field={fieldOf(key)} />
                     {!locked && (
                       <>
                         <Button
@@ -244,11 +267,46 @@ export function ColumnsPopover({
                 </section>
               );
             })}
-            {shown.length === 0 && hidden.length === 0 && (
+            <section aria-labelledby={`${id}-mine`} className="pt-2">
+              <div className="flex items-center justify-between gap-2 px-1 pb-1">
+                <h3 id={`${id}-mine`} className="text-xs font-medium text-muted-foreground">
+                  {t("My fields")}
+                </h3>
+                {fields.length > 0 && (
+                  <Button variant="ghost" size="xs" onClick={() => manage(false)}>
+                    <Settings2 />
+                    {t("Manage")}
+                  </Button>
+                )}
+              </div>
+              {hiddenFields.length > 0 ? (
+                <ul className="space-y-px">
+                  {hiddenFields.map((field) => (
+                    <li key={field.id} className="flex min-h-8 items-center gap-2 ps-1.5">
+                      <Checkbox
+                        aria-label={t("Show {name}", { name: field.name })}
+                        checked={false}
+                        onCheckedChange={() => show(fieldColumn(field.id), true)}
+                      />
+                      <ColumnName column={fieldColumn(field.id)} field={field} />
+                    </li>
+                  ))}
+                </ul>
+              ) : fields.length === 0 && !query ? (
+                <p className="px-1 pb-1 text-xs text-muted-foreground">
+                  {t("Add your own columns. They are saved on this PC only.")}
+                </p>
+              ) : null}
+            </section>
+            {shown.length === 0 && hidden.length === 0 && hiddenFields.length === 0 && (
               <p className="px-1 py-3 text-sm text-muted-foreground">{t("No columns match.")}</p>
             )}
           </div>
-          <div className="flex justify-end border-t border-border/50 pt-2">
+          <div className="flex justify-between gap-2 border-t border-border/50 pt-2">
+            <Button variant="ghost" size="sm" onClick={() => manage(true)}>
+              <Plus />
+              {t("Add field")}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -268,9 +326,18 @@ export function ColumnsPopover({
   );
 }
 
-function ColumnName({ column }: { column: ColumnKey }) {
+function ColumnName({ column, field }: { column: ColumnId; field?: VoucherField | undefined }) {
   const { t } = useLocale();
-  const definition = columnOf(column);
+  if (field)
+    return (
+      <span className="min-w-0 flex-1 truncate text-sm">
+        <bdi>{field.name}</bdi>
+        <span className="block truncate text-xs text-muted-foreground">
+          {t("Saved on this PC")}
+        </span>
+      </span>
+    );
+  const definition = columnOf(column as ColumnKey);
   return (
     <span className="min-w-0 flex-1 truncate text-sm">
       {t(definition.label)}
@@ -281,7 +348,10 @@ function ColumnName({ column }: { column: ColumnKey }) {
   );
 }
 
-const sortGroups: readonly { label: string; fields: readonly VoucherSortField[] }[] = [
+const sortGroups: readonly {
+  label: string;
+  fields: readonly Exclude<ViewSort["field"], `field:${number}`>[];
+}[] = [
   { label: "Main", fields: ["username", "comment", ...DEFAULT_COLUMNS.slice(1)] },
   ...columnGroups.slice(1).map(({ group, label }) => ({
     label,
@@ -295,24 +365,32 @@ const sortGroups: readonly { label: string; fields: readonly VoucherSortField[] 
 export function SortMenu({
   sort,
   columns,
+  fields,
   onSort,
   onAnnounce,
 }: {
-  sort: VoucherSort;
-  columns: readonly ColumnKey[];
-  onSort: (sort: VoucherSort) => void;
+  sort: ViewSort;
+  columns: readonly ColumnId[];
+  fields: readonly VoucherField[];
+  onSort: (sort: ViewSort) => void;
   onAnnounce: (message: string) => void;
 }) {
   const { t } = useLocale();
-  const field = t(sortLabel(sort.field));
+  const nameOf = (key: ViewSort["field"]) => {
+    const fieldId = fieldIdOf(key);
+    return fieldId === null
+      ? t(sortLabel(key as Exclude<ViewSort["field"], `field:${number}`>))
+      : (fields.find((item) => item.id === fieldId)?.name ?? "");
+  };
+  const field = nameOf(sort.field);
   const visible = columns.some((column) => column === sort.field);
   const isDefault = sort.field === DEFAULT_SORT.field && sort.direction === DEFAULT_SORT.direction;
   const arrow = sort.direction === "asc" ? "↑" : "↓";
-  const change = (next: VoucherSort) => {
+  const change = (next: ViewSort) => {
     onSort(next);
     onAnnounce(
       t(next.direction === "asc" ? "Sorted by {name}, ascending" : "Sorted by {name}, descending", {
-        name: t(sortLabel(next.field)),
+        name: nameOf(next.field),
       }),
     );
   };
@@ -362,7 +440,7 @@ export function SortMenu({
             <MenuRadioGroup
               value={sort.field}
               onValueChange={(value) =>
-                change({ field: value as VoucherSortField, direction: sort.direction })
+                change({ field: value as ViewSort["field"], direction: sort.direction })
               }
             >
               {group.fields.map((item) => (
@@ -376,6 +454,27 @@ export function SortMenu({
             </MenuRadioGroup>
           </MenuGroup>
         ))}
+        {fields.length > 0 && (
+          <MenuGroup>
+            <MenuSeparator />
+            <MenuGroupLabel>{t("My fields")}</MenuGroupLabel>
+            <MenuRadioGroup
+              value={sort.field}
+              onValueChange={(value) =>
+                change({ field: value as ViewSort["field"], direction: sort.direction })
+              }
+            >
+              {fields.map((item) => (
+                <MenuRadioItem key={item.id} value={fieldColumn(item.id)} closeOnClick>
+                  <span className="flex items-center gap-2">
+                    <bdi className="flex-1">{item.name}</bdi>
+                    <MenuRadioItemIndicator />
+                  </span>
+                </MenuRadioItem>
+              ))}
+            </MenuRadioGroup>
+          </MenuGroup>
+        )}
       </MenuPopup>
     </Menu>
   );

@@ -45,6 +45,7 @@ export function voucherRow(overrides: Partial<VoucherRow> = {}): VoucherRow {
       endsAt: null,
       basis: "",
     },
+    fields: {},
     ...overrides,
   };
 }
