@@ -1,13 +1,14 @@
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
 import * as Semaphore from "effect/Semaphore";
 import {
   VoucherFailure,
   type RouterProfile,
-  type Voucher,
   type VoucherCatalog,
+  type VoucherPage,
   type VoucherScope,
   type VoucherQuery,
   type VoucherTarget,
@@ -17,24 +18,103 @@ import {
 } from "@madar/contracts";
 import * as RouterApi from "../routers/RouterApi.ts";
 import * as VoucherStore from "./VoucherStore.ts";
+import * as Values from "./routerValues.ts";
 
 const userMenu = "/tool/user-manager/user";
-const fields =
-  ".id,customer,username,disabled,actual-profile,shared-users,comment,upload-used,download-used,uptime-used,last-seen,active-sessions";
-const toVoucher = (row: Readonly<Record<string, string>>, time: string): Voucher => ({
-  id: row[".id"] ?? "",
-  customer: row.customer ?? "",
-  username: row.username ?? row.name ?? "",
-  disabled: row.disabled === "true" || row.disabled === "yes",
-  profile: row["actual-profile"] ?? "",
-  sharedUsers: row["shared-users"] ?? "",
-  comment: row.comment ?? "",
-  upload: row["upload-used"] ?? "",
-  download: row["download-used"] ?? "",
-  uptime: row["uptime-used"] ?? "",
-  lastSeen: row["last-seen"] ?? "",
-  activeSessions: row["active-sessions"] ?? "",
-  observedAt: time,
+// Strict allowlist: passwords, reg-key and wireless keys are never requested.
+const fields = [
+  ".id",
+  "customer",
+  "username",
+  "disabled",
+  "active",
+  "incomplete",
+  "actual-profile",
+  "shared-users",
+  "comment",
+  "upload-used",
+  "download-used",
+  "uptime-used",
+  "last-seen",
+  "active-sessions",
+  "registration-date",
+  "caller-id",
+  "caller-id-bind-on-first-use",
+  "ip-address",
+  "ipv6-dns",
+  "ipv6-prefix",
+  "wireless-enc-algo",
+  "first-name",
+  "last-name",
+  "phone",
+  "email",
+  "location",
+].join(",");
+type ApiRow = Readonly<Record<string, string>>;
+/** Parses one router row; unparseable values become null and only the field name is reported. */
+function toVoucher(row: ApiRow, time: string) {
+  const failed: string[] = [];
+  const parse = <A>(field: string, parser: (text: string) => A | null, empty: "null" | "fail") => {
+    const text = row[field] ?? "";
+    if (!text.trim()) {
+      if (empty === "fail") failed.push(field);
+      return null;
+    }
+    const value = parser(text);
+    if (value === null) failed.push(field);
+    return value;
+  };
+  const lastSeenText = row["last-seen"] ?? "";
+  const shared = Values.parseSharedUsers(row["shared-users"] ?? "");
+  if (shared.count === null && !shared.unlimited && row["shared-users"])
+    failed.push("shared-users");
+  const voucher: VoucherStore.RouterVoucher = {
+    id: row[".id"] ?? "",
+    customer: row.customer ?? "",
+    username: row.username ?? row.name ?? "",
+    comment: row.comment ?? "",
+    disabled: Values.parseFlag(row.disabled),
+    active: Values.parseFlag(row.active),
+    incomplete: Values.parseFlag(row.incomplete),
+    profile: row["actual-profile"] ?? "",
+    sharedUsers: shared.unlimited ? "unlimited" : shared.count,
+    download: parse("download-used", Values.parseBytes, "fail"),
+    upload: parse("upload-used", Values.parseBytes, "fail"),
+    uptime: parse("uptime-used", Values.parseDuration, "null"),
+    lastSeen:
+      lastSeenText.trim() === "never"
+        ? "never"
+        : parse("last-seen", Values.parseRouterDateTime, "null"),
+    activeSessions: parse("active-sessions", Values.parseCount, "null"),
+    registrationDate: parse("registration-date", Values.parseRouterDateTime, "null"),
+    callerId: row["caller-id"] ?? "",
+    callerIdBind: Values.parseFlag(row["caller-id-bind-on-first-use"]),
+    ipAddress: row["ip-address"] ?? "",
+    ipv6Dns: row["ipv6-dns"] ?? "",
+    ipv6Prefix: row["ipv6-prefix"] ?? "",
+    wirelessEncryption: row["wireless-enc-algo"] ?? "",
+    firstName: row["first-name"] ?? "",
+    lastName: row["last-name"] ?? "",
+    phone: row.phone ?? "",
+    email: row.email ?? "",
+    location: row.location ?? "",
+    observedAt: time,
+  };
+  return { voucher, failed };
+}
+const logParseFailures = (failed: readonly string[]) => {
+  if (failed.length === 0) return Effect.void;
+  const counts: Record<string, number> = {};
+  for (const field of failed) counts[field] = (counts[field] ?? 0) + 1;
+  return Effect.logWarning("Unparsed User Manager values were cached as empty", counts);
+};
+const parseRows = Effect.fn("VoucherService.parseRows")(function* (
+  rows: readonly ApiRow[],
+  time: string,
+) {
+  const parsed = rows.map((row) => toVoucher(row, time));
+  yield* logParseFailures(parsed.flatMap((item) => item.failed));
+  return parsed.map((item) => item.voucher);
 });
 const failure = (error: RouterApi.RouterApiError) => new VoucherFailure({ reason: error.reason });
 const isUncertain = (error: VoucherFailure) =>
@@ -48,9 +128,7 @@ export class VoucherService extends Context.Service<
       router: RouterProfile,
       owner: string,
     ) => Effect.Effect<VoucherCatalog, VoucherFailure>;
-    readonly list: (
-      query: VoucherQuery,
-    ) => Effect.Effect<import("@madar/contracts").VoucherPage, VoucherFailure>;
+    readonly list: (query: VoucherQuery) => Effect.Effect<VoucherPage, VoucherFailure>;
     readonly sync: (
       scope: VoucherScope,
       owner: string,
@@ -78,10 +156,22 @@ const make = Effect.gen(function* () {
     (scope: VoucherScope, owner: string, words: readonly string[]) =>
       api.execute(scope.router, owner, words).pipe(Effect.mapError(failure)),
   );
+  /** Router-local epoch seconds minus PC epoch seconds, from one clock read. */
+  const clockOffset = Effect.fn("VoucherService.clockOffset")(function* (
+    scope: VoucherScope,
+    owner: string,
+  ) {
+    const rows = yield* read(scope, owner, ["/system/clock/print", "=.proplist=time,date"]);
+    const local = Values.parseRouterDateTime(`${rows[0]?.date ?? ""} ${rows[0]?.time ?? ""}`);
+    if (!local) return yield* new VoucherFailure({ reason: "protocol" });
+    const pc = yield* Clock.currentTimeMillis;
+    return Math.round((Values.naiveToEpoch(local) - pc) / 1000);
+  });
   const find = Effect.fn("VoucherService.find")(function* (
     scope: VoucherScope,
     owner: string,
     id: string,
+    activatedAt?: string | null,
   ) {
     const rows = yield* read(scope, owner, [
       `${userMenu}/print`,
@@ -91,9 +181,9 @@ const make = Effect.gen(function* () {
     ]);
     if (rows.length !== 1 || rows[0]![".id"] !== id || rows[0]!.customer !== scope.customer)
       return yield* new VoucherFailure({ reason: "not-found" });
-    const voucher = toVoucher(rows[0]!, yield* now);
-    yield* store.upsert(scope, voucher);
-    return voucher;
+    const [voucher] = yield* parseRows(rows, yield* now);
+    yield* store.upsert(scope, voucher!, activatedAt);
+    return voucher!;
   });
   const discover = Effect.fn("VoucherService.discover")(function* (
     router: RouterProfile,
@@ -106,25 +196,99 @@ const make = Effect.gen(function* () {
     ]);
     const profiles = yield* read(scope, owner, [
       "/tool/user-manager/profile/print",
-      "=.proplist=name,owner,validity,starts-at,price",
+      "=.proplist=name,owner,name-for-users,validity,starts-at,price,override-shared-users",
     ]);
-    const names = customers.map((row) => row.login ?? row.name ?? "").filter(Boolean);
-    const time = yield* now;
-    const catalog: VoucherCatalog = {
-      customers: names,
-      profiles: profiles
-        .map((row) => ({
-          name: row.name ?? "",
-          owner: row.owner ?? "",
-          validity: row.validity ?? "",
-          startsAt: row["starts-at"] ?? "",
-          price: row.price ?? "",
-        }))
-        .filter((profile) => profile.name),
-      syncedAt: time,
+    const limitations = yield* read(scope, owner, [
+      "/tool/user-manager/profile/limitation/print",
+      "=.proplist=name,owner,transfer-limit,download-limit,upload-limit,uptime-limit",
+    ]);
+    const links = yield* read(scope, owner, [
+      "/tool/user-manager/profile/profile-limitation/print",
+      "=.proplist=profile,limitation,from-time,till-time,weekdays",
+    ]);
+    // A missing clock only disables expiry estimates; it must not block the refresh.
+    const offset = yield* clockOffset(scope, owner).pipe(Effect.orElseSucceed(() => null));
+    const failed: string[] = [];
+    const parse = <A>(field: string, text: string, parser: (text: string) => A | null) => {
+      const value = parser(text);
+      if (value === null) failed.push(field);
+      return value;
     };
-    yield* store.saveCatalog(RouterApi.routerKey(router), catalog);
-    return catalog;
+    const time = yield* now;
+    const input: VoucherStore.CatalogInput = {
+      customers: customers.map((row) => row.login ?? row.name ?? "").filter(Boolean),
+      profiles: profiles.flatMap((row) => {
+        if (!row.name) return [];
+        const shared = Values.parseSharedUsers(row["override-shared-users"] ?? "");
+        return [
+          {
+            name: row.name,
+            owner: row.owner ?? "",
+            nameForUsers: row["name-for-users"] ?? "",
+            validity: parse("validity", row.validity || "0s", Values.parseDuration),
+            startsAt: row["starts-at"] ?? "",
+            price: row.price ? parse("price", row.price, Values.parsePrice) : null,
+            overrideSharedUsers: shared.unlimited ? ("unlimited" as const) : shared.count,
+          },
+        ];
+      }),
+      limitations: limitations.flatMap((row) =>
+        row.name
+          ? [
+              {
+                name: row.name,
+                owner: row.owner ?? "",
+                transfer: parse("transfer-limit", row["transfer-limit"] || "0", Values.parseBytes),
+                download: parse("download-limit", row["download-limit"] || "0", Values.parseBytes),
+                upload: parse("upload-limit", row["upload-limit"] || "0", Values.parseBytes),
+                uptime: parse("uptime-limit", row["uptime-limit"] || "0s", Values.parseDuration),
+              },
+            ]
+          : [],
+      ),
+      profileLimitations: links.flatMap((row) =>
+        row.profile && row.limitation
+          ? [
+              {
+                profile: row.profile,
+                limitation: row.limitation,
+                fromTime: parse("from-time", row["from-time"] || "0s", Values.parseDuration),
+                tillTime: parse("till-time", row["till-time"] || "23h59m59s", Values.parseDuration),
+                weekdays: parse("weekdays", row.weekdays ?? "", Values.parseWeekdays),
+              },
+            ]
+          : [],
+      ),
+      syncedAt: time,
+      clockOffset: offset,
+    };
+    yield* logParseFailures(failed);
+    yield* store.saveCatalog(RouterApi.routerKey(router), input);
+    return yield* store.catalog(RouterApi.routerKey(router));
+  });
+  /** Bounded, per-user session reads that find the first login after the current activation. */
+  const checkFirstLogins = Effect.fn("VoucherService.checkFirstLogins")(function* (
+    scope: VoucherScope,
+    owner: string,
+  ) {
+    const candidates = yield* store.firstLoginCandidates(
+      scope,
+      VoucherStore.FIRST_LOGIN_READS_PER_REFRESH,
+    );
+    for (const candidate of candidates) {
+      const sessions = yield* read(scope, owner, [
+        "/tool/user-manager/session/print",
+        "=.proplist=from-time",
+        `?user=${candidate.username}`,
+        `?customer=${scope.customer}`,
+      ]);
+      const starts = sessions
+        .map((row) => Values.parseRouterDateTime(row["from-time"] ?? ""))
+        .filter((value): value is string => value !== null)
+        .filter((value) => candidate.activatedAt === null || value >= candidate.activatedAt)
+        .sort();
+      yield* store.saveFirstLogin(scope, candidate, starts[0] ?? null);
+    }
   });
   const sync = Effect.fn("VoucherService.sync")(function* (scope: VoucherScope, owner: string) {
     const catalog = yield* discover(scope.router, owner);
@@ -136,7 +300,7 @@ const make = Effect.gen(function* () {
       `?customer=${scope.customer}`,
     ]);
     const time = yield* now;
-    const vouchers = rows.map((row) => toVoucher(row, time));
+    const vouchers = yield* parseRows(rows, time);
     if (
       vouchers.some(
         (voucher) => !voucher.id || !voucher.username || voucher.customer !== scope.customer,
@@ -144,13 +308,15 @@ const make = Effect.gen(function* () {
     )
       return yield* new VoucherFailure({ reason: "protocol" });
     yield* store.replace(scope, vouchers, time);
+    yield* checkFirstLogins(scope, owner);
     return catalog;
   }, lock.withPermits(1));
   const details = Effect.fn("VoucherService.details")(function* (
     target: VoucherTarget,
     owner: string,
   ) {
-    const voucher = yield* find(target, owner, target.id);
+    const found = yield* find(target, owner, target.id);
+    const voucher = yield* store.row(target, target.id);
     const rows = yield* read(target, owner, [
       `${userMenu}/print`,
       "=.proplist=.id,customer,password",
@@ -161,11 +327,11 @@ const make = Effect.gen(function* () {
     const sessions = yield* read(target, owner, [
       "/tool/user-manager/session/print",
       "=.proplist=.id,user,customer,active,started,ended,uptime,upload,download,from-time,till-time,host-ip,calling-station-id",
-      `?user=${voucher.username}`,
+      `?user=${found.username}`,
       `?customer=${target.customer}`,
     ]).pipe(
       Effect.map((rows) => ({ sessions: rows.slice(-100), sessionsAvailable: true })),
-      Effect.catch(() => Effect.succeed({ sessions: [], sessionsAvailable: false })),
+      Effect.orElseSucceed(() => ({ sessions: [], sessionsAvailable: false })),
     );
     return { voucher, password, ...sessions };
   }, lock.withPermits(1));
@@ -201,6 +367,25 @@ const make = Effect.gen(function* () {
         outcomes: targets.map((target) => ({ target, state: "pending", reason: "" })),
       };
       yield* store.saveOperation(input, operation);
+      // One router clock read per operation; later times add the PC's elapsed time to it.
+      const clock =
+        action.kind === "create" || action.kind === "assign-profile"
+          ? yield* clockOffset(input, owner).pipe(Effect.orElseSucceed(() => null))
+          : null;
+      const routerNow = Effect.gen(function* () {
+        if (clock === null) return null;
+        return Values.epochToNaive((yield* Clock.currentTimeMillis) + clock * 1000);
+      });
+      const batch =
+        action.kind === "create"
+          ? yield* store.createBatch(input, {
+              requestId: input.requestId,
+              createdAt: operation.createdAt,
+              requested: action.items.length,
+              profile: action.profile,
+              comment: action.comment,
+            })
+          : null;
       for (let index = 0; index < targets.length; index++) {
         const target = targets[index]!;
         operation = {
@@ -222,6 +407,7 @@ const make = Effect.gen(function* () {
               `?customer=${input.customer}`,
             ]);
             if (existing.length) return yield* new VoucherFailure({ reason: "conflict" });
+            const created = yield* routerNow;
             yield* read(input, owner, [
               `${userMenu}/add`,
               `=customer=${input.customer}`,
@@ -229,52 +415,64 @@ const make = Effect.gen(function* () {
               `=password=${item.password}`,
               `=shared-users=${action.sharedUsers}`,
               `=comment=${action.comment}`,
+              // Never sent empty: RouterOS stores the current UTC time for an empty value.
+              ...(created ? [`=registration-date=${Values.formatRouterDateTime(created)}`] : []),
             ]);
             written = true;
-            const created = yield* read(input, owner, [
+            const rows = yield* read(input, owner, [
               `${userMenu}/print`,
-              `=.proplist=${fields}`,
+              "=.proplist=.id",
               `?username=${item.username}`,
               `?customer=${input.customer}`,
             ]);
-            if (created.length !== 1 || !created[0]![".id"])
+            if (rows.length !== 1 || !rows[0]![".id"])
               return yield* new VoucherFailure({ reason: "protocol" });
-            id = created[0]![".id"]!;
-            yield* store.upsert(input, toVoucher(created[0]!, yield* now));
-            if (action.profile)
-              yield* read(input, owner, [
-                `${userMenu}/create-and-activate-profile`,
-                `=customer=${input.customer}`,
-                `=profile=${action.profile}`,
-                `=numbers=${id}`,
-              ]);
-          } else {
+            id = rows[0]![".id"]!;
+            yield* store.addBatchMember(input, batch!, item.username, id);
             yield* find(input, owner, id);
-            if (action.kind === "edit") {
-              yield* read(input, owner, [
-                `${userMenu}/set`,
-                `=.id=${id}`,
-                `=username=${action.username}`,
-                `=shared-users=${action.sharedUsers}`,
-                `=comment=${action.comment}`,
-                ...(action.password === undefined ? [] : [`=password=${action.password}`]),
-              ]);
-            } else if (action.kind === "assign-profile") {
+            if (action.profile) {
               yield* read(input, owner, [
                 `${userMenu}/create-and-activate-profile`,
-                `=numbers=${id}`,
                 `=customer=${input.customer}`,
                 `=profile=${action.profile}`,
+                `=numbers=${id}`,
               ]);
-            } else
-              yield* read(input, owner, [
-                `${userMenu}/${action.kind}`,
-                `=${action.kind === "reset-counters" ? "numbers" : ".id"}=${id}`,
-              ]);
-            written = true;
+              yield* find(input, owner, id, yield* routerNow);
+            }
+            return { target, state: "confirmed", reason: "" } as const;
           }
+          yield* find(input, owner, id);
+          if (action.kind === "edit") {
+            // registration-date is never part of an edit; see the create branch.
+            yield* read(input, owner, [
+              `${userMenu}/set`,
+              `=.id=${id}`,
+              `=username=${action.username}`,
+              `=shared-users=${action.sharedUsers}`,
+              `=comment=${action.comment}`,
+              ...(action.password === undefined ? [] : [`=password=${action.password}`]),
+            ]);
+          } else if (action.kind === "assign-profile") {
+            yield* read(input, owner, [
+              `${userMenu}/create-and-activate-profile`,
+              `=numbers=${id}`,
+              `=customer=${input.customer}`,
+              `=profile=${action.profile}`,
+            ]);
+          } else
+            yield* read(input, owner, [
+              `${userMenu}/${action.kind}`,
+              `=${action.kind === "reset-counters" ? "numbers" : ".id"}=${id}`,
+            ]);
+          written = true;
           if (action.kind === "remove") yield* store.remove(input, id);
-          else yield* find(input, owner, id);
+          else
+            yield* find(
+              input,
+              owner,
+              id,
+              action.kind === "assign-profile" ? yield* routerNow : undefined,
+            );
           return { target, state: "confirmed", reason: "" } as const;
         }).pipe(
           Effect.catch((error: VoucherFailure) =>

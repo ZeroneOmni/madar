@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import type {
   Voucher,
+  VoucherRow,
   VoucherAction,
   VoucherCatalog,
   VoucherDetails,
@@ -16,12 +17,15 @@ import { Detail, FieldRow, Panel, PanelFooter, StatusLabel } from "../components
 import { useLocale } from "../useLocale";
 import { CopyableText } from "../shell/CopyableText";
 import { createVoucherItems, voucherClient, voucherError } from "./client";
-import { formatVoucherValue } from "./format";
-import { formatNumber, type Locale } from "../locale";
-
-function formatCountText(value: string, locale: Locale) {
-  return /^\d+$/.test(value) ? formatNumber(Number(value), locale) : value || "–";
-}
+import {
+  formatBytes,
+  formatCount,
+  formatDuration,
+  formatRouterTime,
+  formatVoucherValue,
+} from "./format";
+import { formatNumber } from "../locale";
+import { RemainingCell } from "./VoucherCells";
 
 const voucherStates = {
   online: { label: "Online", tone: "success" },
@@ -33,7 +37,7 @@ export function VoucherState({ voucher }: { voucher: Voucher }) {
   const { t } = useLocale();
   const state =
     voucherStates[
-      voucher.disabled ? "disabled" : Number(voucher.activeSessions) > 0 ? "online" : "enabled"
+      voucher.disabled ? "disabled" : (voucher.activeSessions ?? 0) > 0 ? "online" : "enabled"
     ];
   return (
     <StatusLabel tone={state.tone} className="text-sm">
@@ -62,6 +66,7 @@ export function VoucherCreateForm({
   const [profile, setProfile] = useState("");
   const [sharedUsers, setSharedUsers] = useState(1);
   const [comment, setComment] = useState("");
+  const override = catalog.profiles.find((item) => item.name === profile)?.overrideSharedUsers;
   return (
     <Panel>
       <form
@@ -165,16 +170,31 @@ export function VoucherCreateForm({
                     label: item.validity
                       ? t("{name}, valid for {duration}", {
                           name: item.name,
-                          duration: formatVoucherValue(item.validity, "uptime", locale),
+                          duration: formatDuration(item.validity, locale),
                         })
                       : item.name,
                   })),
               ]}
             />
           </FieldRow>
-          <FieldRow controlId={`${id}-shared`} label={t("Shared users")}>
+          <FieldRow
+            controlId={`${id}-shared`}
+            label={t("Shared users")}
+            description={
+              override === undefined || override === null
+                ? undefined
+                : t("The {profile} profile sets this to {count} when it is activated.", {
+                    profile,
+                    count:
+                      override === "unlimited" ? t("Unlimited") : formatNumber(override, locale),
+                  })
+            }
+          >
             <Input
               id={`${id}-shared`}
+              aria-describedby={
+                override === undefined || override === null ? undefined : `${id}-shared-description`
+              }
               type="number"
               dir="ltr"
               required
@@ -217,7 +237,7 @@ export function VoucherInspector({
   onReview,
   onClose,
 }: {
-  row: Voucher;
+  row: VoucherRow;
   scope: VoucherScope;
   connected: boolean;
   onReview: (action: VoucherAction) => void;
@@ -304,29 +324,42 @@ export function VoucherInspector({
         <section className="space-y-2">
           <h3 className="px-1 text-sm text-foreground/70">{t("Usage")}</h3>
           <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border/60 bg-border/50">
+            <Detail label={t("Remaining")} className="col-span-2 bg-popover px-3 py-2.5">
+              <RemainingCell row={voucher} />
+            </Detail>
             <Detail label={t("Download")} className="bg-popover px-3 py-2.5">
-              {formatVoucherValue(voucher.download, "download", locale)}
+              {formatBytes(voucher.download, locale)}
             </Detail>
             <Detail label={t("Upload")} className="bg-popover px-3 py-2.5">
-              {formatVoucherValue(voucher.upload, "upload", locale)}
+              {formatBytes(voucher.upload, locale)}
             </Detail>
             <Detail label={t("Uptime")} className="bg-popover px-3 py-2.5">
-              {formatVoucherValue(voucher.uptime, "uptime", locale)}
+              {formatDuration(voucher.uptime, locale)}
             </Detail>
             <Detail label={t("Last seen")} className="bg-popover px-3 py-2.5">
-              {formatVoucherValue(voucher.lastSeen, "lastSeen", locale)}
+              {voucher.lastSeen === "never"
+                ? t("Never")
+                : formatRouterTime(voucher.lastSeen, locale)}
             </Detail>
             <Detail label={t("Active sessions")} className="bg-popover px-3 py-2.5">
-              {formatCountText(voucher.activeSessions, locale)}
+              {formatCount(voucher.activeSessions, locale)}
             </Detail>
             <Detail label={t("Shared users")} className="bg-popover px-3 py-2.5">
-              {formatCountText(voucher.sharedUsers, locale)}
+              {voucher.sharedUsers === "unlimited"
+                ? t("Unlimited")
+                : formatCount(voucher.sharedUsers, locale)}
+            </Detail>
+            <Detail label={t("Created")} className="bg-popover px-3 py-2.5">
+              {formatRouterTime(voucher.registrationDate, locale)}
+            </Detail>
+            <Detail label={t("First login")} className="bg-popover px-3 py-2.5">
+              {formatRouterTime(voucher.firstLoginAt, locale)}
             </Detail>
           </dl>
           <p className="flex items-start gap-2 px-1 text-xs text-muted-foreground">
             <Info aria-hidden="true" className="mt-px size-3.5 shrink-0" />
             {t(
-              "Exact expiry and profile history are not exposed reliably by the legacy API. No expiry is inferred from session end times.",
+              "The router counts usage over the voucher's whole life. Madar calculates what remains of the current profile from the usage it saw since that profile started.",
             )}
           </p>
         </section>
@@ -442,7 +475,9 @@ function VoucherEditForm({
   const [username, setUsername] = useState(voucher.username);
   const [password, setPassword] = useState("");
   const [comment, setComment] = useState(voucher.comment);
-  const [sharedUsers, setSharedUsers] = useState(Number(voucher.sharedUsers) || 1);
+  const [sharedUsers, setSharedUsers] = useState(
+    typeof voucher.sharedUsers === "number" ? Math.max(1, voucher.sharedUsers) : 1,
+  );
   return (
     <Panel>
       <form

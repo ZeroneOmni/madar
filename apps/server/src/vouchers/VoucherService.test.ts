@@ -94,7 +94,7 @@ it.live(
           search: "",
           status: "all",
           profile: "",
-          sort: "username",
+          sort: { field: "username", direction: "asc" },
           offset: 50,
           limit: 50,
         };
@@ -185,8 +185,9 @@ it.live("refreshes changed and removed vouchers without rewriting unchanged rows
       const scope = { router: router.profile, customer: "admin" };
       yield* vouchers.sync(scope, "owner");
       yield* sql`CREATE TABLE cache_write_audit (id TEXT)`;
-      yield* sql`CREATE TRIGGER cache_write_insert AFTER INSERT ON vouchers BEGIN INSERT INTO cache_write_audit VALUES (new.id); END`;
-      yield* sql`CREATE TRIGGER cache_write_delete AFTER DELETE ON vouchers BEGIN INSERT INTO cache_write_audit VALUES (old.id); END`;
+      yield* sql`CREATE TRIGGER cache_write_insert AFTER INSERT ON voucher_cache BEGIN INSERT INTO cache_write_audit VALUES (new.id); END`;
+      yield* sql`CREATE TRIGGER cache_write_update AFTER UPDATE ON voucher_cache BEGIN INSERT INTO cache_write_audit VALUES (new.id); END`;
+      yield* sql`CREATE TRIGGER cache_write_delete AFTER DELETE ON voucher_cache BEGIN INSERT INTO cache_write_audit VALUES (old.id); END`;
       yield* vouchers.sync(scope, "owner");
       expect(yield* sql`SELECT * FROM cache_write_audit`).toEqual([]);
       router.users.get("*1")!.comment = "Changed";
@@ -199,7 +200,7 @@ it.live("refreshes changed and removed vouchers without rewriting unchanged rows
         search: "",
         status: "all",
         profile: "",
-        sort: "username",
+        sort: { field: "username", direction: "asc" },
         offset: 0,
         limit: 50,
       });
@@ -228,7 +229,7 @@ it.live(
           search: "",
           status: "all",
           profile: "",
-          sort: "username",
+          sort: { field: "username", direction: "asc" },
           offset: 0,
           limit: 50,
         };
@@ -292,6 +293,119 @@ it.live("reports profile failure as partial creation and prevents cross-customer
       );
       expect(denied.outcomes[0]?.state).toBe("failed");
       expect(router.users.has("*1")).toBe(true);
+    }).pipe(Effect.provide(services));
+  }).pipe(Effect.scoped),
+);
+
+it.live("writes the router-local creation date on create and never in an edit", () =>
+  Effect.gen(function* () {
+    const router = yield* Effect.acquireDisposable(Effect.promise(() => routerFixture(0)));
+    yield* Effect.gen(function* () {
+      const api = yield* RouterApi.RouterApi;
+      const vouchers = yield* VoucherService.VoucherService;
+      const sql = yield* SqlClient.SqlClient;
+      yield* api.connect({ profile: router.profile, password: "fixture" }, "owner");
+      const scope = { router: router.profile, customer: "admin" };
+      yield* vouchers.sync(scope, "owner");
+      const created = yield* vouchers.mutate(
+        {
+          ...scope,
+          requestId: "test-created-date-01",
+          action: {
+            kind: "create",
+            items: [{ username: "dated", password: "secret" }],
+            profile: "2GB",
+            sharedUsers: 1,
+            comment: "Shop",
+          },
+        },
+        "owner",
+      );
+      expect(created.state).toBe("completed");
+      const add = router.commands.find((words) => words[0]?.endsWith("/user/add"))!;
+      const date = add.find((word) => word.startsWith("=registration-date="));
+      expect(date).toMatch(/^=registration-date=nov\/24\/2026 08:39:\d\d$/);
+      const [row] = (yield* vouchers.list({
+        ...scope,
+        search: "dated",
+        status: "all",
+        profile: "",
+        sort: { field: "username", direction: "asc" },
+        offset: 0,
+        limit: 50,
+      })).items;
+      expect(row).toMatchObject({
+        registrationDate: expect.stringMatching(/^2026-11-24 08:39:\d\d$/),
+        // Activation applied the profile's override-shared-users; the router value wins.
+        sharedUsers: 10,
+        batch: { requested: 1, created: 1, profile: "2GB", comment: "Shop" },
+        remaining: { state: "left", amount: 2147483648, basis: "activation" },
+      });
+      const id = row!.id;
+      yield* vouchers.mutate(
+        {
+          ...scope,
+          requestId: "test-edit-no-date-01",
+          action: { kind: "edit", id, username: "dated", sharedUsers: 2, comment: "" },
+        },
+        "owner",
+      );
+      const edit = router.commands.find((words) => words[0]?.endsWith("/user/set"))!;
+      expect(edit.some((word) => word.startsWith("=registration-date"))).toBe(false);
+      const cached = JSON.stringify(yield* sql`SELECT * FROM voucher_cache`);
+      for (const secret of ["secret", "fixture-psk", "fixture-reg-key"])
+        expect(cached).not.toContain(secret);
+    }).pipe(Effect.provide(services));
+  }).pipe(Effect.scoped),
+);
+
+it.live("reads sessions for a bounded number of first logins per refresh", () =>
+  Effect.gen(function* () {
+    const router = yield* Effect.acquireDisposable(Effect.promise(() => routerFixture(0)));
+    yield* Effect.gen(function* () {
+      const api = yield* RouterApi.RouterApi;
+      const vouchers = yield* VoucherService.VoucherService;
+      yield* api.connect({ profile: router.profile, password: "fixture" }, "owner");
+      const scope = { router: router.profile, customer: "admin" };
+      const total = VoucherStore.FIRST_LOGIN_READS_PER_REFRESH + 5;
+      for (let i = 1; i <= total; i++)
+        router.users.set(`*${i}`, {
+          ".id": `*${i}`,
+          customer: "admin",
+          username: `day-${i}`,
+          "actual-profile": "Day",
+          "download-used": "0",
+          "upload-used": "0",
+          "uptime-used": "0s",
+          "last-seen": "never",
+        });
+      yield* vouchers.sync(scope, "owner");
+      for (const user of router.users.values()) {
+        user["download-used"] = "100";
+        user["last-seen"] = "nov/24/2026 08:00:00";
+        router.sessions.push(
+          { user: user.username!, customer: "admin", "from-time": "nov/24/2026 07:00:00" },
+          { user: user.username!, customer: "admin", "from-time": "nov/24/2026 07:30:00" },
+        );
+      }
+      const sessionReads = () =>
+        router.commands.filter((words) => words[0] === "/tool/user-manager/session/print").length;
+      yield* vouchers.sync(scope, "owner");
+      expect(sessionReads()).toBe(VoucherStore.FIRST_LOGIN_READS_PER_REFRESH);
+      yield* vouchers.sync(scope, "owner");
+      expect(sessionReads()).toBe(total);
+      yield* vouchers.sync(scope, "owner");
+      expect(sessionReads()).toBe(total);
+      const page = yield* vouchers.list({
+        ...scope,
+        search: "",
+        status: "all",
+        profile: "",
+        sort: { field: "username", direction: "asc" },
+        offset: 0,
+        limit: 50,
+      });
+      expect(page.items.every((row) => row.firstLoginAt === "2026-11-24 07:00:00")).toBe(true);
     }).pipe(Effect.provide(services));
   }).pipe(Effect.scoped),
 );
