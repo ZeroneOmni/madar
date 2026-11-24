@@ -12,7 +12,7 @@ import {
   VoucherField,
   VoucherFieldDraft,
   VoucherFieldOrder,
-  VoucherFieldTarget,
+  VoucherFieldDelete,
   VoucherFieldValues,
   VoucherFieldValuesResult,
 } from "./vouchers.ts";
@@ -466,7 +466,7 @@ export class EnvironmentHttpApi extends HttpApi.make("environment")
       )
       .add(
         HttpApiEndpoint.post("deleteField", "/api/vouchers/fields/delete", {
-          payload: VoucherFieldTarget,
+          payload: VoucherFieldDelete,
           success: Schema.Array(VoucherField),
           error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
         }).middleware(EnvironmentAuthenticatedAuth),

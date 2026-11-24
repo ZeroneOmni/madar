@@ -295,7 +295,14 @@ function CustomerVouchers({
   );
   const [savedFilter, setFieldFilter] = useState<VoucherFieldFilter | null>(null);
   // A filter on a deleted field no longer applies.
-  const fieldFilter = savedFilter && fieldById.has(savedFilter.fieldId) ? savedFilter : null;
+  const filteredField = savedFilter ? fieldById.get(savedFilter.fieldId) : undefined;
+  const fieldFilter =
+    savedFilter &&
+    filteredField &&
+    (savedFilter.op !== "choice" ||
+      filteredField.choices.some((choice) => choice.id === savedFilter.choiceId))
+      ? savedFilter
+      : null;
   const [fieldsDialog, setFieldsDialog] = useState<{ adding: boolean } | null>(null);
   const [filtering, setFiltering] = useState<VoucherField | null>(null);
   const [bulkField, setBulkField] = useState(false);
@@ -328,6 +335,8 @@ function CustomerVouchers({
     limit: 50,
   };
   const reload = () => {
+    // A field edit can move vouchers out of an active field filter; start again from page one.
+    if (fieldFilter) setOffset(0);
     pageCache.clear();
     setRevision((value) => value + 1);
   };
@@ -335,10 +344,18 @@ function CustomerVouchers({
     return voucherClient
       .setFieldValues({ ...scope, ids: selection, values: [{ fieldId, value }] })
       .then(
-        () => {
+        (result) => {
           reload();
           void voucherClient.fields().then(onFields, () => {});
-          return "";
+          return result.updated < selection.length
+            ? t(
+                "Saved for {updated} of {count} vouchers. The others are no longer saved on this PC.",
+                {
+                  updated: formatNumber(result.updated, locale),
+                  count: formatNumber(selection.length, locale),
+                },
+              )
+            : "";
         },
         (cause) => voucherError(cause),
       );

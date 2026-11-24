@@ -121,7 +121,8 @@ export type VoucherFieldDraft = typeof VoucherFieldDraft.Type;
 export const VoucherFieldOrder = Schema.Struct({
   ids: Schema.Array(FieldId).check(Schema.isMaxLength(200)),
 });
-export const VoucherFieldTarget = Schema.Struct({ id: FieldId });
+/** Deletes a field only while it still has the value count the operator confirmed. */
+export const VoucherFieldDelete = Schema.Struct({ id: FieldId, valueCount: Integer });
 export const VoucherFieldFilter = Schema.Union([
   Schema.Struct({ fieldId: FieldId, op: Schema.Literals(["empty", "filled"]) }),
   Schema.Struct({ fieldId: FieldId, op: Schema.Literal("contains"), text: Name }),

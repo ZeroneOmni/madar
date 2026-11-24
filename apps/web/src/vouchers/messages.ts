@@ -384,4 +384,11 @@ export const voucherArabic = {
     "يوجد حقل بهذا الاسم. اختر اسمًا آخر.",
   "This field no longer exists. Reopen My fields to see the current list.":
     "لم يعد هذا الحقل موجودًا. افتح «حقولي» لعرض القائمة الحالية.",
+  "This voucher is no longer saved on this PC. Refresh vouchers and try again.":
+    "لم تعد هذه القسيمة محفوظة على هذا الجهاز. حدّث القسائم وحاول مجددًا.",
+  "Finish the number or clear the field before saving.": "أكمل الرقم أو امسح الحقل قبل الحفظ.",
+  "Saved for {updated} of {count} vouchers. The others are no longer saved on this PC.":
+    "حُفظت القيمة لـ {updated} من أصل {count} قسيمة. القسائم الأخرى لم تعد محفوظة على هذا الجهاز.",
+  "The number of saved values changed. Check the new count and confirm again.":
+    "تغيّر عدد القيم المحفوظة. راجع العدد الجديد ثم أكّد مرة أخرى.",
 } as const;

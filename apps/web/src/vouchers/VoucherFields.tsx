@@ -103,11 +103,16 @@ function FieldEditor({
   field,
   value,
   onChange,
+  disabled = false,
+  onInvalid,
 }: {
   id: string;
   field: VoucherField;
   value: VoucherFieldValue | null;
   onChange: (value: VoucherFieldValue | null) => void;
+  disabled?: boolean;
+  /** An unfinished number (such as "1e") reads as empty; it must not count as a clear. */
+  onInvalid?: (invalid: boolean) => void;
 }) {
   const { t } = useLocale();
   const [number, setNumber] = useState(typeof value === "number" ? String(value) : "");
@@ -118,6 +123,7 @@ function FieldEditor({
           id={id}
           dir="auto"
           maxLength={512}
+          disabled={disabled}
           value={typeof value === "string" ? value : ""}
           onChange={(event) => onChange(event.target.value.trim() ? event.target.value : null)}
         />
@@ -129,9 +135,17 @@ function FieldEditor({
           type="number"
           dir="ltr"
           step="any"
+          disabled={disabled}
           value={number}
+          // An unfinished number in an empty input leaves the value "", so onChange may not fire.
+          onInput={(event) => onInvalid?.(event.currentTarget.validity.badInput)}
           onChange={(event) => {
+            const invalid = event.target.validity.badInput;
+            onInvalid?.(invalid);
+            // Kept in sync even while unfinished; otherwise React restores the last valid text
+            // and drops what was typed ("1e3" would lose its exponent).
             setNumber(event.target.value);
+            if (invalid) return;
             const parsed = Number(event.target.value);
             onChange(event.target.value.trim() && Number.isFinite(parsed) ? parsed : null);
           }}
@@ -143,6 +157,7 @@ function FieldEditor({
           id={id}
           type="date"
           dir="ltr"
+          disabled={disabled}
           value={typeof value === "string" ? value : ""}
           onChange={(event) => onChange(event.target.value || null)}
         />
@@ -151,6 +166,7 @@ function FieldEditor({
       return (
         <Choice
           label={field.name}
+          disabled={disabled}
           value={value === true ? "yes" : value === false ? "no" : ""}
           onChange={(next) => onChange(next === "yes" ? true : next === "no" ? false : null)}
           options={[
@@ -164,6 +180,7 @@ function FieldEditor({
       return (
         <Choice
           label={field.name}
+          disabled={disabled}
           value={typeof value === "number" ? String(value) : ""}
           onChange={(next) => onChange(next ? Number(next) : null)}
           options={[
@@ -197,6 +214,7 @@ export function InspectorFields({
       ? (saved[String(field.id)] ?? null)
       : (row.fields[String(field.id)] ?? null);
   const [saving, setSaving] = useState(false);
+  const [invalid, setInvalid] = useState<ReadonlySet<number>>(new Set());
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const changed = fields.filter(
@@ -216,7 +234,11 @@ export function InspectorFields({
         })),
       })
       .then(
-        () => {
+        (result) => {
+          if (result.updated === 0) {
+            setError("This voucher is no longer saved on this PC. Refresh vouchers and try again.");
+            return;
+          }
           setSaved((current) => ({ ...current, ...draft }));
           setDraft({});
           setMessage(t("Saved on this PC."));
@@ -240,6 +262,15 @@ export function InspectorFields({
               field={field}
               value={String(field.id) in draft ? (draft[String(field.id)] ?? null) : initial(field)}
               onChange={(value) => setDraft((current) => ({ ...current, [field.id]: value }))}
+              disabled={saving}
+              onInvalid={(bad) =>
+                setInvalid((current) => {
+                  const next = new Set(current);
+                  if (bad) next.add(field.id);
+                  else next.delete(field.id);
+                  return next;
+                })
+              }
             />
           </FieldRow>
         ))}
@@ -247,12 +278,21 @@ export function InspectorFields({
       <div className="flex flex-wrap items-center gap-2 px-1">
         <LocalOnlyNote />
         <div className="ms-auto">
-          <Button size="sm" disabled={changed.length === 0 || saving} onClick={() => void save()}>
+          <Button
+            size="sm"
+            disabled={changed.length === 0 || saving || invalid.size > 0}
+            onClick={() => void save()}
+          >
             {saving ? <Spinner aria-hidden="true" role="presentation" /> : null}
             {t("Save my fields")}
           </Button>
         </div>
       </div>
+      {invalid.size > 0 && (
+        <p className="px-1 text-xs text-destructive">
+          {t("Finish the number or clear the field before saving.")}
+        </p>
+      )}
       <p role="status" className="px-1 text-xs text-muted-foreground">
         {message}
       </p>
@@ -296,6 +336,7 @@ export function VoucherFieldsDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState<VoucherField | null>(null);
+  const [countChanged, setCountChanged] = useState(false);
   async function run(task: () => Promise<readonly VoucherField[]>) {
     setBusy(true);
     setError("");
@@ -343,7 +384,14 @@ export function VoucherFieldsDialog({
                       first={index === 0}
                       last={index === fields.length - 1}
                       onMove={(step) => move(index, step)}
-                      onDelete={() => setDeleting(field)}
+                      onDelete={() => {
+                        setCountChanged(false);
+                        void voucherClient.fields().then(
+                          // Refreshes and deleted vouchers change the count; confirm with today's.
+                          (next) => setDeleting(next.find((item) => item.id === field.id) ?? null),
+                          (cause) => setError(voucherError(cause)),
+                        );
+                      }}
                       onSave={(draft) => run(() => voucherClient.saveField(draft))}
                     />
                   ))}
@@ -438,7 +486,10 @@ export function VoucherFieldsDialog({
       <AlertDialog
         open={deleting !== null}
         onOpenChange={(next) => {
-          if (!next) setDeleting(null);
+          if (!next) {
+            setDeleting(null);
+            setCountChanged(false);
+          }
         }}
       >
         <AlertDialogPopup>
@@ -454,6 +505,11 @@ export function VoucherFieldsDialog({
                   )
                 : t("No voucher has a value in this field yet. This cannot be undone.")}
             </AlertDialogDescription>
+            {countChanged && (
+              <p role="alert" className="text-sm text-warning-foreground">
+                {t("The number of saved values changed. Check the new count and confirm again.")}
+              </p>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogClose render={<Button variant="outline" />}>{t("Cancel")}</AlertDialogClose>
@@ -463,7 +519,33 @@ export function VoucherFieldsDialog({
               onClick={() => {
                 const field = deleting;
                 if (!field) return;
-                void run(() => voucherClient.deleteField(field.id)).then(() => setDeleting(null));
+                setBusy(true);
+                void voucherClient.deleteField(field.id, field.valueCount).then(
+                  (next) => {
+                    onFields(next);
+                    setDeleting(null);
+                    setBusy(false);
+                  },
+                  (cause) =>
+                    void voucherClient.fields().then(
+                      (next) => {
+                        const fresh = next.find((item) => item.id === field.id) ?? null;
+                        if (fresh && fresh.valueCount !== field.valueCount) {
+                          setDeleting(fresh);
+                          setCountChanged(true);
+                        } else {
+                          setError(voucherError(cause));
+                          setDeleting(null);
+                        }
+                        setBusy(false);
+                      },
+                      () => {
+                        setError(voucherError(cause));
+                        setDeleting(null);
+                        setBusy(false);
+                      },
+                    ),
+                );
               }}
             >
               {t("Delete field")}
@@ -598,6 +680,7 @@ export function BulkFieldDialog({
   const id = useId();
   const [fieldId, setFieldId] = useState(fields[0]?.id ?? 0);
   const [value, setValue] = useState<VoucherFieldValue | null>(null);
+  const [invalid, setInvalid] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const field = fields.find((item) => item.id === fieldId) ?? fields[0];
@@ -621,6 +704,7 @@ export function BulkFieldDialog({
                 onChange={(next) => {
                   setFieldId(Number(next));
                   setValue(null);
+                  setInvalid(false);
                 }}
                 options={fields.map((item) => ({ value: String(item.id), label: item.name }))}
               />
@@ -637,6 +721,7 @@ export function BulkFieldDialog({
                   field={field}
                   value={value}
                   onChange={setValue}
+                  onInvalid={setInvalid}
                 />
               </label>
             )}
@@ -653,7 +738,7 @@ export function BulkFieldDialog({
             {t("Cancel")}
           </Button>
           <Button
-            disabled={busy || !field}
+            disabled={busy || !field || invalid}
             onClick={() => {
               if (!field) return;
               setBusy(true);

@@ -213,7 +213,10 @@ it.effect("refuses duplicate names and type changes, and deletes a field with it
     expect((yield* fields.list()).find((field) => field.id === shop.id)?.valueCount).toBe(2);
     const reordered = yield* fields.reorder([paid.id, shop.id]);
     expect(reordered.slice(0, 2).map((field) => field.name)).toEqual(["Paid", "Shop"]);
-    const remaining = yield* fields.remove(shop.id);
+    // A stale count is refused, so values added after the confirmation are not lost silently.
+    expect((yield* Effect.flip(fields.remove(shop.id, 1))).reason).toBe("conflict");
+    expect((yield* fields.list()).some((field) => field.id === shop.id)).toBe(true);
+    const remaining = yield* fields.remove(shop.id, 2);
     expect(remaining.map((field) => field.name)).not.toContain("Shop");
     const sql = yield* SqlClient.SqlClient;
     expect(yield* sql`SELECT * FROM voucher_field_values WHERE field_id = ${shop.id}`).toEqual([]);
@@ -289,5 +292,65 @@ it.effect("moves values with a renamed voucher and never gives them to a reused 
     const reused = (yield* store.list(query({ search: "v-2" }))).items[0];
     expect(reused).toMatchObject({ id: "*9", fields: {} });
     expect((yield* fields.list()).find((field) => field.id === shop.id)?.valueCount).toBe(1);
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("never reuses the id of a deleted field or choice", () =>
+  Effect.gen(function* () {
+    const { fields, area } = yield* setup;
+    const [, south] = area.choices;
+    yield* fields.save({
+      id: area.id,
+      name: area.name,
+      type: "choice",
+      choices: [{ id: area.choices[0]!.id, label: "North" }],
+    });
+    const afterChoice = yield* fields.save({
+      id: area.id,
+      name: area.name,
+      type: "choice",
+      choices: [{ id: area.choices[0]!.id, label: "North" }, { label: "West" }],
+    });
+    const west = afterChoice.find((field) => field.id === area.id)!.choices[1]!;
+    expect(west.id).not.toBe(south!.id);
+    yield* fields.remove(area.id, 0);
+    const created = yield* fields.save({ name: "Replacement", type: "text", choices: [] });
+    expect(created.find((field) => field.name === "Replacement")!.id).not.toBe(area.id);
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("keeps every voucher's values through a username swap and a rename chain", () =>
+  Effect.gen(function* () {
+    const { store, fields, shop } = yield* setup;
+    yield* fields.setValues({
+      ...scope,
+      ids: ["*1"],
+      values: [{ fieldId: shop.id, value: "one" }],
+    });
+    yield* fields.setValues({
+      ...scope,
+      ids: ["*2"],
+      values: [{ fieldId: shop.id, value: "two" }],
+    });
+    yield* fields.setValues({
+      ...scope,
+      ids: ["*3"],
+      values: [{ fieldId: shop.id, value: "three" }],
+    });
+    // Swap *1 and *2, and chain *3 (v-3) into the name *4 (v-10) leaves for v-11.
+    yield* store.replace(
+      scope,
+      [voucher("*1", "v-2"), voucher("*2", "v-1"), voucher("*3", "v-10"), voucher("*4", "v-11")],
+      "t2",
+    );
+    const values = new Map(
+      (yield* store.list(query())).items.map((row) => [row.id, row.fields[String(shop.id)]]),
+    );
+    expect(Object.fromEntries(values)).toEqual({
+      "*1": "one",
+      "*2": "two",
+      "*3": "three",
+      "*4": undefined,
+    });
   }).pipe(Effect.provide(layer)),
 );

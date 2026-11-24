@@ -4,13 +4,14 @@ import * as SqlClient from "effect/sql/SqlClient";
 export default Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   // Operator-defined fields, saved only in Madar and never sent to the router.
+  // AUTOINCREMENT: saved layouts and filters keep field and choice ids after a delete.
   yield* sql`CREATE TABLE voucher_fields (
-    id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE,
     type TEXT NOT NULL CHECK (type IN ('text', 'number', 'date', 'boolean', 'choice')),
     position INTEGER NOT NULL, created_at TEXT NOT NULL
   )`;
   yield* sql`CREATE TABLE voucher_field_choices (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     field_id INTEGER NOT NULL REFERENCES voucher_fields(id) ON DELETE CASCADE,
     label TEXT NOT NULL, position INTEGER NOT NULL,
     UNIQUE(field_id, label)

@@ -81,7 +81,7 @@ export const layer = HttpApiBuilder.group(
         "deleteField",
         Effect.fn("vouchers.deleteField")(function* ({ payload }) {
           yield* requireEnvironmentScope(AuthAccessWriteScope);
-          return yield* fields.remove(payload.id);
+          return yield* fields.remove(payload.id, payload.valueCount);
         }),
       )
       .handle(

@@ -16,6 +16,8 @@ import {
 import { routerKey } from "../routers/RouterApi.ts";
 
 const isVoucherFailure = Schema.is(VoucherFailure);
+/** Matches the reorder request limit in the contract. */
+const MAX_FIELDS = 200;
 const fail = (reason: VoucherFailure["reason"]) => new VoucherFailure({ reason });
 const toFailure = (error: unknown) => (isVoucherFailure(error) ? error : fail("storage"));
 /** A real calendar date; "2026-02-30" rolls over when parsed, so it fails the round trip. */
@@ -62,7 +64,10 @@ export class VoucherFieldStore extends Context.Service<
     readonly reorder: (
       ids: readonly number[],
     ) => Effect.Effect<readonly VoucherField[], VoucherFailure>;
-    readonly remove: (id: number) => Effect.Effect<readonly VoucherField[], VoucherFailure>;
+    readonly remove: (
+      id: number,
+      valueCount: number,
+    ) => Effect.Effect<readonly VoucherField[], VoucherFailure>;
     readonly setValues: (
       input: VoucherFieldValues,
     ) => Effect.Effect<{ readonly updated: number }, VoucherFailure>;
@@ -113,6 +118,8 @@ const make = Effect.gen(function* () {
         if (clash.some((row) => row.id !== draft.id)) return yield* fail("conflict");
         let id = draft.id;
         if (id === undefined) {
+          const total = yield* sql<{ count: number }>`SELECT COUNT(*) AS count FROM voucher_fields`;
+          if ((total[0]?.count ?? 0) >= MAX_FIELDS) return yield* fail("rejected");
           const created = yield* sql<{ id: number }>`INSERT INTO voucher_fields ${sql.insert({
             name: draft.name.trim(),
             type: draft.type,
@@ -163,8 +170,17 @@ const make = Effect.gen(function* () {
     return yield* list();
   }, Effect.mapError(toFailure));
 
-  const remove = Effect.fn("VoucherFieldStore.remove")(function* (id: number) {
-    yield* sql`DELETE FROM voucher_fields WHERE id = ${id}`;
+  const remove = Effect.fn("VoucherFieldStore.remove")(function* (id: number, valueCount: number) {
+    yield* sql.withTransaction(
+      Effect.gen(function* () {
+        const rows = yield* sql<{
+          count: number;
+        }>`SELECT COUNT(*) AS count FROM voucher_field_values WHERE field_id = ${id}`;
+        // Values added since the operator confirmed would be lost without being counted.
+        if ((rows[0]?.count ?? 0) !== valueCount) return yield* fail("conflict");
+        yield* sql`DELETE FROM voucher_fields WHERE id = ${id}`;
+      }),
+    );
     return yield* list();
   }, Effect.mapError(toFailure));
 

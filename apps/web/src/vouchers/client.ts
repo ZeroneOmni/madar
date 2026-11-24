@@ -77,8 +77,8 @@ export const voucherClient = {
     call("fields/save", draft, Schema.Array(VoucherField), undefined, fieldMessages),
   reorderFields: (ids: readonly number[]) =>
     call("fields/reorder", { ids }, Schema.Array(VoucherField), undefined, fieldMessages),
-  deleteField: (id: number) =>
-    call("fields/delete", { id }, Schema.Array(VoucherField), undefined, fieldMessages),
+  deleteField: (id: number, valueCount: number) =>
+    call("fields/delete", { id, valueCount }, Schema.Array(VoucherField), undefined, fieldMessages),
   setFieldValues: (input: VoucherFieldValues) =>
     call("fields/values", input, VoucherFieldValuesResult, undefined, fieldMessages),
 };

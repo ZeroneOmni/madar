@@ -696,22 +696,25 @@ const make = Effect.gen(function* () {
       (voucher) => activations.has(voucher.id) || changedSet.has(voucher),
     );
     if (touched.length === 0) return;
-    for (const voucher of changed) {
+    // A rename keeps the voucher's Madar data. Every renamed voucher first moves to a name made
+    // from its router id, so a chain (A→B, B→C) or a swap never deletes data that is still in use.
+    const renamed = changed.flatMap((voucher) => {
       const old = previous.get(voucher.id);
-      if (old && old.username !== voucher.username) {
-        // A rename keeps the voucher's Madar data; stale rows for the new name belong to another voucher.
-        for (const table of [
-          "voucher_baselines",
-          "voucher_batch_members",
-          "voucher_field_values",
-        ]) {
-          yield* sql`DELETE FROM ${sql(table)} WHERE router_key = ${key} AND customer = ${scope.customer}
-            AND username = ${voucher.username} AND router_id != ${voucher.id}`;
-          yield* sql`UPDATE ${sql(table)} SET username = ${voucher.username} WHERE router_key = ${key}
-            AND customer = ${scope.customer} AND username = ${old.username} AND router_id = ${voucher.id}`;
-        }
+      return old && old.username !== voucher.username ? [{ voucher, from: old.username }] : [];
+    });
+    const madarTables = ["voucher_baselines", "voucher_batch_members", "voucher_field_values"];
+    for (const { voucher, from } of renamed)
+      for (const table of madarTables)
+        yield* sql`UPDATE ${sql(table)} SET username = ${`\u0000${voucher.id}`} WHERE router_key = ${key}
+          AND customer = ${scope.customer} AND username = ${from} AND router_id = ${voucher.id}`;
+    for (const { voucher } of renamed)
+      for (const table of madarTables) {
+        // Rows left under the new name belong to a voucher that no longer exists.
+        yield* sql`DELETE FROM ${sql(table)} WHERE router_key = ${key} AND customer = ${scope.customer}
+          AND username = ${voucher.username} AND router_id != ${voucher.id}`;
+        yield* sql`UPDATE ${sql(table)} SET username = ${voucher.username} WHERE router_key = ${key}
+          AND customer = ${scope.customer} AND username = ${`\u0000${voucher.id}`} AND router_id = ${voucher.id}`;
       }
-    }
     for (let start = 0; start < changed.length; start += 100) {
       const rows = changed.slice(start, start + 100).map((voucher) => ({
         router_key: key,

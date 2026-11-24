@@ -102,3 +102,40 @@ it("saves a typed local field from the details panel without a router connection
   expect(onSaved).toHaveBeenCalledOnce();
   await expect.element(save).toBeDisabled();
 });
+
+it("does not report a local field as saved when the voucher is gone", async () => {
+  using _setValues = vi.spyOn(voucherClient, "setFieldValues").mockResolvedValue({ updated: 0 });
+  const onSaved = vi.fn();
+  await using screen = await render(
+    <VoucherInspector
+      row={voucherRow()}
+      scope={{
+        router: {
+          id: "test",
+          name: "Test",
+          host: "127.0.0.1",
+          port: 8728,
+          transport: "tcp",
+          username: "admin",
+          color: "blue",
+          icon: "router",
+          label: "",
+        },
+        customer: "admin",
+      }}
+      connected={false}
+      onReview={vi.fn()}
+      onClose={vi.fn()}
+      fields={[{ id: 2, name: "Shop", type: "text", choices: [], valueCount: 0 }]}
+      onFieldsSaved={onSaved}
+    />,
+  );
+  await screen.getByRole("textbox", { name: "Shop" }).fill("North");
+  await screen.getByRole("button", { name: "Save my fields" }).click();
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent(
+      "This voucher is no longer saved on this PC. Refresh vouchers and try again.",
+    );
+  expect(onSaved).not.toHaveBeenCalled();
+});
