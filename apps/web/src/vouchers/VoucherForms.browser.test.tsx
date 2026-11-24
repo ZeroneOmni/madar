@@ -2,6 +2,7 @@ import { expect, it, vi } from "vite-plus/test";
 import { render } from "../../test/render";
 import { voucherClient } from "./client";
 import { VoucherInspector } from "./VoucherForms";
+import { voucherRow } from "../../test/voucherRow";
 
 it("keeps an existing username visible during editing despite legacy masking preferences", async () => {
   const previous = localStorage.getItem("madar:shell-settings");
@@ -15,21 +16,7 @@ it("keeps an existing username visible during editing despite legacy masking pre
       else localStorage.setItem("madar:shell-settings", previous);
     },
   };
-  const voucher = {
-    id: "*1",
-    customer: "admin",
-    username: "private-voucher",
-    disabled: false,
-    profile: "",
-    sharedUsers: "1",
-    comment: "",
-    upload: "",
-    download: "",
-    uptime: "",
-    lastSeen: "",
-    activeSessions: "",
-    observedAt: "2026-11-14T00:00:00Z",
-  };
+  const voucher = voucherRow({ username: "private-voucher" });
   using _details = vi.spyOn(voucherClient, "details").mockResolvedValue({
     voucher,
     password: "visible-password",

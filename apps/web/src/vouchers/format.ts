@@ -65,3 +65,77 @@ export function formatVoucherValue(
   }
   return value;
 }
+
+const numberFormat = (locale: Locale, maximumFractionDigits = 2) =>
+  new Intl.NumberFormat(locale, {
+    maximumFractionDigits,
+    numberingSystem: locale === "ar" ? "arab" : "latn",
+  });
+
+export function formatBytes(value: number | null, locale: Locale): string {
+  if (value === null) return "–";
+  const units = ["bytes", "KiB", "MiB", "GiB", "TiB"];
+  let amount = value;
+  let unit = 0;
+  while (amount >= 1024 && unit < units.length - 1) {
+    amount /= 1024;
+    unit++;
+  }
+  return `${numberFormat(locale, amount >= 100 ? 0 : amount >= 10 ? 1 : 2).format(amount)} ${translate(locale, units[unit]!)}`;
+}
+
+/** Exact durations, like RouterOS prints them: "1 d 2 h 3 m". */
+export function formatDuration(seconds: number | null, locale: Locale): string {
+  if (seconds === null) return "–";
+  const number = numberFormat(locale);
+  const parts: string[] = [];
+  let rest = seconds;
+  for (const [size, unit] of [
+    [604800, "weeks"],
+    [86400, "days"],
+    [3600, "hours"],
+    [60, "minutes"],
+    [1, "seconds"],
+  ] as const) {
+    if (rest >= size) {
+      parts.push(`${number.format(Math.floor(rest / size))} ${translate(locale, unit)}`);
+      rest %= size;
+    }
+  }
+  return parts.join(" ") || `${number.format(0)} ${translate(locale, "seconds")}`;
+}
+
+/** The largest whole unit, for "ends in 3 days" style summaries. */
+export function formatSpan(seconds: number, locale: Locale): string {
+  const number = numberFormat(locale, 0);
+  for (const [size, one, many] of [
+    [86400, "{count} day", "{count} days"],
+    [3600, "{count} hour", "{count} hours"],
+    [60, "{count} minute", "{count} minutes"],
+  ] as const) {
+    if (seconds >= size) {
+      const count = Math.floor(seconds / size);
+      return translate(locale, count === 1 ? one : many, { count: number.format(count) });
+    }
+  }
+  return translate(locale, "less than a minute");
+}
+
+/** Router-local wall-clock text, shown as written by the router and never shifted by the PC zone. */
+export function formatRouterTime(value: string | null, locale: Locale): string {
+  if (!value) return "–";
+  const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return value;
+  const [year, month, day, hour, minute] = match.slice(1).map(Number);
+  return new Intl.DateTimeFormat(locale, {
+    numberingSystem: locale === "ar" ? "arab" : "latn",
+    calendar: "gregory",
+    timeZone: "UTC",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(Date.UTC(year!, month! - 1, day!, hour, minute));
+}
+
+export function formatCount(value: number | null, locale: Locale): string {
+  return value === null ? "–" : numberFormat(locale, 2).format(value);
+}

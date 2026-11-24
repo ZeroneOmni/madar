@@ -21,11 +21,61 @@ export async function routerFixture(
       "shared-users": "1",
       comment: "Fixture",
       "upload-used": "100",
-      "download-used": "200",
+      "download-used": "200B",
       "uptime-used": "10m",
-      "last-seen": "never",
+      "last-seen": "mar/19/2018 21:48:15",
       "active-sessions": "0",
+      "wireless-psk": "fixture-psk",
+      "reg-key": "fixture-reg-key",
     });
+  // Formats measured on RouterOS 6.48.4. Zero limits mean unlimited.
+  const profiles = [
+    {
+      name: "Day",
+      owner: "admin",
+      validity: "1d",
+      "starts-at": "logon",
+      price: "1",
+      "override-shared-users": "off",
+    },
+    {
+      name: "Week",
+      owner: "admin",
+      validity: "1w",
+      "starts-at": "now",
+      price: "5",
+      "override-shared-users": "off",
+    },
+    {
+      name: "2GB",
+      owner: "admin",
+      validity: "0s",
+      "starts-at": "logon",
+      price: "3",
+      "override-shared-users": "10",
+    },
+  ];
+  const limitations = [
+    {
+      name: "2GB",
+      owner: "admin",
+      "transfer-limit": "2147483648B",
+      "download-limit": "0B",
+      "upload-limit": "0B",
+      "uptime-limit": "0s",
+    },
+  ];
+  const links = [
+    {
+      profile: "2GB",
+      limitation: "2GB",
+      "from-time": "0s",
+      "till-time": "23h59m59s",
+      weekdays: "sunday,monday,tuesday,wednesday,thursday,friday,saturday",
+    },
+  ];
+  const sessions: Record<string, string>[] = [];
+  const clock = { date: "nov/24/2026", time: "08:39:07" };
   const sockets = new Set<NodeNet.Socket>();
   const commands: readonly string[][] = [];
   let sequence = initial;
@@ -42,6 +92,12 @@ export async function routerFixture(
         const command = words[0] ?? "";
         const attributes = apiAttributes(words);
         const tag = words.find((word) => word.startsWith(".tag="));
+        const filters = words.filter((word) => word.startsWith("?"));
+        const matches = (value: Record<string, string>) =>
+          filters.every((word) => {
+            const end = word.indexOf("=");
+            return value[word.slice(1, end)] === word.slice(end + 1);
+          });
         const send = (words: readonly string[]) =>
           socket.write(encodeApiSentence([...words, ...(tag ? [tag] : [])]));
         const row = (value: Record<string, string>) => {
@@ -76,37 +132,34 @@ export async function routerFixture(
         } else if (command === "/system/identity/print") row({ name: "Madar test router" });
         else if (command === "/system/resource/print")
           row({ version: options.version ?? "6.48.4" });
+        else if (command === "/system/clock/print") row(clock);
         else if (command === "/tool/user-manager/customer/print") row({ login: "admin" });
-        else if (command === "/tool/user-manager/profile/print") {
-          row({ name: "Day", owner: "admin", validity: "1d", "starts-at": "logon", price: "1" });
-          row({ name: "Week", owner: "admin", validity: "1w", "starts-at": "now", price: "5" });
-        } else if (command === "/tool/user-manager/user/print") {
-          const filters = words.filter((word) => word.startsWith("?"));
-          for (const user of users.values())
-            if (
-              filters.every((word) => {
-                const end = word.indexOf("=");
-                return user[word.slice(1, end)] === word.slice(end + 1);
-              })
-            )
-              row(user);
+        else if (command === "/tool/user-manager/profile/print") profiles.forEach(row);
+        else if (command === "/tool/user-manager/profile/limitation/print")
+          limitations.forEach(row);
+        else if (command === "/tool/user-manager/profile/profile-limitation/print")
+          links.forEach(row);
+        else if (command === "/tool/user-manager/user/print") {
+          for (const user of users.values()) if (matches(user)) row(user);
         } else if (command === "/tool/user-manager/user/add") {
           if ([...users.values()].some((user) => user.username === attributes.username))
             send(["!trap", "=message=already exists"]);
           else {
             const id = `*${++sequence}`;
-            users.set(id, { ".id": id, ...attributes, disabled: "false", "actual-profile": "" });
+            users.set(id, {
+              ".id": id,
+              ...attributes,
+              disabled: "false",
+              "actual-profile": "",
+              "download-used": "0",
+              "upload-used": "0",
+              "uptime-used": "0s",
+              "last-seen": "never",
+              "active-sessions": "0",
+            });
           }
         } else if (command === "/tool/user-manager/session/print") {
-          row({
-            ".id": "*s1",
-            user: attributes.user ?? "",
-            customer: "admin",
-            uptime: "10m",
-            upload: "100",
-            download: "200",
-            started: "nov/14/2026 12:00:00",
-          });
+          for (const session of sessions) if (matches(session)) row(session);
         } else {
           const id =
             (command.endsWith("/create-and-activate-profile") || command.endsWith("/reset-counters")
@@ -124,9 +177,13 @@ export async function routerFixture(
             user["upload-used"] = "0";
             user["download-used"] = "0";
             user["uptime-used"] = "0s";
-          } else if (command.endsWith("/create-and-activate-profile"))
+          } else if (command.endsWith("/create-and-activate-profile")) {
             user["actual-profile"] = attributes.profile!;
-          else send(["!trap", "=message=no such command"]);
+            const override = profiles.find((item) => item.name === attributes.profile)?.[
+              "override-shared-users"
+            ];
+            if (override && override !== "off") user["shared-users"] = override;
+          } else send(["!trap", "=message=no such command"]);
         }
         if (drop === command) {
           drop = "";
@@ -161,6 +218,11 @@ export async function routerFixture(
     profile,
     commands,
     users,
+    profiles,
+    limitations,
+    links,
+    sessions,
+    clock,
     dropAfter: (command: string) => {
       drop = command;
     },

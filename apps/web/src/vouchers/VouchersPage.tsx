@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type {
   RouterProfile,
-  Voucher,
+  VoucherRow,
   VoucherCatalog,
   VoucherQuery,
   VoucherPage,
@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import { useRouters } from "../routers/RouterConnections";
 import { Button } from "../components/ui/button";
-import { Checkbox } from "../components/ui/checkbox";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../components/ui/input-group";
 import { Skeleton } from "../components/ui/skeleton";
 import { Spinner } from "../components/ui/spinner";
@@ -63,10 +62,14 @@ import { CopyableText } from "../shell/CopyableText";
 import { navigateShell } from "../shell/routes";
 import { useLocale } from "../useLocale";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { cn, randomUUID } from "../lib/utils";
+import { randomUUID } from "../lib/utils";
 import { voucherClient, voucherError, downloadCsv, VoucherRequestError } from "./client";
-import { VoucherCreateForm, VoucherInspector, VoucherState } from "./VoucherForms";
-import { formatVoucherValue } from "./format";
+import { VoucherCreateForm, VoucherInspector } from "./VoucherForms";
+import { columnOf, type ColumnKey } from "./columns";
+import { cellText } from "./VoucherCells";
+import { ColumnsPopover, SortMenu } from "./VoucherLayoutControls";
+import { VoucherTable } from "./VoucherTable";
+import { useVoucherLayout } from "./useVoucherLayout";
 import { formatDateTime, formatNumber } from "../locale";
 
 const pageCache = new Map<string, VoucherPage>();
@@ -227,6 +230,9 @@ const statusOptions = [
   ["disabled", "Disabled"],
   ["online", "Online at last check"],
   ["unassigned", "No profile"],
+  ["low", "Nearly used up or expiring"],
+  ["ended", "Used up or expired"],
+  ["unknown", "Remaining unknown"],
 ] as const;
 
 function CustomerVouchers({
@@ -246,11 +252,12 @@ function CustomerVouchers({
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<VoucherQuery["status"]>("all");
   const [profile, setProfile] = useState("");
-  const [sort, setSort] = useState<VoucherQuery["sort"]>("username");
+  const layout = useVoucherLayout();
+  const [announcement, setAnnouncement] = useState("");
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
   const [selection, setSelection] = useState<string[]>([]);
-  const [inspected, setInspected] = useState<Voucher | null>(null);
+  const [inspected, setInspected] = useState<VoucherRow | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -269,7 +276,7 @@ function CustomerVouchers({
     search,
     status,
     profile,
-    sort,
+    sort: layout.sort,
     offset,
     limit: 50,
   };
@@ -472,22 +479,26 @@ function CustomerVouchers({
               ]}
             />
           </div>
-          <div className="w-44 grow sm:grow-0">
-            <Choice
-              size="sm"
-              label={t("Sort vouchers")}
-              value={sort}
-              onChange={(value) => {
-                setSort(value === "profile" ? "profile" : "username");
+          <div className="ms-auto flex items-center gap-2">
+            <SortMenu
+              sort={layout.sort}
+              columns={layout.columns}
+              onSort={(sort) => {
+                layout.setSort(sort);
                 setOffset(0);
               }}
-              options={[
-                { value: "username", label: t("Sort by username") },
-                { value: "profile", label: t("Sort by profile") },
-              ]}
+              onAnnounce={setAnnouncement}
+            />
+            <ColumnsPopover
+              columns={layout.columns}
+              onColumns={layout.setColumns}
+              onAnnounce={setAnnouncement}
             />
           </div>
         </div>
+        <p role="status" aria-live="polite" className="sr-only">
+          {announcement}
+        </p>
         {selection.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 bg-primary/5 px-3 py-2">
             <p className="me-2 text-sm font-medium">
@@ -535,6 +546,7 @@ function CustomerVouchers({
         <VoucherRows
           key={`${JSON.stringify(query)}:${revision}`}
           query={query}
+          columns={layout.columns}
           selected={selection}
           onSelection={setSelection}
           onInspect={(voucher) => {
@@ -542,6 +554,12 @@ function CustomerVouchers({
             setInspectorOpen(true);
           }}
           onOffset={setOffset}
+          onSort={(sort) => {
+            layout.setSort(sort);
+            setOffset(0);
+          }}
+          onColumns={layout.setColumns}
+          onAnnounce={setAnnouncement}
         />
       </Panel>
       {history.length > 0 && (
@@ -730,36 +748,44 @@ function PendingReview({ pending, customer }: { pending: VoucherMutation; custom
   );
 }
 
-const columns = [
-  ["Username", "start"],
-  ["State", "start"],
-  ["Profile", "start"],
-  ["Download", "end"],
-  ["Upload", "end"],
-  ["Uptime", "end"],
-  ["Last seen", "start"],
-] as const;
-
 function VoucherRows({
   query,
+  columns,
   selected,
   onSelection,
   onInspect,
   onOffset,
+  onSort,
+  onColumns,
+  onAnnounce,
 }: {
   query: VoucherQuery;
+  columns: readonly ColumnKey[];
   selected: string[];
   onSelection: (value: string[]) => void;
-  onInspect: (voucher: Voucher) => void;
+  onInspect: (voucher: VoucherRow) => void;
   onOffset: (offset: number) => void;
+  onSort: (sort: VoucherQuery["sort"]) => void;
+  onColumns: (columns: readonly ColumnKey[]) => void;
+  onAnnounce: (message: string) => void;
 }) {
   const { t, locale } = useLocale();
-  const { router, customer, search, status, profile, sort, offset, limit } = query;
+  const { router, customer, search, status, profile, offset, limit } = query;
+  const { field, direction } = query.sort;
   const key = JSON.stringify(query);
   const [page, setPage] = useState<VoucherPage | null>(() => pageCache.get(key) ?? null);
   const [error, setError] = useState("");
   useEffect(() => {
-    const query = { router, customer, search, status, profile, sort, offset, limit };
+    const query: VoucherQuery = {
+      router,
+      customer,
+      search,
+      status,
+      profile,
+      sort: { field, direction },
+      offset,
+      limit,
+    };
     const abort = new AbortController();
     void voucherClient
       .list(query, abort.signal)
@@ -781,7 +807,7 @@ function VoucherRows({
         if (!abort.signal.aborted) setError(voucherError(error));
       });
     return () => abort.abort();
-  }, [router, customer, search, status, profile, sort, offset, limit, key]);
+  }, [router, customer, search, status, profile, field, direction, offset, limit, key]);
   if (error)
     return (
       <div className="px-4 py-6">
@@ -802,7 +828,6 @@ function VoucherRows({
         ))}
       </div>
     );
-  const all = page.items.length > 0 && page.items.every((row) => selected.includes(row.id));
   return (
     <>
       {!page.complete && (
@@ -825,103 +850,17 @@ function VoucherRows({
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border/50 bg-muted/40 text-xs text-muted-foreground">
-              <tr>
-                <th className="w-10 ps-4 pe-1">
-                  <Checkbox
-                    aria-label={t("Select this page")}
-                    checked={all}
-                    onCheckedChange={(checked) =>
-                      onSelection(
-                        checked
-                          ? [...new Set([...selected, ...page.items.map((row) => row.id)])].slice(
-                              0,
-                              100,
-                            )
-                          : selected.filter((id) => !page.items.some((row) => row.id === id)),
-                      )
-                    }
-                  />
-                </th>
-                {columns.map(([label, align]) => (
-                  <th
-                    key={label}
-                    className={cn(
-                      "h-9 px-3 font-medium whitespace-nowrap",
-                      align === "end" ? "text-end" : "text-start",
-                    )}
-                  >
-                    {t(label)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {page.items.map((row) => {
-                const checked = selected.includes(row.id);
-                return (
-                  <tr
-                    key={row.id}
-                    data-selected={checked || undefined}
-                    className="transition-colors hover:bg-muted/40 data-selected:bg-primary/5"
-                  >
-                    <td className="ps-4 pe-1">
-                      <Checkbox
-                        aria-label={t("Select voucher {name}", {
-                          name: row.username,
-                        })}
-                        checked={checked}
-                        disabled={selected.length >= 100 && !checked}
-                        onCheckedChange={(checked) =>
-                          onSelection(
-                            checked
-                              ? [...selected, row.id]
-                              : selected.filter((id) => id !== row.id),
-                          )
-                        }
-                      />
-                    </td>
-                    <td className="max-w-64 px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => onInspect(row)}
-                        className="block max-w-full cursor-pointer truncate rounded-sm text-start font-mono font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset data-voucher-disabled:text-muted-foreground"
-                        data-voucher-disabled={row.disabled || undefined}
-                      >
-                        <bdi dir="ltr">{row.username}</bdi>
-                      </button>
-                      {row.comment ? (
-                        <p className="truncate text-xs text-muted-foreground">
-                          <bdi>{row.comment}</bdi>
-                        </p>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <VoucherState voucher={row} />
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {row.profile ? (
-                        <bdi>{row.profile}</bdi>
-                      ) : (
-                        <span className="text-muted-foreground">{t("No profile")}</span>
-                      )}
-                    </td>
-                    {(["download", "upload", "uptime"] as const).map((field) => (
-                      <td key={field} className="px-3 py-2 text-end whitespace-nowrap tabular-nums">
-                        {formatVoucherValue(row[field], field, locale)}
-                      </td>
-                    ))}
-                    <td className="px-3 py-2 whitespace-nowrap text-muted-foreground tabular-nums">
-                      {formatVoucherValue(row.lastSeen, "lastSeen", locale)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <VoucherTable
+          rows={page.items}
+          columns={columns}
+          sort={query.sort}
+          selected={selected}
+          onSelection={onSelection}
+          onInspect={onInspect}
+          onSort={onSort}
+          onColumns={onColumns}
+          onAnnounce={onAnnounce}
+        />
       )}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 text-xs text-muted-foreground">
         <p role="status" className="tabular-nums">
@@ -945,25 +884,11 @@ function VoucherRows({
             disabled={!page.items.length}
             onClick={() =>
               downloadCsv("قسائم-مدار.csv", [
-                [
-                  t("Username"),
-                  t("Customer"),
-                  t("Profile"),
-                  t("State"),
-                  t("Upload"),
-                  t("Download"),
-                  t("Uptime"),
-                  t("Last seen"),
-                ],
+                [t("Customer"), ...columns.map((key) => t(columnOf(key).label)), t("Comment")],
                 ...page.items.map((row) => [
-                  row.username,
                   row.customer,
-                  row.profile,
-                  t(row.disabled ? "Disabled" : "Enabled"),
-                  row.upload,
-                  row.download,
-                  row.uptime,
-                  row.lastSeen,
+                  ...columns.map((key) => cellText(key, row, locale, t)),
+                  row.comment,
                 ]),
               ])
             }
