@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { VoucherRow, VoucherSort } from "@madar/contracts";
+import type { VoucherField, VoucherRow } from "@madar/contracts";
 import {
   ArrowDown,
   ArrowLeft,
@@ -8,6 +8,7 @@ import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
   EyeOff,
+  Filter,
   MoreHorizontal,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -15,12 +16,28 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "../components/ui/menu";
 import { useLocale } from "../useLocale";
 import { cn } from "../lib/utils";
-import { columnOf, moveColumnVisually, type ColumnKey } from "./columns";
+import {
+  columnOf,
+  fieldIdOf,
+  moveColumnVisually,
+  type ColumnId,
+  type ColumnKey,
+  type ViewSort,
+} from "./columns";
+import { FieldValue } from "./VoucherFields";
 import { Cell } from "./VoucherCells";
 
 const stickyCell = "sticky z-10 bg-background";
 // Opaque tones so sticky cells match the scrolled cells beneath them.
 const rowTone = "group-hover/row:bg-muted group-data-selected/row:bg-accent";
+
+function describe(key: ColumnId, fields: ReadonlyMap<number, VoucherField>) {
+  const fieldId = fieldIdOf(key);
+  const field = fieldId === null ? undefined : fields.get(fieldId);
+  if (field) return { field, label: field.name, align: field.type === "number" ? "end" : "start" };
+  const column = columnOf(key as ColumnKey);
+  return { field: undefined, label: column.label, align: column.align };
+}
 
 export function VoucherTable({
   rows,
@@ -32,18 +49,27 @@ export function VoucherTable({
   onSort,
   onColumns,
   onAnnounce,
+  fields,
+  onFilterField,
 }: {
   rows: readonly VoucherRow[];
-  columns: readonly ColumnKey[];
-  sort: VoucherSort;
+  columns: readonly ColumnId[];
+  sort: ViewSort;
   selected: readonly string[];
   onSelection: (value: string[]) => void;
   onInspect: (row: VoucherRow) => void;
-  onSort: (sort: VoucherSort) => void;
-  onColumns: (columns: readonly ColumnKey[]) => void;
+  onSort: (sort: ViewSort) => void;
+  onColumns: (columns: readonly ColumnId[]) => void;
   onAnnounce: (message: string) => void;
+  fields: ReadonlyMap<number, VoucherField>;
+  onFilterField: (field: VoucherField) => void;
 }) {
   const { t } = useLocale();
+  // A saved field column waits for the field list before it renders.
+  const shown = columns.filter((key) => {
+    const fieldId = fieldIdOf(key);
+    return fieldId === null || fields.has(fieldId);
+  });
   const all = rows.length > 0 && rows.every((row) => selected.includes(row.id));
   return (
     <div className="overflow-x-auto">
@@ -63,10 +89,12 @@ export function VoucherTable({
                 }
               />
             </th>
-            {columns.map((key) => (
+            {shown.map((key) => (
               <HeaderCell
                 key={key}
                 column={key}
+                fields={fields}
+                onFilterField={onFilterField}
                 columns={columns}
                 sort={sort}
                 onSort={onSort}
@@ -93,7 +121,7 @@ export function VoucherTable({
                     }
                   />
                 </td>
-                {columns.map((key) =>
+                {shown.map((key) =>
                   key === "username" ? (
                     <td
                       key={key}
@@ -123,11 +151,17 @@ export function VoucherTable({
                       className={cn(
                         "px-3 py-2 whitespace-nowrap",
                         rowTone,
-                        columnOf(key).align === "end" ? "text-end tabular-nums" : "text-start",
+                        describe(key, fields).align === "end"
+                          ? "text-end tabular-nums"
+                          : "text-start",
                         key === "lastSeen" && "text-muted-foreground tabular-nums",
                       )}
                     >
-                      <Cell column={key} row={row} />
+                      {fieldIdOf(key) === null ? (
+                        <Cell column={key as ColumnKey} row={row} />
+                      ) : (
+                        <FieldValue field={describe(key, fields).field!} row={row} />
+                      )}
                     </td>
                   ),
                 )}
@@ -147,20 +181,24 @@ function HeaderCell({
   onSort,
   onColumns,
   onAnnounce,
+  fields,
+  onFilterField,
 }: {
-  column: ColumnKey;
-  columns: readonly ColumnKey[];
-  sort: VoucherSort;
-  onSort: (sort: VoucherSort) => void;
-  onColumns: (columns: readonly ColumnKey[]) => void;
+  column: ColumnId;
+  columns: readonly ColumnId[];
+  sort: ViewSort;
+  onSort: (sort: ViewSort) => void;
+  onColumns: (columns: readonly ColumnId[]) => void;
   onAnnounce: (message: string) => void;
+  fields: ReadonlyMap<number, VoucherField>;
+  onFilterField: (field: VoucherField) => void;
 }) {
   const { t, direction } = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
-  const definition = columnOf(column);
-  const label = t(definition.label);
+  const definition = describe(column, fields);
+  const label = definition.field ? definition.field.name : t(definition.label);
   const active = sort.field === column;
-  const sortTo = (next: VoucherSort["direction"]) => {
+  const sortTo = (next: ViewSort["direction"]) => {
     onSort({ field: column, direction: next });
     onAnnounce(
       t(next === "asc" ? "Sorted by {name}, ascending" : "Sorted by {name}, descending", {
@@ -210,7 +248,7 @@ function HeaderCell({
             active && "text-foreground",
           )}
         >
-          <span className="truncate">{label}</span>
+          <span className="truncate">{definition.field ? <bdi>{label}</bdi> : label}</span>
           {active ? (
             <Arrow aria-hidden="true" className="size-3.5 shrink-0" />
           ) : (
@@ -257,6 +295,12 @@ function HeaderCell({
                   {t("Move right")}
                 </MenuItem>
                 <MenuSeparator />
+                {definition.field && (
+                  <MenuItem onClick={() => onFilterField(definition.field!)}>
+                    <Filter />
+                    {t("Filter by this field…")}
+                  </MenuItem>
+                )}
                 <MenuItem
                   onClick={() => {
                     onColumns(columns.filter((key) => key !== column));

@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import type {
   Voucher,
+  VoucherField,
   VoucherRow,
   VoucherAction,
   VoucherCatalog,
@@ -26,6 +27,7 @@ import {
 } from "./format";
 import { formatNumber } from "../locale";
 import { RemainingCell } from "./VoucherCells";
+import { InspectorFields } from "./VoucherFields";
 
 const voucherStates = {
   online: { label: "Online", tone: "success" },
@@ -230,18 +232,25 @@ export function VoucherCreateForm({
   );
 }
 
+const noFields: readonly VoucherField[] = [];
+const noop = () => {};
+
 export function VoucherInspector({
   row,
   scope,
   connected,
   onReview,
   onClose,
+  fields = noFields,
+  onFieldsSaved = noop,
 }: {
   row: VoucherRow;
   scope: VoucherScope;
   connected: boolean;
   onReview: (action: VoucherAction) => void;
   onClose: () => void;
+  fields?: readonly VoucherField[];
+  onFieldsSaved?: () => void;
 }) {
   const { t, locale } = useLocale();
   const titleId = useId();
@@ -363,6 +372,7 @@ export function VoucherInspector({
             )}
           </p>
         </section>
+        <InspectorFields row={voucher} scope={scope} fields={fields} onSaved={onFieldsSaved} />
         {voucher.comment ? (
           <section className="space-y-1">
             <h3 className="px-1 text-sm text-foreground/70">{t("Comment")}</h3>

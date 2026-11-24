@@ -86,6 +86,61 @@ export const VoucherQuota = Schema.Struct({
   uptime: Count,
 });
 export type VoucherQuota = typeof VoucherQuota.Type;
+/** Local fields: app-wide definitions with typed values saved by Madar, never sent to the router. */
+export const VoucherFieldType = Schema.Literals(["text", "number", "date", "boolean", "choice"]);
+export type VoucherFieldType = typeof VoucherFieldType.Type;
+const FieldLabel = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(64));
+const FieldId = Integer.check(Schema.isGreaterThanOrEqualTo(1));
+/** A calendar date without a time or zone, "YYYY-MM-DD". */
+const LocalDate = Schema.String.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/));
+export const VoucherFieldChoice = Schema.Struct({ id: FieldId, label: FieldLabel });
+export const VoucherField = Schema.Struct({
+  id: FieldId,
+  name: FieldLabel,
+  type: VoucherFieldType,
+  choices: Schema.Array(VoucherFieldChoice),
+  valueCount: Integer,
+});
+export type VoucherField = typeof VoucherField.Type;
+/** Text and dates are strings, numbers are numbers, yes/no is a boolean, a choice is its id. */
+export const VoucherFieldValue = Schema.Union([
+  Text,
+  Schema.Number.check(Schema.isFinite()),
+  Schema.Boolean,
+]);
+export type VoucherFieldValue = typeof VoucherFieldValue.Type;
+export const VoucherFieldDraft = Schema.Struct({
+  id: Schema.optionalKey(FieldId),
+  name: FieldLabel,
+  type: VoucherFieldType,
+  choices: Schema.Array(
+    Schema.Struct({ id: Schema.optionalKey(FieldId), label: FieldLabel }),
+  ).check(Schema.isMaxLength(50)),
+});
+export type VoucherFieldDraft = typeof VoucherFieldDraft.Type;
+export const VoucherFieldOrder = Schema.Struct({
+  ids: Schema.Array(FieldId).check(Schema.isMaxLength(200)),
+});
+export const VoucherFieldTarget = Schema.Struct({ id: FieldId });
+export const VoucherFieldFilter = Schema.Union([
+  Schema.Struct({ fieldId: FieldId, op: Schema.Literals(["empty", "filled"]) }),
+  Schema.Struct({ fieldId: FieldId, op: Schema.Literal("contains"), text: Name }),
+  Schema.Struct({
+    fieldId: FieldId,
+    op: Schema.Literal("range"),
+    min: Schema.NullOr(Schema.Number.check(Schema.isFinite())),
+    max: Schema.NullOr(Schema.Number.check(Schema.isFinite())),
+  }),
+  Schema.Struct({
+    fieldId: FieldId,
+    op: Schema.Literal("dates"),
+    from: Schema.NullOr(LocalDate),
+    to: Schema.NullOr(LocalDate),
+  }),
+  Schema.Struct({ fieldId: FieldId, op: Schema.Literal("flag"), value: Schema.Boolean }),
+  Schema.Struct({ fieldId: FieldId, op: Schema.Literal("choice"), choiceId: FieldId }),
+]);
+export type VoucherFieldFilter = typeof VoucherFieldFilter.Type;
 export const VoucherRow = Schema.Struct({
   ...Voucher.fields,
   price: Schema.NullOr(Schema.Number),
@@ -94,6 +149,8 @@ export const VoucherRow = Schema.Struct({
   firstLoginAt: Schema.NullOr(RouterTime),
   batch: Schema.NullOr(VoucherBatch),
   remaining: VoucherRemaining,
+  /** Local field values by field id. */
+  fields: Schema.Record(Schema.String, VoucherFieldValue),
 });
 export type VoucherRow = typeof VoucherRow.Type;
 export const VoucherProfile = Schema.Struct({
@@ -149,11 +206,14 @@ export const VoucherSortField = Schema.Literals([
   "changed",
   "firstLogin",
   "batch",
+  "custom",
 ]);
 export type VoucherSortField = typeof VoucherSortField.Type;
 export const VoucherSort = Schema.Struct({
   field: VoucherSortField,
   direction: Schema.Literals(["asc", "desc"]),
+  /** Required with the "custom" field. */
+  fieldId: Schema.optionalKey(FieldId),
 });
 export type VoucherSort = typeof VoucherSort.Type;
 export const VoucherStatusFilter = Schema.Literals([
@@ -173,6 +233,7 @@ export const VoucherQuery = Schema.Struct({
   status: VoucherStatusFilter,
   profile: Text,
   sort: VoucherSort,
+  fieldFilter: Schema.optionalKey(VoucherFieldFilter),
   offset: Integer,
   limit: Integer.check(Schema.isBetween({ minimum: 1, maximum: 200 })),
 });
@@ -263,3 +324,12 @@ export class VoucherFailure extends Schema.TaggedError<VoucherFailure>()(
   },
   { httpApiStatus: 400 },
 ) {}
+export const VoucherFieldValues = Schema.Struct({
+  ...VoucherScope.fields,
+  ids: Schema.Array(Name).check(Schema.isMinLength(1), Schema.isMaxLength(100)),
+  values: Schema.Array(
+    Schema.Struct({ fieldId: FieldId, value: Schema.NullOr(VoucherFieldValue) }),
+  ).check(Schema.isMinLength(1), Schema.isMaxLength(50)),
+});
+export type VoucherFieldValues = typeof VoucherFieldValues.Type;
+export const VoucherFieldValuesResult = Schema.Struct({ updated: Integer });

@@ -1,5 +1,7 @@
 import * as Schema from "effect/Schema";
 import {
+  VoucherField,
+  VoucherFieldValuesResult,
   VoucherCatalog,
   VoucherPage,
   VoucherDetails,
@@ -9,6 +11,8 @@ import {
   type VoucherScope,
   type VoucherTarget,
   type VoucherMutation,
+  type VoucherFieldDraft,
+  type VoucherFieldValues,
 } from "@madar/contracts";
 import { routerRequest } from "../routers/access";
 
@@ -28,6 +32,13 @@ const messages: Record<string, string> = {
     "A voucher with this username already exists, or the operation identifier is already in use.",
   busy: "Another operation is in progress. Try again when it finishes.",
 };
+/** Local fields never reach the router, so their failures need their own wording. */
+const fieldMessages: Record<string, string> = {
+  rejected: "Check the field name, its choices, and that each value matches the field type.",
+  conflict: "A field with this name already exists. Choose another name.",
+  "not-found": "This field no longer exists. Reopen My fields to see the current list.",
+  storage: "Madar could not update its local database. Check available disk space.",
+};
 export class VoucherRequestError extends Error {}
 
 async function call<A>(
@@ -35,6 +46,7 @@ async function call<A>(
   payload: unknown,
   schema: Schema.Codec<A, unknown>,
   signal?: AbortSignal,
+  reasons: Record<string, string> = messages,
 ): Promise<A> {
   const response = await routerRequest(`/api/vouchers/${name}`, payload, signal);
   const body: unknown = await response.json();
@@ -47,7 +59,7 @@ async function call<A>(
         ? body.reason
         : "";
     throw new VoucherRequestError(
-      messages[reason] ?? "Madar could not complete the request. Check the app connection.",
+      reasons[reason] ?? "Madar could not complete the request. Check the app connection.",
     );
   }
   return Schema.decodeUnknownSync(schema)(body);
@@ -60,9 +72,19 @@ export const voucherClient = {
   details: (target: VoucherTarget) => call("details", target, VoucherDetails),
   mutate: (input: VoucherMutation) => call("mutate", input, VoucherOperation),
   history: (scope: VoucherScope) => call("history", scope, Schema.Array(VoucherOperation)),
+  fields: (signal?: AbortSignal) => call("fields", {}, Schema.Array(VoucherField), signal),
+  saveField: (draft: VoucherFieldDraft) =>
+    call("fields/save", draft, Schema.Array(VoucherField), undefined, fieldMessages),
+  reorderFields: (ids: readonly number[]) =>
+    call("fields/reorder", { ids }, Schema.Array(VoucherField), undefined, fieldMessages),
+  deleteField: (id: number) =>
+    call("fields/delete", { id }, Schema.Array(VoucherField), undefined, fieldMessages),
+  setFieldValues: (input: VoucherFieldValues) =>
+    call("fields/values", input, VoucherFieldValuesResult, undefined, fieldMessages),
 };
 export function voucherError(error: unknown) {
-  return error instanceof Error && Object.values(messages).includes(error.message)
+  return error instanceof Error &&
+    [...Object.values(messages), ...Object.values(fieldMessages)].includes(error.message)
     ? error.message
     : "Madar could not complete the request. Check the app connection.";
 }

@@ -9,6 +9,12 @@ import {
   VoucherMutation,
   VoucherOperation,
   VoucherFailure,
+  VoucherField,
+  VoucherFieldDraft,
+  VoucherFieldOrder,
+  VoucherFieldTarget,
+  VoucherFieldValues,
+  VoucherFieldValuesResult,
 } from "./vouchers.ts";
 import {
   RouterProbeInput,
@@ -434,6 +440,41 @@ export class EnvironmentHttpApi extends HttpApi.make("environment")
         HttpApiEndpoint.post("history", "/api/vouchers/history", {
           payload: VoucherScope,
           success: Schema.Array(VoucherOperation),
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("fields", "/api/vouchers/fields", {
+          payload: Schema.Struct({}),
+          success: Schema.Array(VoucherField),
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("saveField", "/api/vouchers/fields/save", {
+          payload: VoucherFieldDraft,
+          success: Schema.Array(VoucherField),
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("reorderFields", "/api/vouchers/fields/reorder", {
+          payload: VoucherFieldOrder,
+          success: Schema.Array(VoucherField),
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("deleteField", "/api/vouchers/fields/delete", {
+          payload: VoucherFieldTarget,
+          success: Schema.Array(VoucherField),
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("setFieldValues", "/api/vouchers/fields/values", {
+          payload: VoucherFieldValues,
+          success: VoucherFieldValuesResult,
           error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
         }).middleware(EnvironmentAuthenticatedAuth),
       ),
