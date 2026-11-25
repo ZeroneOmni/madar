@@ -39,6 +39,11 @@ export interface SqliteClientConfig {
   readonly transformQueryNames?: ((str: string) => string) | undefined;
   /** Ignored for in-memory databases, which cannot share a second connection. */
   readonly readerWorker?: boolean | undefined;
+  /**
+   * The file is a private copy that nothing writes to, so the reader worker may open it in
+   * any journal mode. Without it the reader requires WAL.
+   */
+  readonly privateCopy?: boolean | undefined;
   readonly readerStartupTimeout?: Duration.Input | undefined;
   /** Ignored for in-memory databases. */
   readonly checkpointWorker?: boolean | undefined;
@@ -212,7 +217,7 @@ try {
   next.exec("PRAGMA busy_timeout = 5000;");
   // Without WAL a reader's shared lock blocks the writer's commits, so refuse.
   const mode = String(next.prepare("PRAGMA journal_mode").get().journal_mode).toLowerCase();
-  if (mode !== "wal") throw new Error("database uses journal_mode " + mode + ", not wal");
+  if (mode !== "wal" && !workerData.privateCopy) throw new Error("database uses journal_mode " + mode + ", not wal");
   db = next;
   parentPort.postMessage({ type: "ready" });
 } catch (error) {
@@ -317,6 +322,7 @@ const makeReader = Effect.fnUntraced(function* (options: SqliteClientConfig) {
         filename: options.filename,
         allowExtension: options.allowExtension ?? false,
         prepareCacheSize: options.prepareCacheSize ?? 200,
+        privateCopy: options.privateCopy ?? false,
       },
     });
     let announce: (startup: ReaderStartup) => void = () => {};

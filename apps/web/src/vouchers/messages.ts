@@ -222,8 +222,8 @@ export const voucherArabic = {
     "لهذه الباقة حدود تسري في أوقات معينة فقط، أو حدود تعذّر على مدار قراءتها. تحقق من الباقة على الراوتر.",
   "The router's usage counters for this voucher could not be read.":
     "تعذّرت قراءة عدادات الاستهلاك لهذه القسيمة من الراوتر.",
-  "Madar did not see this profile start, and the router's counters include earlier profiles. Activate the profile from Madar to start counting.":
-    "لم يرصد مدار بدء هذه الباقة، وعدادات الراوتر تشمل استهلاك الباقات السابقة. فعّل الباقة من مدار ليبدأ الحساب.",
+  "Madar did not see this profile start, and the router's counters include earlier profiles. Update from the router database, or activate the profile from Madar to start counting.":
+    "لم يرصد مدار بدء هذه الباقة، وعدادات الراوتر تشمل استهلاك الباقات السابقة. حدّث من قاعدة بيانات الراوتر، أو فعّل الباقة من مدار ليبدأ الحساب.",
   "Madar does not know when this profile was activated, so it cannot calculate the end.":
     "لا يعرف مدار وقت تفعيل هذه الباقة، لذا لا يمكنه حساب موعد انتهائها.",
   "Madar has not found the first login in the router's session records yet.":
@@ -391,4 +391,94 @@ export const voucherArabic = {
     "حُفظت القيمة لـ {updated} من أصل {count} قسيمة. القسائم الأخرى لم تعد محفوظة على هذا الجهاز.",
   "The number of saved values changed. Check the new count and confirm again.":
     "تغيّر عدد القيم المحفوظة. راجع العدد الجديد ثم أكّد مرة أخرى.",
+  "Connecting to the router…": "جارٍ الاتصال بالراوتر…",
+  "Checking the router database…": "جارٍ فحص قاعدة بيانات الراوتر…",
+  "Copying the router database…": "جارٍ نسخ قاعدة بيانات الراوتر…",
+  "Checking the copy…": "جارٍ فحص النسخة…",
+  "Reading package usage…": "جارٍ قراءة استهلاك الباقات…",
+  "Saving package usage…": "جارٍ حفظ استهلاك الباقات…",
+  "Stopped while connecting.": "توقف أثناء الاتصال.",
+  "Stopped while checking the file on the router.": "توقف أثناء فحص الملف على الراوتر.",
+  "Stopped while copying.": "توقف أثناء النسخ.",
+  "Stopped while checking the copy.": "توقف أثناء فحص النسخة.",
+  "Stopped while reading the copy.": "توقف أثناء قراءة النسخة.",
+  "Stopped while saving.": "توقف أثناء الحفظ.",
+  "Connect to the router first.": "اتصل بالراوتر أولًا.",
+  "SSH is off on the router or refused the connection. Turn on the ssh service in IP Services on the router, then try again.":
+    "خدمة SSH متوقفة على الراوتر أو رفضت الاتصال. فعّل خدمة ssh من قائمة IP Services في الراوتر، ثم أعد المحاولة.",
+  "The router rejected the SSH login for this account. Check that the account may log in over SSH.":
+    "رفض الراوتر دخول هذا الحساب عبر SSH. تأكد من أن الحساب مسموح له بالدخول عبر SSH.",
+  "This router account cannot read files over SFTP. Its group needs the ssh and ftp policies.":
+    "لا يستطيع حساب الراوتر هذا قراءة الملفات عبر SFTP. يجب أن تتضمن مجموعته صلاحيتي ssh وftp.",
+  "The router's SSH identity changed since Madar last connected.":
+    "تغيّرت هوية SSH للراوتر منذ آخر اتصال لمدار به.",
+  "The User Manager database file was not found on the router.":
+    "لم يُعثر على ملف قاعدة بيانات مدير المستخدمين على الراوتر.",
+  "The router database is larger than 256 MiB, so Madar did not copy it.":
+    "حجم قاعدة بيانات الراوتر أكبر من 256 ميبيبايت، لذا لم ينسخها مدار.",
+  "The connection to the router was interrupted.": "انقطع الاتصال بالراوتر.",
+  "The router did not respond in time.": "لم يستجب الراوتر في الوقت المحدد.",
+  "The copy stopped making progress.": "توقف النسخ عن التقدم.",
+  "User Manager was writing to its database during the copy. Madar kept the previous copy.":
+    "كان مدير المستخدمين يكتب في قاعدة بياناته أثناء النسخ. احتفظ مدار بالنسخة السابقة.",
+  "The copied file was damaged. Madar kept the previous copy.":
+    "الملف المنسوخ تالف. احتفظ مدار بالنسخة السابقة.",
+  "This router's User Manager database has a layout Madar does not know, so automatic copies are paused.":
+    "قاعدة بيانات مدير المستخدمين في هذا الراوتر بتنسيق لا يعرفه مدار، لذا أُوقف النسخ التلقائي.",
+  "The router database held values Madar could not read safely.":
+    "تحتوي قاعدة بيانات الراوتر على قيم لم يستطع مدار قراءتها بأمان.",
+  "Madar could not save the copy on this PC. Check available disk space.":
+    "تعذّر على مدار حفظ النسخة على هذا الجهاز. تحقق من المساحة المتاحة على القرص.",
+  "Router database, copied {time}": "قاعدة بيانات الراوتر، نُسخت {time}",
+  "Copied {time}. Madar reads each package's usage and dates from it.":
+    "نُسخت {time}. يقرأ مدار منها استهلاك كل باقة وتواريخها.",
+  "Not copied yet. Madar copies it when it first connects to a router.":
+    "لم تُنسخ بعد. ينسخها مدار عند أول اتصال بالراوتر.",
+  "Router database": "قاعدة بيانات الراوتر",
+  "Update now": "تحديث الآن",
+  "Automatic copies are paused until this is fixed.": "أُوقف النسخ التلقائي إلى أن تُعالَج المشكلة.",
+  "Madar tries again automatically after {time}.": "سيحاول مدار مجددًا تلقائيًا بعد {time}.",
+  "Vouchers and router actions keep working through the router API.":
+    "تبقى القسائم وعمليات الراوتر تعمل عبر الواجهة البرمجية للراوتر.",
+  "Trusted identity": "الهوية الموثوقة",
+  "New identity": "الهوية الجديدة",
+  "Trust it only if you replaced or reset this router.":
+    "لا تثق بها إلا إذا استبدلت هذا الراوتر أو أعدت ضبطه.",
+  "Trust new identity": "الوثوق بالهوية الجديدة",
+  "Trust new identity…": "الوثوق بالهوية الجديدة…",
+  "The router offered a different identity since this one was shown. Check again.":
+    "قدّم الراوتر هوية مختلفة بعد عرض هذه الهوية. تحقق مرة أخرى.",
+  "The last router database copy is from {time}, more than a day ago. Update from the router database to see this package.":
+    "آخر نسخة من قاعدة بيانات الراوتر تعود إلى {time}، أي قبل أكثر من يوم. حدّث من قاعدة بيانات الراوتر لعرض هذه الباقة.",
+  "From the router database, copied {time}. Usage after that copy is not included yet.":
+    "من قاعدة بيانات الراوتر، نُسخت {time}. لا يشمل بعدُ الاستهلاك الذي تلا هذه النسخة.",
+  "Estimated. Package usage from the router database copied {time}, plus the usage the router counted since.":
+    "قيمة تقديرية: استهلاك الباقة من قاعدة بيانات الراوتر المنسوخة {time}، مضافًا إليه ما احتسبه الراوتر منذ ذلك الحين.",
+  "Router time. From the router database, copied {time}.":
+    "حسب ساعة الراوتر. من قاعدة بيانات الراوتر، نُسخت {time}.",
+  "{amount} of {limit}": "{amount} من {limit}",
+  "Package usage": "استهلاك الباقة",
+  "Package start": "بداية الباقة",
+  "Package end": "نهاية الباقة",
+  "From the router database": "من قاعدة بيانات الراوتر",
+  "Update from router database": "تحديث من قاعدة بيانات الراوتر",
+  "Router database copied {time}": "نُسخت قاعدة بيانات الراوتر {time}",
+  "Madar reads each package's usage from the router's User Manager database. You can keep working.":
+    "يقرأ مدار استهلاك كل باقة من قاعدة بيانات مدير المستخدمين على الراوتر. يمكنك مواصلة العمل.",
+  "Package usage updated from the router database.": "حُدّث استهلاك الباقات من قاعدة بيانات الراوتر.",
+  "Copy cancelled. Madar kept the values it had.": "أُلغي النسخ. احتفظ مدار بالقيم التي لديه.",
+  "Open Connections": "فتح الاتصالات",
+  "Package history could not be loaded.": "تعذّر تحميل سجل الباقات.",
+  "Packages on the router": "الباقات على الراوتر",
+  "The router database copy has no packages for this voucher.":
+    "لا تتضمن نسخة قاعدة بيانات الراوتر أي باقة لهذه القسيمة.",
+  "Update from the router database to see this voucher's packages.":
+    "حدّث من قاعدة بيانات الراوتر لعرض باقات هذه القسيمة.",
+  Current: "الحالية",
+  "{amount} used": "استُهلك {amount}",
+  "Started {time}": "بدأت {time}",
+  "Ends {time}": "تنتهي {time}",
+  "Ended {time}": "انتهت {time}",
+  "Assigned {time}": "أُسندت {time}",
+  "Price at assignment: {price}": "السعر عند الإسناد: {price}",
 } as const;

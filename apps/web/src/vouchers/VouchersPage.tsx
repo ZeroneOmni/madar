@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
+  RouterDatabaseStatus,
   RouterProfile,
   VoucherField,
   VoucherFieldFilter,
@@ -18,6 +19,7 @@ import {
   CircleAlert,
   CircleCheck,
   CloudOff,
+  Database,
   Download,
   Info,
   KeyRound,
@@ -88,6 +90,14 @@ import { ColumnsPopover, SortMenu } from "./VoucherLayoutControls";
 import { VoucherTable } from "./VoucherTable";
 import { useVoucherLayout } from "./useVoucherLayout";
 import { formatDateTime, formatNumber } from "../locale";
+import { formatBytes } from "./format";
+import {
+  actionableFailures,
+  failureReasons,
+  runningStages,
+  stoppedStages,
+  useRouterDatabase,
+} from "./routerDatabase";
 
 const pageCache = new Map<string, VoucherPage>();
 function cachePage(key: string, page: VoucherPage) {
@@ -323,6 +333,25 @@ function CustomerVouchers({
     [],
   );
   const scope = { router, customer };
+  // A manual copy reports its outcome here; automatic ones stay quiet and show in Connections.
+  const watching = useRef(false);
+  const [finished, setFinished] = useState<RouterDatabaseStatus | null>(null);
+  const database = useRouterDatabase(scope, (status) => {
+    if (status.outcome === "accepted") {
+      pageCache.clear();
+      setRevision((value) => value + 1);
+    }
+    if (watching.current) {
+      watching.current = false;
+      setFinished(status);
+    }
+  });
+  const job = database.status?.job ?? null;
+  const update = () => {
+    setFinished(null);
+    watching.current = true;
+    void database.start();
+  };
   const query: VoucherQuery = {
     router,
     customer,
@@ -371,6 +400,8 @@ function CustomerVouchers({
         onCatalog(value);
         pageCache.clear();
         setRevision((value) => value + 1);
+        // A refresh may start or schedule a router database copy.
+        database.check();
       },
       (error) => {
         successful = false;
@@ -459,6 +490,10 @@ function CustomerVouchers({
   return (
     <>
       <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="outline" disabled={!connected || job !== null} onClick={update}>
+          <Database />
+          {t("Update from router database")}
+        </Button>
         <Button variant="outline" disabled={locked} onClick={() => void refresh()}>
           {syncing ? <Spinner aria-hidden="true" role="presentation" /> : <RefreshCw />}
           {t(syncing ? "Refreshing…" : "Refresh vouchers")}
@@ -475,6 +510,17 @@ function CustomerVouchers({
           onReview={review}
           onCancel={() => setCreating(false)}
         />
+      )}
+      {database.status?.job && (
+        <DatabaseProgress status={database.status} onCancel={() => void database.cancel()} />
+      )}
+      {database.error && (
+        <Notice tone="error" icon={<CircleAlert />} announce>
+          {t(database.error)}
+        </Notice>
+      )}
+      {finished && !job && (
+        <DatabaseResult status={finished} onRetry={update} onDismiss={() => setFinished(null)} />
       )}
       {operation && <OperationResult operation={operation} onDismiss={() => setOperation(null)} />}
       {credentials.length > 0 && (
@@ -652,6 +698,7 @@ function CustomerVouchers({
         <VoucherRows
           key={`${JSON.stringify(query)}:${revision}`}
           query={query}
+          copiedAt={database.status?.capturedAt ?? null}
           view={layout.sort}
           columns={layout.columns}
           fields={fieldById}
@@ -898,6 +945,7 @@ function PendingReview({ pending, customer }: { pending: VoucherMutation; custom
 
 function VoucherRows({
   query,
+  copiedAt,
   view,
   columns,
   fields,
@@ -911,6 +959,7 @@ function VoucherRows({
   onAnnounce,
 }: {
   query: VoucherQuery;
+  copiedAt: string | null;
   view: ViewSort;
   columns: readonly ColumnId[];
   fields: ReadonlyMap<number, VoucherField>;
@@ -1025,6 +1074,12 @@ function VoucherRows({
               })
             : t("Initial download not completed")}
         </p>
+        {copiedAt && (
+          <p className="inline-flex items-center gap-1.5">
+            <Database aria-hidden="true" className="size-3.5 shrink-0" />
+            {t("Router database copied {time}", { time: formatDateTime(copiedAt, locale) })}
+          </p>
+        )}
         <div className="ms-auto flex items-center gap-1">
           <Button
             variant="ghost"
@@ -1139,6 +1194,121 @@ function OperationResult({
       }
     >
       <OperationSummary operation={operation} />
+    </Notice>
+  );
+}
+
+/** A copy in progress. The list stays usable; only the numbers update when it finishes. */
+function DatabaseProgress({
+  status,
+  onCancel,
+}: {
+  status: RouterDatabaseStatus;
+  onCancel: () => void;
+}) {
+  const { t, locale } = useLocale();
+  const job = status.job!;
+  const ratio = job.stage === "download" && job.total ? job.received / job.total : null;
+  return (
+    <Notice
+      tone="info"
+      icon={<Database />}
+      action={
+        <Button variant="outline" size="sm" onClick={onCancel}>
+          {t("Cancel")}
+        </Button>
+      }
+    >
+      <div className="space-y-2">
+        <p className="flex flex-wrap items-baseline gap-x-3">
+          <span role="status">{t(runningStages[job.stage])}</span>
+          {ratio !== null && (
+            <span aria-hidden="true" className="text-xs text-muted-foreground tabular-nums">
+              {t("{amount} of {limit}", {
+                amount: formatBytes(job.received, locale),
+                limit: formatBytes(job.total, locale),
+              })}
+            </span>
+          )}
+        </p>
+        {ratio !== null && (
+          <div
+            role="progressbar"
+            aria-label={t("Copying the router database…")}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(ratio * 100)}
+            className="h-1 w-full max-w-sm rounded-full bg-info/15"
+          >
+            <div
+              className="h-full rounded-full bg-info"
+              style={{ inlineSize: `${Math.max(2, Math.round(ratio * 100))}%` }}
+            />
+          </div>
+        )}
+        {job.trigger !== "manual" && (
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "Madar reads each package's usage from the router's User Manager database. You can keep working.",
+            )}
+          </p>
+        )}
+      </div>
+    </Notice>
+  );
+}
+
+function DatabaseResult({
+  status,
+  onRetry,
+  onDismiss,
+}: {
+  status: RouterDatabaseStatus;
+  onRetry: () => void;
+  onDismiss: () => void;
+}) {
+  const { t } = useLocale();
+  const dismiss = (
+    <Button variant="ghost" size="sm" onClick={onDismiss}>
+      {t("Dismiss")}
+    </Button>
+  );
+  if (status.outcome === "accepted" || status.outcome === "unchanged")
+    return (
+      <Notice tone="success" icon={<CircleCheck />} action={dismiss}>
+        {t("Package usage updated from the router database.")}
+      </Notice>
+    );
+  if (status.outcome === "cancelled")
+    return (
+      <Notice icon={<Info />} action={dismiss}>
+        {t("Copy cancelled. Madar kept the values it had.")}
+      </Notice>
+    );
+  const failure = status.failure;
+  if (!failure) return null;
+  return (
+    <Notice
+      tone="warning"
+      icon={<TriangleAlert />}
+      announce
+      action={
+        <>
+          {dismiss}
+          {actionableFailures.has(failure.reason) ? (
+            <Button variant="outline" size="sm" onClick={() => navigateShell("/routers")}>
+              {t("Open Connections")}
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              {t("Try again")}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <span className="block">{t(failureReasons[failure.reason])}</span>
+      <span className="block text-xs text-muted-foreground">{t(stoppedStages[failure.stage])}</span>
     </Notice>
   );
 }

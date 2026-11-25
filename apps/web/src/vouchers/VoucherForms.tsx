@@ -5,10 +5,12 @@ import type {
   VoucherRow,
   VoucherAction,
   VoucherCatalog,
+  VoucherAssignments,
   VoucherDetails,
   VoucherScope,
 } from "@madar/contracts";
 import { ArrowDown, ArrowUp, Info, PencilLine, RefreshCw, X } from "lucide-react";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Skeleton } from "../components/ui/skeleton";
@@ -26,7 +28,8 @@ import {
   formatVoucherValue,
 } from "./format";
 import { formatNumber } from "../locale";
-import { RemainingCell } from "./VoucherCells";
+import { PackageUsage, RemainingCell } from "./VoucherCells";
+import { SourceLabel } from "./routerDatabase";
 import { InspectorFields } from "./VoucherFields";
 
 const voucherStates = {
@@ -336,6 +339,19 @@ export function VoucherInspector({
             <Detail label={t("Remaining")} className="col-span-2 bg-popover px-3 py-2.5">
               <RemainingCell row={voucher} />
             </Detail>
+            {voucher.package && (
+              <>
+                <Detail label={t("Package usage")} className="col-span-2 bg-popover px-3 py-2.5">
+                  <PackageUsage row={voucher} />
+                </Detail>
+                <Detail label={t("Package start")} className="bg-popover px-3 py-2.5">
+                  {formatRouterTime(voucher.package.startedAt, locale)}
+                </Detail>
+                <Detail label={t("Package end")} className="bg-popover px-3 py-2.5">
+                  {formatRouterTime(voucher.package.endsAt, locale)}
+                </Detail>
+              </>
+            )}
             <Detail label={t("Download")} className="bg-popover px-3 py-2.5">
               {formatBytes(voucher.download, locale)}
             </Detail>
@@ -365,13 +381,20 @@ export function VoucherInspector({
               {formatRouterTime(voucher.firstLoginAt, locale)}
             </Detail>
           </dl>
-          <p className="flex items-start gap-2 px-1 text-xs text-muted-foreground">
-            <Info aria-hidden="true" className="mt-px size-3.5 shrink-0" />
-            {t(
-              "The router counts usage over the voucher's whole life. Madar calculates what remains of the current profile from the usage it saw since that profile started.",
-            )}
-          </p>
+          {voucher.remaining.capturedAt && voucher.remaining.basis.startsWith("router-database") ? (
+            <p className="px-1">
+              <SourceLabel capturedAt={voucher.remaining.capturedAt} />
+            </p>
+          ) : (
+            <p className="flex items-start gap-2 px-1 text-xs text-muted-foreground">
+              <Info aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+              {t(
+                "The router counts usage over the voucher's whole life. Madar calculates what remains of the current profile from the usage it saw since that profile started.",
+              )}
+            </p>
+          )}
         </section>
+        <PackageHistory scope={scope} id={voucher.id} />
         <InspectorFields row={voucher} scope={scope} fields={fields} onSaved={onFieldsSaved} />
         {voucher.comment ? (
           <section className="space-y-1">
@@ -559,5 +582,106 @@ function VoucherEditForm({
         </PanelFooter>
       </form>
     </Panel>
+  );
+}
+
+/** User Manager's state codes are inferred, not confirmed; keep them out of the UI until they are. */
+const ASSIGNMENT_STATES_CONFIRMED = false;
+
+/** Every package the router database copy records for this voucher, newest first. */
+function PackageHistory({ scope, id }: { scope: VoucherScope; id: string }) {
+  const { t, locale } = useLocale();
+  const [history, setHistory] = useState<VoucherAssignments | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const abort = new AbortController();
+    void voucherClient.assignments({ ...scope, id }, abort.signal).then(
+      (value) => {
+        if (!abort.signal.aborted) setHistory(value);
+      },
+      () => {
+        if (!abort.signal.aborted) setFailed(true);
+      },
+    );
+    return () => abort.abort();
+  }, [scope, id]);
+  return (
+    <section className="space-y-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-1">
+        <h3 className="text-sm text-foreground/70">{t("Packages on the router")}</h3>
+        {history?.capturedAt && history.items.length > 0 && (
+          <SourceLabel capturedAt={history.capturedAt} />
+        )}
+      </div>
+      {failed ? (
+        <p className="px-1 text-sm text-muted-foreground">
+          {t("Package history could not be loaded.")}
+        </p>
+      ) : !history ? (
+        <div aria-busy="true" className="space-y-2 px-1">
+          <Skeleton className="h-5 w-2/3" />
+          <Skeleton className="h-5 w-1/2" />
+        </div>
+      ) : history.items.length === 0 ? (
+        <p className="px-1 text-sm text-muted-foreground">
+          {t(
+            history.capturedAt
+              ? "The router database copy has no packages for this voucher."
+              : "Update from the router database to see this voucher's packages.",
+          )}
+        </p>
+      ) : (
+        <ul className="max-h-80 divide-y divide-border/50 overflow-auto rounded-xl border border-border/60">
+          {history.items.map((item) => (
+            <li key={item.id} className="space-y-1 px-3 py-2.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-2">
+                  <bdi className="truncate text-sm font-medium">{item.profile || "–"}</bdi>
+                  {item.current && (
+                    <Badge variant="info" size="sm">
+                      {t("Current")}
+                    </Badge>
+                  )}
+                </span>
+                <span className="shrink-0 text-sm tabular-nums">
+                  {t("{amount} used", {
+                    amount: formatBytes(item.download + item.upload, locale),
+                  })}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
+                {item.startedAt ? (
+                  <span>
+                    {t("Started {time}", { time: formatRouterTime(item.startedAt, locale) })}
+                  </span>
+                ) : (
+                  <span>{t("Not started")}</span>
+                )}
+                {item.endsAt && (
+                  <span>
+                    {t(item.current ? "Ends {time}" : "Ended {time}", {
+                      time: formatRouterTime(item.endsAt, locale),
+                    })}
+                  </span>
+                )}
+                {item.assignedAt && (
+                  <span>
+                    {t("Assigned {time}", { time: formatRouterTime(item.assignedAt, locale) })}
+                  </span>
+                )}
+                {item.price !== null && (
+                  <span>
+                    {t("Price at assignment: {price}", { price: formatCount(item.price, locale) })}
+                  </span>
+                )}
+                {ASSIGNMENT_STATES_CONFIRMED && item.state !== null && (
+                  <span>{formatCount(item.state, locale)}</span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

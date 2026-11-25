@@ -160,6 +160,11 @@ export class RouterApi extends Context.Service<
       owner: string,
       words: readonly string[],
     ) => Effect.Effect<readonly Record<string, string>[], RouterApiError>;
+    /** The saved password of this owner's live session, for other services on the same router. */
+    readonly password: (
+      profile: RouterProfile,
+      owner: string,
+    ) => Effect.Effect<string, RouterApiError>;
   }
 >()("madar/routers/RouterApi") {}
 
@@ -281,19 +286,22 @@ const make = Effect.gen(function* () {
       }),
     );
   }, lock.withPermits(1));
+  const sessionFor = (profile: RouterProfile, owner: string) => {
+    const session = sessions.get(profile.id);
+    return session &&
+      session.owner === owner &&
+      routerKey(session.input.profile) === routerKey(profile) &&
+      session.input.profile.tlsCertificate === profile.tlsCertificate
+      ? session
+      : null;
+  };
   const execute = Effect.fn("RouterApi.execute")(function* (
     profile: RouterProfile,
     owner: string,
     words: readonly string[],
   ) {
-    const session = sessions.get(profile.id);
-    if (
-      !session ||
-      session.owner !== owner ||
-      routerKey(session.input.profile) !== routerKey(profile) ||
-      session.input.profile.tlsCertificate !== profile.tlsCertificate
-    )
-      return yield* new RouterApiError({ reason: "disconnected" });
+    const session = sessionFor(profile, owner);
+    if (!session) return yield* new RouterApiError({ reason: "disconnected" });
     const socket = yield* open(session).pipe(
       Effect.tapError(() => Effect.sync(() => session.socket?.close())),
     );
@@ -309,11 +317,20 @@ const make = Effect.gen(function* () {
       Effect.ensuring(Effect.sync(() => session.socket?.close())),
     );
   });
+  const password = Effect.fn("RouterApi.password")(function* (
+    profile: RouterProfile,
+    owner: string,
+  ) {
+    const session = sessionFor(profile, owner);
+    if (!session) return yield* new RouterApiError({ reason: "disconnected" });
+    return session.input.password;
+  });
   return RouterApi.of({
     connect,
     verify,
     status,
     execute,
+    password,
     disconnect: Effect.fn("RouterApi.disconnect")(
       (id: string, owner: string) =>
         Effect.sync(() => {

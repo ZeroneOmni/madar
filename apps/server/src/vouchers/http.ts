@@ -4,6 +4,8 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 import { requireEnvironmentScope } from "../auth/http.ts";
 import * as VoucherService from "./VoucherService.ts";
 import * as VoucherFieldStore from "./VoucherFieldStore.ts";
+import * as VoucherSnapshotSync from "./VoucherSnapshotSync.ts";
+import * as VoucherStore from "./VoucherStore.ts";
 
 export const layer = HttpApiBuilder.group(
   EnvironmentHttpApi,
@@ -11,6 +13,8 @@ export const layer = HttpApiBuilder.group(
   Effect.fnUntraced(function* (handlers) {
     const vouchers = yield* VoucherService.VoucherService;
     const fields = yield* VoucherFieldStore.VoucherFieldStore;
+    const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
+    const store = yield* VoucherStore.VoucherStore;
     return handlers
       .handle(
         "catalog",
@@ -89,6 +93,41 @@ export const layer = HttpApiBuilder.group(
         Effect.fn("vouchers.setFieldValues")(function* ({ payload }) {
           yield* requireEnvironmentScope(AuthAccessWriteScope);
           return yield* fields.setValues(payload);
+        }),
+      )
+      .handle(
+        "databaseStatus",
+        Effect.fn("vouchers.databaseStatus")(function* ({ payload }) {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* snapshots.status(payload);
+        }),
+      )
+      .handle(
+        "databaseStart",
+        Effect.fn("vouchers.databaseStart")(function* ({ payload }) {
+          const principal = yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* snapshots.start(payload, principal.sessionId);
+        }),
+      )
+      .handle(
+        "databaseCancel",
+        Effect.fn("vouchers.databaseCancel")(function* ({ payload }) {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* snapshots.cancel(payload);
+        }),
+      )
+      .handle(
+        "databaseTrust",
+        Effect.fn("vouchers.databaseTrust")(function* ({ payload }) {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* snapshots.trust(payload, payload.hostKey);
+        }),
+      )
+      .handle(
+        "assignments",
+        Effect.fn("vouchers.assignments")(function* ({ payload }) {
+          yield* requireEnvironmentScope(AuthAccessWriteScope);
+          return yield* store.assignments(payload);
         }),
       );
   }),

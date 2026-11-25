@@ -38,6 +38,7 @@ import { useRouterModel } from "./useRouterModel";
 import { RouterDiscovery } from "./RouterDiscovery";
 import { RouterDiscoveryProvider } from "./discoveryState";
 import { SecureRouterSetup } from "./SecureRouterSetup";
+import { RouterDatabaseSettings } from "../vouchers/routerDatabase";
 
 const reasons = {
   credentials: "Enter your router password to restore automatic connection.",
@@ -306,6 +307,7 @@ export function RouterConnections() {
                 </>
               )}
             </dl>
+            <RouterDatabaseSettings router={active} connected={connected !== null} />
             {model.state.kind === "disconnected" || model.state.kind === "failed" ? (
               <form
                 onSubmit={(event) => {

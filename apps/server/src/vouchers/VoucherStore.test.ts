@@ -1,7 +1,9 @@
 import { expect, it } from "@effect/vitest";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Migrator from "effect/sql/Migrator";
+import * as TestClock from "effect/testing/TestClock";
 import * as SqlClient from "effect/sql/SqlClient";
 import * as NodeSqliteClient from "@madar/shared/nodeSqliteClient";
 import type { VoucherQuery, VoucherScope } from "@madar/contracts";
@@ -9,10 +11,12 @@ import LocalAuthentication from "../persistence/Migrations/001_LocalAuthenticati
 import Vouchers from "../persistence/Migrations/002_Vouchers.ts";
 import VoucherColumns from "../persistence/Migrations/003_VoucherColumns.ts";
 import VoucherFields from "../persistence/Migrations/004_VoucherFields.ts";
+import VoucherAssignmentSnapshots from "../persistence/Migrations/005_VoucherAssignmentSnapshots.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
 import { routerKey } from "../routers/RouterApi.ts";
 import * as VoucherStore from "./VoucherStore.ts";
 import { naiveToEpoch } from "./routerValues.ts";
+import type { DatabaseUser } from "./VoucherSnapshotReader.ts";
 
 const GiB = 1024 ** 3;
 const scope: VoucherScope = {
@@ -490,6 +494,7 @@ it.effect("backfills the typed cache from the previous JSON rows for offline bro
         "002_Vouchers": Vouchers,
         "003_VoucherColumns": VoucherColumns,
         "004_VoucherFields": VoucherFields,
+        "005_VoucherAssignmentSnapshots": VoucherAssignmentSnapshots,
       }),
     });
     const store = yield* VoucherStore.VoucherStore;
@@ -658,5 +663,216 @@ it.effect("rotates first-login lookups so failing reads do not block the others"
     for (const candidate of first) yield* store.saveFirstLogin(scope, candidate, null, "failed");
     const next = yield* store.firstLoginCandidates(scope, 2);
     expect(next.map((item) => item.username)).toEqual(["d-1", "d-3"]);
+  }).pipe(Effect.provide(layer)),
+);
+
+// Router database copies. TestClock starts at epoch 0, so Madar times are early 1970.
+const madarAt = (seconds: number) => DateTime.formatIso(DateTime.makeUnsafe(seconds * 1000));
+const usage = (download: number, upload = 0, uptime = 0) => ({ download, upload, uptime });
+const databaseUser = (
+  id: number,
+  username: string,
+  overrides: Partial<DatabaseUser> & { used?: number; started?: string; ends?: string | null } = {},
+): DatabaseUser => {
+  const { used = 0, started = "2026-11-20 10:00:00", ends = null, ...rest } = overrides;
+  const current = {
+    id: 1000 + id,
+    profile: rest.profile ?? "2GB",
+    assignedAt: started,
+    startedAt: started,
+    endsAt: ends,
+    state: 2,
+    price: 3,
+    usage: usage(used),
+  };
+  return {
+    id,
+    customer: "admin",
+    username,
+    lifetime: usage(5 * GiB),
+    profile: "2GB",
+    quotaSignature: `${2 * GiB}:0:0:0`,
+    current,
+    assignments: [
+      current,
+      {
+        ...current,
+        id: 900 + id,
+        profile: "1GB",
+        startedAt: "2026-10-01 09:00:00",
+        endsAt: "2026-10-05 09:00:00",
+        state: 1,
+        price: 1,
+        usage: usage(GiB),
+      },
+    ],
+    ...rest,
+  };
+};
+const publish = (store: VoucherStore.VoucherStore["Service"], at: number, users: DatabaseUser[]) =>
+  store.publishSnapshot(
+    routerKey(scope.router),
+    { capturedAt: madarAt(at), fingerprint: `fixture:${at}` },
+    { users, skipped: 0 },
+  );
+/** A refresh at Madar time `at`, as VoucherService records it. */
+const refresh = (
+  store: VoucherStore.VoucherStore["Service"],
+  vouchers: readonly VoucherStore.RouterVoucher[],
+  at: number,
+) =>
+  store.replace(
+    scope,
+    vouchers.map((item) => ({ ...item, observedAt: madarAt(at) })),
+    madarAt(at),
+  );
+const used = (download: number) =>
+  ({ download, lastSeen: "2026-11-24 11:00:00" }) satisfies Partial<VoucherStore.RouterVoucher>;
+
+it.effect("matches a router database user by customer and exact username, never by guess", () =>
+  Effect.gen(function* () {
+    const { store, find } = yield* setup;
+    yield* refresh(
+      store,
+      [
+        voucher("*1A3", "card-1", used(5 * GiB)),
+        voucher("*2", "twin", used(5 * GiB)),
+        voucher("*3", "card-3", used(5 * GiB)),
+      ],
+      10,
+    );
+    const published = yield* publish(store, 20, [
+      databaseUser(0x1a3, "card-1", { used: GiB / 2 }),
+      databaseUser(5, "twin"),
+      databaseUser(6, "twin"),
+      databaseUser(7, "CARD-3"),
+    ]);
+    // Both users named "twin" are ambiguous; "CARD-3" differs in case, so it matches nothing.
+    expect(published).toEqual([{ customer: "admin", matched: 1, skipped: 2 }]);
+    expect(yield* store.capture(scope)).toMatchObject({
+      outcome: "accepted",
+      capturedAt: madarAt(20),
+      matched: 1,
+      idConfirmed: 1,
+    });
+    const card = yield* find("card-1");
+    expect(card.remaining).toMatchObject({
+      state: "left",
+      amount: 1.5 * GiB,
+      basis: "router-database",
+      capturedAt: madarAt(20),
+    });
+    expect(card.package).toEqual({
+      download: GiB / 2,
+      upload: 0,
+      uptime: 0,
+      startedAt: "2026-11-20 10:00:00",
+      endsAt: null,
+      estimated: false,
+      capturedAt: madarAt(20),
+    });
+    for (const name of ["twin", "card-3"])
+      expect((yield* find(name)).remaining).toMatchObject({ state: "unknown", reason: "baseline" });
+    const history = yield* store.assignments({ ...scope, id: "*1A3" });
+    expect(history.items.map((item) => [item.profile, item.current, item.price])).toEqual([
+      ["2GB", true, 3],
+      ["1GB", false, 1],
+    ]);
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("rolls a fresh copy forward with live counters only while every guard holds", () =>
+  Effect.gen(function* () {
+    const { store, find } = yield* setup;
+    const vouchers = (download: number, ends = 5 * GiB) => [
+      voucher("*1", "live", used(download)),
+      voucher("*2", "ended", used(ends)),
+      voucher("*3", "relimited", used(ends)),
+    ];
+    yield* refresh(store, vouchers(5 * GiB), 10);
+    yield* publish(store, 20, [
+      databaseUser(1, "live", { used: GiB / 2 }),
+      databaseUser(2, "ended", { used: GiB / 2, ends: "2026-11-24 11:00:00" }),
+      databaseUser(3, "relimited", { used: GiB / 2, quotaSignature: `${3 * GiB}:0:0:0` }),
+    ]);
+    // A refresh newer than the copy adds the counters' growth since the copy.
+    yield* refresh(store, vouchers(5.25 * GiB, 5.25 * GiB), 30);
+    const live = yield* find("live");
+    expect(live.remaining).toMatchObject({ amount: 1.25 * GiB, basis: "router-database-live" });
+    expect(live.package).toMatchObject({ download: 0.75 * GiB, estimated: true });
+    // The package's end passed, or its limits differ from the copy's: the copy's own value.
+    for (const name of ["ended", "relimited"])
+      expect((yield* find(name)).remaining).toMatchObject({
+        amount: 1.5 * GiB,
+        basis: "router-database",
+      });
+    // Growth past the limit may belong to a queued package that started: no estimate.
+    yield* refresh(store, vouchers(6.6 * GiB, 5.25 * GiB), 40);
+    expect((yield* find("live")).remaining).toMatchObject({
+      amount: 1.5 * GiB,
+      basis: "router-database",
+    });
+    expect(
+      (yield* store.list(query({ sort: { field: "packageUsage", direction: "desc" } }))).items.map(
+        (row) => [row.username, row.package?.download ?? null],
+      ),
+    ).toEqual([
+      ["ended", GiB / 2],
+      ["live", GiB / 2],
+      ["relimited", GiB / 2],
+    ]);
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("drops a copy on a counter drop, a new profile, a Madar change or old age", () =>
+  Effect.gen(function* () {
+    const { store, find } = yield* setup;
+    const names = ["reset", "moved", "renewed", "aged", "activated"];
+    yield* refresh(
+      store,
+      names.map((name, index) => voucher(`*${index + 1}`, name, used(5 * GiB))),
+      10,
+    );
+    yield* publish(
+      store,
+      20,
+      names.map((name, index) => databaseUser(index + 1, name, { used: GiB / 2 })),
+    );
+    // Madar's own activation outranks a copy of the same profile.
+    yield* store.upsert(
+      scope,
+      voucher("*5", "activated", { ...used(5 * GiB), observedAt: madarAt(25) }),
+      "2026-11-24 11:30:00",
+    );
+    yield* store.invalidateSnapshots(scope, ["*3"]);
+    yield* refresh(
+      store,
+      [
+        voucher("*1", "reset", used(GiB)),
+        voucher("*2", "moved", { ...used(5 * GiB), profile: "1GB" }),
+        voucher("*3", "renewed", used(5 * GiB)),
+        voucher("*4", "aged", used(5 * GiB)),
+        voucher("*5", "activated", used(5 * GiB)),
+      ],
+      30,
+    );
+    expect((yield* find("reset")).remaining).toMatchObject({ reason: "baseline" });
+    expect((yield* find("reset")).package).toBeNull();
+    expect((yield* find("moved")).remaining).toMatchObject({ basis: "profile-change" });
+    expect((yield* find("moved")).package).toBeNull();
+    expect((yield* find("renewed")).remaining).toMatchObject({ reason: "baseline" });
+    expect((yield* find("activated")).remaining).toMatchObject({
+      amount: 2 * GiB,
+      basis: "activation",
+    });
+    expect((yield* find("aged")).remaining.basis).toBe("router-database-live");
+    yield* TestClock.adjust("25 hours");
+    const aged = yield* find("aged");
+    expect(aged.remaining).toMatchObject({
+      state: "unknown",
+      reason: "stale",
+      capturedAt: madarAt(20),
+    });
+    expect(aged.package).toBeNull();
   }).pipe(Effect.provide(layer)),
 );

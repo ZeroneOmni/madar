@@ -18,6 +18,7 @@ import {
 } from "@madar/contracts";
 import * as RouterApi from "../routers/RouterApi.ts";
 import * as VoucherStore from "./VoucherStore.ts";
+import * as VoucherSnapshotSync from "./VoucherSnapshotSync.ts";
 import * as Values from "./routerValues.ts";
 
 const userMenu = "/tool/user-manager/user";
@@ -150,6 +151,7 @@ export class VoucherService extends Context.Service<
 const make = Effect.gen(function* () {
   const api = yield* RouterApi.RouterApi;
   const store = yield* VoucherStore.VoucherStore;
+  const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
   const lock = yield* Semaphore.make(1);
   const now = DateTime.now.pipe(Effect.map(DateTime.formatIso));
   const read = Effect.fn("VoucherService.read")(
@@ -313,8 +315,10 @@ const make = Effect.gen(function* () {
       )
     )
       return yield* new VoucherFailure({ reason: "protocol" });
-    yield* store.replace(scope, vouchers, time);
+    const signals = yield* store.replace(scope, vouchers, time);
     yield* checkFirstLogins(scope, owner);
+    // Copying runs in its own fiber, outside this lock.
+    yield* snapshots.observe(scope, owner, signals);
     return catalog;
   }, lock.withPermits(1));
   const details = Effect.fn("VoucherService.details")(function* (
@@ -448,6 +452,14 @@ const make = Effect.gen(function* () {
             return { target, state: "confirmed", reason: "" } as const;
           }
           yield* find(input, owner, id);
+          // A package change, reset or removal ends what a router database copy described,
+          // even when the command's outcome turns out uncertain.
+          if (
+            action.kind === "assign-profile" ||
+            action.kind === "reset-counters" ||
+            action.kind === "remove"
+          )
+            yield* store.invalidateSnapshots(input, [id]);
           if (action.kind === "edit") {
             // registration-date is never part of an edit; see the create branch.
             yield* read(input, owner, [

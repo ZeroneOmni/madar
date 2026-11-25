@@ -1,15 +1,37 @@
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it, expect } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as SqlClient from "effect/sql/SqlClient";
 import type { VoucherQuery, VoucherMutation } from "@madar/contracts";
+import * as ServerConfig from "../config.ts";
 import * as RouterApi from "../routers/RouterApi.ts";
+import * as RouterSftp from "../routers/RouterSftp.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
 import * as VoucherStore from "./VoucherStore.ts";
 import * as VoucherService from "./VoucherService.ts";
+import * as VoucherSnapshotReader from "./VoucherSnapshotReader.ts";
+import * as VoucherSnapshotSync from "./VoucherSnapshotSync.ts";
 import { routerFixture } from "./routerFixture.ts";
 
+// The fixture router has no SSH; router database copies fail fast instead of dialing port 22.
+const snapshots = VoucherSnapshotSync.layer.pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      Layer.succeed(
+        RouterSftp.RouterSftp,
+        RouterSftp.RouterSftp.of({
+          connect: () => Effect.fail(new RouterSftp.RouterSftpError({ reason: "ssh-off" })),
+        }),
+      ),
+      VoucherSnapshotReader.layer,
+      ServerConfig.layerTest(process.cwd(), { prefix: "madar-voucher-service-test-" }),
+    ),
+  ),
+  Layer.provide(NodeServices.layer),
+);
 const services = VoucherService.layer.pipe(
+  Layer.provideMerge(snapshots),
   Layer.provideMerge(VoucherStore.layer),
   Layer.provideMerge(RouterApi.layer),
   Layer.provideMerge(Sqlite.layerMemory),
@@ -36,6 +58,7 @@ it.live("records current and unattempted targets before a process loss after a r
       }),
     ).pipe(Layer.provide(RouterApi.layer));
     const crashServices = VoucherService.layer.pipe(
+      Layer.provideMerge(snapshots),
       Layer.provideMerge(VoucherStore.layer),
       Layer.provideMerge(crashingApi),
       Layer.provideMerge(Sqlite.layerMemory),

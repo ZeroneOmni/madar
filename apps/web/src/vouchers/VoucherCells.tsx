@@ -12,12 +12,14 @@ import { VoucherState } from "./VoucherForms";
 type Translate = ReturnType<typeof useLocale>["t"];
 
 const unknownReasons: Record<Exclude<VoucherRemaining["reason"], "">, string> = {
+  stale:
+    "The last router database copy is from {time}, more than a day ago. Update from the router database to see this package.",
   catalog: "Refresh customers and profiles to read this profile's limits.",
   limits:
     "This profile has limits that apply only at certain times, or limits Madar could not read. Check the profile on the router.",
   counters: "The router's usage counters for this voucher could not be read.",
   baseline:
-    "Madar did not see this profile start, and the router's counters include earlier profiles. Activate the profile from Madar to start counting.",
+    "Madar did not see this profile start, and the router's counters include earlier profiles. Update from the router database, or activate the profile from Madar to start counting.",
   activation:
     "Madar does not know when this profile was activated, so it cannot calculate the end.",
   "first-login": "Madar has not found the first login in the router's session records yet.",
@@ -30,9 +32,13 @@ const bases: Record<Exclude<VoucherRemaining["basis"], "">, string> = {
     "Estimated. Madar noticed the new profile at a refresh and counts usage from then. Usage before that refresh is not included.",
   "counter-reset":
     "Estimated. The router's usage counters were reset, so Madar counts usage from zero.",
+  "router-database":
+    "From the router database, copied {time}. Usage after that copy is not included yet.",
+  "router-database-live":
+    "Estimated. Package usage from the router database copied {time}, plus the usage the router counted since.",
 };
 const estimated = (basis: VoucherRemaining["basis"]) =>
-  basis === "profile-change" || basis === "counter-reset";
+  basis === "profile-change" || basis === "counter-reset" || basis === "router-database-live";
 
 function Explained({ label, children }: { label: ReactNode; children: string }) {
   return (
@@ -65,7 +71,8 @@ export function RemainingCell({ row }: { row: VoucherRow }) {
       ≈
     </span>
   ) : null;
-  const source = remaining.basis ? t(bases[remaining.basis]) : "";
+  const time = remaining.capturedAt ? formatDateTime(remaining.capturedAt, locale) : "";
+  const source = remaining.basis ? t(bases[remaining.basis], { time }) : "";
   switch (remaining.state) {
     case "none":
       return <span className="text-muted-foreground">–</span>;
@@ -81,7 +88,7 @@ export function RemainingCell({ row }: { row: VoucherRow }) {
             </span>
           }
         >
-          {t(unknownReasons[remaining.reason || "baseline"])}
+          {t(unknownReasons[remaining.reason || "baseline"], { time })}
         </Explained>
       );
     case "used-up":
@@ -239,6 +246,12 @@ export function cellText(key: ColumnKey, row: VoucherRow, locale: Locale, t: Tra
       return row.firstLoginAt ?? "";
     case "batch":
       return row.batch?.createdAt ?? "";
+    case "packageUsage":
+      return row.package ? String(row.package.download + row.package.upload) : "";
+    case "packageStart":
+      return row.package?.startedAt ?? "";
+    case "packageEnd":
+      return row.package?.endsAt ?? "";
   }
 }
 
@@ -368,7 +381,56 @@ export function Cell({ column, row }: { column: ColumnKey; row: VoucherRow }) {
       ) : (
         "–"
       );
+    case "packageUsage":
+      return <PackageUsage row={row} />;
+    case "packageStart":
+    case "packageEnd": {
+      const value = column === "packageStart" ? row.package?.startedAt : row.package?.endsAt;
+      return row.package && value ? (
+        <Explained label={formatRouterTime(value, locale)}>
+          {t("Router time. From the router database, copied {time}.", {
+            time: formatDateTime(row.package.capturedAt, locale),
+          })}
+        </Explained>
+      ) : (
+        "–"
+      );
+    }
   }
+}
+
+/** "35 GiB of 80 GiB" for the current package, from a fresh router database copy. */
+export function PackageUsage({ row }: { row: VoucherRow }) {
+  const { t, locale } = useLocale();
+  const usage = row.package;
+  if (!usage) return "–";
+  const used = formatBytes(usage.download + usage.upload, locale);
+  return (
+    <Explained
+      label={
+        <span className="tabular-nums">
+          {usage.estimated && (
+            <span aria-hidden="true" className="me-1 text-muted-foreground">
+              ≈
+            </span>
+          )}
+          {row.quota.transfer === null
+            ? used
+            : t("{amount} of {limit}", {
+                amount: used,
+                limit: formatBytes(row.quota.transfer, locale),
+              })}
+        </span>
+      }
+    >
+      {t(
+        usage.estimated
+          ? "Estimated. Package usage from the router database copied {time}, plus the usage the router counted since."
+          : "From the router database, copied {time}. Usage after that copy is not included yet.",
+        { time: formatDateTime(usage.capturedAt, locale) },
+      )}
+    </Explained>
+  );
 }
 
 function QuotaText({ row }: { row: VoucherRow }) {

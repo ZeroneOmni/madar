@@ -25,6 +25,9 @@ import * as VoucherHttp from "./vouchers/http.ts";
 import * as VoucherService from "./vouchers/VoucherService.ts";
 import * as VoucherStore from "./vouchers/VoucherStore.ts";
 import * as VoucherFieldStore from "./vouchers/VoucherFieldStore.ts";
+import * as VoucherSnapshotSync from "./vouchers/VoucherSnapshotSync.ts";
+import * as VoucherSnapshotReader from "./vouchers/VoucherSnapshotReader.ts";
+import * as RouterSftp from "./routers/RouterSftp.ts";
 import * as ReplayMarkers from "./auth/replayMarkers.ts";
 import * as ServerSecretStore from "./auth/ServerSecretStore.ts";
 import {
@@ -84,7 +87,14 @@ const layerRoutes = Layer.mergeAll(
         VoucherHttp.layer.pipe(
           Layer.provide(
             Layer.merge(
-              VoucherService.layer.pipe(Layer.provide(VoucherStore.layer)),
+              VoucherService.layer.pipe(
+                Layer.provideMerge(
+                  VoucherSnapshotSync.layer.pipe(
+                    Layer.provide(Layer.merge(RouterSftp.layer, VoucherSnapshotReader.layer)),
+                  ),
+                ),
+                Layer.provideMerge(VoucherStore.layer),
+              ),
               VoucherFieldStore.layer,
             ),
           ),

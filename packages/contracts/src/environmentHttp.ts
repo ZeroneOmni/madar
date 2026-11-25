@@ -15,6 +15,10 @@ import {
   VoucherFieldDelete,
   VoucherFieldValues,
   VoucherFieldValuesResult,
+  VoucherAssignments,
+  RouterDatabaseStatus,
+  RouterDatabaseTrust,
+  RouterDatabaseScope,
 } from "./vouchers.ts";
 import {
   RouterProbeInput,
@@ -475,6 +479,41 @@ export class EnvironmentHttpApi extends HttpApi.make("environment")
         HttpApiEndpoint.post("setFieldValues", "/api/vouchers/fields/values", {
           payload: VoucherFieldValues,
           success: VoucherFieldValuesResult,
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("databaseStatus", "/api/vouchers/router-database/status", {
+          payload: RouterDatabaseScope,
+          success: RouterDatabaseStatus,
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("databaseStart", "/api/vouchers/router-database/start", {
+          payload: RouterDatabaseScope,
+          success: RouterDatabaseStatus,
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("databaseCancel", "/api/vouchers/router-database/cancel", {
+          payload: RouterDatabaseScope,
+          success: RouterDatabaseStatus,
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("databaseTrust", "/api/vouchers/router-database/trust", {
+          payload: RouterDatabaseTrust,
+          success: RouterDatabaseStatus,
+          error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
+        }).middleware(EnvironmentAuthenticatedAuth),
+      )
+      .add(
+        HttpApiEndpoint.post("assignments", "/api/vouchers/router-database/assignments", {
+          payload: VoucherTarget,
+          success: VoucherAssignments,
           error: [VoucherFailure, ...EnvironmentScopedOperationErrors],
         }).middleware(EnvironmentAuthenticatedAuth),
       ),

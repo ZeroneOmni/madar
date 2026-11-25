@@ -421,3 +421,40 @@ it.effect.each([
       );
     }).pipe(Effect.provide(SqliteClient.layer({ filename: ":memory:" }))),
 );
+
+it.effect("reads a private rollback-journal copy on the reader while the writer is busy", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const directory = yield* fs.makeTempDirectoryScoped({ prefix: "madar-sqlite-copy-" });
+    const filename = path.join(directory, "copy.sqlite");
+    yield* Effect.sync(() => {
+      const source = new NodeSqlite.DatabaseSync(filename);
+      source.exec(`
+        PRAGMA journal_mode = DELETE;
+        CREATE TABLE entries(name TEXT NOT NULL);
+        INSERT INTO entries VALUES ('copied');
+      `);
+      source.close();
+    });
+    yield* Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const held = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+      const writer = yield* sql
+        .withTransaction(
+          Deferred.succeed(held, undefined).pipe(Effect.andThen(Deferred.await(release))),
+        )
+        .pipe(Effect.forkChild);
+      yield* Deferred.await(held);
+      // On the writer this read would wait for the held transaction; the reader answers now.
+      assert.equal(yield* sql.withTransaction(countEntries(sql)).pipe(SqliteClient.readOnly), 1);
+      yield* Deferred.succeed(release, undefined);
+      yield* Fiber.join(writer);
+    }).pipe(
+      Effect.provide(
+        SqliteClient.layer({ filename, readonly: true, readerWorker: true, privateCopy: true }),
+      ),
+    );
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
