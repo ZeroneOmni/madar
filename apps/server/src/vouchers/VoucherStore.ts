@@ -80,10 +80,12 @@ export interface DatabaseState {
   readonly lastAutomaticAt: string | null;
   readonly lastOutcome: "accepted" | "unchanged" | "failed" | "cancelled" | null;
   readonly acceptedAt: string | null;
-  /** Size, modification time and SQLite header hash of the last accepted copy. */
+  readonly acceptedBusy: boolean;
+  /** Size, mtime, change counter and header hash of the last exact copy; null after a busy one. */
   readonly fingerprint: string | null;
   readonly failureStage: string | null;
   readonly failureReason: string | null;
+  readonly failureDetail: string | null;
   readonly failedAt: string | null;
   readonly paused: boolean;
   readonly retryAt: string | null;
@@ -92,6 +94,7 @@ export interface DatabaseState {
 }
 export interface CaptureRecord {
   readonly capturedAt: string | null;
+  readonly busy: boolean;
   readonly checkedAt: string;
   readonly outcome: "accepted" | "unchanged" | "failed" | "cancelled";
   readonly errorStage: string | null;
@@ -232,9 +235,10 @@ params AS (
       AS limits_synced,
     (SELECT synced_at FROM voucher_sync y WHERE y.router_key = base.router_key
       AND y.customer = base.customer) AS synced_at,
-    (SELECT captured_at FROM voucher_db_captures c WHERE c.router_key = base.router_key
-      AND c.customer = base.customer) AS captured_at
-  FROM base
+    c.captured_at, COALESCE(c.copied_until, c.captured_at) AS copied_until,
+    COALESCE(c.busy, 0) AS captured_busy
+  FROM base LEFT JOIN voucher_db_captures c ON c.router_key = base.router_key
+    AND c.customer = base.customer
 ),
 quota AS (
   SELECT p.name, p.validity, p.starts_at, p.price,
@@ -258,6 +262,7 @@ quota AS (
 ),
 joined AS (
   SELECT v.*, params.now, params.pc_now, params.limits_synced, params.captured_at,
+    params.copied_until, params.captured_busy,
     max(v.observed_at, COALESCE(params.synced_at, '')) AS seen_at,
     q.name IS NOT NULL AS q_known, q.validity AS q_validity, q.starts_at AS q_starts_at,
     q.price AS q_price, q.q_transfer, q.q_download, q.q_upload, q.q_uptime, q.q_unclear,
@@ -290,17 +295,17 @@ copied AS (
     COALESCE(s_profile = profile AND pc_now - unixepoch(captured_at) > ${COPY_FRESH_SECONDS}, 0)
       AS s_stale,
     -- The copy describes the current package: same profile, fresh, and no counter went down
-    -- since it, judged only once a refresh newer than the copy has read the counters.
+    -- since it, judged only once a refresh after the whole copy has read the counters.
     COALESCE(s_profile = profile AND pc_now - unixepoch(captured_at) <= ${COPY_FRESH_SECONDS}
       AND download_used IS NOT NULL AND upload_used IS NOT NULL
-      AND (seen_at < captured_at OR (download_used >= s_life_download
+      AND (seen_at <= copied_until OR (download_used >= s_life_download
         AND upload_used >= s_life_upload AND COALESCE(uptime_used, s_life_uptime) >= s_life_uptime)),
       0) AS s_ok
   FROM joined
 ),
 rolled AS (
   SELECT *,
-    COALESCE(${ROLL_FORWARD_AFTER_COPY ? 1 : 0} AND s_ok AND seen_at > captured_at
+    COALESCE(${ROLL_FORWARD_AFTER_COPY ? 1 : 0} AND s_ok AND seen_at > copied_until
       AND s_signature = q_signature
       AND (s_ends_at IS NULL OR (now IS NOT NULL AND unixepoch(s_ends_at) > now))
       AND (q_transfer IS NULL OR s_download + s_upload + download_used - s_life_download
@@ -315,6 +320,8 @@ used AS (
   SELECT *,
     -- Madar's own start of this package (its activation, or seen unused) outranks a copy.
     s_ok AND COALESCE(b_source NOT IN ('activation', 'new'), 1) AS use_copy,
+    -- A busy copy's user row and counters may come from commits seconds apart. Growth stays
+    -- non-negative (s_ok) and the rolled value stays under every limit (s_live).
     CASE WHEN s_ok THEN s_download
       + CASE WHEN s_live THEN download_used - s_life_download ELSE 0 END END AS p_download,
     CASE WHEN s_ok THEN s_upload
@@ -404,7 +411,8 @@ ranked AS (
       WHEN left_download * 1.0 / q_download = data_ratio THEN 'download'
       WHEN left_upload * 1.0 / q_upload = data_ratio THEN 'upload'
       ELSE 'uptime' END AS rem_kind,
-    CASE WHEN use_copy OR s_stale THEN captured_at END AS rem_captured
+    CASE WHEN use_copy OR s_stale THEN captured_at END AS rem_captured,
+    CASE WHEN use_copy OR s_stale THEN captured_busy ELSE 0 END AS rem_captured_busy
   FROM timed
 )`;
 
@@ -626,6 +634,7 @@ const toRow = (
       endsAt,
       basis: known || state === "unknown" ? basis : "",
       capturedAt: str(row.rem_captured) || null,
+      capturedBusy: bool(row.rem_captured_busy),
     },
     package:
       row.pkg_used === null
@@ -638,6 +647,7 @@ const toRow = (
             endsAt: str(row.pkg_end) || null,
             estimated: bool(row.s_live),
             capturedAt: str(row.captured_at),
+            capturedBusy: bool(row.captured_busy),
           },
     fields,
   };
@@ -729,7 +739,7 @@ export class VoucherStore extends Context.Service<
     ) => Effect.Effect<void, VoucherFailure>;
     readonly publishSnapshot: (
       key: string,
-      copy: { capturedAt: string; fingerprint: string },
+      copy: { capturedAt: string; copiedUntil: string; busy: boolean; fingerprint: string | null },
       contents: DatabaseContents,
     ) => Effect.Effect<
       readonly { customer: string; matched: number; skipped: number }[],
@@ -1382,12 +1392,15 @@ const make = Effect.gen(function* () {
   const databaseState = Effect.fn("VoucherStore.databaseState")(function* (key: string) {
     const rows = yield* sql<DatabaseState>`SELECT last_attempt_at AS "lastAttemptAt",
         last_automatic_at AS "lastAutomaticAt", last_outcome AS "lastOutcome",
-        accepted_at AS "acceptedAt", fingerprint,
-        failure_stage AS "failureStage", failure_reason AS "failureReason", failed_at AS "failedAt",
+        accepted_at AS "acceptedAt", accepted_busy AS "acceptedBusy", fingerprint,
+        failure_stage AS "failureStage", failure_reason AS "failureReason",
+        failure_detail AS "failureDetail", failed_at AS "failedAt",
         paused, retry_at AS "retryAt", host_key AS "hostKey", offered_host_key AS "offeredHostKey"
       FROM voucher_db_routers WHERE router_key = ${key}`;
     const row = rows[0];
-    return row ? { ...row, paused: Boolean(row.paused) } : null;
+    return row
+      ? { ...row, paused: Boolean(row.paused), acceptedBusy: Boolean(row.acceptedBusy) }
+      : null;
   }, Effect.mapError(storageError));
 
   const saveDatabaseState = Effect.fn("VoucherStore.saveDatabaseState")(function* (
@@ -1400,9 +1413,11 @@ const make = Effect.gen(function* () {
       last_automatic_at: state.lastAutomaticAt,
       last_outcome: state.lastOutcome,
       accepted_at: state.acceptedAt,
+      accepted_busy: Number(state.acceptedBusy),
       fingerprint: state.fingerprint,
       failure_stage: state.failureStage,
       failure_reason: state.failureReason,
+      failure_detail: state.failureDetail,
       failed_at: state.failedAt,
       paused: Number(state.paused),
       retry_at: state.retryAt,
@@ -1413,12 +1428,13 @@ const make = Effect.gen(function* () {
 
   const capture = Effect.fn("VoucherStore.capture")(function* (scope: VoucherScope) {
     const rows =
-      yield* sql<CaptureRecord>`SELECT captured_at AS "capturedAt", checked_at AS "checkedAt",
+      yield* sql<CaptureRecord>`SELECT captured_at AS "capturedAt", busy, checked_at AS "checkedAt",
         outcome, error_stage AS "errorStage", error_reason AS "errorReason", matched, skipped,
         id_confirmed AS "idConfirmed"
       FROM voucher_db_captures WHERE router_key = ${routerKey(scope.router)}
       AND customer = ${scope.customer}`;
-    return rows[0] ?? null;
+    const row = rows[0];
+    return row ? { ...row, busy: Boolean(row.busy) } : null;
   }, Effect.mapError(storageError));
 
   /** Records an attempt that did not publish a copy; the last accepted copy stays in use. */
@@ -1433,7 +1449,8 @@ const make = Effect.gen(function* () {
     },
   ) {
     if (attempt.fingerprint !== undefined)
-      yield* sql`UPDATE voucher_db_captures SET captured_at = ${attempt.checkedAt}
+      yield* sql`UPDATE voucher_db_captures SET captured_at = ${attempt.checkedAt},
+          copied_until = ${attempt.checkedAt}
         WHERE router_key = ${key} AND fingerprint = ${attempt.fingerprint}`;
     yield* sql`INSERT INTO voucher_db_captures (router_key, customer, outcome, checked_at,
         error_stage, error_reason)
@@ -1451,7 +1468,7 @@ const make = Effect.gen(function* () {
    */
   const publishSnapshot = Effect.fn("VoucherStore.publishSnapshot")(function* (
     key: string,
-    copy: { capturedAt: string; fingerprint: string },
+    copy: { capturedAt: string; copiedUntil: string; busy: boolean; fingerprint: string | null },
     contents: DatabaseContents,
   ) {
     const byCustomer = new Map<string, DatabaseContents["users"][number][]>();
@@ -1545,9 +1562,11 @@ const make = Effect.gen(function* () {
             router_key: key,
             customer,
             captured_at: copy.capturedAt,
+            copied_until: copy.copiedUntil,
+            busy: Number(copy.busy),
             fingerprint: copy.fingerprint,
             outcome: "accepted",
-            checked_at: copy.capturedAt,
+            checked_at: copy.copiedUntil,
             error_stage: null,
             error_reason: null,
             matched: snapshots.size,
@@ -1630,6 +1649,7 @@ const make = Effect.gen(function* () {
       const copy = yield* capture(target);
       return {
         capturedAt: copy?.capturedAt ?? null,
+        capturedBusy: copy?.busy ?? false,
         items: rows.map((row) => ({
           id: row.db_assignment_id,
           profile: row.profile,

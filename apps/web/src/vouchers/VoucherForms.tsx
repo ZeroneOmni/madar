@@ -383,7 +383,10 @@ export function VoucherInspector({
           </dl>
           {voucher.remaining.capturedAt && voucher.remaining.basis.startsWith("router-database") ? (
             <p className="px-1">
-              <SourceLabel capturedAt={voucher.remaining.capturedAt} />
+              <SourceLabel
+                capturedAt={voucher.remaining.capturedAt}
+                busy={voucher.remaining.capturedBusy}
+              />
             </p>
           ) : (
             <p className="flex items-start gap-2 px-1 text-xs text-muted-foreground">
@@ -610,7 +613,7 @@ function PackageHistory({ scope, id }: { scope: VoucherScope; id: string }) {
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-1">
         <h3 className="text-sm text-foreground/70">{t("Packages on the router")}</h3>
         {history?.capturedAt && history.items.length > 0 && (
-          <SourceLabel capturedAt={history.capturedAt} />
+          <SourceLabel capturedAt={history.capturedAt} busy={history.capturedBusy} />
         )}
       </div>
       {failed ? (

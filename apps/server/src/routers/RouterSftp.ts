@@ -31,12 +31,21 @@ export class RouterSftpError extends Schema.TaggedError<RouterSftpError>()("Rout
 
 export const SFTP_LIMITS = {
   connectSeconds: 10,
-  stallSeconds: 15,
-  transferSeconds: 180,
+  /** A busy RouterOS 6 router answered single reads after up to 12.5 s. */
+  stallSeconds: 30,
+  /** The whole transfer may run as long as at this rate; RouterOS 6 measured 50–115 KiB/s. */
+  slowBytesPerSecond: 30 * 1024,
+  minTransferSeconds: 180,
+  maxTransferSeconds: 3600,
   maxBytes: 256 * 1024 * 1024,
   automaticBytesPerSecond: 2 * 1024 * 1024,
 } as const;
 const CHUNK = 64 * 1024;
+const transferSeconds = (size: number) =>
+  Math.min(
+    SFTP_LIMITS.maxTransferSeconds,
+    Math.max(SFTP_LIMITS.minTransferSeconds, Math.ceil(size / SFTP_LIMITS.slowBytesPerSecond)),
+  );
 
 export interface RemoteFile {
   readonly size: number;
@@ -134,18 +143,23 @@ const make = Effect.gen(function* () {
       }
       return new Uint8Array(buffer.subarray(0, filled));
     }, Effect.scoped);
-    const download = Effect.fn("RouterSftp.download")(
-      function* (
-        path: string,
-        destination: string,
-        options: {
-          readonly bytesPerSecond: number | null;
-          readonly onProgress: (received: number, total: number) => Effect.Effect<void>;
-        },
-      ) {
-        const info = yield* stat(path);
-        if (!info) return yield* failure("not-found");
-        if (info.size > SFTP_LIMITS.maxBytes) return yield* failure("too-large");
+    const download = Effect.fn("RouterSftp.download")(function* (
+      path: string,
+      destination: string,
+      options: {
+        readonly bytesPerSecond: number | null;
+        readonly onProgress: (received: number, total: number) => Effect.Effect<void>;
+      },
+    ) {
+      const info = yield* stat(path).pipe(
+        Effect.timeoutOrElse({
+          duration: `${SFTP_LIMITS.stallSeconds} seconds`,
+          orElse: () => Effect.fail(failure("stalled")),
+        }),
+      );
+      if (!info) return yield* failure("not-found");
+      if (info.size > SFTP_LIMITS.maxBytes) return yield* failure("too-large");
+      return yield* Effect.gen(function* () {
         const handle = yield* open(path);
         const file = yield* fs
           .open(destination, { flag: "wx" })
@@ -169,13 +183,13 @@ const make = Effect.gen(function* () {
           }
         }
         return received;
-      },
-      Effect.scoped,
-      Effect.timeoutOrElse({
-        duration: `${SFTP_LIMITS.transferSeconds} seconds`,
-        orElse: () => Effect.fail(failure("timeout")),
-      }),
-    );
+      }).pipe(
+        Effect.timeoutOrElse({
+          duration: `${transferSeconds(info.size)} seconds`,
+          orElse: () => Effect.fail(failure("timeout")),
+        }),
+      );
+    }, Effect.scoped);
     return { hostKey, stat, head, download };
   };
 

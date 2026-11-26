@@ -12,6 +12,7 @@ import Vouchers from "../persistence/Migrations/002_Vouchers.ts";
 import VoucherColumns from "../persistence/Migrations/003_VoucherColumns.ts";
 import VoucherFields from "../persistence/Migrations/004_VoucherFields.ts";
 import VoucherAssignmentSnapshots from "../persistence/Migrations/005_VoucherAssignmentSnapshots.ts";
+import VoucherCopyTiming from "../persistence/Migrations/006_VoucherCopyTiming.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
 import { routerKey } from "../routers/RouterApi.ts";
 import * as VoucherStore from "./VoucherStore.ts";
@@ -495,6 +496,7 @@ it.effect("backfills the typed cache from the previous JSON rows for offline bro
         "003_VoucherColumns": VoucherColumns,
         "004_VoucherFields": VoucherFields,
         "005_VoucherAssignmentSnapshots": VoucherAssignmentSnapshots,
+        "006_VoucherCopyTiming": VoucherCopyTiming,
       }),
     });
     const store = yield* VoucherStore.VoucherStore;
@@ -709,10 +711,21 @@ const databaseUser = (
     ...rest,
   };
 };
-const publish = (store: VoucherStore.VoucherStore["Service"], at: number, users: DatabaseUser[]) =>
+/** An exact copy at Madar time `at`, or a busy one whose download ran from `at` to `until`. */
+const publish = (
+  store: VoucherStore.VoucherStore["Service"],
+  at: number,
+  users: DatabaseUser[],
+  until?: number,
+) =>
   store.publishSnapshot(
     routerKey(scope.router),
-    { capturedAt: madarAt(at), fingerprint: `fixture:${at}` },
+    {
+      capturedAt: madarAt(at),
+      copiedUntil: madarAt(until ?? at),
+      busy: until !== undefined,
+      fingerprint: until === undefined ? `fixture:${at}` : null,
+    },
     { users, skipped: 0 },
   );
 /** A refresh at Madar time `at`, as VoucherService records it. */
@@ -770,6 +783,7 @@ it.effect("matches a router database user by customer and exact username, never 
       endsAt: null,
       estimated: false,
       capturedAt: madarAt(20),
+      capturedBusy: false,
     });
     for (const name of ["twin", "card-3"])
       expect((yield* find(name)).remaining).toMatchObject({ state: "unknown", reason: "baseline" });
@@ -821,6 +835,35 @@ it.effect("rolls a fresh copy forward with live counters only while every guard 
       ["live", GiB / 2],
       ["relimited", GiB / 2],
     ]);
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("judges a copy taken while the router was busy only after its download ended", () =>
+  Effect.gen(function* () {
+    const { store, find } = yield* setup;
+    yield* refresh(store, [voucher("*1", "busy", used(5 * GiB))], 10);
+    // The download ran from 20 to 80, and its user row was committed after a refresh at 50.
+    yield* publish(
+      store,
+      20,
+      [databaseUser(1, "busy", { used: GiB / 2, lifetime: usage(5.2 * GiB) })],
+      80,
+    );
+    yield* refresh(store, [voucher("*1", "busy", used(5.1 * GiB))], 50);
+    const during = yield* find("busy");
+    expect(during.remaining).toMatchObject({
+      amount: 1.5 * GiB,
+      basis: "router-database",
+      capturedAt: madarAt(20),
+      capturedBusy: true,
+    });
+    expect(during.package).toMatchObject({ download: GiB / 2, capturedBusy: true });
+    yield* refresh(store, [voucher("*1", "busy", used(5.45 * GiB))], 90);
+    expect((yield* find("busy")).remaining).toMatchObject({
+      amount: 1.25 * GiB,
+      basis: "router-database-live",
+      capturedBusy: true,
+    });
   }).pipe(Effect.provide(layer)),
 );
 

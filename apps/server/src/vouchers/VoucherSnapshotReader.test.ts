@@ -10,6 +10,8 @@ import * as Path from "effect/Path";
 import * as VoucherSnapshotReader from "./VoucherSnapshotReader.ts";
 import {
   SECRET_MARKER,
+  pagesOf,
+  splicePages,
   writeRouterDatabase,
   type FixtureOptions,
 } from "./routerDatabaseFixture.ts";
@@ -36,8 +38,8 @@ const withFile = <A, E>(
 
 const twoPackages: FixtureOptions = {
   customers: [
-    { id: 1, login: "admin" },
-    { id: 2, login: "shop" },
+    { id: 1, userName: "admin" },
+    { id: 2, userName: "shop" },
   ],
   profiles: [
     { id: 10, name: "35GB" },
@@ -47,7 +49,7 @@ const twoPackages: FixtureOptions = {
     {
       id: 0x1a3,
       username: "card-001",
-      profileId: 11,
+      current: 9,
       profileName: "80GB",
       start: at("2026-11-11 06:53:04"),
       end: at("2026-12-11 06:53:04"),
@@ -147,7 +149,7 @@ it.live("skips users whose package counters exceed their lifetime counters", () 
           download: GiB,
           upload: 0,
           uptime: 0,
-          profileId: 10,
+          current: 1,
           profileName: "Day",
           assignments: [
             {
@@ -168,30 +170,40 @@ it.live("skips users whose package counters exceed their lifetime counters", () 
   ),
 );
 
-it.live("treats two running assignments of the same start as no current package", () =>
+it.live("takes the current package from the assignment the user row names", () =>
   withFile(
     {
-      profiles: [{ id: 10, name: "Day" }],
+      profiles: [
+        { id: 10, name: "Day" },
+        { id: 11, name: "Week" },
+      ],
       users: [
         {
           id: 1,
-          username: "twin",
-          profileId: 10,
-          profileName: "Day",
-          assignments: [1, 2].map((id) => ({
-            id,
-            profileId: 10,
-            activated: at("2026-11-20 10:00:00"),
-          })),
+          username: "waiting",
+          // The newer package is assigned but has not started; the user row names it.
+          current: 2,
+          profileName: "Week",
+          assignments: [
+            { id: 1, profileId: 10, activated: at("2026-11-20 10:00:00") },
+            { id: 2, profileId: 11, added: at("2026-11-21 10:00:00"), activated: -2 },
+          ],
         },
+        // An id that is not one of this user's assignments names nothing.
+        { id: 2, username: "stray", current: 1, profileName: "Day", assignments: [] },
       ],
     },
     (filename) =>
       Effect.gen(function* () {
         const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
-        const [user] = (yield* reader.read(filename)).users;
-        expect(user?.current).toBeNull();
-        expect(user?.assignments).toHaveLength(2);
+        const { users } = yield* reader.read(filename);
+        expect(users.find((user) => user.username === "waiting")?.current).toMatchObject({
+          id: 2,
+          profile: "Week",
+          assignedAt: "2026-11-21 10:00:00",
+          startedAt: null,
+        });
+        expect(users.find((user) => user.username === "stray")?.current).toBeNull();
       }),
   ),
 );
@@ -220,6 +232,23 @@ it.live("fails closed on an unknown layout, wrong types, and damaged or truncate
       },
     });
     expect(retyped).toMatchObject({ reason: "schema", table: "userprofile" });
+    // Earlier guesses named the customer column "login"; User Manager 6 calls it userName.
+    const renamed = yield* failure((filename) => {
+      writeRouterDatabase(filename, { users: [] });
+      const sqlite = new NodeSqlite.DatabaseSync(filename);
+      sqlite.exec("ALTER TABLE customer RENAME COLUMN userName TO login");
+      sqlite.close();
+    });
+    expect(renamed).toMatchObject({ reason: "schema", table: "customer", column: "userName" });
+    // Rowid reads need `id` to be the rowid; "INT PRIMARY KEY" is an ordinary indexed column.
+    const keyed = yield* failure({
+      users: [],
+      ddl: {
+        ucounters:
+          "CREATE TABLE ucounters (id INT PRIMARY KEY, userId INTEGER, uprofileId INTEGER, upload INTEGER, download INTEGER, uptime INTEGER)",
+      },
+    });
+    expect(keyed).toMatchObject({ reason: "schema", table: "ucounters", column: "id" });
     const text = yield* failure((filename) => {
       writeRouterDatabase(filename, { users: [{ id: 1, username: "a" }], secrets: "values" });
       const sqlite = new NodeSqlite.DatabaseSync(filename);
@@ -248,10 +277,171 @@ it.live("fails closed on an unknown layout, wrong types, and damaged or truncate
       const bytes = NodeFS.readFileSync(filename);
       NodeFS.writeFileSync(filename, bytes.subarray(0, Math.floor(bytes.length / 2)));
     });
-    expect(truncated.reason).toBe("corrupt");
+    // A file that ends early is a copy cut short while the router wrote, not another file.
+    expect(truncated.reason).toBe("torn");
     const garbage = yield* failure((filename) => {
       NodeFS.writeFileSync(filename, Buffer.alloc(8192, 7));
     });
     expect(garbage.reason).toBe("corrupt");
   }),
+);
+
+it.live("reads User Manager's not-set markers as no value and no limit", () =>
+  withFile(
+    {
+      profiles: [{ id: 10, name: "Day" }],
+      users: [
+        {
+          id: 1,
+          username: "unset",
+          current: 1,
+          profileName: "Day",
+          // User Manager 6 writes -1 and -2 for "not set".
+          start: -2,
+          end: -2,
+          limits: { transfer: -1, download: -1, upload: -1, uptime: -1 },
+          assignments: [
+            {
+              id: 1,
+              profileId: 10,
+              activated: at("2026-11-20 10:00:00"),
+              endTime: -2,
+              validUntil: 0,
+              counters: [{ download: 80_000_000_000, upload: 0, uptime: 60 }],
+            },
+          ],
+        },
+        { id: 2, username: "never", current: null, profileName: null, start: null, end: null },
+      ],
+    },
+    (filename) =>
+      Effect.gen(function* () {
+        const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
+        const { users, skipped } = yield* reader.read(filename);
+        expect(skipped).toBe(0);
+        expect(users.find((user) => user.username === "unset")).toMatchObject({
+          quotaSignature: "0:0:0:0",
+          lifetime: { download: 80_000_000_000 },
+          current: { id: 1, startedAt: "2026-11-20 10:00:00", endsAt: null },
+        });
+        expect(users.find((user) => user.username === "never")).toMatchObject({
+          profile: "",
+          current: null,
+          assignments: [],
+        });
+      }),
+  ),
+);
+
+const many: FixtureOptions = {
+  secrets: "values",
+  profiles: [{ id: 10, name: "Day" }],
+  users: Array.from({ length: 300 }, (_, index) => ({
+    id: index + 1,
+    username: `card-${String(index + 1).padStart(4, "0")}`,
+    current: index + 1,
+    profileName: "Day",
+    start: at("2026-11-20 10:00:00"),
+    end: at("2026-11-21 10:00:00"),
+    assignments: [
+      {
+        id: index + 1,
+        profileId: 10,
+        activated: at("2026-11-20 10:00:00"),
+        counters: [{ download: 1000 + index, upload: 0, uptime: 60 }],
+      },
+    ],
+  })),
+};
+/**
+ * A copy taken while User Manager committed `change`: each page is whole, from before or after
+ * it. `fromAfter` picks pages by the tables and indexes that hold them after the change.
+ */
+const tornCopy =
+  (change: string, fromAfter: (pages: Map<string, Set<number>>, page: number) => boolean) =>
+  (filename: string) => {
+    writeRouterDatabase(filename, many);
+    const before = NodeFS.readFileSync(filename);
+    const sqlite = new NodeSqlite.DatabaseSync(filename);
+    sqlite.exec(change);
+    sqlite.close();
+    const pages = pagesOf(filename);
+    const after = NodeFS.readFileSync(filename);
+    NodeFS.writeFileSync(
+      filename,
+      splicePages(before, after, (page) => fromAfter(pages, page)),
+    );
+  };
+const query = (filename: string, sql: string) => {
+  const sqlite = new NodeSqlite.DatabaseSync(filename, { readOnly: true });
+  try {
+    return sqlite.prepare(sql).all();
+  } finally {
+    sqlite.close();
+  }
+};
+
+it.live("reads tables whose indexes were torn by a write during the copy", () =>
+  withFile(
+    tornCopy(
+      `UPDATE user SET actualProfileEnd = ${at("2026-11-22 10:00:00")} WHERE id % 3 = 0`,
+      // The tables after the write, the user indexes from before it.
+      (pages, page) =>
+        !pages.get("user_actprofend_index")!.has(page) &&
+        !pages.get("user_custact_index")!.has(page),
+    ),
+    (filename) =>
+      Effect.gen(function* () {
+        expect(query(filename, "PRAGMA integrity_check")).not.toEqual([{ integrity_check: "ok" }]);
+        const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
+        const { users, skipped } = yield* reader.read(filename);
+        expect(skipped).toBe(0);
+        expect(users).toHaveLength(300);
+        expect(users.find((user) => user.id === 3)?.current?.endsAt).toBe("2026-11-22 10:00:00");
+        expect(users.find((user) => user.id === 4)?.current?.endsAt).toBe("2026-11-21 10:00:00");
+      }),
+  ),
+);
+
+it.live("rejects a copy whose table pages were torn, which repeats some rows", () =>
+  withFile(
+    tornCopy(
+      "UPDATE user SET userName = userName || '-renewed-with-a-longer-name' WHERE id BETWEEN 100 AND 160",
+      (pages, page) => !(pages.get("user")!.has(page) && page % 2 === 0),
+    ),
+    (filename) =>
+      Effect.gen(function* () {
+        const ids = query(filename, "SELECT id FROM user NOT INDEXED").map((row) => row.id);
+        expect(new Set(ids).size).toBeLessThan(ids.length);
+        const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
+        expect(yield* Effect.flip(reader.read(filename))).toMatchObject({
+          reason: "torn",
+          table: "user",
+        });
+      }),
+  ),
+);
+
+it.live("never rolls back a journal that sits beside the copy", () =>
+  withFile(
+    (filename) => {
+      writeRouterDatabase(filename, many);
+      // A writer stopped mid-transaction leaves a hot journal and half-written pages.
+      const writer = new NodeSqlite.DatabaseSync(filename);
+      writer.exec("PRAGMA cache_size = 1; BEGIN; UPDATE user SET downloadUsed = downloadUsed + 1");
+      NodeFS.copyFileSync(filename, `${filename}.copy`);
+      NodeFS.copyFileSync(`${filename}-journal`, `${filename}.copy-journal`);
+      writer.exec("ROLLBACK");
+      writer.close();
+      NodeFS.renameSync(`${filename}.copy`, filename);
+      NodeFS.renameSync(`${filename}.copy-journal`, `${filename}-journal`);
+    },
+    (filename) =>
+      Effect.gen(function* () {
+        const journal = NodeFS.readFileSync(`${filename}-journal`);
+        const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
+        expect((yield* reader.read(filename)).users).toHaveLength(300);
+        expect(NodeFS.readFileSync(`${filename}-journal`)).toEqual(journal);
+      }),
+  ),
 );

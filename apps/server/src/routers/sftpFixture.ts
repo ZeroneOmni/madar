@@ -13,6 +13,8 @@ export async function sftpFixture(
     /** Stop answering reads after this many, to model a stalled transfer. */
     stallAfter?: number;
     onRead?: (path: string, offset: number) => void;
+    /** Receives each read's answer instead of sending it, to pace reads from a test. */
+    hold?: (answer: () => void) => void;
   } = {},
 ) {
   const { privateKey } = NodeCrypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -70,8 +72,12 @@ export async function sftpFixture(
             if (!file || path === undefined) return sftp.status(id, STATUS_CODE.FAILURE);
             options.onRead?.(path, offset);
             if (options.stallAfter !== undefined && ++reads > options.stallAfter) return;
-            if (offset >= file.data.length) return sftp.status(id, STATUS_CODE.EOF);
-            sftp.data(id, file.data.subarray(offset, offset + length));
+            const answer = () =>
+              offset >= file.data.length
+                ? sftp.status(id, STATUS_CODE.EOF)
+                : sftp.data(id, file.data.subarray(offset, offset + length));
+            if (options.hold) options.hold(answer);
+            else answer();
           });
           sftp.on("CLOSE", (id, handle) => {
             handles.delete(handle.toString());

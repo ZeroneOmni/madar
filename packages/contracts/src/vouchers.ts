@@ -48,6 +48,8 @@ export const VoucherRemaining = Schema.Struct({
   ]),
   /** When the router database copy used for this value was taken (Madar time, ISO). */
   capturedAt: Schema.NullOr(Schema.String),
+  /** User Manager wrote to its database during that copy, so its values are approximate. */
+  capturedBusy: Schema.Boolean,
 });
 export type VoucherRemaining = typeof VoucherRemaining.Type;
 /** "Nearly used up or expiring": at most this share of data left, or this many seconds of validity. */
@@ -166,6 +168,8 @@ export const VoucherPackageUsage = Schema.Struct({
   /** The copy's usage plus the counters' growth since the copy. */
   estimated: Schema.Boolean,
   capturedAt: Schema.String,
+  /** User Manager wrote to its database during the copy, so its values are approximate. */
+  capturedBusy: Schema.Boolean,
 });
 export type VoucherPackageUsage = typeof VoucherPackageUsage.Type;
 export const VoucherRow = Schema.Struct({
@@ -385,6 +389,7 @@ export const VoucherAssignment = Schema.Struct({
 export type VoucherAssignment = typeof VoucherAssignment.Type;
 export const VoucherAssignments = Schema.Struct({
   capturedAt: Schema.NullOr(Schema.String),
+  capturedBusy: Schema.Boolean,
   items: Schema.Array(VoucherAssignment),
 });
 export type VoucherAssignments = typeof VoucherAssignments.Type;
@@ -413,8 +418,9 @@ export const RouterDatabaseFailureReason = Schema.Literals([
   "network",
   "timeout",
   "stalled",
-  /** The file changed while it was copied, or User Manager was writing to it. */
-  "changed",
+  /** User Manager kept writing to its database, and no copy was readable after several tries. */
+  "busy",
+  /** The copied file is not an SQLite database, or is damaged although nothing wrote to it. */
   "corrupt",
   /** The file's tables or columns are not the User Manager 6 layout Madar knows. */
   "schema",
@@ -431,6 +437,10 @@ export const RouterDatabaseStatus = Schema.Struct({
       stage: RouterDatabaseStage,
       received: Integer,
       total: Count,
+      /** Estimated from the transfer rate so far, or from a slow router's rate before that. */
+      secondsLeft: Count,
+      /** 1 for the first try; later tries follow a copy that User Manager disturbed. */
+      attempt: Integer,
       startedAt: Schema.String,
     }),
   ),
@@ -438,10 +448,17 @@ export const RouterDatabaseStatus = Schema.Struct({
   scheduledAt: Schema.NullOr(Schema.String),
   /** The last accepted copy for this customer. */
   capturedAt: Schema.NullOr(Schema.String),
+  /** User Manager wrote to its database during that copy. */
+  capturedBusy: Schema.Boolean,
   checkedAt: Schema.NullOr(Schema.String),
   outcome: Schema.Literals(["none", "accepted", "unchanged", "failed", "cancelled"]),
   failure: Schema.NullOr(
-    Schema.Struct({ stage: RouterDatabaseStage, reason: RouterDatabaseFailureReason }),
+    Schema.Struct({
+      stage: RouterDatabaseStage,
+      reason: RouterDatabaseFailureReason,
+      /** The table or column behind a layout or value failure, e.g. "customer.userName". */
+      detail: Schema.NullOr(Text),
+    }),
   ),
   /** Automatic copies stop until the operator fixes the failure. */
   paused: Schema.Boolean,

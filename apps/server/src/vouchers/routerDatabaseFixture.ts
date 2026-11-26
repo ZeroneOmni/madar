@@ -20,15 +20,19 @@ export interface FixtureUser {
   readonly download?: number;
   readonly upload?: number;
   readonly uptime?: number;
-  readonly profileId?: number;
-  readonly profileName?: string;
-  readonly start?: number;
-  readonly end?: number;
+  /**
+   * The running assignment's id (user.actualProfileId names a userprofile row). User Manager v6
+   * writes -1 or -2 for "not set", and a few rows hold NULL.
+   */
+  readonly current?: number | null;
+  readonly profileName?: string | null;
+  readonly start?: number | null;
+  readonly end?: number | null;
   readonly limits?: { transfer?: number; download?: number; upload?: number; uptime?: number };
   readonly assignments?: readonly FixtureAssignment[];
 }
 export interface FixtureOptions {
-  readonly customers?: readonly { id: number; login: string }[];
+  readonly customers?: readonly { id: number; userName: string }[];
   readonly profiles?: readonly { id: number; custId?: number; name: string }[];
   readonly users: readonly FixtureUser[];
   /**
@@ -42,17 +46,21 @@ export interface FixtureOptions {
 
 export const SECRET_MARKER = "fixture-secret-never-read";
 const blob = (value: string) => new TextEncoder().encode(value);
+/** RouterOS keeps the User Manager database in 1 KiB pages. */
+const PAGE = 1024;
 
 /** Writes a rollback-journal SQLite file with the User Manager v6 tables Madar reads. */
 export function writeRouterDatabase(filename: string, options: FixtureOptions) {
   // Schema edits below need defensive mode off; this is a disposable test file.
   const db = new NodeSqlite.DatabaseSync(filename, { defensive: false });
   try {
+    db.exec(`PRAGMA page_size = ${PAGE}`);
     db.exec("PRAGMA journal_mode = DELETE");
     const secret =
       options.secrets === "values" ? "BLOB" : "BLOB GENERATED ALWAYS AS (NULL) VIRTUAL";
     db.exec(`
-      CREATE TABLE customer (id INTEGER PRIMARY KEY, login BLOB, password ${secret});
+      CREATE TABLE customer (id INTEGER PRIMARY KEY, userName TEXT NOT NULL,
+        password ${secret}, an_loginID ${secret}, an_transKey ${secret});
       CREATE TABLE profile (id INTEGER PRIMARY KEY, custId INTEGER, name BLOB, validity INTEGER,
         startsAt INTEGER, price INTEGER, nameForUser BLOB, sharedUsers INTEGER);
       ${
@@ -78,14 +86,22 @@ export function writeRouterDatabase(filename: string, options: FixtureOptions) {
       };
       CREATE TABLE session (id INTEGER PRIMARY KEY, userId INTEGER, fromTime INTEGER,
         tillTime INTEGER, download INTEGER, upload INTEGER);
+      CREATE INDEX user_custact_index ON user (custId, actualProfileId);
+      CREATE INDEX user_actprofend_index ON user (actualProfileEnd);
+      CREATE INDEX ucounters_user_index ON ucounters (userId);
     `);
     const plain = options.secrets === "values";
     db.exec("BEGIN");
     const customer = db.prepare(
-      `INSERT INTO customer (id, login${plain ? ", password" : ""}) VALUES (?, ?${plain ? ", ?" : ""})`,
+      `INSERT INTO customer (id, userName${plain ? ", password, an_loginID, an_transKey" : ""})
+        VALUES (?, ?${plain ? ", ?, ?, ?" : ""})`,
     );
-    for (const item of options.customers ?? [{ id: 1, login: "admin" }])
-      customer.run(item.id, blob(item.login), ...(plain ? [blob(SECRET_MARKER)] : []));
+    for (const item of options.customers ?? [{ id: 1, userName: "admin" }])
+      customer.run(
+        item.id,
+        blob(item.userName),
+        ...(plain ? Array.from({ length: 3 }, () => blob(SECRET_MARKER)) : []),
+      );
     const profile = db.prepare("INSERT INTO profile (id, custId, name) VALUES (?, ?, ?)");
     for (const item of options.profiles ?? [])
       profile.run(item.id, item.custId ?? 1, blob(item.name));
@@ -130,10 +146,10 @@ export function writeRouterDatabase(filename: string, options: FixtureOptions) {
         item.download ?? sum("download"),
         item.upload ?? sum("upload"),
         item.uptime ?? sum("uptime"),
-        item.profileId ?? 0,
-        item.start ?? 0,
-        item.end ?? 0,
-        blob(item.profileName ?? ""),
+        item.current === undefined ? -1 : item.current,
+        item.start === undefined ? -2 : item.start,
+        item.end === undefined ? -2 : item.end,
+        item.profileName === null ? null : blob(item.profileName ?? ""),
         item.limits?.transfer ?? 0,
         item.limits?.download ?? 0,
         item.limits?.upload ?? 0,
@@ -150,7 +166,7 @@ export function writeRouterDatabase(filename: string, options: FixtureOptions) {
           entry.added ?? 0,
           entry.activated ?? 0,
           entry.state ?? 0,
-          entry.endTime ?? 0,
+          entry.endTime ?? -2,
         );
         for (const value of entry.counters ?? [])
           db.prepare(counterSql).run(item.id, entry.id, value.upload, value.download, value.uptime);
@@ -168,4 +184,36 @@ export function writeRouterDatabase(filename: string, options: FixtureOptions) {
   } finally {
     db.close();
   }
+}
+
+/** Page numbers each table and index occupies. */
+export function pagesOf(filename: string) {
+  const db = new NodeSqlite.DatabaseSync(filename, { readOnly: true });
+  try {
+    const pages = new Map<string, Set<number>>();
+    for (const row of db.prepare("SELECT name, pageno FROM dbstat").all()) {
+      const name = String(row.name);
+      pages.set(name, (pages.get(name) ?? new Set()).add(Number(row.pageno)));
+    }
+    return pages;
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * A copy taken while User Manager wrote to its file: each page comes whole from one of two
+ * versions, `after` where `fromAfter` says so, and pages past the shorter file from the other.
+ */
+export function splicePages(
+  before: Uint8Array,
+  after: Uint8Array,
+  fromAfter: (page: number) => boolean,
+) {
+  const out = new Uint8Array(after.length);
+  for (let page = 1; page * PAGE <= after.length; page++) {
+    const source = fromAfter(page) || page * PAGE > before.length ? after : before;
+    out.set(source.subarray((page - 1) * PAGE, page * PAGE), (page - 1) * PAGE);
+  }
+  return out;
 }

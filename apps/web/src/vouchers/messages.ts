@@ -408,8 +408,8 @@ export const voucherArabic = {
     "خدمة SSH متوقفة على الراوتر أو رفضت الاتصال. فعّل خدمة ssh من قائمة IP Services في الراوتر، ثم أعد المحاولة.",
   "The router rejected the SSH login for this account. Check that the account may log in over SSH.":
     "رفض الراوتر دخول هذا الحساب عبر SSH. تأكد من أن الحساب مسموح له بالدخول عبر SSH.",
-  "This router account cannot read files over SFTP. Its group needs the ssh and ftp policies.":
-    "لا يستطيع حساب الراوتر هذا قراءة الملفات عبر SFTP. يجب أن تتضمن مجموعته صلاحيتي ssh وftp.",
+  "This router account cannot read files over SFTP. Its group needs the ssh and ftp policies; the built-in read and write groups lack ftp.":
+    "لا يستطيع حساب الراوتر هذا قراءة الملفات عبر SFTP. يجب أن تتضمن مجموعته الصلاحيتين ssh و ftp، والمجموعتان المدمجتان read و write لا تتضمنان ftp.",
   "The router's SSH identity changed since Madar last connected.":
     "تغيّرت هوية SSH للراوتر منذ آخر اتصال لمدار به.",
   "The User Manager database file was not found on the router.":
@@ -419,10 +419,19 @@ export const voucherArabic = {
   "The connection to the router was interrupted.": "انقطع الاتصال بالراوتر.",
   "The router did not respond in time.": "لم يستجب الراوتر في الوقت المحدد.",
   "The copy stopped making progress.": "توقف النسخ عن التقدم.",
-  "User Manager was writing to its database during the copy. Madar kept the previous copy.":
-    "كان مدير المستخدمين يكتب في قاعدة بياناته أثناء النسخ. احتفظ مدار بالنسخة السابقة.",
-  "The copied file was damaged. Madar kept the previous copy.":
-    "الملف المنسوخ تالف. احتفظ مدار بالنسخة السابقة.",
+  "The router was busy writing to its User Manager database, so no copy could be read. Madar kept the previous copy.":
+    "كان الراوتر منشغلًا بالكتابة في قاعدة بيانات مدير المستخدمين، فتعذّرت قراءة النسخة. احتفظ مدار بالنسخة السابقة.",
+  "The copied file is not a readable User Manager database. Madar kept the previous copy.":
+    "الملف المنسوخ ليس قاعدة بيانات مدير مستخدمين قابلة للقراءة. احتفظ مدار بالنسخة السابقة.",
+  "Details:": "التفاصيل:",
+  "about {time}, while the router was busy": "نحو {time}، وكان الراوتر مشغولًا",
+  "Less than a minute left": "يتبقى أقل من دقيقة",
+  "About a minute left": "يتبقى نحو دقيقة",
+  "About {time} left": "يتبقى نحو {time}",
+  "Trying again. The router was busy during the last copy.":
+    "إعادة المحاولة؛ كان الراوتر مشغولًا أثناء النسخة السابقة.",
+  "Madar tries again at {time}.": "سيحاول مدار مجددًا في {time}.",
+  "Madar tries again on its own later.": "سيحاول مدار مجددًا لاحقًا من تلقاء نفسه.",
   "This router's User Manager database has a layout Madar does not know, so automatic copies are paused.":
     "قاعدة بيانات مدير المستخدمين في هذا الراوتر بتنسيق لا يعرفه مدار، لذا أُوقف النسخ التلقائي.",
   "The router database held values Madar could not read safely.":

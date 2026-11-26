@@ -18,7 +18,7 @@ import * as VoucherService from "./VoucherService.ts";
 import * as VoucherSnapshotReader from "./VoucherSnapshotReader.ts";
 import * as VoucherSnapshotSync from "./VoucherSnapshotSync.ts";
 import * as VoucherStore from "./VoucherStore.ts";
-import { writeRouterDatabase } from "./routerDatabaseFixture.ts";
+import { writeRouterDatabase, type FixtureUser } from "./routerDatabaseFixture.ts";
 import { routerFixture } from "./routerFixture.ts";
 
 const FILE = "user-manager/sqldb";
@@ -46,7 +46,7 @@ const inProcess = <A, E>(
   >,
 ) => Effect.provide(effect, madarProcess);
 
-const harness = (options: Parameters<typeof sftpFixture>[1] = {}) =>
+const harness = (options: Parameters<typeof sftpFixture>[1] = {}, users?: FixtureUser[]) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
@@ -54,24 +54,26 @@ const harness = (options: Parameters<typeof sftpFixture>[1] = {}) =>
     const source = path.join(directory, "sqldb");
     writeRouterDatabase(source, {
       profiles: [{ id: 10, name: "Day" }],
-      users: [1, 2, 3].map((id) => ({
-        id,
-        username: `voucher-${String(id).padStart(4, "0")}`,
-        download: 200,
-        upload: 100,
-        uptime: 600,
-        profileId: 10,
-        profileName: "Day",
-        start: Date.parse("2026-11-24T08:00:00Z") / 1000,
-        assignments: [
-          {
-            id: 100 + id,
-            profileId: 10,
-            activated: Date.parse("2026-11-24T08:00:00Z") / 1000,
-            counters: [{ download: 200, upload: 100, uptime: 600 }],
-          },
-        ],
-      })),
+      users:
+        users ??
+        [1, 2, 3].map((id) => ({
+          id,
+          username: `voucher-${String(id).padStart(4, "0")}`,
+          download: 200,
+          upload: 100,
+          uptime: 600,
+          current: 100 + id,
+          profileName: "Day",
+          start: Date.parse("2026-11-24T08:00:00Z") / 1000,
+          assignments: [
+            {
+              id: 100 + id,
+              profileId: 10,
+              activated: Date.parse("2026-11-24T08:00:00Z") / 1000,
+              counters: [{ download: 200, upload: 100, uptime: 600 }],
+            },
+          ],
+        })),
     });
     const files = new Map([[FILE, { data: NodeFS.readFileSync(source), mtime: 1_700_000_000 }]]);
     const ssh = yield* Effect.acquireDisposable(Effect.promise(() => sftpFixture(files, options)));
@@ -193,13 +195,22 @@ it.effect("combines triggers for a minute and keeps four hours between automatic
   }).pipe(Effect.scoped, Effect.provide(base)),
 );
 
-it.effect("rejects a copy that changed while it was read, then retries once", () =>
+/** A commit by User Manager: the header's change counter goes up, size and mtime stay. */
+const commit = (files: Map<string, { data: Buffer; mtime: number }>) => {
+  const file = files.get(FILE)!;
+  const data = Buffer.from(file.data);
+  data.writeUInt32BE(data.readUInt32BE(24) + 1, 24);
+  files.set(FILE, { ...file, data });
+};
+
+it.effect("accepts a copy taken while User Manager wrote, and marks it busy", () =>
   Effect.gen(function* () {
-    let touches = 0;
     const holder: { files?: Map<string, { data: Buffer; mtime: number }> } = {};
+    let writes = 0;
     const { files, ssh, scope, copies, fs } = yield* harness({
-      onRead: () => {
-        if (touches++ === 0) holder.files!.get(FILE)!.mtime++;
+      // The download's end-of-file read happens after its data arrived: a commit lands mid-copy.
+      onRead: (_, offset) => {
+        if (offset > 0 && writes-- > 0) commit(holder.files!);
       },
     });
     holder.files = files;
@@ -208,32 +219,139 @@ it.effect("rejects a copy that changed while it was read, then retries once", ()
         const vouchers = yield* VoucherService.VoucherService;
         const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
         yield* vouchers.sync(scope, "owner");
-        const failed = yield* snapshots.settled(scope);
-        expect(failed).toMatchObject({
-          outcome: "failed",
-          capturedAt: null,
-          failure: { stage: "verify", reason: "changed" },
-          paused: false,
-        });
-        expect(failed.scheduledAt).not.toBeNull();
-        expect(yield* fs.readDirectory(copies)).toEqual([]);
-        yield* TestClock.adjust("1 minute");
+        // Nothing wrote during the first copy: it is exact.
         expect(yield* snapshots.settled(scope)).toMatchObject({
           outcome: "accepted",
-          failure: null,
+          capturedBusy: false,
         });
-        // A journal means User Manager is writing; the copy is refused and retried only once.
+        // A commit during the download: only the change counter tells.
+        writes = 1;
+        yield* snapshots.start(scope, "owner");
+        const busy = yield* snapshots.settled(scope);
+        expect(busy).toMatchObject({ outcome: "accepted", capturedBusy: true, failure: null });
+        const row = (yield* vouchers.list(query(scope))).items[0]!;
+        expect(row.package).toMatchObject({ download: 200, capturedBusy: true });
+        expect(row.package!.capturedAt).toBe(busy.capturedAt);
+        // A journal means a transaction is open: the copy still runs, as a busy one.
         files.set(JOURNAL, { data: Buffer.alloc(512), mtime: 1 });
         yield* snapshots.start(scope, "owner");
         expect(yield* snapshots.settled(scope)).toMatchObject({
-          outcome: "failed",
-          failure: { stage: "check", reason: "changed" },
+          outcome: "accepted",
+          capturedBusy: true,
         });
-        yield* TestClock.adjust("1 minute");
-        const retried = yield* snapshots.settled(scope);
-        expect(retried).toMatchObject({ outcome: "failed", scheduledAt: null });
-        expect(retried.capturedAt).not.toBeNull();
+        files.delete(JOURNAL);
+        yield* snapshots.start(scope, "owner");
+        expect(yield* snapshots.settled(scope)).toMatchObject({ capturedBusy: false });
+        expect(yield* fs.readDirectory(copies)).toEqual([]);
         expect(ssh.connections()).toBe(4);
+      }),
+    );
+  }).pipe(Effect.scoped, Effect.provide(base)),
+);
+
+it.effect("skips an automatic copy only while the change counter is unchanged", () =>
+  Effect.gen(function* () {
+    const { files, ssh, router, scope } = yield* harness();
+    yield* inProcess(
+      Effect.gen(function* () {
+        const vouchers = yield* VoucherService.VoucherService;
+        const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
+        const automatic = Effect.fnUntraced(function* (id: string) {
+          yield* TestClock.adjust("4 hours");
+          addUsedVoucher(router, id);
+          yield* vouchers.sync(scope, "owner");
+          yield* TestClock.adjust("1 minute");
+          return yield* snapshots.settled(scope);
+        });
+        yield* vouchers.sync(scope, "owner");
+        yield* snapshots.settled(scope);
+        expect(yield* automatic("*7")).toMatchObject({ outcome: "unchanged" });
+        // Same size and mtime, but User Manager committed since: the copy runs.
+        commit(files);
+        expect(yield* automatic("*8")).toMatchObject({ outcome: "accepted" });
+        expect(ssh.connections()).toBe(3);
+      }),
+    );
+  }).pipe(Effect.scoped, Effect.provide(base)),
+);
+
+it.effect("retries a busy router's unreadable copy twice, then reports it busy", () =>
+  Effect.gen(function* () {
+    const { files, ssh, scope } = yield* harness();
+    // A copy cut short while User Manager wrote: its pages end before the header says.
+    const file = files.get(FILE)!;
+    files.set(FILE, { ...file, data: file.data.subarray(0, file.data.length - 4096) });
+    files.set(JOURNAL, { data: Buffer.alloc(512), mtime: 1 });
+    yield* inProcess(
+      Effect.gen(function* () {
+        const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
+        yield* snapshots.start(scope, "owner");
+        for (const attempt of [1, 2]) {
+          const waiting = yield* snapshots.settled(scope);
+          expect(waiting, `attempt ${attempt}`).toMatchObject({
+            outcome: "failed",
+            failure: { stage: "read", reason: "busy" },
+            paused: false,
+          });
+          expect(Date.parse(waiting.scheduledAt!) - Date.parse(waiting.checkedAt!)).toBe(45_000);
+          yield* TestClock.adjust("45 seconds");
+        }
+        expect(yield* snapshots.settled(scope)).toMatchObject({
+          outcome: "failed",
+          failure: { stage: "read", reason: "busy" },
+          scheduledAt: null,
+          paused: false,
+        });
+        expect(ssh.connections()).toBe(3);
+      }),
+    );
+  }).pipe(Effect.scoped, Effect.provide(base)),
+);
+
+it.effect("shows User Manager's not-set markers as no end, never as negative times", () =>
+  Effect.gen(function* () {
+    const { scope } = yield* harness({}, [
+      {
+        id: 1,
+        username: "voucher-0001",
+        download: 200,
+        upload: 100,
+        uptime: 600,
+        current: 101,
+        profileName: "Day",
+        start: Date.parse("2026-11-24T08:00:00Z") / 1000,
+        end: -2,
+        limits: { transfer: -1, download: -1, upload: -1, uptime: -1 },
+        assignments: [
+          {
+            id: 101,
+            profileId: 10,
+            activated: Date.parse("2026-11-24T08:00:00Z") / 1000,
+            endTime: -2,
+            added: -2,
+            counters: [{ download: 200, upload: 100, uptime: 600 }],
+          },
+        ],
+      },
+    ]);
+    yield* inProcess(
+      Effect.gen(function* () {
+        const vouchers = yield* VoucherService.VoucherService;
+        const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
+        yield* vouchers.sync(scope, "owner");
+        yield* snapshots.settled(scope);
+        const row = (yield* vouchers.list(query(scope))).items[0]!;
+        expect(row.package).toMatchObject({ startedAt: "2026-11-24 08:00:00", endsAt: null });
+        // Day lasts a day from the package start; the -2 end never reaches the calculation.
+        expect(row.remaining).toMatchObject({
+          state: "ends",
+          endsAt: "2026-11-25 08:00:00",
+          basis: "router-database",
+        });
+        expect(row.remaining.amount).toBeGreaterThan(0);
+        const store = yield* VoucherStore.VoucherStore;
+        const history = yield* store.assignments({ ...scope, id: row.id });
+        expect(history.items[0]).toMatchObject({ assignedAt: null, endsAt: null });
       }),
     );
   }).pipe(Effect.scoped, Effect.provide(base)),

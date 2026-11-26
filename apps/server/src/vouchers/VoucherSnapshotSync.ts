@@ -30,6 +30,8 @@ export class CopyFailure extends Schema.TaggedError<CopyFailure>()("CopyFailure"
   stage: RouterDatabaseStage,
   reason: RouterDatabaseFailureReason,
   offeredHostKey: Schema.optional(Schema.String),
+  /** The table or column behind a layout or value failure. */
+  detail: Schema.optional(Schema.String),
 }) {}
 class Cancelled extends Schema.TaggedError<Cancelled>()("Cancelled", {}) {}
 
@@ -41,30 +43,34 @@ const SNAPSHOT_TIMING = {
   cooldownSeconds: 4 * 3600,
   /** Automatic copies wait this long after SSH was off or refused. */
   backoffSeconds: 24 * 3600,
-  /** One retry of a transient failure. */
-  retrySeconds: 60,
 } as const;
+/** Attempts per copy and the wait before each retry, by failure. */
+const retries: Partial<Record<CopyFailure["reason"], { attempts: number; seconds: number }>> = {
+  // A busy router commits every few seconds; a later copy usually reads cleanly.
+  busy: { attempts: 3, seconds: 45 },
+  network: { attempts: 2, seconds: 60 },
+  timeout: { attempts: 2, seconds: 60 },
+  stalled: { attempts: 2, seconds: 60 },
+  corrupt: { attempts: 2, seconds: 60 },
+};
+/** RouterOS 6 serves SFTP at roughly this rate; the estimate before the transfer shows its own. */
+const TYPICAL_BYTES_PER_SECOND = 64 * 1024;
 
 /** Failures the operator must fix; automatic copies stop until then. */
 const pausing = new Set<CopyFailure["reason"]>(["authentication", "host-key", "schema"]);
 /** SSH is off or the account lacks a right: try automatically again a day later. */
 const backingOff = new Set<CopyFailure["reason"]>(["ssh-off", "permission"]);
-const retrying = new Set<CopyFailure["reason"]>([
-  "network",
-  "timeout",
-  "stalled",
-  "changed",
-  "corrupt",
-]);
 const HEADER = "SQLite format 3\u0000";
 const emptyState: VoucherStore.DatabaseState = {
   lastAttemptAt: null,
   lastAutomaticAt: null,
   lastOutcome: null,
   acceptedAt: null,
+  acceptedBusy: false,
   fingerprint: null,
   failureStage: null,
   failureReason: null,
+  failureDetail: null,
   failedAt: null,
   paused: false,
   retryAt: null,
@@ -76,12 +82,15 @@ const isReason = Schema.is(RouterDatabaseFailureReason);
 
 interface Job {
   readonly trigger: RouterDatabaseTrigger;
+  readonly attempt: number;
   readonly startedAt: string;
   readonly cancel: Deferred.Deferred<void>;
   readonly done: Deferred.Deferred<void>;
   stage: RouterDatabaseStage;
   received: number;
   total: number | null;
+  /** Clock millis when the download began. */
+  downloadStarted: number | null;
 }
 interface Live {
   job: Job | null;
@@ -210,24 +219,41 @@ const make = Effect.gen(function* () {
           .pipe(mapSftp("connect"));
         // First use pins the router's key; a later change fails until the operator trusts it.
         if (state.hostKey === null) yield* save({ ...state, hostKey: session.hostKey });
+        /**
+         * Size, mtime and the header's change counter, which every commit increments. A journal
+         * means a transaction is open: the copy still runs, but cannot count as exact.
+         */
         const inspect = Effect.fnUntraced(function* (stage: CopyFailure["stage"]) {
           const info = yield* session.stat(file).pipe(mapSftp(stage));
           if (!info) return yield* fail(stage, "not-found");
-          if ((yield* session.stat(journal).pipe(mapSftp(stage))) !== null)
-            return yield* fail(stage, "changed");
+          const writing = (yield* session.stat(journal).pipe(mapSftp(stage))) !== null;
           const head = yield* session.head(file, 100).pipe(mapSftp(stage));
-          if (Buffer.from(head.subarray(0, HEADER.length)).toString("latin1") !== HEADER)
+          if (
+            head.length < 100 ||
+            Buffer.from(head.subarray(0, HEADER.length)).toString("latin1") !== HEADER
+          )
             return yield* fail(stage, "corrupt");
+          const counter = Buffer.from(head).readUInt32BE(24);
           const digest = NodeCrypto.createHash("sha256").update(head).digest("hex").slice(0, 32);
-          return { size: info.size, fingerprint: `${info.size}:${info.mtime}:${digest}` };
+          return {
+            size: info.size,
+            writing,
+            fingerprint: `${info.size}:${info.mtime}:${counter}:${digest}`,
+          };
         });
         job.stage = "check";
         const before = yield* inspect("check");
-        if (job.trigger === "automatic" && before.fingerprint === state.fingerprint)
+        if (
+          job.trigger === "automatic" &&
+          !before.writing &&
+          before.fingerprint === state.fingerprint
+        )
           return { kind: "unchanged" as const, fingerprint: before.fingerprint };
         if (before.size > RouterSftp.SFTP_LIMITS.maxBytes) return yield* fail("check", "too-large");
         job.stage = "download";
         job.total = before.size;
+        const started = yield* now;
+        job.downloadStarted = started;
         const received = yield* session
           .download(file, temp, {
             bytesPerSecond:
@@ -241,161 +267,190 @@ const make = Effect.gen(function* () {
           .pipe(mapSftp("download"));
         job.stage = "verify";
         const after = yield* inspect("verify");
-        if (after.fingerprint !== before.fingerprint || received !== before.size)
-          return yield* fail("verify", "changed");
-        return { kind: "copied" as const, fingerprint: before.fingerprint };
+        // Pages arrive in order over a minute or more; a commit in between can mix versions.
+        const exact =
+          !before.writing &&
+          !after.writing &&
+          after.fingerprint === before.fingerprint &&
+          received === before.size;
+        return {
+          kind: "copied" as const,
+          // A mixed copy matches no single state of the file, so it never confirms a later check.
+          fingerprint: exact ? before.fingerprint : null,
+          busy: !exact,
+          capturedAt: isoAt(started),
+          copiedUntil: isoAt(yield* now),
+        };
       }).pipe(Effect.scoped);
       if (outcome.kind === "unchanged") return outcome;
       job.stage = "read";
-      const contents = yield* reader
-        .read(temp)
-        .pipe(Effect.mapError((error) => fail("read", error.reason)));
+      const contents = yield* reader.read(temp).pipe(
+        Effect.mapError(
+          (error) =>
+            new CopyFailure({
+              stage: "read",
+              // A torn table in a copy taken mid-write means the router was busy, not damaged.
+              reason: error.reason === "torn" ? (outcome.busy ? "busy" : "corrupt") : error.reason,
+              ...(error.table
+                ? { detail: error.column ? `${error.table}.${error.column}` : error.table }
+                : {}),
+            }),
+        ),
+      );
       job.stage = "save";
-      const capturedAt = isoAt(yield* now);
+      const { capturedAt, copiedUntil, busy, fingerprint } = outcome;
       const published = yield* store
-        .publishSnapshot(key, { capturedAt, fingerprint: outcome.fingerprint }, contents)
+        .publishSnapshot(key, { capturedAt, copiedUntil, busy, fingerprint }, contents)
         .pipe(Effect.mapError(() => fail("save", "storage")));
       yield* Effect.logInfo("Router database copy published", {
+        busy,
         users: contents.users.length,
         skipped: contents.skipped,
         customers: published.length,
         matched: published.reduce((sum, item) => sum + item.matched, 0),
       });
-      return { kind: "accepted" as const, fingerprint: outcome.fingerprint, capturedAt };
+      return { kind: "accepted" as const, fingerprint, busy, capturedAt };
     }).pipe(Effect.ensuring(fs.remove(temp, { force: true }).pipe(Effect.ignore)));
   });
 
-  /** One copy attempt: records its outcome and schedules the single retry. */
-  const run: (
-    target: RouterDatabaseScope,
-    owner: string,
-    job: Job,
-    retry: boolean,
-  ) => Effect.Effect<void> = Effect.fn("VoucherSnapshotSync.run")(
-    function* (target: RouterDatabaseScope, owner: string, job: Job, retry: boolean) {
-      const key = RouterApi.routerKey(target.router);
-      const live = liveFor(key);
-      let state = (yield* store.databaseState(key)) ?? emptyState;
-      const save = (next: VoucherStore.DatabaseState) =>
-        Effect.tap(store.saveDatabaseState(key, next), () =>
-          Effect.sync(() => {
-            state = next;
-          }),
-        );
-      yield* save({
-        ...state,
-        lastAttemptAt: job.startedAt,
-        lastAutomaticAt: job.trigger === "manual" ? state.lastAutomaticAt : job.startedAt,
-      });
-      const result = yield* transfers
-        .withPermits(1)(copy(target, owner, job, state, save))
-        .pipe(
-          Effect.raceFirst(
-            Deferred.await(job.cancel).pipe(Effect.andThen(Effect.fail(new Cancelled()))),
-          ),
-          Effect.result,
-        );
-      const checkedAt = isoAt(yield* now);
-      if (result._tag === "Success") {
-        const value = result.success;
+  /** One copy attempt: records its outcome and schedules a retry while attempts remain. */
+  const run: (target: RouterDatabaseScope, owner: string, job: Job) => Effect.Effect<void> =
+    Effect.fn("VoucherSnapshotSync.run")(
+      function* (target: RouterDatabaseScope, owner: string, job: Job) {
+        const key = RouterApi.routerKey(target.router);
+        const live = liveFor(key);
+        let state = (yield* store.databaseState(key)) ?? emptyState;
+        const save = (next: VoucherStore.DatabaseState) =>
+          Effect.tap(store.saveDatabaseState(key, next), () =>
+            Effect.sync(() => {
+              state = next;
+            }),
+          );
         yield* save({
           ...state,
-          lastOutcome: value.kind,
-          ...(value.kind === "accepted"
-            ? { acceptedAt: value.capturedAt, fingerprint: value.fingerprint }
-            : {}),
-          failureStage: null,
-          failureReason: null,
-          failedAt: null,
-          paused: false,
-          retryAt: null,
-          offeredHostKey: null,
+          lastAttemptAt: job.startedAt,
+          lastAutomaticAt: job.trigger === "manual" ? state.lastAutomaticAt : job.startedAt,
         });
-        // An unchanged file holds the same data, so the accepted copy is confirmed as of now.
-        if (value.kind === "unchanged")
+        const result = yield* transfers
+          .withPermits(1)(copy(target, owner, job, state, save))
+          .pipe(
+            Effect.raceFirst(
+              Deferred.await(job.cancel).pipe(Effect.andThen(Effect.fail(new Cancelled()))),
+            ),
+            Effect.result,
+          );
+        const checkedAt = isoAt(yield* now);
+        if (result._tag === "Success") {
+          const value = result.success;
+          yield* save({
+            ...state,
+            lastOutcome: value.kind,
+            ...(value.kind === "accepted"
+              ? {
+                  acceptedAt: value.capturedAt,
+                  acceptedBusy: value.busy,
+                  fingerprint: value.fingerprint,
+                }
+              : {}),
+            failureStage: null,
+            failureReason: null,
+            failureDetail: null,
+            failedAt: null,
+            paused: false,
+            retryAt: null,
+            offeredHostKey: null,
+          });
+          // An unchanged file holds the same data, so the accepted copy is confirmed as of now.
+          if (value.kind === "unchanged")
+            yield* store.recordAttempt(key, {
+              outcome: "unchanged",
+              checkedAt,
+              stage: null,
+              reason: null,
+              fingerprint: value.fingerprint,
+            });
+          return;
+        }
+        const error = result.failure;
+        if (error._tag === "Cancelled") {
+          yield* save({ ...state, lastOutcome: "cancelled" });
           yield* store.recordAttempt(key, {
-            outcome: "unchanged",
+            outcome: "cancelled",
             checkedAt,
             stage: null,
             reason: null,
-            fingerprint: value.fingerprint,
           });
-        return;
-      }
-      const error = result.failure;
-      if (error._tag === "Cancelled") {
-        yield* save({ ...state, lastOutcome: "cancelled" });
-        yield* store.recordAttempt(key, {
-          outcome: "cancelled",
-          checkedAt,
-          stage: null,
-          reason: null,
+          return;
+        }
+        const failure =
+          error._tag === "CopyFailure"
+            ? error
+            : new CopyFailure({ stage: "save", reason: "storage" });
+        const millis = yield* now;
+        yield* save({
+          ...state,
+          lastOutcome: "failed",
+          failureStage: failure.stage,
+          failureReason: failure.reason,
+          failureDetail: failure.detail ?? null,
+          failedAt: checkedAt,
+          paused: pausing.has(failure.reason),
+          retryAt: backingOff.has(failure.reason)
+            ? isoAt(millis + SNAPSHOT_TIMING.backoffSeconds * 1000)
+            : null,
+          offeredHostKey: failure.offeredHostKey ?? null,
         });
-        return;
-      }
-      const failure =
-        error._tag === "CopyFailure"
-          ? error
-          : new CopyFailure({ stage: "save", reason: "storage" });
-      const millis = yield* now;
-      yield* save({
-        ...state,
-        lastOutcome: "failed",
-        failureStage: failure.stage,
-        failureReason: failure.reason,
-        failedAt: checkedAt,
-        paused: pausing.has(failure.reason),
-        retryAt: backingOff.has(failure.reason)
-          ? isoAt(millis + SNAPSHOT_TIMING.backoffSeconds * 1000)
-          : null,
-        offeredHostKey: failure.offeredHostKey ?? null,
-      });
-      yield* store.recordAttempt(key, {
-        outcome: "failed",
-        checkedAt,
-        stage: failure.stage,
-        reason: failure.reason,
-      });
-      yield* Effect.logWarning("Router database copy failed", {
-        stage: failure.stage,
-        reason: failure.reason,
-      });
-      if (!retry && retrying.has(failure.reason) && live.scheduled === null) {
-        const at = millis + SNAPSHOT_TIMING.retrySeconds * 1000;
-        const fiber = yield* Effect.sleep(`${SNAPSHOT_TIMING.retrySeconds} seconds`).pipe(
-          Effect.andThen(
-            Effect.suspend(() => {
-              live.scheduled = null;
-              return begin(target, owner, job.trigger, true);
-            }),
-          ),
-          Effect.forkIn(layerScope),
-        );
-        live.scheduled = { at: isoAt(at), fiber };
-      }
-    },
-    Effect.catch(() => Effect.logWarning("Router database copy state could not be saved")),
-  );
+        yield* store.recordAttempt(key, {
+          outcome: "failed",
+          checkedAt,
+          stage: failure.stage,
+          reason: failure.reason,
+        });
+        yield* Effect.logWarning("Router database copy failed", {
+          stage: failure.stage,
+          reason: failure.reason,
+          detail: failure.detail,
+          attempt: job.attempt,
+        });
+        const retry = retries[failure.reason];
+        if (retry && job.attempt < retry.attempts && live.scheduled === null) {
+          const at = millis + retry.seconds * 1000;
+          const fiber = yield* Effect.sleep(`${retry.seconds} seconds`).pipe(
+            Effect.andThen(
+              Effect.suspend(() => {
+                live.scheduled = null;
+                return begin(target, owner, job.trigger, job.attempt + 1);
+              }),
+            ),
+            Effect.forkIn(layerScope),
+          );
+          live.scheduled = { at: isoAt(at), fiber };
+        }
+      },
+      Effect.catch(() => Effect.logWarning("Router database copy state could not be saved")),
+    );
 
   const begin = Effect.fnUntraced(function* (
     target: RouterDatabaseScope,
     owner: string,
     trigger: RouterDatabaseTrigger,
-    retry = false,
+    attempt = 1,
   ) {
     const live = liveFor(RouterApi.routerKey(target.router));
     if (live.job) return;
     const job: Job = {
       trigger,
+      attempt,
       startedAt: isoAt(yield* now),
       cancel: yield* Deferred.make<void>(),
       done: yield* Deferred.make<void>(),
       stage: "connect",
       received: 0,
       total: null,
+      downloadStarted: null,
     };
     live.job = job;
-    yield* run(target, owner, job, retry).pipe(
+    yield* run(target, owner, job).pipe(
       Effect.ensuring(
         Effect.suspend(() => {
           if (live.job === job) live.job = null;
@@ -464,22 +519,26 @@ const make = Effect.gen(function* () {
     const customer = target.customer;
     const capture = customer ? yield* store.capture({ router: target.router, customer }) : null;
     const job = live.job;
+    const millis = yield* now;
     return {
       job: job && {
         trigger: job.trigger,
         stage: job.stage,
         received: job.received,
         total: job.total,
+        secondsLeft: secondsLeft(job, millis),
+        attempt: job.attempt,
         startedAt: job.startedAt,
       },
       scheduledAt: live.scheduled?.at ?? null,
       capturedAt: customer ? (capture?.capturedAt ?? null) : (state?.acceptedAt ?? null),
+      capturedBusy: customer ? (capture?.busy ?? false) : (state?.acceptedBusy ?? false),
       checkedAt: capture?.checkedAt ?? state?.lastAttemptAt ?? null,
       // Before the customer list is known there is no per-customer record yet.
       outcome: capture?.outcome ?? state?.lastOutcome ?? "none",
       failure:
         state && isStage(state.failureStage) && isReason(state.failureReason)
-          ? { stage: state.failureStage, reason: state.failureReason }
+          ? { stage: state.failureStage, reason: state.failureReason, detail: state.failureDetail }
           : null,
       paused: state?.paused ?? false,
       retryAt: state?.retryAt ?? null,
@@ -528,11 +587,20 @@ const make = Effect.gen(function* () {
       paused: false,
       failureStage: null,
       failureReason: null,
+      failureDetail: null,
     });
     return yield* status(target);
   });
 
   return VoucherSnapshotSync.of({ observe, start, cancel, status, settled, trust });
 });
+
+/** Download time left: from the rate so far, or a slow router's rate until that settles. */
+function secondsLeft(job: Job, millis: number) {
+  if (job.stage !== "download" || job.total === null || job.downloadStarted === null) return null;
+  const elapsed = (millis - job.downloadStarted) / 1000;
+  const rate = job.received > 0 && elapsed >= 3 ? job.received / elapsed : TYPICAL_BYTES_PER_SECOND;
+  return Math.ceil(Math.max(0, job.total - job.received) / rate);
+}
 
 export const layer = Layer.effect(VoucherSnapshotSync, make);

@@ -6,6 +6,8 @@ import * as Layer from "effect/Layer";
 import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
+import * as Queue from "effect/Queue";
+import * as TestClock from "effect/testing/TestClock";
 import * as RouterSftp from "./RouterSftp.ts";
 import { closedPort, sftpFixture } from "./sftpFixture.ts";
 
@@ -117,5 +119,48 @@ it.live("closes the local file and the socket when a download is cancelled", () 
     yield* Effect.promise(() => server.closedConnections(1));
     // Windows refuses to delete a file that still has an open handle.
     yield* fs.remove(destination);
+  }).pipe(Effect.scoped, Effect.provide(services)),
+);
+
+it.effect("gives a large file on a slow router more time than a small one", () =>
+  Effect.gen(function* () {
+    const answers = yield* Queue.unbounded<() => void>();
+    // 8 MiB at the 30 KiB/s floor may take 274 s, past the 180 s every transfer gets.
+    const server = yield* Effect.acquireDisposable(
+      Effect.promise(() =>
+        sftpFixture(
+          new Map([["user-manager/sqldb", { data: Buffer.alloc(8 * 1024 * 1024), mtime: 1 }]]),
+          { hold: (answer) => Queue.offerUnsafe(answers, answer) },
+        ),
+      ),
+    );
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const directory = yield* fs.makeTempDirectoryScoped({ prefix: "madar-sftp-" });
+    const sftp = yield* RouterSftp.RouterSftp;
+    const session = yield* sftp.connect(input(server.port, server.hostKey));
+    const download = yield* session
+      .download("user-manager/sqldb", path.join(directory, "copy"), {
+        bytesPerSecond: null,
+        onProgress: () => Effect.void,
+      })
+      .pipe(Effect.flip, Effect.forkChild);
+    // ssh2 asks for a 64 KiB chunk in three requests; 5 s each is slow but never a 30 s stall.
+    let next = yield* Queue.takeAll(answers);
+    for (let seconds = 5; seconds <= 270; seconds += 5) {
+      yield* TestClock.adjust("5 seconds");
+      for (const answer of next) answer();
+      // A new request means the transfer is still running, well past 180 s.
+      next = yield* Queue.takeAll(answers).pipe(
+        Effect.raceFirst(
+          Fiber.join(download).pipe(
+            Effect.flatMap((error) => Effect.die(`ended at ${seconds} s: ${error.reason}`)),
+          ),
+        ),
+      );
+    }
+    // The router goes quiet at 270 s: the size limit ends the transfer before the 30 s stall.
+    yield* TestClock.adjust("5 seconds");
+    expect((yield* Fiber.join(download)).reason).toBe("timeout");
   }).pipe(Effect.scoped, Effect.provide(services)),
 );

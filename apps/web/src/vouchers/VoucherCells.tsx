@@ -8,6 +8,7 @@ import { cn } from "../lib/utils";
 import type { ColumnKey } from "./columns";
 import { formatBytes, formatCount, formatDuration, formatRouterTime, formatSpan } from "./format";
 import { VoucherState } from "./VoucherForms";
+import { copyTime } from "./routerDatabase";
 
 type Translate = ReturnType<typeof useLocale>["t"];
 
@@ -37,8 +38,12 @@ const bases: Record<Exclude<VoucherRemaining["basis"], "">, string> = {
   "router-database-live":
     "Estimated. Package usage from the router database copied {time}, plus the usage the router counted since.",
 };
-const estimated = (basis: VoucherRemaining["basis"]) =>
-  basis === "profile-change" || basis === "counter-reset" || basis === "router-database-live";
+/** A busy copy's values may lag its time by the length of the download, so they show ≈ too. */
+const estimated = ({ basis, capturedBusy }: VoucherRemaining) =>
+  basis === "profile-change" ||
+  basis === "counter-reset" ||
+  basis === "router-database-live" ||
+  (basis === "router-database" && capturedBusy);
 
 function Explained({ label, children }: { label: ReactNode; children: string }) {
   return (
@@ -66,12 +71,14 @@ export function RemainingCell({ row }: { row: VoucherRow }) {
   const amount = remaining.amount ?? 0;
   const timed = remaining.kind === "validity" || remaining.kind === "uptime";
   const value = timed ? formatSpan(amount, locale) : formatBytes(amount, locale);
-  const marker = estimated(remaining.basis) ? (
+  const marker = estimated(remaining) ? (
     <span aria-hidden="true" className="me-1 text-muted-foreground">
       ≈
     </span>
   ) : null;
-  const time = remaining.capturedAt ? formatDateTime(remaining.capturedAt, locale) : "";
+  const time = remaining.capturedAt
+    ? copyTime(remaining.capturedAt, remaining.capturedBusy, locale)
+    : "";
   const source = remaining.basis ? t(bases[remaining.basis], { time }) : "";
   switch (remaining.state) {
     case "none":
@@ -166,7 +173,7 @@ export function RemainingCell({ row }: { row: VoucherRow }) {
                     className={cn(
                       "block h-full rounded-full",
                       low ? "bg-warning" : "bg-primary/70",
-                      estimated(remaining.basis) && "opacity-60",
+                      estimated(remaining) && "opacity-60",
                     )}
                     style={{ inlineSize: `${Math.max(2, Math.round(ratio * 100))}%` }}
                   />
@@ -389,7 +396,7 @@ export function Cell({ column, row }: { column: ColumnKey; row: VoucherRow }) {
       return row.package && value ? (
         <Explained label={formatRouterTime(value, locale)}>
           {t("Router time. From the router database, copied {time}.", {
-            time: formatDateTime(row.package.capturedAt, locale),
+            time: copyTime(row.package.capturedAt, row.package.capturedBusy, locale),
           })}
         </Explained>
       ) : (
@@ -409,7 +416,7 @@ export function PackageUsage({ row }: { row: VoucherRow }) {
     <Explained
       label={
         <span className="tabular-nums">
-          {usage.estimated && (
+          {(usage.estimated || usage.capturedBusy) && (
             <span aria-hidden="true" className="me-1 text-muted-foreground">
               ≈
             </span>
@@ -427,7 +434,7 @@ export function PackageUsage({ row }: { row: VoucherRow }) {
         usage.estimated
           ? "Estimated. Package usage from the router database copied {time}, plus the usage the router counted since."
           : "From the router database, copied {time}. Usage after that copy is not included yet.",
-        { time: formatDateTime(usage.capturedAt, locale) },
+        { time: copyTime(usage.capturedAt, usage.capturedBusy, locale) },
       )}
     </Explained>
   );

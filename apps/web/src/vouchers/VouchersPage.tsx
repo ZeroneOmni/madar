@@ -90,9 +90,11 @@ import { ColumnsPopover, SortMenu } from "./VoucherLayoutControls";
 import { VoucherTable } from "./VoucherTable";
 import { useVoucherLayout } from "./useVoucherLayout";
 import { formatDateTime, formatNumber } from "../locale";
-import { formatBytes } from "./format";
+import { formatBytes, formatSpan } from "./format";
 import {
+  FailureDetail,
   actionableFailures,
+  copyTime,
   failureReasons,
   runningStages,
   stoppedStages,
@@ -342,7 +344,8 @@ function CustomerVouchers({
       setRevision((value) => value + 1);
     }
     if (watching.current) {
-      watching.current = false;
+      // A busy router's copy is retried on its own; keep reporting until the last try ends.
+      watching.current = status.outcome === "failed" && status.scheduledAt !== null;
       setFinished(status);
     }
   });
@@ -698,7 +701,11 @@ function CustomerVouchers({
         <VoucherRows
           key={`${JSON.stringify(query)}:${revision}`}
           query={query}
-          copiedAt={database.status?.capturedAt ?? null}
+          copiedAt={
+            database.status?.capturedAt
+              ? copyTime(database.status.capturedAt, database.status.capturedBusy, locale)
+              : null
+          }
           view={layout.sort}
           columns={layout.columns}
           fields={fieldById}
@@ -1077,7 +1084,7 @@ function VoucherRows({
         {copiedAt && (
           <p className="inline-flex items-center gap-1.5">
             <Database aria-hidden="true" className="size-3.5 shrink-0" />
-            {t("Router database copied {time}", { time: formatDateTime(copiedAt, locale) })}
+            {t("Router database copied {time}", { time: copiedAt })}
           </p>
         )}
         <div className="ms-auto flex items-center gap-1">
@@ -1209,6 +1216,7 @@ function DatabaseProgress({
   const { t, locale } = useLocale();
   const job = status.job!;
   const ratio = job.stage === "download" && job.total ? job.received / job.total : null;
+  const left = job.secondsLeft;
   return (
     <Notice
       tone="info"
@@ -1230,6 +1238,15 @@ function DatabaseProgress({
               })}
             </span>
           )}
+          {left !== null && left > 0 && (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {left < 60
+                ? t("Less than a minute left")
+                : left < 120
+                  ? t("About a minute left")
+                  : t("About {time} left", { time: formatSpan(left, locale) })}
+            </span>
+          )}
         </p>
         {ratio !== null && (
           <div
@@ -1246,7 +1263,12 @@ function DatabaseProgress({
             />
           </div>
         )}
-        {job.trigger !== "manual" && (
+        {job.attempt > 1 && (
+          <p className="text-xs text-muted-foreground">
+            {t("Trying again. The router was busy during the last copy.")}
+          </p>
+        )}
+        {job.trigger !== "manual" && job.attempt === 1 && (
           <p className="text-xs text-muted-foreground">
             {t(
               "Madar reads each package's usage from the router's User Manager database. You can keep working.",
@@ -1267,7 +1289,7 @@ function DatabaseResult({
   onRetry: () => void;
   onDismiss: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const dismiss = (
     <Button variant="ghost" size="sm" onClick={onDismiss}>
       {t("Dismiss")}
@@ -1287,6 +1309,33 @@ function DatabaseResult({
     );
   const failure = status.failure;
   if (!failure) return null;
+  // A busy router is not a fault: Madar keeps the last copy and tries again on its own.
+  if (failure.reason === "busy")
+    return (
+      <Notice
+        tone="info"
+        icon={<Database />}
+        action={
+          <>
+            {dismiss}
+            {!status.scheduledAt && (
+              <Button variant="outline" size="sm" onClick={onRetry}>
+                {t("Try now")}
+              </Button>
+            )}
+          </>
+        }
+      >
+        <span className="block">{t(failureReasons.busy)}</span>
+        <span className="block text-xs text-muted-foreground">
+          {status.scheduledAt
+            ? t("Madar tries again at {time}.", {
+                time: formatDateTime(status.scheduledAt, locale),
+              })
+            : t("Madar tries again on its own later.")}
+        </span>
+      </Notice>
+    );
   return (
     <Notice
       tone="warning"
@@ -1308,6 +1357,7 @@ function DatabaseResult({
       }
     >
       <span className="block">{t(failureReasons[failure.reason])}</span>
+      <FailureDetail detail={failure.detail} />
       <span className="block text-xs text-muted-foreground">{t(stoppedStages[failure.stage])}</span>
     </Notice>
   );

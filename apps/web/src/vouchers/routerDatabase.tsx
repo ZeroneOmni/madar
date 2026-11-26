@@ -10,7 +10,7 @@ import { CircleAlert, Database, TriangleAlert } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Detail, Notice } from "../components/WorkspacePage";
 import { useStableCallback } from "../hooks/useStableCallback";
-import { formatDateTime } from "../locale";
+import { formatDateTime, translate, type Locale } from "../locale";
 import { useLocale } from "../useLocale";
 import { voucherClient, voucherError } from "./client";
 
@@ -37,16 +37,15 @@ export const failureReasons: Record<RouterDatabaseFailureReason, string> = {
   authentication:
     "The router rejected the SSH login for this account. Check that the account may log in over SSH.",
   permission:
-    "This router account cannot read files over SFTP. Its group needs the ssh and ftp policies.",
+    "This router account cannot read files over SFTP. Its group needs the ssh and ftp policies; the built-in read and write groups lack ftp.",
   "host-key": "The router's SSH identity changed since Madar last connected.",
   "not-found": "The User Manager database file was not found on the router.",
   "too-large": "The router database is larger than 256 MiB, so Madar did not copy it.",
   network: "The connection to the router was interrupted.",
   timeout: "The router did not respond in time.",
   stalled: "The copy stopped making progress.",
-  changed:
-    "User Manager was writing to its database during the copy. Madar kept the previous copy.",
-  corrupt: "The copied file was damaged. Madar kept the previous copy.",
+  busy: "The router was busy writing to its User Manager database, so no copy could be read. Madar kept the previous copy.",
+  corrupt: "The copied file is not a readable User Manager database. Madar kept the previous copy.",
   schema:
     "This router's User Manager database has a layout Madar does not know, so automatic copies are paused.",
   values: "The router database held values Madar could not read safely.",
@@ -63,13 +62,33 @@ export const actionableFailures = new Set<RouterDatabaseFailureReason>([
   "not-found",
 ]);
 
+/**
+ * When a copy was taken. A busy copy's rows come from commits during its download, so its
+ * time is approximate.
+ */
+export function copyTime(capturedAt: string, busy: boolean, locale: Locale) {
+  const time = formatDateTime(capturedAt, locale);
+  return busy ? translate(locale, "about {time}, while the router was busy", { time }) : time;
+}
+
 /** "Router database, copied {time}" for any value read from a copy. */
-export function SourceLabel({ capturedAt }: { capturedAt: string }) {
+export function SourceLabel({ capturedAt, busy }: { capturedAt: string; busy: boolean }) {
   const { t, locale } = useLocale();
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
       <Database aria-hidden="true" className="size-3.5 shrink-0" />
-      {t("Router database, copied {time}", { time: formatDateTime(capturedAt, locale) })}
+      {t("Router database, copied {time}", { time: copyTime(capturedAt, busy, locale) })}
+    </span>
+  );
+}
+
+/** The table or column behind a layout or value failure, kept out of the main sentence. */
+export function FailureDetail({ detail }: { detail: string | null }) {
+  const { t } = useLocale();
+  if (!detail) return null;
+  return (
+    <span className="mt-1 block text-xs text-muted-foreground">
+      {t("Details:")} <bdi dir="ltr">{detail}</bdi>
     </span>
   );
 }
@@ -162,7 +181,7 @@ export function RouterDatabaseSettings({
     ? t(runningStages[status.job.stage])
     : status.capturedAt
       ? t("Copied {time}. Madar reads each package's usage and dates from it.", {
-          time: formatDateTime(status.capturedAt, locale),
+          time: copyTime(status.capturedAt, status.capturedBusy, locale),
         })
       : t("Not copied yet. Madar copies it when it first connects to a router.");
   return (
@@ -194,6 +213,7 @@ export function RouterDatabaseSettings({
       {failure && !status.job && (
         <Notice tone="warning" icon={<TriangleAlert />}>
           <span className="block">{t(failureReasons[failure.reason])}</span>
+          <FailureDetail detail={failure.detail} />
           <span className="mt-1 block text-xs text-muted-foreground">
             {[
               t(stoppedStages[failure.stage]),
