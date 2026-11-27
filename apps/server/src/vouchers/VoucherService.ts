@@ -409,6 +409,10 @@ const make = Effect.gen(function* () {
         };
         yield* store.saveOperation(input, operation);
         let written = false;
+        const changesPackage =
+          action.kind === "assign-profile" ||
+          action.kind === "reset-counters" ||
+          action.kind === "remove";
         const result = yield* Effect.gen(function* () {
           let id = target;
           if (action.kind === "create") {
@@ -457,12 +461,7 @@ const make = Effect.gen(function* () {
           yield* find(input, owner, id);
           // A package change, reset or removal ends what a router database copy described,
           // even when the command's outcome turns out uncertain.
-          if (
-            action.kind === "assign-profile" ||
-            action.kind === "reset-counters" ||
-            action.kind === "remove"
-          )
-            yield* store.invalidateSnapshots(input, [id]);
+          if (changesPackage) yield* store.invalidateSnapshots(input, [id]);
           if (action.kind === "edit") {
             // registration-date is never part of an edit; see the create branch.
             yield* read(input, owner, [
@@ -506,6 +505,12 @@ const make = Effect.gen(function* () {
                   : ("failed" as const),
               reason: error.reason,
             }),
+          ),
+          // Again once the command ended: a copy that began while it ran may predate it.
+          Effect.tap(() =>
+            changesPackage
+              ? Effect.ignore(store.invalidateSnapshots(input, [target]))
+              : Effect.void,
           ),
         );
         operation = {
