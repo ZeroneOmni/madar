@@ -886,7 +886,17 @@ const make = Effect.gen(function* () {
     );
   }, Effect.mapError(storageError));
 
+  /**
+   * When Madar last dropped each voucher's copy. A copy that began before then may predate the
+   * change, so publishing skips that voucher. Copies in flight do not survive a restart.
+   */
+  const droppedAt = new Map<string, number>();
+  const dropKey = (key: string, customer: string, id: string) =>
+    `${key}\u0000${customer}\u0000${id}`;
   const dropSnapshots = Effect.fnUntraced(function* (scope: VoucherScope, ids: readonly string[]) {
+    const millis = yield* Clock.currentTimeMillis;
+    for (const id of ids)
+      droppedAt.set(dropKey(routerKey(scope.router), scope.customer, id), millis);
     for (let start = 0; start < ids.length; start += 100)
       yield* sql`DELETE FROM voucher_db_snapshots WHERE router_key = ${routerKey(scope.router)}
         AND customer = ${scope.customer} AND ${sql.in("api_id", ids.slice(start, start + 100))}`;
@@ -1502,6 +1512,10 @@ const make = Effect.gen(function* () {
     copy: { capturedAt: string; copiedUntil: string; busy: boolean; fingerprint: string | null },
     contents: DatabaseContents,
   ) {
+    const capturedMillis = Date.parse(copy.capturedAt);
+    // One copy runs per router at a time, so later copies all begin after this one.
+    for (const [dropped, millis] of droppedAt)
+      if (millis < capturedMillis && dropped.startsWith(`${key}\u0000`)) droppedAt.delete(dropped);
     const byCustomer = new Map<string, DatabaseContents["users"][number][]>();
     for (const user of contents.users) {
       const list = byCustomer.get(user.customer) ?? [];
@@ -1552,6 +1566,7 @@ const make = Effect.gen(function* () {
             }
             const match = matches[0]!;
             const apiId = match.id;
+            if ((droppedAt.get(dropKey(key, customer, apiId)) ?? -1) >= capturedMillis) continue;
             // Lab: API `.id` ("*1A3") may equal the database user id. Until confirmed, names decide.
             if (apiIdNumber(apiId) === user.id) confirmed++;
             for (const item of user.assignments)

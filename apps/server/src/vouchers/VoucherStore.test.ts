@@ -869,6 +869,20 @@ it.effect("judges a copy taken while the router was busy only after its download
   }).pipe(Effect.provide(layer)),
 );
 
+it.effect("never publishes a copy that began before Madar changed the voucher", () =>
+  Effect.gen(function* () {
+    const { store, find } = yield* setup;
+    yield* refresh(store, [voucher("*1", "reset", used(5 * GiB))], 10);
+    // A reset at 30 lands while a copy that began at 20 is still downloading.
+    yield* TestClock.adjust("30 seconds");
+    yield* store.invalidateSnapshots(scope, ["*1"]);
+    yield* publish(store, 20, [databaseUser(1, "reset", { used: GiB / 2 })], 80);
+    expect((yield* find("reset")).package).toBeNull();
+    yield* publish(store, 90, [databaseUser(1, "reset", { used: 0 })]);
+    expect((yield* find("reset")).package).toMatchObject({ download: 0 });
+  }).pipe(Effect.provide(layer)),
+);
+
 it.effect("drops a copy on a counter drop, a new profile, a Madar change or old age", () =>
   Effect.gen(function* () {
     const { store, find } = yield* setup;

@@ -106,18 +106,23 @@ export function useRouterDatabase(
   // A new object asks again: after a refresh, or after the operator starts or cancels a copy.
   const [request, setRequest] = useState(() => ({ scope }));
   const copying = useRef(false);
+  // The last attempt seen for this scope; a quick check can start and end between two polls.
+  const checked = useRef<{ key: string; at: string | null } | null>(null);
   const finished = useStableCallback(onFinished);
   if (JSON.stringify(request.scope) !== JSON.stringify(scope)) setRequest({ scope });
   useEffect(() => {
     const abort = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const key = JSON.stringify(request.scope);
     const load = () =>
       voucherClient.databaseStatus(request.scope, abort.signal).then(
         (value) => {
           if (abort.signal.aborted) return;
           setStatus(value);
+          const previous = checked.current;
+          checked.current = { key, at: value.checkedAt };
           if (value.job) copying.current = true;
-          else if (copying.current) {
+          else if (copying.current || (previous?.key === key && previous.at !== value.checkedAt)) {
             copying.current = false;
             finished(value);
           }

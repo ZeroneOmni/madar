@@ -383,6 +383,9 @@ const make = Effect.gen(function* () {
             Effect.result,
           );
         const checkedAt = isoAt(yield* now);
+        // A refresh during the copy may have cleared the fingerprint; never write it back.
+        const latest = yield* store.databaseState(key);
+        state = { ...state, fingerprint: latest?.fingerprint ?? null };
         if (result._tag === "Success") {
           const value = result.success;
           yield* save({
