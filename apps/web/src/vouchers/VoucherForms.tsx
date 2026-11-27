@@ -588,9 +588,6 @@ function VoucherEditForm({
   );
 }
 
-/** User Manager's state codes are inferred, not confirmed; keep them out of the UI until they are. */
-const ASSIGNMENT_STATES_CONFIRMED = false;
-
 /** Every package the router database copy records for this voucher, newest first. */
 function PackageHistory({ scope, id }: { scope: VoucherScope; id: string }) {
   const { t, locale } = useLocale();
@@ -676,9 +673,6 @@ function PackageHistory({ scope, id }: { scope: VoucherScope; id: string }) {
                   <span>
                     {t("Price at assignment: {price}", { price: formatCount(item.price, locale) })}
                   </span>
-                )}
-                {ASSIGNMENT_STATES_CONFIRMED && item.state !== null && (
-                  <span>{formatCount(item.state, locale)}</span>
                 )}
               </div>
             </li>

@@ -97,8 +97,6 @@ export interface CaptureRecord {
   readonly busy: boolean;
   readonly checkedAt: string;
   readonly outcome: "accepted" | "unchanged" | "failed" | "cancelled";
-  readonly errorStage: string | null;
-  readonly errorReason: string | null;
   readonly matched: number;
   readonly skipped: number;
   readonly idConfirmed: number;
@@ -116,8 +114,6 @@ export interface PublishedCopy {
   readonly changed: number;
   readonly unknown: number;
 }
-/** Lab gate: API `.id` ("*1A3") may equal the database user id. Until confirmed, names decide. */
-const REQUIRE_ROUTER_ID_MATCH = false;
 /**
  * A busy copy may read a user's lifetime counters and its package counters from commits seconds
  * apart. Within this gap they still describe one package; a larger one means usage outside it.
@@ -1452,7 +1448,7 @@ const make = Effect.gen(function* () {
   const capture = Effect.fn("VoucherStore.capture")(function* (scope: VoucherScope) {
     const rows =
       yield* sql<CaptureRecord>`SELECT captured_at AS "capturedAt", busy, checked_at AS "checkedAt",
-        outcome, error_stage AS "errorStage", error_reason AS "errorReason", matched, skipped,
+        outcome, matched, skipped,
         id_confirmed AS "idConfirmed", unused, changed, unknown
       FROM voucher_db_captures WHERE router_key = ${routerKey(scope.router)}
       AND customer = ${scope.customer}`;
@@ -1558,11 +1554,8 @@ const make = Effect.gen(function* () {
             }
             const match = matches[0]!;
             const apiId = match.id;
+            // Lab: API `.id` ("*1A3") may equal the database user id. Until confirmed, names decide.
             if (apiIdNumber(apiId) === user.id) confirmed++;
-            else if (REQUIRE_ROUTER_ID_MATCH) {
-              skipped++;
-              continue;
-            }
             for (const item of user.assignments)
               history.set(`${apiId}\u0000${item.id}`, {
                 router_key: key,
@@ -1707,9 +1700,9 @@ const make = Effect.gen(function* () {
       (column) => !ignored.includes(column),
     );
     const rowKey = (row: Record<string, unknown>) =>
-      keyColumns.map((column) => String(row[column])).join(" ");
+      keyColumns.map((column) => String(row[column])).join("\u0000");
     const content = (row: Record<string, unknown>) =>
-      compared.map((column) => String(row[column] ?? " ")).join("");
+      compared.map((column) => String(row[column] ?? "\u0000")).join("\u0001");
     const existing = new Map<string, string>();
     for (const row of yield* sql<Record<string, string | number | null>>`SELECT * FROM ${sql(table)}
         WHERE router_key = ${key} AND customer = ${customer}`)
@@ -1721,7 +1714,7 @@ const make = Effect.gen(function* () {
         `DELETE FROM ${table} WHERE router_key = ? AND customer = ? AND ${keyColumns
           .map((column) => `${column} = ?`)
           .join(" AND ")}`,
-        [key, customer, ...id.split(" ")],
+        [key, customer, ...id.split("\u0000")],
       );
       if (index % WRITE_BATCH === WRITE_BATCH - 1) yield* breathe;
     }

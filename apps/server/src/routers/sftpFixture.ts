@@ -13,7 +13,7 @@ export async function sftpFixture(
     /** Stop answering reads after this many, to model a stalled transfer. */
     stallAfter?: number;
     onRead?: (path: string, offset: number) => void;
-    /** Receives each read's answer instead of sending it, to pace reads from a test. */
+    /** Receives each read and close answer instead of sending it, to pace them from a test. */
     hold?: (answer: () => void) => void;
     /** Answers each read with at most this many bytes, as a server may. */
     maxRead?: number;
@@ -89,7 +89,9 @@ export async function sftpFixture(
           });
           sftp.on("CLOSE", (id, handle) => {
             handles.delete(handle.toString());
-            sftp.status(id, STATUS_CODE.OK);
+            const answer = () => sftp.status(id, STATUS_CODE.OK);
+            if (options.hold) options.hold(answer);
+            else answer();
           });
         });
       }),

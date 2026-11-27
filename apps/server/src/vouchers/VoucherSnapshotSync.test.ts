@@ -175,8 +175,13 @@ it.effect("combines triggers for a minute and keeps four hours between automatic
         yield* vouchers.sync(scope, "owner");
         yield* TestClock.adjust("1 minute");
         // The file did not change, so only its size, time and header were read.
-        expect(yield* snapshots.settled(scope)).toMatchObject({ outcome: "unchanged" });
+        const unchanged = yield* snapshots.settled(scope);
+        expect(unchanged).toMatchObject({ outcome: "unchanged" });
         expect(ssh.connections()).toBe(2);
+        // Connections shows the same confirmed copy time as the voucher list.
+        expect((yield* snapshots.status({ router: scope.router })).capturedAt).toBe(
+          unchanged.capturedAt,
+        );
       }),
     );
     yield* inProcess(
@@ -507,7 +512,7 @@ it.effect("continues a stalled download from where it stopped, as a busy copy", 
         const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
         yield* snapshots.start(scope, "owner");
         yield* Deferred.await(stalled);
-        yield* TestClock.adjust("30 seconds");
+        yield* TestClock.adjust(`${RouterSftp.SFTP_LIMITS.stallSeconds} seconds`);
         const failed = yield* snapshots.settled(scope);
         expect(failed).toMatchObject({ failure: { stage: "download", reason: "stalled" } });
         expect(yield* fs.readDirectory(copies)).toHaveLength(1);

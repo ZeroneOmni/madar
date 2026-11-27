@@ -146,10 +146,11 @@ it.effect("keeps a slow but moving transfer running and stops only when reads st
         onProgress: () => Effect.void,
       })
       .pipe(Effect.flip, Effect.forkChild);
-    // Each batch of reads takes 25 s: slow, but never a 30 s stall, for 15 minutes.
+    // Each batch of reads takes just under the stall limit: slow, but moving, for an hour.
+    const stall = RouterSftp.SFTP_LIMITS.stallSeconds;
     let next = yield* Queue.takeAll(answers);
-    for (let seconds = 25; seconds <= 900; seconds += 25) {
-      yield* TestClock.adjust("25 seconds");
+    for (let seconds = stall - 5; seconds <= 3600; seconds += stall - 5) {
+      yield* TestClock.adjust(`${stall - 5} seconds`);
       for (const answer of next) answer();
       next = yield* Queue.takeAll(answers).pipe(
         Effect.raceFirst(
@@ -159,8 +160,11 @@ it.effect("keeps a slow but moving transfer running and stops only when reads st
         ),
       );
     }
-    // The router goes quiet: the transfer ends after 30 s without a reply.
-    yield* TestClock.adjust("30 seconds");
+    // The router goes quiet: the transfer ends after the stall limit without a reply.
+    yield* TestClock.adjust(`${stall} seconds`);
+    // A quiet router does not answer the handle's close either; that wait is bounded too.
+    yield* Queue.take(answers);
+    yield* TestClock.adjust(`${stall} seconds`);
     expect((yield* Fiber.join(download)).reason).toBe("stalled");
   }).pipe(Effect.scoped, Effect.provide(services)),
 );

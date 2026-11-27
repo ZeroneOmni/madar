@@ -181,14 +181,9 @@ const make = Effect.gen(function* () {
     const key = RouterApi.routerKey(target.router);
     const fail = (stage: CopyFailure["stage"], reason: CopyFailure["reason"]) =>
       new CopyFailure({ stage, reason });
+    // Optional settings: a failed read falls back to the defaults.
     const apiRead = (words: readonly string[]) =>
-      api
-        .execute(target.router, owner, words)
-        .pipe(
-          Effect.mapError((error) =>
-            fail("connect", error.reason === "disconnected" ? "disconnected" : "network"),
-          ),
-        );
+      api.execute(target.router, owner, words).pipe(Effect.orElseSucceed(() => []));
     const password = yield* api
       .password(target.router, owner)
       .pipe(Effect.mapError(() => fail("connect", "disconnected")));
@@ -196,13 +191,10 @@ const make = Effect.gen(function* () {
       "/ip/service/print",
       "=.proplist=name,port,disabled",
       "?name=ssh",
-    ]).pipe(Effect.orElseSucceed(() => []));
+    ]);
     if (service[0]?.disabled === "true") return yield* fail("connect", "ssh-off");
     const port = Number(service[0]?.port) || 22;
-    const database = yield* apiRead([
-      "/tool/user-manager/database/print",
-      "=.proplist=db-path",
-    ]).pipe(Effect.orElseSucceed(() => []));
+    const database = yield* apiRead(["/tool/user-manager/database/print", "=.proplist=db-path"]);
     const folder = (database[0]?.["db-path"] ?? "").replace(/^\/+|\/+$/g, "") || "user-manager";
     const file = `${folder}/sqldb`;
     const journal = `${folder}/sqldb-journal`;
@@ -402,7 +394,7 @@ const make = Effect.gen(function* () {
                   acceptedBusy: value.busy,
                   fingerprint: value.fingerprint,
                 }
-              : {}),
+              : { acceptedAt: checkedAt }),
             failureStage: null,
             failureReason: null,
             failureDetail: null,
@@ -501,7 +493,6 @@ const make = Effect.gen(function* () {
     attempt = 1,
   ) {
     const live = liveFor(RouterApi.routerKey(target.router));
-    if (live.job) return;
     const job: Job = {
       trigger,
       attempt,
@@ -514,6 +505,7 @@ const make = Effect.gen(function* () {
       downloadStarted: null,
       resumedFrom: 0,
     };
+    if (live.job) return;
     live.job = job;
     yield* run(target, owner, job).pipe(
       Effect.ensuring(

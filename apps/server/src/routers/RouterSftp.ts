@@ -35,7 +35,7 @@ export const SFTP_LIMITS = {
    * A busy RouterOS 6 router answered single reads after up to 12.5 s. This is the only limit on
    * a transfer: a slow copy runs as long as bytes keep arriving.
    */
-  stallSeconds: 30,
+  stallSeconds: 300,
   maxBytes: 256 * 1024 * 1024,
   automaticBytesPerSecond: 2 * 1024 * 1024,
 } as const;
@@ -78,6 +78,14 @@ export const hostKeyFingerprint = (key: Buffer) =>
   `SHA256:${NodeCrypto.createHash("sha256").update(key).digest("base64").replace(/=+$/, "")}`;
 
 const failure = (reason: RouterSftpError["reason"]) => new RouterSftpError({ reason });
+/** Every request to a router that stops answering fails after the stall limit. */
+const withinStall = <A>(effect: Effect.Effect<A, RouterSftpError>) =>
+  effect.pipe(
+    Effect.timeoutOrElse({
+      duration: `${SFTP_LIMITS.stallSeconds} seconds`,
+      orElse: () => Effect.fail(failure("stalled")),
+    }),
+  );
 /** SFTP status codes: 2 is "no such file", 3 is "permission denied". */
 const statusFailure = (error: Error & { code?: unknown }) =>
   failure(error.code === 2 ? "not-found" : error.code === 3 ? "permission" : "network");
@@ -108,7 +116,7 @@ const make = Effect.gen(function* () {
           else if ((error as Error & { code?: unknown }).code === 2) resume(Effect.succeed(null));
           else resume(Effect.fail(statusFailure(error)));
         });
-      }),
+      }).pipe(withinStall),
     );
     const open = (path: string) =>
       Effect.acquireRelease(
@@ -116,28 +124,23 @@ const make = Effect.gen(function* () {
           sftp.open(path, "r", (error, handle) =>
             resume(error ? Effect.fail(statusFailure(error)) : Effect.succeed(handle)),
           );
-        }),
+        }).pipe(withinStall),
+        // A quiet router may never answer the close; the socket closes after it either way.
         (handle) =>
-          Effect.callback<void>((resume) => {
+          Effect.callback<void, RouterSftpError>((resume) => {
             sftp.close(handle, () => resume(Effect.void));
-          }),
+          }).pipe(withinStall, Effect.ignore),
       );
     // One read per chunk: tracing each would flood the trace; `download` owns the span.
-    const read = Effect.fnUntraced(function* (handle: Buffer, buffer: Buffer, position: number) {
-      return yield* Effect.callback<number, RouterSftpError>((resume) => {
+    const read = (handle: Buffer, buffer: Buffer, position: number) =>
+      Effect.callback<number, RouterSftpError>((resume) => {
         sftp.read(handle, buffer, 0, buffer.length, position, (error, bytesRead) => {
           // ssh2 reports end of file as an error with status code 1.
           if (error && (error as Error & { code?: unknown }).code === 1)
             return resume(Effect.succeed(0));
           resume(error ? Effect.fail(statusFailure(error)) : Effect.succeed(bytesRead));
         });
-      }).pipe(
-        Effect.timeoutOrElse({
-          duration: `${SFTP_LIMITS.stallSeconds} seconds`,
-          orElse: () => Effect.fail(failure("stalled")),
-        }),
-      );
-    });
+      }).pipe(withinStall);
     const head = Effect.fn("RouterSftp.head")(function* (path: string, length: number) {
       const handle = yield* open(path);
       const buffer = Buffer.alloc(length);
@@ -154,12 +157,7 @@ const make = Effect.gen(function* () {
       destination: string,
       options: DownloadOptions,
     ) {
-      const info = yield* stat(path).pipe(
-        Effect.timeoutOrElse({
-          duration: `${SFTP_LIMITS.stallSeconds} seconds`,
-          orElse: () => Effect.fail(failure("stalled")),
-        }),
-      );
+      const info = yield* stat(path);
       if (!info) return yield* failure("not-found");
       if (info.size > SFTP_LIMITS.maxBytes) return yield* failure("too-large");
       const handle = yield* open(path);
