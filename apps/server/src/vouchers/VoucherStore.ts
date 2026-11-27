@@ -20,9 +20,12 @@ import {
   type VoucherSortField,
   type VoucherFieldFilter,
   type VoucherFieldValue,
+  type VoucherAssignments,
+  type VoucherTarget,
 } from "@madar/contracts";
 import { routerKey } from "../routers/RouterApi.ts";
-import { epochToNaive, naiveToEpoch, naturalKey } from "./routerValues.ts";
+import { epochToNaive, naturalKey } from "./routerValues.ts";
+import type { DatabaseContents } from "./VoucherSnapshotReader.ts";
 
 const parseOperation = Schema.decodeUnknownSync(Schema.fromJsonString(VoucherOperation));
 const encodeOperation = Schema.encodeSync(Schema.fromJsonString(VoucherOperation));
@@ -63,6 +66,70 @@ export interface CatalogInput {
   readonly syncedAt: string;
   readonly clockOffset: number | null;
 }
+/** What a refresh saw that the API counters alone cannot explain. */
+export interface RefreshSignals {
+  readonly newUsed: number;
+  readonly profileChanged: number;
+  readonly counterDropped: number;
+  /** Used vouchers whose package start neither Madar nor a fresh copy explains. */
+  readonly unexplained: number;
+}
+/** Router database copy state for one router; persisted so restarts keep the cooldown. */
+export interface DatabaseState {
+  readonly lastAttemptAt: string | null;
+  readonly lastAutomaticAt: string | null;
+  readonly lastOutcome: "accepted" | "unchanged" | "failed" | "cancelled" | null;
+  readonly acceptedAt: string | null;
+  readonly acceptedBusy: boolean;
+  /** Size, mtime, change counter and header hash of the last exact copy; null after a busy one. */
+  readonly fingerprint: string | null;
+  readonly failureStage: string | null;
+  readonly failureReason: string | null;
+  readonly failureDetail: string | null;
+  readonly failedAt: string | null;
+  readonly paused: boolean;
+  readonly retryAt: string | null;
+  readonly hostKey: string | null;
+  readonly offeredHostKey: string | null;
+}
+export interface CaptureRecord {
+  readonly capturedAt: string | null;
+  readonly busy: boolean;
+  readonly checkedAt: string;
+  readonly outcome: "accepted" | "unchanged" | "failed" | "cancelled";
+  readonly matched: number;
+  readonly skipped: number;
+  readonly idConfirmed: number;
+  readonly unused: number;
+  /** Vouchers whose remaining value the copy changed, and those still unknown after it. */
+  readonly changed: number | null;
+  readonly unknown: number | null;
+}
+export interface PublishedCopy {
+  readonly customer: string;
+  readonly matched: number;
+  /** Users the copy could not read or match to exactly one voucher. */
+  readonly skipped: number;
+  readonly unused: number;
+  readonly changed: number;
+  readonly unknown: number;
+}
+/**
+ * A busy copy may read a user's lifetime counters and its package counters from commits seconds
+ * apart. Within this gap they still describe one package; a larger one means usage outside it.
+ */
+const onlyPackageGap = (lifetime: number) => Math.max(16 * 1024 * 1024, lifetime * 0.02);
+const apiIdNumber = (id: string) => {
+  const match = /^\*([0-9a-f]{1,13})$/i.exec(id);
+  return match ? Number.parseInt(match[1]!, 16) : null;
+};
+/** Snapshot rows are written in pages of this size inside the publishing transaction. */
+const WRITE_BATCH = 500;
+/** A macrotask turn: lets worker replies and other I/O run between pages of synchronous SQL. */
+const breathe = Effect.callback<void>((resume) => {
+  const handle = setImmediate(() => resume(Effect.void));
+  return Effect.sync(() => clearImmediate(handle));
+});
 export interface FirstLoginCandidate {
   readonly username: string;
   readonly routerId: string;
@@ -160,15 +227,32 @@ const unused = (voucher: RouterVoucher) =>
   (voucher.uptime ?? 0) === 0;
 
 /**
- * Remaining data and validity, computed from the typed cache, the profile catalog and Madar's
- * baselines. This is the only implementation; display, filters and sorting all read it.
- * Parameters: router key, customer, router-local "now" in epoch seconds (or NULL), router key,
- * then `ids` voucher ids when the rows are limited to a page.
+ * Lab gate: rolling a router database copy forward with the live counters assumes User Manager
+ * starts a queued package only after the current one ends. Turn this off if the lab disproves
+ * it; the list then shows the copy's own values with their capture time.
+ */
+const ROLL_FORWARD_AFTER_COPY = true;
+/** A router database copy older than this no longer describes the current package. */
+const COPY_FRESH_SECONDS = 86_400;
+
+/**
+ * Remaining data and validity, computed from the typed cache, the profile catalog, Madar's
+ * baselines and router database copies. This is the only implementation; display, filters and
+ * sorting all read it. Parameters: router key, customer, router-local "now" in epoch seconds (or
+ * NULL), PC "now" in epoch seconds, then `ids` voucher ids when the rows are limited to a page.
  */
 const rowsSql = (ids: number) => `
-WITH params AS (
-  SELECT ? AS router_key, ? AS customer, ? AS now,
-    COALESCE((SELECT limits_synced FROM voucher_routers WHERE router_key = ?), 0) AS limits_synced
+WITH base AS (SELECT ? AS router_key, ? AS customer, ? AS now, ? AS pc_now),
+params AS (
+  SELECT base.*,
+    COALESCE((SELECT limits_synced FROM voucher_routers r WHERE r.router_key = base.router_key), 0)
+      AS limits_synced,
+    (SELECT synced_at FROM voucher_sync y WHERE y.router_key = base.router_key
+      AND y.customer = base.customer) AS synced_at,
+    c.captured_at, COALESCE(c.copied_until, c.captured_at) AS copied_until,
+    COALESCE(c.busy, 0) AS captured_busy
+  FROM base LEFT JOIN voucher_db_captures c ON c.router_key = base.router_key
+    AND c.customer = base.customer
 ),
 quota AS (
   SELECT p.name, p.validity, p.starts_at, p.price,
@@ -191,12 +275,20 @@ quota AS (
   GROUP BY p.name
 ),
 joined AS (
-  SELECT v.*, params.now, params.limits_synced,
+  SELECT v.*, params.now, params.pc_now, params.limits_synced, params.captured_at,
+    params.copied_until, params.captured_busy,
+    max(v.observed_at, COALESCE(params.synced_at, '')) AS seen_at,
     q.name IS NOT NULL AS q_known, q.validity AS q_validity, q.starts_at AS q_starts_at,
     q.price AS q_price, q.q_transfer, q.q_download, q.q_upload, q.q_uptime, q.q_unclear,
+    COALESCE(q.q_transfer, 0) || ':' || COALESCE(q.q_download, 0) || ':'
+      || COALESCE(q.q_upload, 0) || ':' || COALESCE(q.q_uptime, 0) AS q_signature,
     b.source AS b_source, b.activated_at AS b_activated_at, b.download AS b_download,
     b.upload AS b_upload, b.uptime AS b_uptime, b.first_login_at, b.sessions_after AS b_sessions_after,
     b.first_login_checked_through,
+    s.profile AS s_profile, s.download AS s_download, s.upload AS s_upload, s.uptime AS s_uptime,
+    s.life_download AS s_life_download, s.life_upload AS s_life_upload,
+    s.life_uptime AS s_life_uptime, s.started_at AS s_started_at, s.ends_at AS s_ends_at,
+    s.quota_signature AS s_signature,
     bt.id AS batch_id, bt.created_at AS batch_created_at, bt.requested AS batch_requested,
     bt.profile AS batch_profile, bt.comment AS batch_comment,
     (SELECT COUNT(*) FROM voucher_batch_members c WHERE c.batch_id = bt.id) AS batch_created
@@ -206,25 +298,83 @@ joined AS (
   LEFT JOIN quota q ON q.name = v.profile
   LEFT JOIN voucher_baselines b ON b.router_key = v.router_key AND b.customer = v.customer
     AND b.username = v.username AND b.router_id = v.id AND b.profile = v.profile
+  LEFT JOIN voucher_db_snapshots s ON s.router_key = v.router_key AND s.customer = v.customer
+    AND s.api_id = v.id AND s.username = v.username
   LEFT JOIN voucher_batch_members m ON m.router_key = v.router_key AND m.customer = v.customer
     AND m.username = v.username AND m.router_id = v.id
   LEFT JOIN voucher_batches bt ON bt.id = m.batch_id
+),
+copied AS (
+  SELECT *,
+    COALESCE(s_profile = profile AND pc_now - unixepoch(captured_at) > ${COPY_FRESH_SECONDS}, 0)
+      AS s_stale,
+    -- The copy describes the current package: same profile, fresh, and no counter went down
+    -- since it, judged only once a refresh after the whole copy has read the counters.
+    COALESCE(s_profile = profile AND pc_now - unixepoch(captured_at) <= ${COPY_FRESH_SECONDS}
+      AND download_used IS NOT NULL AND upload_used IS NOT NULL
+      AND (seen_at <= copied_until OR (download_used >= s_life_download
+        AND upload_used >= s_life_upload AND COALESCE(uptime_used, s_life_uptime) >= s_life_uptime)),
+      0) AS s_ok
+  FROM joined
+),
+rolled AS (
+  SELECT *,
+    COALESCE(${ROLL_FORWARD_AFTER_COPY ? 1 : 0} AND s_ok AND seen_at > copied_until
+      AND s_signature = q_signature
+      AND (s_ends_at IS NULL OR (now IS NOT NULL AND unixepoch(s_ends_at) > now))
+      AND (q_transfer IS NULL OR s_download + s_upload + download_used - s_life_download
+        + upload_used - s_life_upload < q_transfer)
+      AND (q_download IS NULL OR s_download + download_used - s_life_download < q_download)
+      AND (q_upload IS NULL OR s_upload + upload_used - s_life_upload < q_upload)
+      AND (q_uptime IS NULL OR s_uptime + COALESCE(uptime_used - s_life_uptime, 0) < q_uptime),
+      0) AS s_live
+  FROM copied
+),
+used AS (
+  SELECT *,
+    -- Madar's own start of this package (its activation, seen unused, or a copy that showed it is
+    -- the only one) counts the live counters exactly and outranks a copy's own numbers.
+    COALESCE(b_source IN ('activation', 'new', 'only-package'), 0) AS b_exact,
+    s_ok AND COALESCE(b_source NOT IN ('activation', 'new', 'only-package'), 1) AS use_copy,
+    -- A busy copy's user row and counters may come from commits seconds apart. Growth stays
+    -- non-negative (s_ok) and the rolled value stays under every limit (s_live).
+    CASE WHEN s_ok THEN s_download
+      + CASE WHEN s_live THEN download_used - s_life_download ELSE 0 END END AS p_download,
+    CASE WHEN s_ok THEN s_upload
+      + CASE WHEN s_live THEN upload_used - s_life_upload ELSE 0 END END AS p_upload,
+    CASE WHEN s_ok THEN s_uptime
+      + CASE WHEN s_live THEN COALESCE(uptime_used - s_life_uptime, 0) ELSE 0 END END AS p_uptime
+  FROM rolled
+),
+spent AS (
+  SELECT *,
+    CASE WHEN use_copy THEN p_download + p_upload
+      ELSE max(0, (download_used + upload_used) - (b_download + b_upload)) END AS u_transfer,
+    CASE WHEN use_copy THEN p_download ELSE max(0, download_used - b_download) END AS u_download,
+    CASE WHEN use_copy THEN p_upload ELSE max(0, upload_used - b_upload) END AS u_upload,
+    CASE WHEN use_copy THEN p_uptime ELSE max(0, uptime_used - b_uptime) END AS u_uptime
+  FROM used
 ),
 measured AS (
   SELECT *,
     q_transfer IS NOT NULL OR q_download IS NOT NULL OR q_upload IS NOT NULL
       OR q_uptime IS NOT NULL AS has_quota,
-    max(0, q_transfer - max(0, (download_used + upload_used) - (b_download + b_upload))) AS left_transfer,
-    max(0, q_download - max(0, download_used - b_download)) AS left_download,
-    max(0, q_upload - max(0, upload_used - b_upload)) AS left_upload,
-    max(0, q_uptime - max(0, uptime_used - b_uptime)) AS left_uptime,
+    max(0, q_transfer - u_transfer) AS left_transfer,
+    max(0, q_download - u_download) AS left_download,
+    max(0, q_upload - u_upload) AS left_upload,
+    max(0, q_uptime - u_uptime) AS left_uptime,
     CASE WHEN q_validity > 0 THEN
-      CASE q_starts_at WHEN 'now' THEN b_activated_at WHEN 'logon' THEN first_login_at END
+      CASE WHEN use_copy THEN s_started_at
+        ELSE CASE q_starts_at WHEN 'now' THEN b_activated_at WHEN 'logon' THEN first_login_at END
+      END
     END AS valid_from,
-    COALESCE(q_validity > 0 AND q_starts_at = 'logon' AND first_login_at IS NULL AND (
-      last_seen_never = 1 OR last_seen < COALESCE(b_activated_at, b_sessions_after)
-    ), 0) AS not_started
-  FROM joined
+    CASE WHEN use_copy THEN COALESCE(q_validity > 0 AND s_started_at IS NULL
+        AND s_download + s_upload = 0
+        AND download_used + upload_used <= s_life_download + s_life_upload, 0)
+      ELSE COALESCE(q_validity > 0 AND q_starts_at = 'logon' AND first_login_at IS NULL AND (
+        last_seen_never = 1 OR last_seen < COALESCE(b_activated_at, b_sessions_after)
+      ), 0) END AS not_started
+  FROM spent
 ),
 reasoned AS (
   SELECT *,
@@ -234,10 +384,11 @@ reasoned AS (
       WHEN q_unclear OR q_validity IS NULL
         OR (q_validity > 0 AND q_starts_at NOT IN ('now', 'logon')) THEN 'limits'
       WHEN NOT has_quota AND q_validity = 0 THEN ''
-      WHEN b_source IS NULL THEN 'baseline'
+      WHEN b_source IS NULL AND NOT use_copy THEN CASE WHEN s_stale THEN 'stale' ELSE 'baseline' END
       WHEN has_quota AND (download_used IS NULL OR upload_used IS NULL
         OR (q_uptime IS NOT NULL AND uptime_used IS NULL)) THEN 'counters'
-      WHEN q_validity > 0 AND q_starts_at = 'now' AND b_activated_at IS NULL THEN 'activation'
+      WHEN NOT use_copy AND q_validity > 0 AND q_starts_at = 'now' AND b_activated_at IS NULL
+        THEN 'activation'
       WHEN q_validity > 0 AND valid_from IS NULL AND NOT not_started THEN 'first-login'
       WHEN q_validity > 0 AND valid_from IS NOT NULL AND now IS NULL THEN 'clock'
       ELSE '' END AS rem_reason,
@@ -245,8 +396,25 @@ reasoned AS (
       COALESCE(left_transfer * 1.0 / q_transfer, 9), COALESCE(left_download * 1.0 / q_download, 9),
       COALESCE(left_upload * 1.0 / q_upload, 9), COALESCE(left_uptime * 1.0 / q_uptime, 9)
     ), 9) AS data_ratio,
-    CASE WHEN valid_from IS NOT NULL THEN max(0, unixepoch(valid_from) + q_validity - now) END AS time_left
+    CASE WHEN valid_from IS NOT NULL THEN
+      COALESCE(CASE WHEN use_copy THEN s_ends_at END,
+        datetime(unixepoch(valid_from) + q_validity, 'unixepoch'))
+    END AS valid_until,
+    CASE WHEN use_copy THEN CASE WHEN s_live THEN 'router-database-live' ELSE 'router-database' END
+      ELSE COALESCE(b_source, '') END AS rem_basis,
+    CASE WHEN b_exact THEN u_transfer WHEN s_ok THEN p_download + p_upload END AS pkg_used,
+    CASE WHEN b_exact THEN u_download WHEN s_ok THEN p_download END AS pkg_download,
+    CASE WHEN b_exact THEN u_upload WHEN s_ok THEN p_upload END AS pkg_upload,
+    CASE WHEN b_exact THEN u_uptime WHEN s_ok THEN p_uptime END AS pkg_uptime,
+    CASE WHEN b_exact THEN CASE q_starts_at WHEN 'now' THEN b_activated_at ELSE first_login_at END
+      WHEN s_ok THEN s_started_at END AS pkg_start,
+    CASE WHEN NOT b_exact AND s_ok THEN 1 ELSE 0 END AS pkg_copied
   FROM measured
+),
+timed AS (
+  SELECT *,
+    CASE WHEN valid_until IS NOT NULL THEN max(0, unixepoch(valid_until) - now) END AS time_left
+  FROM reasoned
 ),
 ranked AS (
   SELECT *,
@@ -262,8 +430,12 @@ ranked AS (
       WHEN left_transfer * 1.0 / q_transfer = data_ratio THEN 'transfer'
       WHEN left_download * 1.0 / q_download = data_ratio THEN 'download'
       WHEN left_upload * 1.0 / q_upload = data_ratio THEN 'upload'
-      ELSE 'uptime' END AS rem_kind
-  FROM reasoned
+      ELSE 'uptime' END AS rem_kind,
+    CASE WHEN pkg_copied THEN s_ends_at ELSE valid_until END AS pkg_end,
+    CASE WHEN use_copy OR (s_stale AND b_source IS NULL) THEN captured_at END AS rem_captured,
+    CASE WHEN use_copy OR (s_stale AND b_source IS NULL) THEN captured_busy ELSE 0 END
+      AS rem_captured_busy
+  FROM timed
 )`;
 
 const sortKeys: Record<VoucherSortField, string> = {
@@ -302,6 +474,9 @@ const sortKeys: Record<VoucherSortField, string> = {
   changed: "changed_at",
   firstLogin: "first_login_at",
   batch: "batch_created_at",
+  packageUsage: "pkg_used",
+  packageStart: "pkg_start",
+  packageEnd: "pkg_end",
   custom: "username_key",
 };
 
@@ -362,6 +537,9 @@ const joinedSorts = new Set<VoucherSortField>([
   "quota",
   "firstLogin",
   "batch",
+  "packageUsage",
+  "packageStart",
+  "packageEnd",
 ]);
 const joinedStatuses = new Set<VoucherQuery["status"]>(["low", "ended", "unknown"]);
 const statusFilters: Record<VoucherQuery["status"], string> = {
@@ -415,10 +593,9 @@ const toRow = (
   };
   const known = state !== "none" && state !== "unknown" && state !== "unlimited";
   const [amount, limit] = known ? (amounts[kind] ?? [null, null]) : [null, null];
-  const validFrom = str(row.valid_from);
   const validity = num(row.q_validity);
-  const endsAt =
-    known && validFrom && validity ? epochToNaive(naiveToEpoch(validFrom) + validity * 1000) : null;
+  const endsAt = known ? str(row.valid_until) || null : null;
+  const basis = str(row.rem_basis) as VoucherRow["remaining"]["basis"];
   const sharedUsers = bool(row.shared_users_unlimited) ? "unlimited" : num(row.shared_users);
   return {
     id: str(row.id),
@@ -477,9 +654,23 @@ const toRow = (
       amount: num(amount),
       limit: num(limit),
       endsAt,
-      basis:
-        known || state === "unknown" ? (str(row.b_source) as VoucherRow["remaining"]["basis"]) : "",
+      basis: known || state === "unknown" ? basis : "",
+      capturedAt: str(row.rem_captured) || null,
+      capturedBusy: bool(row.rem_captured_busy),
     },
+    package:
+      row.pkg_used === null
+        ? null
+        : {
+            download: num(row.pkg_download) ?? 0,
+            upload: num(row.pkg_upload) ?? 0,
+            uptime: num(row.pkg_uptime) ?? 0,
+            startedAt: str(row.pkg_start) || null,
+            endsAt: str(row.pkg_end) || null,
+            estimated: bool(row.pkg_copied) && bool(row.s_live),
+            capturedAt: bool(row.pkg_copied) ? str(row.captured_at) : null,
+            capturedBusy: bool(row.pkg_copied) && bool(row.captured_busy),
+          },
     fields,
   };
 };
@@ -502,7 +693,7 @@ export class VoucherStore extends Context.Service<
       scope: VoucherScope,
       vouchers: readonly RouterVoucher[],
       time: string,
-    ) => Effect.Effect<void, VoucherFailure>;
+    ) => Effect.Effect<RefreshSignals, VoucherFailure>;
     readonly upsert: (
       scope: VoucherScope,
       voucher: RouterVoucher,
@@ -546,6 +737,34 @@ export class VoucherStore extends Context.Service<
     readonly history: (
       scope: VoucherScope,
     ) => Effect.Effect<readonly VoucherOperation[], VoucherFailure>;
+    /** Forgets router database copies of these vouchers before Madar changes their package. */
+    readonly invalidateSnapshots: (
+      scope: VoucherScope,
+      ids: readonly string[],
+    ) => Effect.Effect<void, VoucherFailure>;
+    readonly databaseState: (key: string) => Effect.Effect<DatabaseState | null, VoucherFailure>;
+    readonly saveDatabaseState: (
+      key: string,
+      state: DatabaseState,
+    ) => Effect.Effect<void, VoucherFailure>;
+    readonly capture: (scope: VoucherScope) => Effect.Effect<CaptureRecord | null, VoucherFailure>;
+    readonly recordAttempt: (
+      key: string,
+      attempt: {
+        outcome: "unchanged" | "failed" | "cancelled";
+        checkedAt: string;
+        /** For an unchanged file: confirms copies with this fingerprint as of `checkedAt`. */
+        fingerprint?: string;
+      },
+    ) => Effect.Effect<void, VoucherFailure>;
+    readonly publishSnapshot: (
+      key: string,
+      copy: { capturedAt: string; copiedUntil: string; busy: boolean; fingerprint: string | null },
+      contents: DatabaseContents,
+    ) => Effect.Effect<readonly PublishedCopy[], VoucherFailure>;
+    readonly assignments: (
+      target: VoucherTarget,
+    ) => Effect.Effect<VoucherAssignments, VoucherFailure>;
   }
 >()("madar/vouchers/VoucherStore") {}
 
@@ -667,6 +886,22 @@ const make = Effect.gen(function* () {
     );
   }, Effect.mapError(storageError));
 
+  /**
+   * When Madar last dropped each voucher's copy. A copy that began before then may predate the
+   * change, so publishing skips that voucher. Copies in flight do not survive a restart.
+   */
+  const droppedAt = new Map<string, number>();
+  const dropKey = (key: string, customer: string, id: string) =>
+    `${key}\u0000${customer}\u0000${id}`;
+  const dropSnapshots = Effect.fnUntraced(function* (scope: VoucherScope, ids: readonly string[]) {
+    const millis = yield* Clock.currentTimeMillis;
+    for (const id of ids)
+      droppedAt.set(dropKey(routerKey(scope.router), scope.customer, id), millis);
+    for (let start = 0; start < ids.length; start += 100)
+      yield* sql`DELETE FROM voucher_db_snapshots WHERE router_key = ${routerKey(scope.router)}
+        AND customer = ${scope.customer} AND ${sql.in("api_id", ids.slice(start, start + 100))}`;
+  });
+
   /** Writes router columns for changed rows and keeps baselines consistent with the new values. */
   const write = Effect.fnUntraced(function* (
     scope: VoucherScope,
@@ -695,7 +930,8 @@ const make = Effect.gen(function* () {
     const touched = vouchers.filter(
       (voucher) => activations.has(voucher.id) || changedSet.has(voucher),
     );
-    if (touched.length === 0) return;
+    const signals = { newUsed: 0, profileChanged: 0, counterDropped: 0 };
+    if (touched.length === 0) return signals;
     // A rename keeps the voucher's Madar data. Every renamed voucher first moves to a name made
     // from its router id, so a chain (A→B, B→C) or a swap never deletes data that is still in use.
     const renamed = changed.flatMap((voucher) => {
@@ -738,6 +974,7 @@ const make = Effect.gen(function* () {
         baselines.set(row.username, row);
     }
     const recorded: Record<string, string | number | null>[] = [];
+    const invalidated: string[] = [];
     for (const voucher of touched) {
       const old = previous.get(voucher.id);
       const stored = baselines.get(voucher.username);
@@ -763,6 +1000,13 @@ const make = Effect.gen(function* () {
           (key) => sample[key] !== null && from[key] !== null && sample[key]! < from[key]!,
         );
       const fresh = !baseline || baseline.profile !== voucher.profile;
+      if (!old && !unused(voucher)) signals.newUsed++;
+      // A new package or a counter reset ends the package a router database copy described.
+      const profileChanged = old !== undefined && old.profile !== voucher.profile;
+      const counterDropped = dropped(seen);
+      if (profileChanged) signals.profileChanged++;
+      if (counterDropped) signals.counterDropped++;
+      if (profileChanged || counterDropped) invalidated.push(voucher.id);
       let next: {
         source: string;
         activatedAt: string | null;
@@ -833,6 +1077,8 @@ const make = Effect.gen(function* () {
     }
     for (let start = 0; start < recorded.length; start += 100)
       yield* sql`INSERT OR REPLACE INTO voucher_baselines ${sql.insert(recorded.slice(start, start + 100))}`;
+    yield* dropSnapshots(scope, invalidated);
+    return signals;
   });
 
   const readPrevious = Effect.fnUntraced(function* (scope: VoucherScope, ids?: readonly string[]) {
@@ -881,6 +1127,10 @@ const make = Effect.gen(function* () {
         for (const table of ["voucher_baselines", "voucher_field_values"])
           yield* sql`DELETE FROM ${sql(table)} WHERE router_key = ${key} AND customer = ${scope.customer}
             AND username = ${row.username} AND router_id = ${row.id}`;
+      const ids = slice.map((row) => row.id);
+      yield* dropSnapshots(scope, ids);
+      yield* sql`DELETE FROM voucher_db_assignments WHERE router_key = ${key}
+        AND customer = ${scope.customer} AND ${sql.in("api_id", ids)}`;
     }
   });
 
@@ -890,7 +1140,7 @@ const make = Effect.gen(function* () {
     time: string,
   ) {
     const key = routerKey(scope.router);
-    yield* sql.withTransaction(
+    return yield* sql.withTransaction(
       Effect.gen(function* () {
         const previous = yield* readPrevious(scope);
         const incoming = new Set(vouchers.map((voucher) => voucher.id));
@@ -898,8 +1148,28 @@ const make = Effect.gen(function* () {
           scope,
           [...previous.values()].filter((row) => !incoming.has(row.id)),
         );
-        yield* write(scope, vouchers, previous, time, new Map());
+        const signals = yield* write(scope, vouchers, previous, time, new Map());
         yield* sql`INSERT OR REPLACE INTO voucher_sync VALUES (${key}, ${scope.customer}, ${time})`;
+        // A copy only matched the vouchers cached then; new used ones need a full copy, even of
+        // an unchanged file.
+        if (signals.newUsed > 0)
+          yield* sql`UPDATE voucher_db_routers SET fingerprint = NULL WHERE router_key = ${key}`;
+        const stale = DateTime.formatIso(
+          DateTime.makeUnsafe(((yield* nowSeconds) - COPY_FRESH_SECONDS) * 1000),
+        );
+        // Used vouchers whose package start neither Madar nor a fresh copy explains.
+        const unexplained = yield* sql<{ count: number }>`SELECT COUNT(*) AS count
+          FROM voucher_cache v
+          LEFT JOIN voucher_baselines b ON b.router_key = v.router_key AND b.customer = v.customer
+            AND b.username = v.username AND b.router_id = v.id AND b.profile = v.profile
+          LEFT JOIN voucher_db_snapshots s ON s.router_key = v.router_key
+            AND s.customer = v.customer AND s.api_id = v.id AND s.username = v.username
+            AND s.profile = v.profile
+          LEFT JOIN voucher_db_captures c ON c.router_key = v.router_key AND c.customer = v.customer
+          WHERE v.router_key = ${key} AND v.customer = ${scope.customer} AND v.profile != ''
+            AND v.download_used + v.upload_used > 0 AND b.username IS NULL
+            AND (s.api_id IS NULL OR c.captured_at IS NULL OR c.captured_at < ${stale})`;
+        return { ...signals, unexplained: unexplained[0]?.count ?? 0 };
       }),
     );
   }, Effect.mapError(storageError));
@@ -922,7 +1192,7 @@ const make = Effect.gen(function* () {
       key,
       scope.customer,
       now,
-      key,
+      yield* nowSeconds,
       ...ids,
     ]);
     const values = yield* sql<{
@@ -1003,7 +1273,7 @@ const make = Effect.gen(function* () {
             ids = rows.map((row) => row.id);
           } else {
             const now = yield* routerNowFor(key);
-            const params = [key, query.customer, now, key, ...values];
+            const params = [key, query.customer, now, yield* nowSeconds, ...values];
             // One pass: the window count avoids computing remaining twice over every row.
             const rows = yield* sql.unsafe<{ id: string; total: number }>(
               `${rowsSql(0)} SELECT id, COUNT(*) OVER () AS total FROM ranked AS v0 WHERE ${condition}
@@ -1143,6 +1413,375 @@ const make = Effect.gen(function* () {
       catch: storageError,
     });
   }, Effect.mapError(storageError));
+  const invalidateSnapshots = Effect.fn("VoucherStore.invalidateSnapshots")(function* (
+    scope: VoucherScope,
+    ids: readonly string[],
+  ) {
+    yield* dropSnapshots(scope, ids);
+  }, Effect.mapError(storageError));
+
+  const databaseState = Effect.fn("VoucherStore.databaseState")(function* (key: string) {
+    const rows = yield* sql<DatabaseState>`SELECT last_attempt_at AS "lastAttemptAt",
+        last_automatic_at AS "lastAutomaticAt", last_outcome AS "lastOutcome",
+        accepted_at AS "acceptedAt", accepted_busy AS "acceptedBusy", fingerprint,
+        failure_stage AS "failureStage", failure_reason AS "failureReason",
+        failure_detail AS "failureDetail", failed_at AS "failedAt",
+        paused, retry_at AS "retryAt", host_key AS "hostKey", offered_host_key AS "offeredHostKey"
+      FROM voucher_db_routers WHERE router_key = ${key}`;
+    const row = rows[0];
+    return row
+      ? { ...row, paused: Boolean(row.paused), acceptedBusy: Boolean(row.acceptedBusy) }
+      : null;
+  }, Effect.mapError(storageError));
+
+  const saveDatabaseState = Effect.fn("VoucherStore.saveDatabaseState")(function* (
+    key: string,
+    state: DatabaseState,
+  ) {
+    yield* sql`INSERT OR REPLACE INTO voucher_db_routers ${sql.insert({
+      router_key: key,
+      last_attempt_at: state.lastAttemptAt,
+      last_automatic_at: state.lastAutomaticAt,
+      last_outcome: state.lastOutcome,
+      accepted_at: state.acceptedAt,
+      accepted_busy: Number(state.acceptedBusy),
+      fingerprint: state.fingerprint,
+      failure_stage: state.failureStage,
+      failure_reason: state.failureReason,
+      failure_detail: state.failureDetail,
+      failed_at: state.failedAt,
+      paused: Number(state.paused),
+      retry_at: state.retryAt,
+      host_key: state.hostKey,
+      offered_host_key: state.offeredHostKey,
+    })}`;
+  }, Effect.mapError(storageError));
+
+  const capture = Effect.fn("VoucherStore.capture")(function* (scope: VoucherScope) {
+    const rows =
+      yield* sql<CaptureRecord>`SELECT captured_at AS "capturedAt", busy, checked_at AS "checkedAt",
+        outcome, matched, skipped,
+        id_confirmed AS "idConfirmed", unused, changed, unknown
+      FROM voucher_db_captures WHERE router_key = ${routerKey(scope.router)}
+      AND customer = ${scope.customer}`;
+    const row = rows[0];
+    return row ? { ...row, busy: Boolean(row.busy) } : null;
+  }, Effect.mapError(storageError));
+
+  /** Records an attempt that did not publish a copy; the last accepted copy stays in use. */
+  const recordAttempt = Effect.fn("VoucherStore.recordAttempt")(function* (
+    key: string,
+    attempt: {
+      outcome: "unchanged" | "failed" | "cancelled";
+      checkedAt: string;
+      fingerprint?: string;
+    },
+  ) {
+    if (attempt.fingerprint !== undefined)
+      yield* sql`UPDATE voucher_db_captures SET captured_at = ${attempt.checkedAt},
+          copied_until = ${attempt.checkedAt}
+        WHERE router_key = ${key} AND fingerprint = ${attempt.fingerprint}`;
+    yield* sql`INSERT INTO voucher_db_captures (router_key, customer, outcome, checked_at)
+      SELECT router_key, login, ${attempt.outcome}, ${attempt.checkedAt}
+        FROM voucher_customers WHERE router_key = ${key}
+      ON CONFLICT(router_key, customer) DO UPDATE SET outcome = excluded.outcome,
+        checked_at = excluded.checked_at`;
+  }, Effect.mapError(storageError));
+
+  /**
+   * What each voucher's remaining shows, to count what a copy changed. Time left is left out: it
+   * moves with the clock, while the end it counts down to does not.
+   */
+  const remainingShown = Effect.fnUntraced(function* (key: string, customer: string) {
+    const rows = yield* sql.unsafe<{ id: string; shown: string; unknown: number }>(
+      `${rowsSql(0)} SELECT id, json_array(rem_reason, rem_basis, valid_until, not_started,
+        left_transfer, left_download, left_upload, left_uptime) AS shown,
+        rem_reason != '' AS unknown FROM ranked`,
+      [key, customer, yield* routerNowFor(key), yield* nowSeconds],
+    );
+    return new Map(rows.map((row) => [row.id, row]));
+  });
+
+  /**
+   * Publishes one copy for every customer in one transaction. Users match vouchers by customer and
+   * exact username; ambiguous names match nothing. A voucher whose current package is its only one
+   * gets an "only-package" baseline at zero, so its live counters are that package's usage.
+   */
+  const publishSnapshot = Effect.fn("VoucherStore.publishSnapshot")(function* (
+    key: string,
+    copy: { capturedAt: string; copiedUntil: string; busy: boolean; fingerprint: string | null },
+    contents: DatabaseContents,
+  ) {
+    const capturedMillis = Date.parse(copy.capturedAt);
+    // One copy runs per router at a time, so later copies all begin after this one.
+    for (const [dropped, millis] of droppedAt)
+      if (millis < capturedMillis && dropped.startsWith(`${key}\u0000`)) droppedAt.delete(dropped);
+    const byCustomer = new Map<string, DatabaseContents["users"][number][]>();
+    for (const user of contents.users) {
+      const list = byCustomer.get(user.customer) ?? [];
+      list.push(user);
+      byCustomer.set(user.customer, list);
+    }
+    return yield* sql.withTransaction(
+      Effect.gen(function* () {
+        const customers = yield* sql<{
+          login: string;
+        }>`SELECT login FROM voucher_customers WHERE router_key = ${key}`;
+        const published: PublishedCopy[] = [];
+        for (const { login: customer } of customers) {
+          const before = yield* remainingShown(key, customer);
+          yield* breathe;
+          const cached = yield* sql<{
+            id: string;
+            username: string;
+            profile: string;
+            last_seen_never: number;
+          }>`SELECT id, username, profile, last_seen_never
+            FROM voucher_cache WHERE router_key = ${key} AND customer = ${customer}`;
+          const ids = new Map<string, (typeof cached)[number][]>();
+          for (const row of cached) ids.set(row.username, [...(ids.get(row.username) ?? []), row]);
+          const baselines = new Map(
+            (yield* sql<Baseline>`SELECT * FROM voucher_baselines
+              WHERE router_key = ${key} AND customer = ${customer}`).map((row) => [
+              row.username,
+              row,
+            ]),
+          );
+          const names = new Map<string, number>();
+          const users = byCustomer.get(customer) ?? [];
+          for (const user of users) names.set(user.username, (names.get(user.username) ?? 0) + 1);
+          const snapshots = new Map<string, Record<string, string | number | null>>();
+          const history = new Map<string, Record<string, string | number | null>>();
+          const onlyPackages: Record<string, string | number | null>[] = [];
+          const notOnly: string[] = [];
+          // The reader cannot tell whose unreadable rows it left out; they count for every customer.
+          let skipped = contents.skipped;
+          let confirmed = 0;
+          let unused = 0;
+          for (const user of users) {
+            const matches = ids.get(user.username) ?? [];
+            if (names.get(user.username) !== 1 || matches.length !== 1) {
+              if (matches.length > 0) skipped++;
+              continue;
+            }
+            const match = matches[0]!;
+            const apiId = match.id;
+            if ((droppedAt.get(dropKey(key, customer, apiId)) ?? -1) >= capturedMillis) continue;
+            // Lab: API `.id` ("*1A3") may equal the database user id. Until confirmed, names decide.
+            if (apiIdNumber(apiId) === user.id) confirmed++;
+            for (const item of user.assignments)
+              history.set(`${apiId}\u0000${item.id}`, {
+                router_key: key,
+                customer,
+                api_id: apiId,
+                db_assignment_id: item.id,
+                profile: item.profile,
+                assigned_at: item.assignedAt,
+                started_at: item.startedAt,
+                ends_at: item.endsAt,
+                state: item.state,
+                price: item.price,
+                download: item.usage.download,
+                upload: item.usage.upload,
+                uptime: item.usage.uptime,
+                current: Number(item.id === user.current?.id),
+              });
+            if (!user.current) continue;
+            if (match.last_seen_never) unused++;
+            snapshots.set(apiId, {
+              router_key: key,
+              customer,
+              api_id: apiId,
+              username: user.username,
+              db_user_id: user.id,
+              db_assignment_id: user.current.id,
+              profile: user.profile,
+              download: user.current.usage.download,
+              upload: user.current.usage.upload,
+              uptime: user.current.usage.uptime,
+              life_download: user.lifetime.download,
+              life_upload: user.lifetime.upload,
+              life_uptime: user.lifetime.uptime,
+              started_at: user.current.startedAt,
+              ends_at: user.current.endsAt,
+              state: user.current.state,
+              quota_signature: user.quotaSignature,
+              capture_ref: copy.capturedAt,
+            });
+            const stored = baselines.get(user.username);
+            const own =
+              stored?.router_id === apiId && stored.profile === match.profile ? stored : undefined;
+            const lifetime = user.lifetime.download + user.lifetime.upload;
+            const only =
+              user.profile === match.profile &&
+              user.assignments.length === 1 &&
+              user.assignments[0]!.id === user.current.id &&
+              lifetime - (user.current.usage.download + user.current.usage.upload) <=
+                onlyPackageGap(lifetime);
+            if (only && (!own || own.source === "only-package"))
+              onlyPackages.push({
+                router_key: key,
+                customer,
+                username: user.username,
+                router_id: apiId,
+                profile: match.profile,
+                source: "only-package",
+                // A login after a copy that saw the package unstarted is found in the session
+                // records, as after a Madar activation.
+                activated_at: user.current.startedAt ?? own?.activated_at ?? null,
+                sessions_after: user.current.assignedAt ?? own?.sessions_after ?? null,
+                download: 0,
+                upload: 0,
+                uptime: 0,
+                recorded_at: own?.recorded_at ?? copy.capturedAt,
+                first_login_at: user.current.startedAt ?? own?.first_login_at ?? null,
+                first_login_checked_through: own?.first_login_checked_through ?? null,
+                first_login_attempted_at: own?.first_login_attempted_at ?? null,
+              });
+            else if (!only && own?.source === "only-package") notOnly.push(user.username);
+          }
+          yield* syncRows("voucher_db_snapshots", key, customer, ["api_id"], snapshots, [
+            "capture_ref",
+          ]);
+          yield* syncRows(
+            "voucher_db_assignments",
+            key,
+            customer,
+            ["api_id", "db_assignment_id"],
+            history,
+            [],
+          );
+          for (let start = 0; start < onlyPackages.length; start += 100) {
+            yield* sql`INSERT OR REPLACE INTO voucher_baselines ${sql.insert(
+              onlyPackages.slice(start, start + 100),
+            )}`;
+            if (start % WRITE_BATCH === 0) yield* breathe;
+          }
+          for (let start = 0; start < notOnly.length; start += 100)
+            yield* sql`DELETE FROM voucher_baselines WHERE router_key = ${key}
+              AND customer = ${customer} AND source = 'only-package'
+              AND ${sql.in("username", notOnly.slice(start, start + 100))}`;
+          yield* sql`INSERT OR REPLACE INTO voucher_db_captures ${sql.insert({
+            router_key: key,
+            customer,
+            captured_at: copy.capturedAt,
+            copied_until: copy.copiedUntil,
+            busy: Number(copy.busy),
+            fingerprint: copy.fingerprint,
+            outcome: "accepted",
+            checked_at: copy.copiedUntil,
+            matched: snapshots.size,
+            skipped,
+            id_confirmed: confirmed,
+            unused,
+            changed: null,
+            unknown: null,
+          })}`;
+          yield* breathe;
+          const after = yield* remainingShown(key, customer);
+          let changed = 0;
+          let unknown = 0;
+          for (const [id, row] of after) {
+            if (before.get(id)?.shown !== row.shown) changed++;
+            if (row.unknown) unknown++;
+          }
+          yield* sql`UPDATE voucher_db_captures SET changed = ${changed}, unknown = ${unknown}
+            WHERE router_key = ${key} AND customer = ${customer}`;
+          published.push({ customer, matched: snapshots.size, skipped, unused, changed, unknown });
+        }
+        return published;
+      }),
+    );
+  }, Effect.mapError(storageError));
+
+  /**
+   * Makes one customer's rows equal `next`, writing only rows whose values changed. Large copies
+   * hold tens of thousands of rows, so the work yields to the event loop between pages to keep
+   * voucher pages answering while it runs.
+   */
+  const syncRows = Effect.fnUntraced(function* (
+    table: "voucher_db_snapshots" | "voucher_db_assignments",
+    key: string,
+    customer: string,
+    keyColumns: readonly string[],
+    next: ReadonlyMap<string, Record<string, string | number | null>>,
+    ignored: readonly string[],
+  ) {
+    const compared = Object.keys(next.values().next().value ?? {}).filter(
+      (column) => !ignored.includes(column),
+    );
+    const rowKey = (row: Record<string, unknown>) =>
+      keyColumns.map((column) => String(row[column])).join("\u0000");
+    const content = (row: Record<string, unknown>) =>
+      compared.map((column) => String(row[column] ?? "\u0000")).join("\u0001");
+    const existing = new Map<string, string>();
+    for (const row of yield* sql<Record<string, string | number | null>>`SELECT * FROM ${sql(table)}
+        WHERE router_key = ${key} AND customer = ${customer}`)
+      existing.set(rowKey(row), content(row));
+    yield* breathe;
+    const removed = [...existing.keys()].filter((id) => !next.has(id));
+    for (const [index, id] of removed.entries()) {
+      yield* sql.unsafe(
+        `DELETE FROM ${table} WHERE router_key = ? AND customer = ? AND ${keyColumns
+          .map((column) => `${column} = ?`)
+          .join(" AND ")}`,
+        [key, customer, ...id.split("\u0000")],
+      );
+      if (index % WRITE_BATCH === WRITE_BATCH - 1) yield* breathe;
+    }
+    const rows = [...next.entries()];
+    for (let start = 0; start < rows.length; start += WRITE_BATCH) {
+      const changed = rows
+        .slice(start, start + WRITE_BATCH)
+        .filter(([id, row]) => existing.get(id) !== content(row))
+        .map(([, row]) => row);
+      if (changed.length) yield* sql`INSERT OR REPLACE INTO ${sql(table)} ${sql.insert(changed)}`;
+      yield* breathe;
+    }
+  });
+
+  const assignments = Effect.fn("VoucherStore.assignments")(
+    function* (target: VoucherTarget) {
+      const key = routerKey(target.router);
+      const rows = yield* sql<{
+        db_assignment_id: number;
+        profile: string;
+        assigned_at: string | null;
+        started_at: string | null;
+        ends_at: string | null;
+        state: number | null;
+        price: number | null;
+        download: number;
+        upload: number;
+        uptime: number;
+        current: number;
+      }>`SELECT db_assignment_id, profile, assigned_at, started_at, ends_at, state, price, download,
+          upload, uptime, current FROM voucher_db_assignments WHERE router_key = ${key}
+          AND customer = ${target.customer} AND api_id = ${target.id}
+          ORDER BY current DESC, COALESCE(started_at, assigned_at) DESC, db_assignment_id DESC
+          LIMIT 100`;
+      const copy = yield* capture(target);
+      return {
+        capturedAt: copy?.capturedAt ?? null,
+        capturedBusy: copy?.busy ?? false,
+        items: rows.map((row) => ({
+          id: row.db_assignment_id,
+          profile: row.profile,
+          assignedAt: row.assigned_at,
+          startedAt: row.started_at,
+          endsAt: row.ends_at,
+          state: row.state,
+          price: row.price,
+          download: row.download,
+          upload: row.upload,
+          uptime: row.uptime,
+          current: row.current === 1,
+        })),
+      };
+    },
+    NodeSqliteClient.readOnly,
+    Effect.mapError(storageError),
+  );
   return VoucherStore.of({
     catalog,
     saveCatalog,
@@ -1159,6 +1798,13 @@ const make = Effect.gen(function* () {
     operation,
     saveOperation,
     history,
+    invalidateSnapshots,
+    databaseState,
+    saveDatabaseState,
+    capture,
+    recordAttempt,
+    publishSnapshot,
+    assignments,
   });
 });
 export const layer = Layer.effect(VoucherStore, make);

@@ -6,6 +6,9 @@ import {
   VoucherPage,
   VoucherDetails,
   VoucherOperation,
+  VoucherAssignments,
+  RouterDatabaseStatus,
+  type RouterDatabaseScope,
   type RouterProfile,
   type VoucherQuery,
   type VoucherScope,
@@ -39,6 +42,8 @@ const fieldMessages: Record<string, string> = {
   "not-found": "This field no longer exists. Reopen My fields to see the current list.",
   storage: "Madar could not update its local database. Check available disk space.",
 };
+const trustMessage =
+  "The router offered a different identity since this one was shown. Check again.";
 export class VoucherRequestError extends Error {}
 
 async function call<A>(
@@ -81,10 +86,24 @@ export const voucherClient = {
     call("fields/delete", { id, valueCount }, Schema.Array(VoucherField), undefined, fieldMessages),
   setFieldValues: (input: VoucherFieldValues) =>
     call("fields/values", input, VoucherFieldValuesResult, undefined, fieldMessages),
+  databaseStatus: (scope: RouterDatabaseScope, signal?: AbortSignal) =>
+    call("router-database/status", scope, RouterDatabaseStatus, signal),
+  databaseStart: (scope: RouterDatabaseScope) =>
+    call("router-database/start", scope, RouterDatabaseStatus),
+  databaseCancel: (scope: RouterDatabaseScope) =>
+    call("router-database/cancel", scope, RouterDatabaseStatus),
+  databaseTrust: (scope: RouterDatabaseScope, hostKey: string) =>
+    call("router-database/trust", { ...scope, hostKey }, RouterDatabaseStatus, undefined, {
+      conflict: trustMessage,
+    }),
+  assignments: (target: VoucherTarget, signal?: AbortSignal) =>
+    call("router-database/assignments", target, VoucherAssignments, signal),
 };
 export function voucherError(error: unknown) {
   return error instanceof Error &&
-    [...Object.values(messages), ...Object.values(fieldMessages)].includes(error.message)
+    [...Object.values(messages), ...Object.values(fieldMessages), trustMessage].includes(
+      error.message,
+    )
     ? error.message
     : "Madar could not complete the request. Check the app connection.";
 }

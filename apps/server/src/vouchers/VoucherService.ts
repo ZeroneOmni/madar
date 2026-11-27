@@ -18,6 +18,7 @@ import {
 } from "@madar/contracts";
 import * as RouterApi from "../routers/RouterApi.ts";
 import * as VoucherStore from "./VoucherStore.ts";
+import * as VoucherSnapshotSync from "./VoucherSnapshotSync.ts";
 import * as Values from "./routerValues.ts";
 
 const userMenu = "/tool/user-manager/user";
@@ -64,6 +65,9 @@ function toVoucher(row: ApiRow, time: string) {
     if (value === null) failed.push(field);
     return value;
   };
+  // RouterOS 6 leaves zero values out of the print instead of sending "0".
+  const counter = (field: string, parser: (text: string) => number | null) =>
+    field in row ? parse(field, parser, "fail") : 0;
   const lastSeenText = row["last-seen"] ?? "";
   const shared = Values.parseSharedUsers(row["shared-users"] ?? "");
   if (shared.count === null && !shared.unlimited && row["shared-users"])
@@ -78,14 +82,14 @@ function toVoucher(row: ApiRow, time: string) {
     incomplete: Values.parseFlag(row.incomplete),
     profile: row["actual-profile"] ?? "",
     sharedUsers: shared.unlimited ? "unlimited" : shared.count,
-    download: parse("download-used", Values.parseBytes, "fail"),
-    upload: parse("upload-used", Values.parseBytes, "fail"),
-    uptime: parse("uptime-used", Values.parseDuration, "null"),
+    download: counter("download-used", Values.parseBytes),
+    upload: counter("upload-used", Values.parseBytes),
+    uptime: counter("uptime-used", Values.parseDuration),
     lastSeen:
       lastSeenText.trim() === "never"
         ? "never"
         : parse("last-seen", Values.parseRouterDateTime, "null"),
-    activeSessions: parse("active-sessions", Values.parseCount, "null"),
+    activeSessions: counter("active-sessions", Values.parseCount),
     registrationDate: parse("registration-date", Values.parseRouterDateTime, "null"),
     callerId: row["caller-id"] ?? "",
     callerIdBind: Values.parseFlag(row["caller-id-bind-on-first-use"]),
@@ -150,6 +154,7 @@ export class VoucherService extends Context.Service<
 const make = Effect.gen(function* () {
   const api = yield* RouterApi.RouterApi;
   const store = yield* VoucherStore.VoucherStore;
+  const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
   const lock = yield* Semaphore.make(1);
   const now = DateTime.now.pipe(Effect.map(DateTime.formatIso));
   const read = Effect.fn("VoucherService.read")(
@@ -313,8 +318,10 @@ const make = Effect.gen(function* () {
       )
     )
       return yield* new VoucherFailure({ reason: "protocol" });
-    yield* store.replace(scope, vouchers, time);
+    const signals = yield* store.replace(scope, vouchers, time);
     yield* checkFirstLogins(scope, owner);
+    // Copying runs in its own fiber, outside this lock.
+    yield* snapshots.observe(scope, owner, signals);
     return catalog;
   }, lock.withPermits(1));
   const details = Effect.fn("VoucherService.details")(function* (
@@ -402,6 +409,10 @@ const make = Effect.gen(function* () {
         };
         yield* store.saveOperation(input, operation);
         let written = false;
+        const changesPackage =
+          action.kind === "assign-profile" ||
+          action.kind === "reset-counters" ||
+          action.kind === "remove";
         const result = yield* Effect.gen(function* () {
           let id = target;
           if (action.kind === "create") {
@@ -448,6 +459,9 @@ const make = Effect.gen(function* () {
             return { target, state: "confirmed", reason: "" } as const;
           }
           yield* find(input, owner, id);
+          // A package change, reset or removal ends what a router database copy described,
+          // even when the command's outcome turns out uncertain.
+          if (changesPackage) yield* store.invalidateSnapshots(input, [id]);
           if (action.kind === "edit") {
             // registration-date is never part of an edit; see the create branch.
             yield* read(input, owner, [
@@ -491,6 +505,12 @@ const make = Effect.gen(function* () {
                   : ("failed" as const),
               reason: error.reason,
             }),
+          ),
+          // Again once the command ended: a copy that began while it ran may predate it.
+          Effect.tap(() =>
+            changesPackage
+              ? Effect.ignore(store.invalidateSnapshots(input, [target]))
+              : Effect.void,
           ),
         );
         operation = {

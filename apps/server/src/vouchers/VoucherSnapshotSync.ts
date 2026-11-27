@@ -1,0 +1,664 @@
+// @effect-diagnostics nodeBuiltinImport:off
+import * as NodeCrypto from "node:crypto";
+import * as Clock from "effect/Clock";
+import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
+import * as Deferred from "effect/Deferred";
+import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as FileSystem from "effect/FileSystem";
+import * as Layer from "effect/Layer";
+import * as Path from "effect/Path";
+import * as Schema from "effect/Schema";
+import * as Semaphore from "effect/Semaphore";
+import {
+  RouterDatabaseFailureReason,
+  RouterDatabaseStage,
+  VoucherFailure,
+  type RouterDatabaseScope,
+  type RouterDatabaseStatus,
+  type RouterDatabaseTrigger,
+  type VoucherScope,
+} from "@madar/contracts";
+import * as ServerConfig from "../config.ts";
+import * as RouterApi from "../routers/RouterApi.ts";
+import * as RouterSftp from "../routers/RouterSftp.ts";
+import * as VoucherSnapshotReader from "./VoucherSnapshotReader.ts";
+import * as VoucherStore from "./VoucherStore.ts";
+
+export class CopyFailure extends Schema.TaggedError<CopyFailure>()("CopyFailure", {
+  stage: RouterDatabaseStage,
+  reason: RouterDatabaseFailureReason,
+  offeredHostKey: Schema.optional(Schema.String),
+  /** The table or column behind a layout or value failure. */
+  detail: Schema.optional(Schema.String),
+}) {}
+class Cancelled extends Schema.TaggedError<Cancelled>()("Cancelled", {}) {}
+
+/** Timing of automatic copies. Manual copies skip the cooldown and the backoff. */
+const SNAPSHOT_TIMING = {
+  /** Refresh triggers inside this window share one copy. */
+  coalesceSeconds: 60,
+  /** At most one automatic copy per router in this period. */
+  cooldownSeconds: 4 * 3600,
+  /** Automatic copies wait this long after SSH was off or refused. */
+  backoffSeconds: 24 * 3600,
+} as const;
+/** Attempts per copy and the wait before each retry, by failure. */
+const retries: Partial<Record<CopyFailure["reason"], { attempts: number; seconds: number }>> = {
+  // A busy router commits every few seconds; a later copy usually reads cleanly.
+  busy: { attempts: 3, seconds: 45 },
+  network: { attempts: 2, seconds: 60 },
+  timeout: { attempts: 2, seconds: 60 },
+  stalled: { attempts: 2, seconds: 60 },
+  corrupt: { attempts: 2, seconds: 60 },
+};
+/** RouterOS 6 serves SFTP at roughly this rate; the estimate before the transfer shows its own. */
+const TYPICAL_BYTES_PER_SECOND = 64 * 1024;
+/** A download that stopped on these keeps its bytes, and the next attempt continues from there. */
+const resumable = new Set<CopyFailure["reason"]>(["network", "timeout", "stalled"]);
+/** An older partial download is discarded rather than continued. */
+const PARTIAL_MAX_AGE_SECONDS = 15 * 60;
+
+/** Failures the operator must fix; automatic copies stop until then. */
+const pausing = new Set<CopyFailure["reason"]>(["authentication", "host-key", "schema"]);
+/** SSH is off or the account lacks a right: try automatically again a day later. */
+const backingOff = new Set<CopyFailure["reason"]>(["ssh-off", "permission"]);
+const HEADER = "SQLite format 3\u0000";
+const emptyState: VoucherStore.DatabaseState = {
+  lastAttemptAt: null,
+  lastAutomaticAt: null,
+  lastOutcome: null,
+  acceptedAt: null,
+  acceptedBusy: false,
+  fingerprint: null,
+  failureStage: null,
+  failureReason: null,
+  failureDetail: null,
+  failedAt: null,
+  paused: false,
+  retryAt: null,
+  hostKey: null,
+  offeredHostKey: null,
+};
+const isStage = Schema.is(RouterDatabaseStage);
+const isReason = Schema.is(RouterDatabaseFailureReason);
+
+interface Job {
+  readonly trigger: RouterDatabaseTrigger;
+  readonly attempt: number;
+  readonly startedAt: string;
+  readonly cancel: Deferred.Deferred<void>;
+  readonly done: Deferred.Deferred<void>;
+  stage: RouterDatabaseStage;
+  received: number;
+  total: number | null;
+  /** Clock millis when the download began, and the bytes a resumed download already had. */
+  downloadStarted: number | null;
+  resumedFrom: number;
+}
+/** The bytes a failed download kept on this PC for the next attempt. */
+interface PartialCopy {
+  readonly path: string;
+  /** When its first byte was read; a copy continued from it starts then. */
+  readonly startedAt: number;
+}
+interface Live {
+  job: Job | null;
+  scheduled: { readonly at: string; readonly fiber: Fiber.Fiber<void> } | null;
+  /** Whether this process has seen a refresh of the router; the first one only sets the baseline. */
+  seen: boolean;
+  unexplained: number;
+  partial: PartialCopy | null;
+}
+
+export class VoucherSnapshotSync extends Context.Service<
+  VoucherSnapshotSync,
+  {
+    /** Called after each successful refresh; decides whether an automatic copy is due. */
+    readonly observe: (
+      scope: VoucherScope,
+      owner: string,
+      signals: VoucherStore.RefreshSignals,
+    ) => Effect.Effect<void>;
+    /** Starts a manual copy, or returns the one already running. */
+    readonly start: (
+      scope: RouterDatabaseScope,
+      owner: string,
+    ) => Effect.Effect<RouterDatabaseStatus, VoucherFailure>;
+    readonly cancel: (
+      scope: RouterDatabaseScope,
+    ) => Effect.Effect<RouterDatabaseStatus, VoucherFailure>;
+    readonly status: (
+      scope: RouterDatabaseScope,
+    ) => Effect.Effect<RouterDatabaseStatus, VoucherFailure>;
+    /** Waits for a scheduled or running copy of this router to finish. */
+    readonly settled: (
+      scope: RouterDatabaseScope,
+    ) => Effect.Effect<RouterDatabaseStatus, VoucherFailure>;
+    /** Trusts the SSH host key the router offered after a host-key failure. */
+    readonly trust: (
+      scope: RouterDatabaseScope,
+      hostKey: string,
+    ) => Effect.Effect<RouterDatabaseStatus, VoucherFailure>;
+  }
+>()("madar/vouchers/VoucherSnapshotSync") {}
+
+const make = Effect.gen(function* () {
+  const api = yield* RouterApi.RouterApi;
+  const sftp = yield* RouterSftp.RouterSftp;
+  const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
+  const store = yield* VoucherStore.VoucherStore;
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const config = yield* ServerConfig.ServerConfig;
+  const layerScope = yield* Effect.scope;
+  const transfers = yield* Semaphore.make(1);
+  const directory = path.join(config.stateDir, "router-copies");
+  // Copies left by a crash or a forced quit are never reused.
+  yield* fs.remove(directory, { recursive: true }).pipe(Effect.ignore);
+  yield* fs.makeDirectory(directory, { recursive: true }).pipe(Effect.ignore);
+
+  const lives = new Map<string, Live>();
+  const liveFor = (key: string) => {
+    let live = lives.get(key);
+    if (!live) {
+      live = { job: null, scheduled: null, seen: false, unexplained: 0, partial: null };
+      lives.set(key, live);
+    }
+    return live;
+  };
+  const isoAt = (millis: number) => DateTime.formatIso(DateTime.makeUnsafe(millis));
+  const now = Clock.currentTimeMillis;
+
+  const copy = Effect.fn("VoucherSnapshotSync.copy")(function* (
+    target: RouterDatabaseScope,
+    owner: string,
+    job: Job,
+    state: VoucherStore.DatabaseState,
+    save: (state: VoucherStore.DatabaseState) => Effect.Effect<void, VoucherFailure>,
+  ) {
+    const key = RouterApi.routerKey(target.router);
+    const fail = (stage: CopyFailure["stage"], reason: CopyFailure["reason"]) =>
+      new CopyFailure({ stage, reason });
+    // Optional settings: a failed read falls back to the defaults.
+    const apiRead = (words: readonly string[]) =>
+      api.execute(target.router, owner, words).pipe(Effect.orElseSucceed(() => []));
+    const password = yield* api
+      .password(target.router, owner)
+      .pipe(Effect.mapError(() => fail("connect", "disconnected")));
+    const service = yield* apiRead([
+      "/ip/service/print",
+      "=.proplist=name,port,disabled",
+      "?name=ssh",
+    ]);
+    if (service[0]?.disabled === "true") return yield* fail("connect", "ssh-off");
+    const port = Number(service[0]?.port) || 22;
+    const database = yield* apiRead(["/tool/user-manager/database/print", "=.proplist=db-path"]);
+    const folder = (database[0]?.["db-path"] ?? "").replace(/^\/+|\/+$/g, "") || "user-manager";
+    const file = `${folder}/sqldb`;
+    const journal = `${folder}/sqldb-journal`;
+    const live = liveFor(key);
+    const kept = live.partial;
+    const keptSize =
+      kept && (yield* now) - kept.startedAt < PARTIAL_MAX_AGE_SECONDS * 1000
+        ? yield* fs.stat(kept.path).pipe(
+            Effect.map((info) => Number(info.size)),
+            Effect.orElseSucceed(() => 0),
+          )
+        : 0;
+    if (kept && keptSize === 0) {
+      live.partial = null;
+      yield* fs.remove(kept.path, { force: true }).pipe(Effect.ignore);
+    }
+    const resumed = kept && keptSize > 0 ? { ...kept, size: keptSize } : null;
+    const temp = resumed?.path ?? path.join(directory, `${NodeCrypto.randomUUID()}.sqlite`);
+
+    return yield* Effect.gen(function* () {
+      const outcome = yield* Effect.gen(function* () {
+        const mapSftp = (stage: CopyFailure["stage"]) =>
+          Effect.mapError((error: RouterSftp.RouterSftpError) =>
+            error.reason === "host-key"
+              ? new CopyFailure({
+                  stage: "connect",
+                  reason: "host-key",
+                  ...(error.offeredHostKey ? { offeredHostKey: error.offeredHostKey } : {}),
+                })
+              : fail(stage, error.reason),
+          );
+        const session = yield* sftp
+          .connect({
+            host: target.router.host,
+            port,
+            username: target.router.username,
+            password,
+            hostKey: state.hostKey,
+          })
+          .pipe(mapSftp("connect"));
+        // First use pins the router's key; a later change fails until the operator trusts it.
+        if (state.hostKey === null) yield* save({ ...state, hostKey: session.hostKey });
+        /**
+         * Size, mtime and the header's change counter, which every commit increments. A journal
+         * means a transaction is open: the copy still runs, but cannot count as exact.
+         */
+        const inspect = Effect.fnUntraced(function* (stage: CopyFailure["stage"]) {
+          const info = yield* session.stat(file).pipe(mapSftp(stage));
+          if (!info) return yield* fail(stage, "not-found");
+          const writing = (yield* session.stat(journal).pipe(mapSftp(stage))) !== null;
+          const head = yield* session.head(file, 100).pipe(mapSftp(stage));
+          if (
+            head.length < 100 ||
+            Buffer.from(head.subarray(0, HEADER.length)).toString("latin1") !== HEADER
+          )
+            return yield* fail(stage, "corrupt");
+          const counter = Buffer.from(head).readUInt32BE(24);
+          const digest = NodeCrypto.createHash("sha256").update(head).digest("hex").slice(0, 32);
+          return {
+            size: info.size,
+            writing,
+            fingerprint: `${info.size}:${info.mtime}:${counter}:${digest}`,
+          };
+        });
+        job.stage = "check";
+        const before = yield* inspect("check");
+        if (
+          job.trigger === "automatic" &&
+          !before.writing &&
+          before.fingerprint === state.fingerprint
+        )
+          return { kind: "unchanged" as const, fingerprint: before.fingerprint };
+        if (before.size > RouterSftp.SFTP_LIMITS.maxBytes) return yield* fail("check", "too-large");
+        job.stage = "download";
+        job.total = before.size;
+        // A file that shrank since the partial download was taken is copied again from the start.
+        const resumeFrom = resumed && resumed.size <= before.size ? resumed.size : 0;
+        if (resumed && resumeFrom === 0)
+          yield* fs.remove(temp, { force: true }).pipe(Effect.ignore);
+        // The partial bytes now belong to this download; a failure before it keeps them.
+        live.partial = null;
+        job.received = resumeFrom;
+        job.resumedFrom = resumeFrom;
+        job.downloadStarted = yield* now;
+        const started = resumeFrom > 0 ? resumed!.startedAt : job.downloadStarted;
+        const received = yield* session
+          .download(file, temp, {
+            bytesPerSecond:
+              job.trigger === "manual" ? null : RouterSftp.SFTP_LIMITS.automaticBytesPerSecond,
+            resumeFrom,
+            onProgress: (count, total) =>
+              Effect.sync(() => {
+                job.received = count;
+                job.total = total;
+              }),
+          })
+          .pipe(
+            mapSftp("download"),
+            Effect.tapError((error) =>
+              Effect.sync(() => {
+                if (resumable.has(error.reason)) live.partial = { path: temp, startedAt: started };
+              }),
+            ),
+          );
+        job.stage = "verify";
+        const after = yield* inspect("verify");
+        // Pages arrive in order over a minute or more; a commit in between can mix versions.
+        const exact =
+          resumeFrom === 0 &&
+          !before.writing &&
+          !after.writing &&
+          after.fingerprint === before.fingerprint &&
+          received === before.size;
+        return {
+          kind: "copied" as const,
+          // A mixed copy matches no single state of the file, so it never confirms a later check.
+          fingerprint: exact ? before.fingerprint : null,
+          busy: !exact,
+          capturedAt: isoAt(started),
+          copiedUntil: isoAt(yield* now),
+        };
+      }).pipe(Effect.scoped);
+      if (outcome.kind === "unchanged") return outcome;
+      job.stage = "read";
+      const contents = yield* reader.read(temp).pipe(
+        Effect.mapError(
+          (error) =>
+            new CopyFailure({
+              stage: "read",
+              // A torn table in a copy taken mid-write means the router was busy, not damaged.
+              reason: error.reason === "torn" ? (outcome.busy ? "busy" : "corrupt") : error.reason,
+              ...(error.table
+                ? { detail: error.column ? `${error.table}.${error.column}` : error.table }
+                : {}),
+            }),
+        ),
+      );
+      job.stage = "save";
+      const { capturedAt, copiedUntil, busy, fingerprint } = outcome;
+      const published = yield* store
+        .publishSnapshot(key, { capturedAt, copiedUntil, busy, fingerprint }, contents)
+        .pipe(Effect.mapError(() => fail("save", "storage")));
+      yield* Effect.logInfo("Router database copy published", {
+        busy,
+        users: contents.users.length,
+        skipped: contents.skipped,
+        customers: published.length,
+        matched: published.reduce((sum, item) => sum + item.matched, 0),
+      });
+      return { kind: "accepted" as const, fingerprint, busy, capturedAt };
+    }).pipe(
+      Effect.ensuring(
+        Effect.suspend(() =>
+          live.partial?.path === temp
+            ? Effect.void
+            : fs.remove(temp, { force: true }).pipe(Effect.ignore),
+        ),
+      ),
+    );
+  });
+
+  /** One copy attempt: records its outcome and schedules a retry while attempts remain. */
+  const run: (target: RouterDatabaseScope, owner: string, job: Job) => Effect.Effect<void> =
+    Effect.fn("VoucherSnapshotSync.run")(
+      function* (target: RouterDatabaseScope, owner: string, job: Job) {
+        const key = RouterApi.routerKey(target.router);
+        const live = liveFor(key);
+        let state = (yield* store.databaseState(key)) ?? emptyState;
+        const save = (next: VoucherStore.DatabaseState) =>
+          Effect.tap(store.saveDatabaseState(key, next), () =>
+            Effect.sync(() => {
+              state = next;
+            }),
+          );
+        yield* save({
+          ...state,
+          lastAttemptAt: job.startedAt,
+          lastAutomaticAt: job.trigger === "manual" ? state.lastAutomaticAt : job.startedAt,
+        });
+        const result = yield* transfers
+          .withPermits(1)(copy(target, owner, job, state, save))
+          .pipe(
+            Effect.raceFirst(
+              Deferred.await(job.cancel).pipe(Effect.andThen(Effect.fail(new Cancelled()))),
+            ),
+            Effect.result,
+          );
+        const checkedAt = isoAt(yield* now);
+        // A refresh during the copy may have cleared the fingerprint; never write it back.
+        const latest = yield* store.databaseState(key);
+        state = { ...state, fingerprint: latest?.fingerprint ?? null };
+        if (result._tag === "Success") {
+          const value = result.success;
+          yield* save({
+            ...state,
+            lastOutcome: value.kind,
+            ...(value.kind === "accepted"
+              ? {
+                  acceptedAt: value.capturedAt,
+                  acceptedBusy: value.busy,
+                  fingerprint: value.fingerprint,
+                }
+              : { acceptedAt: checkedAt }),
+            failureStage: null,
+            failureReason: null,
+            failureDetail: null,
+            failedAt: null,
+            paused: false,
+            retryAt: null,
+            offeredHostKey: null,
+          });
+          // An unchanged file holds the same data, so the accepted copy is confirmed as of now.
+          if (value.kind === "unchanged")
+            yield* store.recordAttempt(key, {
+              outcome: "unchanged",
+              checkedAt,
+              fingerprint: value.fingerprint,
+            });
+          return;
+        }
+        const error = result.failure;
+        if (error._tag === "Cancelled") {
+          yield* save({ ...state, lastOutcome: "cancelled" });
+          yield* store.recordAttempt(key, { outcome: "cancelled", checkedAt });
+          return;
+        }
+        const failure =
+          error._tag === "CopyFailure"
+            ? error
+            : new CopyFailure({ stage: "save", reason: "storage" });
+        const millis = yield* now;
+        yield* save({
+          ...state,
+          lastOutcome: "failed",
+          failureStage: failure.stage,
+          failureReason: failure.reason,
+          failureDetail: failure.detail ?? null,
+          failedAt: checkedAt,
+          paused: pausing.has(failure.reason),
+          retryAt: backingOff.has(failure.reason)
+            ? isoAt(millis + SNAPSHOT_TIMING.backoffSeconds * 1000)
+            : null,
+          offeredHostKey: failure.offeredHostKey ?? null,
+        });
+        yield* store.recordAttempt(key, { outcome: "failed", checkedAt });
+        yield* Effect.logWarning("Router database copy failed", {
+          stage: failure.stage,
+          reason: failure.reason,
+          detail: failure.detail,
+          attempt: job.attempt,
+        });
+        const partial = live.partial;
+        // Nothing continues a partial download after its age limit; free the disk space then.
+        if (partial)
+          yield* Effect.sleep(`${PARTIAL_MAX_AGE_SECONDS} seconds`).pipe(
+            Effect.andThen(
+              Effect.suspend(() => {
+                if (live.partial !== partial) return Effect.void;
+                live.partial = null;
+                return fs.remove(partial.path, { force: true }).pipe(Effect.ignore);
+              }),
+            ),
+            Effect.forkIn(layerScope),
+          );
+        const retry = retries[failure.reason];
+        if (retry && job.attempt < retry.attempts && live.scheduled === null) {
+          const at = millis + retry.seconds * 1000;
+          const fiber = yield* Effect.sleep(`${retry.seconds} seconds`).pipe(
+            Effect.andThen(
+              Effect.suspend(() => {
+                live.scheduled = null;
+                return begin(target, owner, job.trigger, job.attempt + 1);
+              }),
+            ),
+            Effect.forkIn(layerScope),
+          );
+          live.scheduled = { at: isoAt(at), fiber };
+        }
+      },
+      Effect.catch(() => Effect.logWarning("Router database copy state could not be saved")),
+    );
+
+  const begin = Effect.fnUntraced(function* (
+    target: RouterDatabaseScope,
+    owner: string,
+    trigger: RouterDatabaseTrigger,
+    attempt = 1,
+  ) {
+    const live = liveFor(RouterApi.routerKey(target.router));
+    const job: Job = {
+      trigger,
+      attempt,
+      startedAt: isoAt(yield* now),
+      cancel: yield* Deferred.make<void>(),
+      done: yield* Deferred.make<void>(),
+      stage: "connect",
+      received: 0,
+      total: null,
+      downloadStarted: null,
+      resumedFrom: 0,
+    };
+    if (live.job) return;
+    live.job = job;
+    yield* run(target, owner, job).pipe(
+      Effect.ensuring(
+        Effect.suspend(() => {
+          if (live.job === job) live.job = null;
+          return Deferred.succeed(job.done, undefined);
+        }),
+      ),
+      Effect.forkIn(layerScope),
+    );
+  });
+
+  /** An automatic copy runs only when not paused, not backing off and past the cooldown. */
+  const automatic = Effect.fn("VoucherSnapshotSync.automatic")(function* (
+    target: RouterDatabaseScope,
+    owner: string,
+  ) {
+    const state = yield* store.databaseState(RouterApi.routerKey(target.router));
+    const millis = yield* now;
+    if (state?.paused) return;
+    if (state?.retryAt && Date.parse(state.retryAt) > millis) return;
+    if (
+      state?.lastAutomaticAt &&
+      Date.parse(state.lastAutomaticAt) + SNAPSHOT_TIMING.cooldownSeconds * 1000 > millis
+    )
+      return;
+    yield* begin(target, owner, "automatic");
+  });
+
+  const observe = Effect.fn("VoucherSnapshotSync.observe")(
+    function* (target: RouterDatabaseScope, owner: string, signals: VoucherStore.RefreshSignals) {
+      const key = RouterApi.routerKey(target.router);
+      const live = liveFor(key);
+      if (!live.seen) {
+        live.seen = true;
+        live.unexplained = signals.unexplained;
+        // Never just at startup: only a router Madar has never copied from starts right away.
+        if ((yield* store.databaseState(key)) === null) return yield* begin(target, owner, "first");
+      }
+      const triggered =
+        signals.newUsed > 0 ||
+        signals.profileChanged > 0 ||
+        signals.counterDropped > 0 ||
+        signals.unexplained > live.unexplained;
+      live.unexplained = signals.unexplained;
+      if (!triggered || live.job || live.scheduled) return;
+      const at = (yield* now) + SNAPSHOT_TIMING.coalesceSeconds * 1000;
+      const fiber = yield* Effect.sleep(`${SNAPSHOT_TIMING.coalesceSeconds} seconds`).pipe(
+        Effect.andThen(
+          Effect.suspend(() => {
+            live.scheduled = null;
+            return automatic(target, owner);
+          }),
+        ),
+        Effect.ignore,
+        Effect.forkIn(layerScope),
+      );
+      live.scheduled = { at: isoAt(at), fiber };
+    },
+    (effect) => Effect.ignore(effect),
+  );
+
+  const status = Effect.fn("VoucherSnapshotSync.status")(function* (target: RouterDatabaseScope) {
+    const key = RouterApi.routerKey(target.router);
+    const live = liveFor(key);
+    const state = yield* store.databaseState(key);
+    const customer = target.customer;
+    const capture = customer ? yield* store.capture({ router: target.router, customer }) : null;
+    const job = live.job;
+    const millis = yield* now;
+    return {
+      job: job && {
+        trigger: job.trigger,
+        stage: job.stage,
+        received: job.received,
+        total: job.total,
+        secondsLeft: secondsLeft(job, millis),
+        attempt: job.attempt,
+        startedAt: job.startedAt,
+      },
+      scheduledAt: live.scheduled?.at ?? null,
+      capturedAt: customer ? (capture?.capturedAt ?? null) : (state?.acceptedAt ?? null),
+      capturedBusy: customer ? (capture?.busy ?? false) : (state?.acceptedBusy ?? false),
+      result:
+        capture?.capturedAt != null
+          ? {
+              matched: capture.matched,
+              unused: capture.unused,
+              skipped: capture.skipped,
+              changed: capture.changed,
+              unknown: capture.unknown,
+            }
+          : null,
+      checkedAt: capture?.checkedAt ?? state?.lastAttemptAt ?? null,
+      // Before the customer list is known there is no per-customer record yet.
+      outcome: capture?.outcome ?? state?.lastOutcome ?? "none",
+      failure:
+        state && isStage(state.failureStage) && isReason(state.failureReason)
+          ? { stage: state.failureStage, reason: state.failureReason, detail: state.failureDetail }
+          : null,
+      paused: state?.paused ?? false,
+      retryAt: state?.retryAt ?? null,
+      hostKey: state?.hostKey ?? null,
+      offeredHostKey: state?.offeredHostKey ?? null,
+    } satisfies RouterDatabaseStatus;
+  });
+
+  const start = Effect.fn("VoucherSnapshotSync.start")(function* (
+    target: RouterDatabaseScope,
+    owner: string,
+  ) {
+    yield* begin(target, owner, "manual");
+    return yield* status(target);
+  });
+
+  const cancel = Effect.fn("VoucherSnapshotSync.cancel")(function* (target: RouterDatabaseScope) {
+    const live = liveFor(RouterApi.routerKey(target.router));
+    if (live.job) yield* Deferred.succeed(live.job.cancel, undefined);
+    if (live.scheduled) {
+      yield* Fiber.interrupt(live.scheduled.fiber);
+      live.scheduled = null;
+    }
+    return yield* status(target);
+  });
+
+  const settled = Effect.fn("VoucherSnapshotSync.settled")(function* (target: RouterDatabaseScope) {
+    const live = liveFor(RouterApi.routerKey(target.router));
+    if (live.scheduled) yield* Fiber.await(live.scheduled.fiber);
+    if (live.job) yield* Deferred.await(live.job.done);
+    return yield* status(target);
+  });
+
+  const trust = Effect.fn("VoucherSnapshotSync.trust")(function* (
+    target: RouterDatabaseScope,
+    hostKey: string,
+  ) {
+    const key = RouterApi.routerKey(target.router);
+    const state = yield* store.databaseState(key);
+    if (!state || state.offeredHostKey !== hostKey)
+      return yield* new VoucherFailure({ reason: "conflict" });
+    yield* store.saveDatabaseState(key, {
+      ...state,
+      hostKey,
+      offeredHostKey: null,
+      paused: false,
+      failureStage: null,
+      failureReason: null,
+      failureDetail: null,
+    });
+    return yield* status(target);
+  });
+
+  return VoucherSnapshotSync.of({ observe, start, cancel, status, settled, trust });
+});
+
+/** Download time left: from the rate so far, or a slow router's rate until that settles. */
+function secondsLeft(job: Job, millis: number) {
+  if (job.stage !== "download" || job.total === null || job.downloadStarted === null) return null;
+  const elapsed = (millis - job.downloadStarted) / 1000;
+  const copied = job.received - job.resumedFrom;
+  const rate = copied > 0 && elapsed >= 3 ? copied / elapsed : TYPICAL_BYTES_PER_SECOND;
+  return Math.ceil(Math.max(0, job.total - job.received) / rate);
+}
+
+export const layer = Layer.effect(VoucherSnapshotSync, make);

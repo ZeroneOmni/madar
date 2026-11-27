@@ -76,6 +76,7 @@ export async function routerFixture(
   ];
   const sessions: Record<string, string>[] = [];
   const clock = { date: "nov/24/2026", time: "08:39:07" };
+  const ssh = { name: "ssh", port: "22", disabled: "false" };
   const sockets = new Set<NodeNet.Socket>();
   const commands: readonly string[][] = [];
   let sequence = initial;
@@ -133,6 +134,10 @@ export async function routerFixture(
         else if (command === "/system/resource/print")
           row({ version: options.version ?? "6.48.4" });
         else if (command === "/system/clock/print") row(clock);
+        else if (command === "/ip/service/print") {
+          if (matches(ssh)) row(ssh);
+        } else if (command === "/tool/user-manager/database/print")
+          row({ "db-path": "user-manager" });
         else if (command === "/tool/user-manager/customer/print") row({ login: "admin" });
         else if (command === "/tool/user-manager/profile/print") profiles.forEach(row);
         else if (command === "/tool/user-manager/profile/limitation/print")
@@ -223,6 +228,8 @@ export async function routerFixture(
     links,
     sessions,
     clock,
+    /** The SSH service row of `/ip/service`. */
+    ssh,
     dropAfter: (command: string) => {
       drop = command;
     },

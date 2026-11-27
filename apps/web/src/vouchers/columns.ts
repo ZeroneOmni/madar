@@ -46,6 +46,27 @@ export const columnDefinitions: readonly ColumnDefinition[] = [
   { key: "upload", label: "Upload", group: "usage", align: "end" },
   { key: "activeSessions", label: "Active sessions", group: "usage", align: "end" },
   {
+    key: "packageUsage",
+    label: "Package usage",
+    group: "usage",
+    align: "end",
+    note: "From the router database",
+  },
+  {
+    key: "packageStart",
+    label: "Package start",
+    group: "usage",
+    align: "start",
+    note: "From the router database",
+  },
+  {
+    key: "packageEnd",
+    label: "Package end",
+    group: "usage",
+    align: "start",
+    note: "From the router database",
+  },
+  {
     key: "created",
     label: "Created",
     group: "subscription",

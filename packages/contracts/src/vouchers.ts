@@ -28,12 +28,30 @@ export const VoucherRemaining = Schema.Struct({
     "activation",
     "first-login",
     "clock",
+    /** Only a router database copy older than a day describes the current package. */
+    "stale",
   ]),
   kind: Schema.Literals(["", "transfer", "download", "upload", "uptime", "validity"]),
   amount: Count,
   limit: Count,
   endsAt: Schema.NullOr(RouterTime),
-  basis: Schema.Literals(["", "activation", "new", "profile-change", "counter-reset"]),
+  basis: Schema.Literals([
+    "",
+    "activation",
+    "new",
+    "profile-change",
+    "counter-reset",
+    /** Package usage as recorded in the router database copy. */
+    "router-database",
+    /** The copy's package usage plus the router counters' growth since the copy. */
+    "router-database-live",
+    /** A router database copy showed this is the voucher's only package: its live counters. */
+    "only-package",
+  ]),
+  /** When the router database copy used for this value was taken (Madar time, ISO). */
+  capturedAt: Schema.NullOr(Schema.String),
+  /** User Manager wrote to its database during that copy, so its values are approximate. */
+  capturedBusy: Schema.Boolean,
 });
 export type VoucherRemaining = typeof VoucherRemaining.Type;
 /** "Nearly used up or expiring": at most this share of data left, or this many seconds of validity. */
@@ -142,6 +160,24 @@ export const VoucherFieldFilter = Schema.Union([
   Schema.Struct({ fieldId: FieldId, op: Schema.Literal("choice"), choiceId: FieldId }),
 ]);
 export type VoucherFieldFilter = typeof VoucherFieldFilter.Type;
+/**
+ * Usage of the current package: from the live counters when Madar knows where the package began,
+ * otherwise from a fresh router database copy. Null when neither applies.
+ */
+export const VoucherPackageUsage = Schema.Struct({
+  download: Integer,
+  upload: Integer,
+  uptime: Integer,
+  startedAt: Schema.NullOr(RouterTime),
+  endsAt: Schema.NullOr(RouterTime),
+  /** The copy's usage plus the counters' growth since the copy. */
+  estimated: Schema.Boolean,
+  /** The copy the usage comes from; null when it comes from the live counters. */
+  capturedAt: Schema.NullOr(Schema.String),
+  /** User Manager wrote to its database during the copy, so its values are approximate. */
+  capturedBusy: Schema.Boolean,
+});
+export type VoucherPackageUsage = typeof VoucherPackageUsage.Type;
 export const VoucherRow = Schema.Struct({
   ...Voucher.fields,
   price: Schema.NullOr(Schema.Number),
@@ -150,6 +186,7 @@ export const VoucherRow = Schema.Struct({
   firstLoginAt: Schema.NullOr(RouterTime),
   batch: Schema.NullOr(VoucherBatch),
   remaining: VoucherRemaining,
+  package: Schema.NullOr(VoucherPackageUsage),
   /** Local field values by field id. */
   fields: Schema.Record(Schema.String, VoucherFieldValue),
 });
@@ -207,6 +244,9 @@ export const VoucherSortField = Schema.Literals([
   "changed",
   "firstLogin",
   "batch",
+  "packageUsage",
+  "packageStart",
+  "packageEnd",
   "custom",
 ]);
 export type VoucherSortField = typeof VoucherSortField.Type;
@@ -334,3 +374,129 @@ export const VoucherFieldValues = Schema.Struct({
 });
 export type VoucherFieldValues = typeof VoucherFieldValues.Type;
 export const VoucherFieldValuesResult = Schema.Struct({ updated: Integer });
+
+/** One package assignment recorded in the router database copy, newest first. */
+export const VoucherAssignment = Schema.Struct({
+  /** User Manager's own id for this assignment. */
+  id: Integer,
+  profile: Text,
+  assignedAt: Schema.NullOr(RouterTime),
+  startedAt: Schema.NullOr(RouterTime),
+  endsAt: Schema.NullOr(RouterTime),
+  /** User Manager's raw state code. Its meanings are not confirmed, so clients must not label it. */
+  state: Count,
+  /** The profile's list price when it was assigned; not a record of a payment. */
+  price: Schema.NullOr(Schema.Number),
+  download: Integer,
+  upload: Integer,
+  uptime: Integer,
+  current: Schema.Boolean,
+});
+export type VoucherAssignment = typeof VoucherAssignment.Type;
+export const VoucherAssignments = Schema.Struct({
+  capturedAt: Schema.NullOr(Schema.String),
+  capturedBusy: Schema.Boolean,
+  items: Schema.Array(VoucherAssignment),
+});
+export type VoucherAssignments = typeof VoucherAssignments.Type;
+
+/** Steps of copying and reading the router's User Manager database file. */
+export const RouterDatabaseStage = Schema.Literals([
+  "connect",
+  "check",
+  "download",
+  "verify",
+  "read",
+  "save",
+]);
+export type RouterDatabaseStage = typeof RouterDatabaseStage.Type;
+export const RouterDatabaseFailureReason = Schema.Literals([
+  /** No live router API session to take the credential and SSH port from. */
+  "disconnected",
+  /** SSH is disabled or refused the connection. */
+  "ssh-off",
+  "authentication",
+  "permission",
+  /** The router's SSH host key differs from the one Madar trusted. */
+  "host-key",
+  "not-found",
+  "too-large",
+  "network",
+  "timeout",
+  "stalled",
+  /** User Manager kept writing to its database, and no copy was readable after several tries. */
+  "busy",
+  /** The copied file is not an SQLite database, or is damaged although nothing wrote to it. */
+  "corrupt",
+  /** The file's tables or columns are not the User Manager 6 layout Madar knows. */
+  "schema",
+  "values",
+  "storage",
+]);
+export type RouterDatabaseFailureReason = typeof RouterDatabaseFailureReason.Type;
+export const RouterDatabaseTrigger = Schema.Literals(["first", "automatic", "manual"]);
+export type RouterDatabaseTrigger = typeof RouterDatabaseTrigger.Type;
+export const RouterDatabaseStatus = Schema.Struct({
+  job: Schema.NullOr(
+    Schema.Struct({
+      trigger: RouterDatabaseTrigger,
+      stage: RouterDatabaseStage,
+      received: Integer,
+      total: Count,
+      /** Estimated from the transfer rate so far, or from a slow router's rate before that. */
+      secondsLeft: Count,
+      /** 1 for the first try; later tries follow a copy that User Manager disturbed. */
+      attempt: Integer,
+      startedAt: Schema.String,
+    }),
+  ),
+  /** An automatic check waits this long to combine refresh triggers. */
+  scheduledAt: Schema.NullOr(Schema.String),
+  /** The last accepted copy for this customer. */
+  capturedAt: Schema.NullOr(Schema.String),
+  /** User Manager wrote to its database during that copy. */
+  capturedBusy: Schema.Boolean,
+  /** What that copy did for this customer's vouchers. */
+  result: Schema.NullOr(
+    Schema.Struct({
+      /** Vouchers the copy matched. */
+      matched: Integer,
+      /** Matched vouchers nobody has used yet. */
+      unused: Integer,
+      /** Users the copy could not read or match to exactly one voucher. */
+      skipped: Integer,
+      /** Vouchers whose remaining value changed, and those still unknown after the copy. */
+      changed: Count,
+      unknown: Count,
+    }),
+  ),
+  checkedAt: Schema.NullOr(Schema.String),
+  outcome: Schema.Literals(["none", "accepted", "unchanged", "failed", "cancelled"]),
+  failure: Schema.NullOr(
+    Schema.Struct({
+      stage: RouterDatabaseStage,
+      reason: RouterDatabaseFailureReason,
+      /** The table or column behind a layout or value failure, e.g. "customer.userName". */
+      detail: Schema.NullOr(Text),
+    }),
+  ),
+  /** Automatic copies stop until the operator fixes the failure. */
+  paused: Schema.Boolean,
+  /** Automatic copies wait until then after SSH was off or refused. */
+  retryAt: Schema.NullOr(Schema.String),
+  hostKey: Schema.NullOr(Schema.String),
+  /** The new key the router presented when it no longer matched. */
+  offeredHostKey: Schema.NullOr(Schema.String),
+});
+export type RouterDatabaseStatus = typeof RouterDatabaseStatus.Type;
+/** Copies are per router; a customer narrows the status to that customer's last copy. */
+export const RouterDatabaseScope = Schema.Struct({
+  router: RouterProfile,
+  customer: Schema.optionalKey(Name),
+});
+export type RouterDatabaseScope = typeof RouterDatabaseScope.Type;
+const HostKey = Schema.String.check(Schema.isPattern(/^SHA256:[A-Za-z0-9+/]{43}$/));
+export const RouterDatabaseTrust = Schema.Struct({
+  ...RouterDatabaseScope.fields,
+  hostKey: HostKey,
+});
