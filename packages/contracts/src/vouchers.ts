@@ -45,6 +45,8 @@ export const VoucherRemaining = Schema.Struct({
     "router-database",
     /** The copy's package usage plus the router counters' growth since the copy. */
     "router-database-live",
+    /** A router database copy showed this is the voucher's only package: its live counters. */
+    "only-package",
   ]),
   /** When the router database copy used for this value was taken (Madar time, ISO). */
   capturedAt: Schema.NullOr(Schema.String),
@@ -158,7 +160,10 @@ export const VoucherFieldFilter = Schema.Union([
   Schema.Struct({ fieldId: FieldId, op: Schema.Literal("choice"), choiceId: FieldId }),
 ]);
 export type VoucherFieldFilter = typeof VoucherFieldFilter.Type;
-/** Usage of the current package from a fresh router database copy; null when stale or changed. */
+/**
+ * Usage of the current package: from the live counters when Madar knows where the package began,
+ * otherwise from a fresh router database copy. Null when neither applies.
+ */
 export const VoucherPackageUsage = Schema.Struct({
   download: Integer,
   upload: Integer,
@@ -167,7 +172,8 @@ export const VoucherPackageUsage = Schema.Struct({
   endsAt: Schema.NullOr(RouterTime),
   /** The copy's usage plus the counters' growth since the copy. */
   estimated: Schema.Boolean,
-  capturedAt: Schema.String,
+  /** The copy the usage comes from; null when it comes from the live counters. */
+  capturedAt: Schema.NullOr(Schema.String),
   /** User Manager wrote to its database during the copy, so its values are approximate. */
   capturedBusy: Schema.Boolean,
 });
@@ -450,6 +456,20 @@ export const RouterDatabaseStatus = Schema.Struct({
   capturedAt: Schema.NullOr(Schema.String),
   /** User Manager wrote to its database during that copy. */
   capturedBusy: Schema.Boolean,
+  /** What that copy did for this customer's vouchers. */
+  result: Schema.NullOr(
+    Schema.Struct({
+      /** Vouchers the copy matched. */
+      matched: Integer,
+      /** Matched vouchers nobody has used yet. */
+      unused: Integer,
+      /** Users the copy could not read or match to exactly one voucher. */
+      skipped: Integer,
+      /** Vouchers whose remaining value changed, and those still unknown after the copy. */
+      changed: Count,
+      unknown: Count,
+    }),
+  ),
   checkedAt: Schema.NullOr(Schema.String),
   outcome: Schema.Literals(["none", "accepted", "unchanged", "failed", "cancelled"]),
   failure: Schema.NullOr(

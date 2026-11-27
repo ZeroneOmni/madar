@@ -474,7 +474,20 @@ export const voucherArabic = {
   "Router database copied {time}": "نُسخت قاعدة بيانات الراوتر {time}",
   "Madar reads each package's usage from the router's User Manager database. You can keep working.":
     "يقرأ مدار استهلاك كل باقة من قاعدة بيانات مدير المستخدمين على الراوتر. يمكنك مواصلة العمل.",
-  "Package usage updated from the router database.": "حُدّث استهلاك الباقات من قاعدة بيانات الراوتر.",
+  "The router database has not changed since the last copy.":
+    "لم تتغير قاعدة بيانات الراوتر منذ النسخة السابقة.",
+  "Read {count} vouchers": "قُرئت {count} قسيمة",
+  "{count} unused": "{count} لم تُستخدم بعد",
+  "{count} couldn't be read": "{count} تعذّرت قراءتها",
+  "Remaining changed for {count} vouchers.": "تغيّر المتبقي لـ {count} قسيمة.",
+  "No remaining values changed.": "لم تتغير أي قيمة للمتبقي.",
+  "{count} still unknown.": "{count} ما زال متبقيها غير معروف.",
+  "The router database was read.": "قُرئت قاعدة بيانات الراوتر.",
+  "Counted from the router's usage counters. The router database shows this is the voucher's only package.":
+    "محسوب من عدّادات الاستهلاك في الراوتر. تُظهر قاعدة بيانات الراوتر أن هذه هي الباقة الوحيدة لهذه القسيمة.",
+  "Counted from the router's usage counters since this package started.":
+    "محسوب من عدّادات الاستهلاك في الراوتر منذ بدء هذه الباقة.",
+  "Router time.": "حسب ساعة الراوتر.",
   "Copy cancelled. Madar kept the values it had.": "أُلغي النسخ. احتفظ مدار بالقيم التي لديه.",
   "Open Connections": "فتح الاتصالات",
   "Package history could not be loaded.": "تعذّر تحميل سجل الباقات.",

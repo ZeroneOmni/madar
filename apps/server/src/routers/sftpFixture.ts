@@ -15,6 +15,8 @@ export async function sftpFixture(
     onRead?: (path: string, offset: number) => void;
     /** Receives each read's answer instead of sending it, to pace reads from a test. */
     hold?: (answer: () => void) => void;
+    /** Answers each read with at most this many bytes, as a server may. */
+    maxRead?: number;
   } = {},
 ) {
   const { privateKey } = NodeCrypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -75,7 +77,13 @@ export async function sftpFixture(
             const answer = () =>
               offset >= file.data.length
                 ? sftp.status(id, STATUS_CODE.EOF)
-                : sftp.data(id, file.data.subarray(offset, offset + length));
+                : sftp.data(
+                    id,
+                    file.data.subarray(
+                      offset,
+                      offset + Math.min(length, options.maxRead ?? length),
+                    ),
+                  );
             if (options.hold) options.hold(answer);
             else answer();
           });

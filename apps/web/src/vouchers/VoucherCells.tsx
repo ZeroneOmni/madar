@@ -37,6 +37,8 @@ const bases: Record<Exclude<VoucherRemaining["basis"], "">, string> = {
     "From the router database, copied {time}. Usage after that copy is not included yet.",
   "router-database-live":
     "Estimated. Package usage from the router database copied {time}, plus the usage the router counted since.",
+  "only-package":
+    "Counted from the router's usage counters. The router database shows this is the voucher's only package.",
 };
 /** A busy copy's values may lag its time by the length of the download, so they show ≈ too. */
 const estimated = ({ basis, capturedBusy }: VoucherRemaining) =>
@@ -393,11 +395,14 @@ export function Cell({ column, row }: { column: ColumnKey; row: VoucherRow }) {
     case "packageStart":
     case "packageEnd": {
       const value = column === "packageStart" ? row.package?.startedAt : row.package?.endsAt;
+      // A date is not a usage figure, so a busy copy does not make it approximate.
       return row.package && value ? (
         <Explained label={formatRouterTime(value, locale)}>
-          {t("Router time. From the router database, copied {time}.", {
-            time: copyTime(row.package.capturedAt, row.package.capturedBusy, locale),
-          })}
+          {row.package.capturedAt
+            ? t("Router time. From the router database, copied {time}.", {
+                time: formatDateTime(row.package.capturedAt, locale),
+              })
+            : t("Router time.")}
         </Explained>
       ) : (
         "–"
@@ -416,7 +421,7 @@ export function PackageUsage({ row }: { row: VoucherRow }) {
     <Explained
       label={
         <span className="tabular-nums">
-          {(usage.estimated || usage.capturedBusy) && (
+          {usage.capturedAt && (usage.estimated || usage.capturedBusy) && (
             <span aria-hidden="true" className="me-1 text-muted-foreground">
               ≈
             </span>
@@ -430,12 +435,14 @@ export function PackageUsage({ row }: { row: VoucherRow }) {
         </span>
       }
     >
-      {t(
-        usage.estimated
-          ? "Estimated. Package usage from the router database copied {time}, plus the usage the router counted since."
-          : "From the router database, copied {time}. Usage after that copy is not included yet.",
-        { time: copyTime(usage.capturedAt, usage.capturedBusy, locale) },
-      )}
+      {usage.capturedAt
+        ? t(
+            usage.estimated
+              ? "Estimated. Package usage from the router database copied {time}, plus the usage the router counted since."
+              : "From the router database, copied {time}. Usage after that copy is not included yet.",
+            { time: copyTime(usage.capturedAt, usage.capturedBusy, locale) },
+          )
+        : t("Counted from the router's usage counters since this package started.")}
     </Explained>
   );
 }

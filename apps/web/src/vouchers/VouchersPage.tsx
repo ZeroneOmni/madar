@@ -94,7 +94,6 @@ import { formatBytes, formatSpan } from "./format";
 import {
   FailureDetail,
   actionableFailures,
-  copyTime,
   failureReasons,
   runningStages,
   stoppedStages,
@@ -702,9 +701,7 @@ function CustomerVouchers({
           key={`${JSON.stringify(query)}:${revision}`}
           query={query}
           copiedAt={
-            database.status?.capturedAt
-              ? copyTime(database.status.capturedAt, database.status.capturedBusy, locale)
-              : null
+            database.status?.capturedAt ? formatDateTime(database.status.capturedAt, locale) : null
           }
           view={layout.sort}
           columns={layout.columns}
@@ -1295,12 +1292,49 @@ function DatabaseResult({
       {t("Dismiss")}
     </Button>
   );
-  if (status.outcome === "accepted" || status.outcome === "unchanged")
+  if (status.outcome === "unchanged")
     return (
-      <Notice tone="success" icon={<CircleCheck />} action={dismiss}>
-        {t("Package usage updated from the router database.")}
+      <Notice icon={<Info />} action={dismiss}>
+        {t("The router database has not changed since the last copy.")}
       </Notice>
     );
+  if (status.outcome === "accepted") {
+    const result = status.result;
+    const count = (value: number) => formatNumber(value, locale);
+    const read = result
+      ? [
+          t("Read {count} vouchers", { count: count(result.matched) }),
+          result.unused > 0 ? t("{count} unused", { count: count(result.unused) }) : "",
+          result.skipped > 0 ? t("{count} couldn't be read", { count: count(result.skipped) }) : "",
+        ].filter(Boolean)
+      : [];
+    const effect = !result
+      ? ""
+      : result.changed === null
+        ? ""
+        : result.changed > 0
+          ? t("Remaining changed for {count} vouchers.", { count: count(result.changed) })
+          : t("No remaining values changed.");
+    const left = result?.unknown
+      ? t("{count} still unknown.", { count: count(result.unknown) })
+      : "";
+    return (
+      <Notice
+        tone={result?.changed === 0 ? "info" : "success"}
+        icon={result?.changed === 0 ? <Info /> : <CircleCheck />}
+        action={dismiss}
+      >
+        <span className="block">
+          {read.length > 0 ? read.join(" · ") : t("The router database was read.")}
+        </span>
+        {(effect || left) && (
+          <span className="block text-xs text-muted-foreground">
+            {[effect, left].filter(Boolean).join(" ")}
+          </span>
+        )}
+      </Notice>
+    );
+  }
   if (status.outcome === "cancelled")
     return (
       <Notice icon={<Info />} action={dismiss}>

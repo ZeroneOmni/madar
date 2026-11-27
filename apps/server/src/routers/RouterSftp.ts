@@ -31,21 +31,21 @@ export class RouterSftpError extends Schema.TaggedError<RouterSftpError>()("Rout
 
 export const SFTP_LIMITS = {
   connectSeconds: 10,
-  /** A busy RouterOS 6 router answered single reads after up to 12.5 s. */
+  /**
+   * A busy RouterOS 6 router answered single reads after up to 12.5 s. This is the only limit on
+   * a transfer: a slow copy runs as long as bytes keep arriving.
+   */
   stallSeconds: 30,
-  /** The whole transfer may run as long as at this rate; RouterOS 6 measured 50–115 KiB/s. */
-  slowBytesPerSecond: 30 * 1024,
-  minTransferSeconds: 180,
-  maxTransferSeconds: 3600,
   maxBytes: 256 * 1024 * 1024,
   automaticBytesPerSecond: 2 * 1024 * 1024,
 } as const;
-const CHUNK = 64 * 1024;
-const transferSeconds = (size: number) =>
-  Math.min(
-    SFTP_LIMITS.maxTransferSeconds,
-    Math.max(SFTP_LIMITS.minTransferSeconds, Math.ceil(size / SFTP_LIMITS.slowBytesPerSecond)),
-  );
+/** One SFTP request per read: ssh2 splits reads over 31,952 bytes for non-OpenSSH servers. */
+const CHUNK = 31 * 1024;
+/**
+ * Reads in flight at once; 1 reads one request at a time. On a busy RouterOS 6.49 router over a
+ * 360 ms link, 2 and 4 both copied about 1.5x faster than 1, and 8 stalled.
+ */
+export const READ_DEPTH = 2;
 
 export interface RemoteFile {
   readonly size: number;
@@ -57,15 +57,21 @@ export interface SftpSession {
   readonly hostKey: string;
   readonly stat: (path: string) => Effect.Effect<RemoteFile | null, RouterSftpError>;
   readonly head: (path: string, length: number) => Effect.Effect<Uint8Array, RouterSftpError>;
-  /** Streams one file to a new local file; at most one read is outstanding. */
+  /**
+   * Streams one file to a local file, `READ_DEPTH` reads at a time. With `resumeFrom`, the
+   * destination already holds that many bytes of the file and the copy continues after them.
+   */
   readonly download: (
     path: string,
     destination: string,
-    options: {
-      readonly bytesPerSecond: number | null;
-      readonly onProgress: (received: number, total: number) => Effect.Effect<void>;
-    },
+    options: DownloadOptions,
   ) => Effect.Effect<number, RouterSftpError>;
+}
+
+export interface DownloadOptions {
+  readonly bytesPerSecond: number | null;
+  readonly resumeFrom?: number;
+  readonly onProgress: (received: number, total: number) => Effect.Effect<void>;
 }
 
 export const hostKeyFingerprint = (key: Buffer) =>
@@ -146,10 +152,7 @@ const make = Effect.gen(function* () {
     const download = Effect.fn("RouterSftp.download")(function* (
       path: string,
       destination: string,
-      options: {
-        readonly bytesPerSecond: number | null;
-        readonly onProgress: (received: number, total: number) => Effect.Effect<void>;
-      },
+      options: DownloadOptions,
     ) {
       const info = yield* stat(path).pipe(
         Effect.timeoutOrElse({
@@ -159,36 +162,42 @@ const make = Effect.gen(function* () {
       );
       if (!info) return yield* failure("not-found");
       if (info.size > SFTP_LIMITS.maxBytes) return yield* failure("too-large");
-      return yield* Effect.gen(function* () {
-        const handle = yield* open(path);
-        const file = yield* fs
-          .open(destination, { flag: "wx" })
-          .pipe(Effect.mapError(() => failure("storage")));
-        const started = yield* Clock.currentTimeMillis;
-        const buffer = Buffer.alloc(CHUNK);
-        let received = 0;
-        while (true) {
-          const count = yield* read(handle, buffer, received);
+      const handle = yield* open(path);
+      const resumeFrom = options.resumeFrom ?? 0;
+      const file = yield* fs
+        .open(destination, { flag: resumeFrom > 0 ? "a" : "wx" })
+        .pipe(Effect.mapError(() => failure("storage")));
+      const started = yield* Clock.currentTimeMillis;
+      const buffers = Array.from({ length: READ_DEPTH }, () => Buffer.alloc(CHUNK));
+      let received = resumeFrom;
+      while (true) {
+        // Reads past the end of the file return 0, so the last batch may ask for more than remains.
+        const counts = yield* Effect.forEach(
+          buffers,
+          (buffer, index) => read(handle, buffer, received + index * CHUNK),
+          { concurrency: "unbounded" },
+        );
+        let written = 0;
+        for (const [index, count] of counts.entries()) {
           if (count === 0) break;
-          received += count;
-          if (received > SFTP_LIMITS.maxBytes) return yield* failure("too-large");
           yield* file
-            .writeAll(buffer.subarray(0, count))
+            .writeAll(buffers[index]!.subarray(0, count))
             .pipe(Effect.mapError(() => failure("storage")));
-          yield* options.onProgress(received, Math.max(info.size, received));
-          if (options.bytesPerSecond !== null && received < info.size) {
-            const due = started + (received / options.bytesPerSecond) * 1000;
-            const now = yield* Clock.currentTimeMillis;
-            if (due > now) yield* Effect.sleep(`${Math.ceil(due - now)} millis`);
-          }
+          written += count;
+          // A short read leaves a gap before the next chunk; the next batch starts after it.
+          if (count < CHUNK) break;
         }
-        return received;
-      }).pipe(
-        Effect.timeoutOrElse({
-          duration: `${transferSeconds(info.size)} seconds`,
-          orElse: () => Effect.fail(failure("timeout")),
-        }),
-      );
+        if (written === 0) break;
+        received += written;
+        if (received > SFTP_LIMITS.maxBytes) return yield* failure("too-large");
+        yield* options.onProgress(received, Math.max(info.size, received));
+        if (options.bytesPerSecond !== null && received < info.size) {
+          const due = started + ((received - resumeFrom) / options.bytesPerSecond) * 1000;
+          const now = yield* Clock.currentTimeMillis;
+          if (due > now) yield* Effect.sleep(`${Math.ceil(due - now)} millis`);
+        }
+      }
+      return received;
     }, Effect.scoped);
     return { hostKey, stat, head, download };
   };

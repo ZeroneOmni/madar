@@ -65,6 +65,9 @@ function toVoucher(row: ApiRow, time: string) {
     if (value === null) failed.push(field);
     return value;
   };
+  // RouterOS 6 leaves zero values out of the print instead of sending "0".
+  const counter = (field: string, parser: (text: string) => number | null) =>
+    field in row ? parse(field, parser, "fail") : 0;
   const lastSeenText = row["last-seen"] ?? "";
   const shared = Values.parseSharedUsers(row["shared-users"] ?? "");
   if (shared.count === null && !shared.unlimited && row["shared-users"])
@@ -79,14 +82,14 @@ function toVoucher(row: ApiRow, time: string) {
     incomplete: Values.parseFlag(row.incomplete),
     profile: row["actual-profile"] ?? "",
     sharedUsers: shared.unlimited ? "unlimited" : shared.count,
-    download: parse("download-used", Values.parseBytes, "fail"),
-    upload: parse("upload-used", Values.parseBytes, "fail"),
-    uptime: parse("uptime-used", Values.parseDuration, "null"),
+    download: counter("download-used", Values.parseBytes),
+    upload: counter("upload-used", Values.parseBytes),
+    uptime: counter("uptime-used", Values.parseDuration),
     lastSeen:
       lastSeenText.trim() === "never"
         ? "never"
         : parse("last-seen", Values.parseRouterDateTime, "null"),
-    activeSessions: parse("active-sessions", Values.parseCount, "null"),
+    activeSessions: counter("active-sessions", Values.parseCount),
     registrationDate: parse("registration-date", Values.parseRouterDateTime, "null"),
     callerId: row["caller-id"] ?? "",
     callerIdBind: Values.parseFlag(row["caller-id-bind-on-first-use"]),

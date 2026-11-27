@@ -13,6 +13,7 @@ import VoucherColumns from "../persistence/Migrations/003_VoucherColumns.ts";
 import VoucherFields from "../persistence/Migrations/004_VoucherFields.ts";
 import VoucherAssignmentSnapshots from "../persistence/Migrations/005_VoucherAssignmentSnapshots.ts";
 import VoucherCopyTiming from "../persistence/Migrations/006_VoucherCopyTiming.ts";
+import VoucherOnlyPackage from "../persistence/Migrations/007_VoucherOnlyPackage.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
 import { routerKey } from "../routers/RouterApi.ts";
 import * as VoucherStore from "./VoucherStore.ts";
@@ -497,6 +498,7 @@ it.effect("backfills the typed cache from the previous JSON rows for offline bro
         "004_VoucherFields": VoucherFields,
         "005_VoucherAssignmentSnapshots": VoucherAssignmentSnapshots,
         "006_VoucherCopyTiming": VoucherCopyTiming,
+        "007_VoucherOnlyPackage": VoucherOnlyPackage,
       }),
     });
     const store = yield* VoucherStore.VoucherStore;
@@ -761,7 +763,7 @@ it.effect("matches a router database user by customer and exact username, never 
       databaseUser(7, "CARD-3"),
     ]);
     // Both users named "twin" are ambiguous; "CARD-3" differs in case, so it matches nothing.
-    expect(published).toEqual([{ customer: "admin", matched: 1, skipped: 2 }]);
+    expect(published).toMatchObject([{ customer: "admin", matched: 1, skipped: 2 }]);
     expect(yield* store.capture(scope)).toMatchObject({
       outcome: "accepted",
       capturedAt: madarAt(20),
@@ -917,5 +919,70 @@ it.effect("drops a copy on a counter drop, a new profile, a Madar change or old 
       capturedAt: madarAt(20),
     });
     expect(aged.package).toBeNull();
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("counts a copy's only package from the live counters, exactly and without aging", () =>
+  Effect.gen(function* () {
+    const { store, find } = yield* setup;
+    const vouchers = (single: number) => [
+      voucher("*1", "single", used(single)),
+      voucher("*2", "renewed", used(5 * GiB)),
+      voucher("*3", "fresh"),
+    ];
+    yield* refresh(store, vouchers(GiB / 2), 10);
+    const only = (id: number, username: string, used: number) => {
+      const user = databaseUser(id, username, { used, lifetime: usage(used) });
+      return { ...user, assignments: [user.current!] };
+    };
+    // A busy copy: the only package's dates and the fact that it is the only one still hold.
+    const published = yield* publish(
+      store,
+      20,
+      [only(1, "single", GiB / 2), databaseUser(2, "renewed", { used: GiB }), only(3, "fresh", 0)],
+      80,
+    );
+    expect(published).toEqual([
+      { customer: "admin", matched: 3, skipped: 0, unused: 1, changed: 2, unknown: 0 },
+    ]);
+    const single = yield* find("single");
+    expect(single.remaining).toMatchObject({
+      state: "left",
+      amount: 1.5 * GiB,
+      basis: "only-package",
+      capturedAt: null,
+      capturedBusy: false,
+    });
+    expect(single.package).toEqual({
+      download: GiB / 2,
+      upload: 0,
+      uptime: 0,
+      startedAt: "2026-11-20 10:00:00",
+      endsAt: null,
+      estimated: false,
+      capturedAt: null,
+      capturedBusy: false,
+    });
+    expect((yield* find("renewed")).remaining).toMatchObject({ basis: "router-database" });
+    // Madar saw this voucher unused, which outranks the copy.
+    expect((yield* find("fresh")).remaining).toMatchObject({ amount: 2 * GiB, basis: "new" });
+    yield* refresh(store, vouchers(GiB), 30);
+    yield* TestClock.adjust("25 hours");
+    expect((yield* find("single")).remaining).toMatchObject({
+      amount: GiB,
+      basis: "only-package",
+    });
+    // A later copy shows a second package: the copy's own numbers take over.
+    yield* publish(store, 100_000, [
+      databaseUser(1, "single", { used: GiB / 4 }),
+      databaseUser(2, "renewed", { used: GiB }),
+      only(3, "fresh", 0),
+    ]);
+    expect((yield* find("single")).remaining).toMatchObject({ basis: "router-database" });
+    // A new profile ends it as before.
+    yield* publish(store, 100_010, [only(1, "single", GiB)]);
+    expect((yield* find("single")).remaining).toMatchObject({ basis: "only-package" });
+    yield* refresh(store, [voucher("*1", "single", { ...used(GiB), profile: "1GB" })], 100_020);
+    expect((yield* find("single")).remaining).toMatchObject({ basis: "profile-change" });
   }).pipe(Effect.provide(layer)),
 );

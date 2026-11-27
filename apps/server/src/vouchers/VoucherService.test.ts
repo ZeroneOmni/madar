@@ -491,3 +491,40 @@ it.live("ignores a reused username's old sessions and survives a failed session 
     }).pipe(Effect.provide(services));
   }).pipe(Effect.scoped),
 );
+
+it.live("counts the counters RouterOS 6 omits for an unused voucher as zero", () =>
+  Effect.gen(function* () {
+    const router = yield* Effect.acquireDisposable(Effect.promise(() => routerFixture(0)));
+    yield* Effect.gen(function* () {
+      const api = yield* RouterApi.RouterApi;
+      const vouchers = yield* VoucherService.VoucherService;
+      yield* api.connect({ profile: router.profile, password: "fixture" }, "owner");
+      const scope = { router: router.profile, customer: "admin" };
+      // RouterOS 6.49 leaves zero values out of the print: no "download-used" or "uptime-used".
+      router.users.set("*1", {
+        ".id": "*1",
+        customer: "admin",
+        username: "fresh",
+        "actual-profile": "2GB",
+        "last-seen": "never",
+      });
+      yield* vouchers.sync(scope, "owner");
+      const [row] = (yield* vouchers.list({
+        ...scope,
+        search: "",
+        status: "all",
+        profile: "",
+        sort: { field: "username", direction: "asc" },
+        offset: 0,
+        limit: 50,
+      })).items;
+      expect(row).toMatchObject({ download: 0, upload: 0, uptime: 0, activeSessions: 0 });
+      expect(row?.remaining).toMatchObject({
+        state: "left",
+        kind: "transfer",
+        amount: 2147483648,
+        basis: "new",
+      });
+    }).pipe(Effect.provide(services));
+  }).pipe(Effect.scoped),
+);

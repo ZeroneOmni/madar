@@ -181,7 +181,7 @@ export function RouterDatabaseSettings({
     ? t(runningStages[status.job.stage])
     : status.capturedAt
       ? t("Copied {time}. Madar reads each package's usage and dates from it.", {
-          time: copyTime(status.capturedAt, status.capturedBusy, locale),
+          time: formatDateTime(status.capturedAt, locale),
         })
       : t("Not copied yet. Madar copies it when it first connects to a router.");
   return (

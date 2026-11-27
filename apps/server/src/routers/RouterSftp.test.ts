@@ -1,3 +1,5 @@
+// @effect-diagnostics nodeBuiltinImport:off
+import * as NodeCrypto from "node:crypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { expect, it } from "@effect/vitest";
 import * as Deferred from "effect/Deferred";
@@ -122,10 +124,9 @@ it.live("closes the local file and the socket when a download is cancelled", () 
   }).pipe(Effect.scoped, Effect.provide(services)),
 );
 
-it.effect("gives a large file on a slow router more time than a small one", () =>
+it.effect("keeps a slow but moving transfer running and stops only when reads stall", () =>
   Effect.gen(function* () {
     const answers = yield* Queue.unbounded<() => void>();
-    // 8 MiB at the 30 KiB/s floor may take 274 s, past the 180 s every transfer gets.
     const server = yield* Effect.acquireDisposable(
       Effect.promise(() =>
         sftpFixture(
@@ -145,12 +146,11 @@ it.effect("gives a large file on a slow router more time than a small one", () =
         onProgress: () => Effect.void,
       })
       .pipe(Effect.flip, Effect.forkChild);
-    // ssh2 asks for a 64 KiB chunk in three requests; 5 s each is slow but never a 30 s stall.
+    // Each batch of reads takes 25 s: slow, but never a 30 s stall, for 15 minutes.
     let next = yield* Queue.takeAll(answers);
-    for (let seconds = 5; seconds <= 270; seconds += 5) {
-      yield* TestClock.adjust("5 seconds");
+    for (let seconds = 25; seconds <= 900; seconds += 25) {
+      yield* TestClock.adjust("25 seconds");
       for (const answer of next) answer();
-      // A new request means the transfer is still running, well past 180 s.
       next = yield* Queue.takeAll(answers).pipe(
         Effect.raceFirst(
           Fiber.join(download).pipe(
@@ -159,8 +159,38 @@ it.effect("gives a large file on a slow router more time than a small one", () =
         ),
       );
     }
-    // The router goes quiet at 270 s: the size limit ends the transfer before the 30 s stall.
-    yield* TestClock.adjust("5 seconds");
-    expect((yield* Fiber.join(download)).reason).toBe("timeout");
+    // The router goes quiet: the transfer ends after 30 s without a reply.
+    yield* TestClock.adjust("30 seconds");
+    expect((yield* Fiber.join(download)).reason).toBe("stalled");
+  }).pipe(Effect.scoped, Effect.provide(services)),
+);
+
+it.live("continues a partial copy from its end and fills gaps that short reads leave", () =>
+  Effect.gen(function* () {
+    const data = NodeCrypto.randomBytes(500_000);
+    const offsets: number[] = [];
+    const server = yield* Effect.acquireDisposable(
+      Effect.promise(() =>
+        sftpFixture(new Map([["user-manager/sqldb", { data, mtime: 1 }]]), {
+          maxRead: 10_000,
+          onRead: (_, offset) => offsets.push(offset),
+        }),
+      ),
+    );
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const directory = yield* fs.makeTempDirectoryScoped({ prefix: "madar-sftp-" });
+    const destination = path.join(directory, "copy");
+    yield* fs.writeFile(destination, data.subarray(0, 123_456));
+    const sftp = yield* RouterSftp.RouterSftp;
+    const session = yield* sftp.connect(input(server.port, server.hostKey));
+    const received = yield* session.download("user-manager/sqldb", destination, {
+      bytesPerSecond: null,
+      resumeFrom: 123_456,
+      onProgress: () => Effect.void,
+    });
+    expect(received).toBe(data.length);
+    expect(Math.min(...offsets)).toBe(123_456);
+    expect(Buffer.from(yield* fs.readFile(destination)).equals(data)).toBe(true);
   }).pipe(Effect.scoped, Effect.provide(services)),
 );

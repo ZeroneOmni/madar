@@ -55,6 +55,10 @@ const retries: Partial<Record<CopyFailure["reason"], { attempts: number; seconds
 };
 /** RouterOS 6 serves SFTP at roughly this rate; the estimate before the transfer shows its own. */
 const TYPICAL_BYTES_PER_SECOND = 64 * 1024;
+/** A download that stopped on these keeps its bytes, and the next attempt continues from there. */
+const resumable = new Set<CopyFailure["reason"]>(["network", "timeout", "stalled"]);
+/** An older partial download is discarded rather than continued. */
+const PARTIAL_MAX_AGE_SECONDS = 15 * 60;
 
 /** Failures the operator must fix; automatic copies stop until then. */
 const pausing = new Set<CopyFailure["reason"]>(["authentication", "host-key", "schema"]);
@@ -89,8 +93,15 @@ interface Job {
   stage: RouterDatabaseStage;
   received: number;
   total: number | null;
-  /** Clock millis when the download began. */
+  /** Clock millis when the download began, and the bytes a resumed download already had. */
   downloadStarted: number | null;
+  resumedFrom: number;
+}
+/** The bytes a failed download kept on this PC for the next attempt. */
+interface PartialCopy {
+  readonly path: string;
+  /** When its first byte was read; a copy continued from it starts then. */
+  readonly startedAt: number;
 }
 interface Live {
   job: Job | null;
@@ -98,6 +109,7 @@ interface Live {
   /** Whether this process has seen a refresh of the router; the first one only sets the baseline. */
   seen: boolean;
   unexplained: number;
+  partial: PartialCopy | null;
 }
 
 export class VoucherSnapshotSync extends Context.Service<
@@ -151,7 +163,7 @@ const make = Effect.gen(function* () {
   const liveFor = (key: string) => {
     let live = lives.get(key);
     if (!live) {
-      live = { job: null, scheduled: null, seen: false, unexplained: 0 };
+      live = { job: null, scheduled: null, seen: false, unexplained: 0, partial: null };
       lives.set(key, live);
     }
     return live;
@@ -194,7 +206,21 @@ const make = Effect.gen(function* () {
     const folder = (database[0]?.["db-path"] ?? "").replace(/^\/+|\/+$/g, "") || "user-manager";
     const file = `${folder}/sqldb`;
     const journal = `${folder}/sqldb-journal`;
-    const temp = path.join(directory, `${NodeCrypto.randomUUID()}.sqlite`);
+    const live = liveFor(key);
+    const kept = live.partial;
+    const keptSize =
+      kept && (yield* now) - kept.startedAt < PARTIAL_MAX_AGE_SECONDS * 1000
+        ? yield* fs.stat(kept.path).pipe(
+            Effect.map((info) => Number(info.size)),
+            Effect.orElseSucceed(() => 0),
+          )
+        : 0;
+    if (kept && keptSize === 0) {
+      live.partial = null;
+      yield* fs.remove(kept.path, { force: true }).pipe(Effect.ignore);
+    }
+    const resumed = kept && keptSize > 0 ? { ...kept, size: keptSize } : null;
+    const temp = resumed?.path ?? path.join(directory, `${NodeCrypto.randomUUID()}.sqlite`);
 
     return yield* Effect.gen(function* () {
       const outcome = yield* Effect.gen(function* () {
@@ -252,23 +278,40 @@ const make = Effect.gen(function* () {
         if (before.size > RouterSftp.SFTP_LIMITS.maxBytes) return yield* fail("check", "too-large");
         job.stage = "download";
         job.total = before.size;
-        const started = yield* now;
-        job.downloadStarted = started;
+        // A file that shrank since the partial download was taken is copied again from the start.
+        const resumeFrom = resumed && resumed.size <= before.size ? resumed.size : 0;
+        if (resumed && resumeFrom === 0)
+          yield* fs.remove(temp, { force: true }).pipe(Effect.ignore);
+        // The partial bytes now belong to this download; a failure before it keeps them.
+        live.partial = null;
+        job.received = resumeFrom;
+        job.resumedFrom = resumeFrom;
+        job.downloadStarted = yield* now;
+        const started = resumeFrom > 0 ? resumed!.startedAt : job.downloadStarted;
         const received = yield* session
           .download(file, temp, {
             bytesPerSecond:
               job.trigger === "manual" ? null : RouterSftp.SFTP_LIMITS.automaticBytesPerSecond,
+            resumeFrom,
             onProgress: (count, total) =>
               Effect.sync(() => {
                 job.received = count;
                 job.total = total;
               }),
           })
-          .pipe(mapSftp("download"));
+          .pipe(
+            mapSftp("download"),
+            Effect.tapError((error) =>
+              Effect.sync(() => {
+                if (resumable.has(error.reason)) live.partial = { path: temp, startedAt: started };
+              }),
+            ),
+          );
         job.stage = "verify";
         const after = yield* inspect("verify");
         // Pages arrive in order over a minute or more; a commit in between can mix versions.
         const exact =
+          resumeFrom === 0 &&
           !before.writing &&
           !after.writing &&
           after.fingerprint === before.fingerprint &&
@@ -310,7 +353,15 @@ const make = Effect.gen(function* () {
         matched: published.reduce((sum, item) => sum + item.matched, 0),
       });
       return { kind: "accepted" as const, fingerprint, busy, capturedAt };
-    }).pipe(Effect.ensuring(fs.remove(temp, { force: true }).pipe(Effect.ignore)));
+    }).pipe(
+      Effect.ensuring(
+        Effect.suspend(() =>
+          live.partial?.path === temp
+            ? Effect.void
+            : fs.remove(temp, { force: true }).pipe(Effect.ignore),
+        ),
+      ),
+    );
   });
 
   /** One copy attempt: records its outcome and schedules a retry while attempts remain. */
@@ -412,6 +463,19 @@ const make = Effect.gen(function* () {
           detail: failure.detail,
           attempt: job.attempt,
         });
+        const partial = live.partial;
+        // Nothing continues a partial download after its age limit; free the disk space then.
+        if (partial)
+          yield* Effect.sleep(`${PARTIAL_MAX_AGE_SECONDS} seconds`).pipe(
+            Effect.andThen(
+              Effect.suspend(() => {
+                if (live.partial !== partial) return Effect.void;
+                live.partial = null;
+                return fs.remove(partial.path, { force: true }).pipe(Effect.ignore);
+              }),
+            ),
+            Effect.forkIn(layerScope),
+          );
         const retry = retries[failure.reason];
         if (retry && job.attempt < retry.attempts && live.scheduled === null) {
           const at = millis + retry.seconds * 1000;
@@ -448,6 +512,7 @@ const make = Effect.gen(function* () {
       received: 0,
       total: null,
       downloadStarted: null,
+      resumedFrom: 0,
     };
     live.job = job;
     yield* run(target, owner, job).pipe(
@@ -533,6 +598,16 @@ const make = Effect.gen(function* () {
       scheduledAt: live.scheduled?.at ?? null,
       capturedAt: customer ? (capture?.capturedAt ?? null) : (state?.acceptedAt ?? null),
       capturedBusy: customer ? (capture?.busy ?? false) : (state?.acceptedBusy ?? false),
+      result:
+        capture?.capturedAt != null
+          ? {
+              matched: capture.matched,
+              unused: capture.unused,
+              skipped: capture.skipped,
+              changed: capture.changed,
+              unknown: capture.unknown,
+            }
+          : null,
       checkedAt: capture?.checkedAt ?? state?.lastAttemptAt ?? null,
       // Before the customer list is known there is no per-customer record yet.
       outcome: capture?.outcome ?? state?.lastOutcome ?? "none",
@@ -599,7 +674,8 @@ const make = Effect.gen(function* () {
 function secondsLeft(job: Job, millis: number) {
   if (job.stage !== "download" || job.total === null || job.downloadStarted === null) return null;
   const elapsed = (millis - job.downloadStarted) / 1000;
-  const rate = job.received > 0 && elapsed >= 3 ? job.received / elapsed : TYPICAL_BYTES_PER_SECOND;
+  const copied = job.received - job.resumedFrom;
+  const rate = copied > 0 && elapsed >= 3 ? copied / elapsed : TYPICAL_BYTES_PER_SECOND;
   return Math.ceil(Math.max(0, job.total - job.received) / rate);
 }
 

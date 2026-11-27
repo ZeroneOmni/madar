@@ -203,16 +203,45 @@ const commit = (files: Map<string, { data: Buffer; mtime: number }>) => {
   files.set(FILE, { ...file, data });
 };
 
+/** Vouchers renewed once: their package usage comes from the copy, not the live counters. */
+const renewed = [1, 2, 3].map((id) => ({
+  id,
+  username: `voucher-${String(id).padStart(4, "0")}`,
+  download: 200,
+  upload: 100,
+  uptime: 600,
+  current: 100 + id,
+  profileName: "Day",
+  start: Date.parse("2026-11-24T08:00:00Z") / 1000,
+  assignments: [
+    {
+      id: 100 + id,
+      profileId: 10,
+      activated: Date.parse("2026-11-24T08:00:00Z") / 1000,
+      counters: [{ download: 150, upload: 50, uptime: 300 }],
+    },
+    {
+      id: 90 + id,
+      profileId: 10,
+      activated: Date.parse("2026-11-20T08:00:00Z") / 1000,
+      counters: [{ download: 50, upload: 50, uptime: 300 }],
+    },
+  ],
+}));
+
 it.effect("accepts a copy taken while User Manager wrote, and marks it busy", () =>
   Effect.gen(function* () {
     const holder: { files?: Map<string, { data: Buffer; mtime: number }> } = {};
     let writes = 0;
-    const { files, ssh, scope, copies, fs } = yield* harness({
-      // The download's end-of-file read happens after its data arrived: a commit lands mid-copy.
-      onRead: (_, offset) => {
-        if (offset > 0 && writes-- > 0) commit(holder.files!);
+    const { files, ssh, scope, copies, fs } = yield* harness(
+      {
+        // The download's end-of-file read happens after its data arrived: a commit lands mid-copy.
+        onRead: (_, offset) => {
+          if (offset > 0 && writes-- > 0) commit(holder.files!);
+        },
       },
-    });
+      renewed,
+    );
     holder.files = files;
     yield* inProcess(
       Effect.gen(function* () {
@@ -230,7 +259,7 @@ it.effect("accepts a copy taken while User Manager wrote, and marks it busy", ()
         const busy = yield* snapshots.settled(scope);
         expect(busy).toMatchObject({ outcome: "accepted", capturedBusy: true, failure: null });
         const row = (yield* vouchers.list(query(scope))).items[0]!;
-        expect(row.package).toMatchObject({ download: 200, capturedBusy: true });
+        expect(row.package).toMatchObject({ download: 150, capturedBusy: true });
         expect(row.package!.capturedAt).toBe(busy.capturedAt);
         // A journal means a transaction is open: the copy still runs, as a busy one.
         files.set(JOURNAL, { data: Buffer.alloc(512), mtime: 1 });
@@ -341,12 +370,15 @@ it.effect("shows User Manager's not-set markers as no end, never as negative tim
         yield* vouchers.sync(scope, "owner");
         yield* snapshots.settled(scope);
         const row = (yield* vouchers.list(query(scope))).items[0]!;
-        expect(row.package).toMatchObject({ startedAt: "2026-11-24 08:00:00", endsAt: null });
         // Day lasts a day from the package start; the -2 end never reaches the calculation.
+        expect(row.package).toMatchObject({
+          startedAt: "2026-11-24 08:00:00",
+          endsAt: "2026-11-25 08:00:00",
+        });
         expect(row.remaining).toMatchObject({
           state: "ends",
           endsAt: "2026-11-25 08:00:00",
-          basis: "router-database",
+          basis: "only-package",
         });
         expect(row.remaining.amount).toBeGreaterThan(0);
         const store = yield* VoucherStore.VoucherStore;
@@ -450,6 +482,45 @@ it.effect("backs off for a day when SSH is off, and the API keeps working", () =
         yield* snapshots.settled(scope);
         expect(ssh.connections()).toBe(0);
         expect((yield* vouchers.list(query(scope))).total).toBe(4);
+      }),
+    );
+  }).pipe(Effect.scoped, Effect.provide(base)),
+);
+
+it.effect("continues a stalled download from where it stopped, as a busy copy", () =>
+  Effect.gen(function* () {
+    const stalled = yield* Deferred.make<void>();
+    const offsets: number[] = [];
+    const options: Parameters<typeof sftpFixture>[1] = {
+      // One header read, then three batches of reads answer 1 KiB each before the router stalls.
+      maxRead: 1024,
+      stallAfter: 1 + 3 * RouterSftp.READ_DEPTH,
+      onRead: (_, offset) => {
+        offsets.push(offset);
+        if (offsets.length === 1 + 4 * RouterSftp.READ_DEPTH)
+          Deferred.doneUnsafe(stalled, Effect.void);
+      },
+    };
+    const { ssh, scope, copies, fs } = yield* harness(options);
+    yield* inProcess(
+      Effect.gen(function* () {
+        const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
+        yield* snapshots.start(scope, "owner");
+        yield* Deferred.await(stalled);
+        yield* TestClock.adjust("30 seconds");
+        const failed = yield* snapshots.settled(scope);
+        expect(failed).toMatchObject({ failure: { stage: "download", reason: "stalled" } });
+        expect(yield* fs.readDirectory(copies)).toHaveLength(1);
+        options.stallAfter = Number.POSITIVE_INFINITY;
+        offsets.length = 0;
+        yield* TestClock.adjust("60 seconds");
+        // No customer is known yet, so the router-wide state reports the copy.
+        const resumed = yield* snapshots.settled({ router: scope.router });
+        expect(resumed).toMatchObject({ outcome: "accepted", capturedBusy: true, failure: null });
+        // Only the header checks read from the start again; the data continues after 3 KiB.
+        expect(Math.min(...offsets.filter((offset) => offset > 0))).toBe(3 * 1024);
+        expect(yield* fs.readDirectory(copies)).toEqual([]);
+        expect(ssh.connections()).toBe(2);
       }),
     );
   }).pipe(Effect.scoped, Effect.provide(base)),
