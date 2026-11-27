@@ -18,7 +18,7 @@ import * as Sqlite from "../persistence/Sqlite.ts";
 import { routerKey } from "../routers/RouterApi.ts";
 import * as VoucherStore from "./VoucherStore.ts";
 import { naiveToEpoch } from "./routerValues.ts";
-import type { DatabaseUser } from "./VoucherSnapshotReader.ts";
+import type { DatabaseUser, SkippedUser } from "./VoucherSnapshotReader.ts";
 
 const GiB = 1024 ** 3;
 const scope: VoucherScope = {
@@ -719,6 +719,7 @@ const publish = (
   at: number,
   users: DatabaseUser[],
   until?: number,
+  skipped: SkippedUser[] = [],
 ) =>
   store.publishSnapshot(
     routerKey(scope.router),
@@ -728,8 +729,14 @@ const publish = (
       busy: until !== undefined,
       fingerprint: until === undefined ? `fixture:${at}` : null,
     },
-    { users, skipped: 0 },
+    { users, skipped },
   );
+const skippedUser = (
+  id: number,
+  username: string,
+  reasons: SkippedUser["reasons"],
+  customer = "admin",
+): SkippedUser => ({ id, customer, username, reasons });
 /** A refresh at Madar time `at`, as VoucherService records it. */
 const refresh = (
   store: VoucherStore.VoucherStore["Service"],
@@ -763,7 +770,17 @@ it.effect("matches a router database user by customer and exact username, never 
       databaseUser(7, "CARD-3"),
     ]);
     // Both users named "twin" are ambiguous; "CARD-3" differs in case, so it matches nothing.
-    expect(published).toMatchObject([{ customer: "admin", matched: 1, skipped: 2 }]);
+    expect(published).toMatchObject([
+      {
+        customer: "admin",
+        matched: 1,
+        skipped: 2,
+        reasons: [
+          { reason: "ambiguous", count: 1 },
+          { reason: "not-in-copy", count: 1 },
+        ],
+      },
+    ]);
     expect(yield* store.capture(scope)).toMatchObject({
       outcome: "accepted",
       capturedAt: madarAt(20),
@@ -957,7 +974,17 @@ it.effect("counts a copy's only package from the live counters, exactly and with
       80,
     );
     expect(published).toEqual([
-      { customer: "admin", matched: 3, skipped: 0, unused: 1, changed: 2, unknown: 0 },
+      {
+        customer: "admin",
+        matched: 3,
+        unused: 1,
+        kept: 0,
+        keptSince: null,
+        skipped: 0,
+        reasons: [],
+        changed: 2,
+        unknown: 0,
+      },
     ]);
     const single = yield* find("single");
     expect(single.remaining).toMatchObject({
@@ -998,5 +1025,134 @@ it.effect("counts a copy's only package from the live counters, exactly and with
     expect((yield* find("single")).remaining).toMatchObject({ basis: "only-package" });
     yield* refresh(store, [voucher("*1", "single", { ...used(GiB), profile: "1GB" })], 100_020);
     expect((yield* find("single")).remaining).toMatchObject({ basis: "profile-change" });
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect(
+  "keeps a voucher's last good value when a later copy skips it, with that copy's time",
+  () =>
+    Effect.gen(function* () {
+      const { store, find } = yield* setup;
+      yield* refresh(
+        store,
+        [
+          voucher("*1", "steady", used(5 * GiB)),
+          voucher("*2", "online", used(5 * GiB)),
+          voucher("*3", "later", used(5 * GiB)),
+        ],
+        10,
+      );
+      yield* publish(store, 20, [
+        databaseUser(1, "steady", { used: GiB / 2 }),
+        databaseUser(2, "online", { used: GiB / 2 }),
+      ]);
+      // A busy copy whose counters for "online" moved while it ran; "later" is not in either copy.
+      const published = yield* publish(
+        store,
+        40,
+        [databaseUser(1, "steady", { used: GiB / 4 })],
+        50,
+        [skippedUser(2, "online", ["uptime-moved"])],
+      );
+      expect(published).toMatchObject([
+        {
+          customer: "admin",
+          matched: 1,
+          kept: 1,
+          keptSince: madarAt(20),
+          skipped: 1,
+          reasons: [
+            { reason: "not-in-copy", count: 1 },
+            { reason: "uptime-moved", count: 1 },
+          ],
+        },
+      ]);
+      const online = yield* find("online");
+      expect(online.remaining).toMatchObject({
+        amount: 1.5 * GiB,
+        basis: "router-database",
+        capturedAt: madarAt(20),
+        capturedBusy: false,
+      });
+      expect(online.package).toMatchObject({ download: GiB / 2, capturedAt: madarAt(20) });
+      expect((yield* store.assignments({ ...scope, id: "*2" })).items).toHaveLength(2);
+      expect((yield* find("steady")).remaining).toMatchObject({
+        amount: 1.75 * GiB,
+        capturedAt: madarAt(40),
+        capturedBusy: true,
+      });
+      // Never shown as zero usage.
+      expect((yield* find("later")).remaining).toMatchObject({
+        state: "unknown",
+        reason: "baseline",
+      });
+      // A later copy that reads it replaces the kept value.
+      const filled = yield* publish(store, 60, [databaseUser(2, "online", { used: GiB })]);
+      expect(filled).toMatchObject([{ matched: 1, kept: 1, keptSince: madarAt(40), skipped: 1 }]);
+      expect((yield* find("online")).remaining).toMatchObject({
+        amount: GiB,
+        capturedAt: madarAt(60),
+      });
+      expect((yield* find("steady")).remaining).toMatchObject({ capturedAt: madarAt(40) });
+    }).pipe(Effect.provide(layer)),
+);
+
+it.effect("counts only each customer's own vouchers, each one once, with one reason", () =>
+  Effect.gen(function* () {
+    const { store } = yield* setup;
+    yield* store.saveCatalog(routerKey(scope.router), { ...catalog, customers: ["admin", "shop"] });
+    yield* refresh(
+      store,
+      [
+        voucher("*1", "card-1", used(5 * GiB)),
+        voucher("*2", "twin", used(5 * GiB)),
+        voucher("*3", "torn", used(5 * GiB)),
+      ],
+      10,
+    );
+    yield* store.replace(
+      { ...scope, customer: "shop" },
+      [voucher("*9", "shop-1", { customer: "shop", observedAt: madarAt(10) })],
+      madarAt(10),
+    );
+    const published = yield* publish(
+      store,
+      20,
+      [databaseUser(1, "card-1"), databaseUser(5, "twin"), databaseUser(6, "twin")],
+      undefined,
+      [
+        skippedUser(3, "torn", ["download-moved", "uptime-moved"]),
+        skippedUser(7, "shop-2", ["duplicate-user"], "shop"),
+        skippedUser(8, "", ["no-customer", "no-username"], ""),
+      ],
+    );
+    expect(published).toMatchObject([
+      {
+        customer: "admin",
+        matched: 1,
+        kept: 0,
+        skipped: 2,
+        reasons: [
+          { reason: "ambiguous", count: 1 },
+          { reason: "download-moved", count: 1 },
+        ],
+      },
+      {
+        customer: "shop",
+        matched: 0,
+        kept: 0,
+        skipped: 1,
+        reasons: [{ reason: "not-in-copy", count: 1 }],
+      },
+    ]);
+    expect(yield* store.capture(scope)).toMatchObject({
+      matched: 1,
+      kept: 0,
+      skipped: 2,
+      reasons: [
+        { reason: "ambiguous", count: 1 },
+        { reason: "download-moved", count: 1 },
+      ],
+    });
   }).pipe(Effect.provide(layer)),
 );

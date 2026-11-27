@@ -88,7 +88,7 @@ it.live("reads per-package usage, start and end, and history from a router datab
     Effect.gen(function* () {
       const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
       const contents = yield* reader.read(filename);
-      expect(contents.skipped).toBe(0);
+      expect(contents.skipped).toEqual([]);
       const card = contents.users.find((user) => user.username === "card-001");
       const unused = contents.users.find((user) => user.username === "unused");
       expect(card).toMatchObject({
@@ -165,7 +165,10 @@ it.live("skips users whose package counters exceed their lifetime counters", () 
     (filename) =>
       Effect.gen(function* () {
         const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
-        expect(yield* reader.read(filename)).toEqual({ users: [], skipped: 1 });
+        expect(yield* reader.read(filename)).toEqual({
+          users: [],
+          skipped: [{ id: 1, customer: "admin", username: "torn", reasons: ["download-moved"] }],
+        });
       }),
   ),
 );
@@ -231,21 +234,24 @@ it.live("takes the current package from the assignment the user row names", () =
             { id: 2, profileId: 11, added: at("2026-11-21 10:00:00"), activated: -2 },
           ],
         },
-        // An id that is not one of this user's assignments names nothing.
+        // An id that is not one of this user's assignments: the copy lacks the package row.
         { id: 2, username: "stray", current: 1, profileName: "Day", assignments: [] },
       ],
     },
     (filename) =>
       Effect.gen(function* () {
         const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
-        const { users } = yield* reader.read(filename);
+        const { users, skipped } = yield* reader.read(filename);
         expect(users.find((user) => user.username === "waiting")?.current).toMatchObject({
           id: 2,
           profile: "Week",
           assignedAt: "2026-11-21 10:00:00",
           startedAt: null,
         });
-        expect(users.find((user) => user.username === "stray")?.current).toBeNull();
+        expect(users.find((user) => user.username === "stray")).toBeUndefined();
+        expect(skipped).toEqual([
+          { id: 2, customer: "admin", username: "stray", reasons: ["assignment-missing"] },
+        ]);
       }),
   ),
 );
@@ -360,7 +366,7 @@ it.live("reads User Manager's not-set markers as no value and no limit", () =>
       Effect.gen(function* () {
         const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
         const { users, skipped } = yield* reader.read(filename);
-        expect(skipped).toBe(0);
+        expect(skipped).toEqual([]);
         expect(users.find((user) => user.username === "unset")).toMatchObject({
           quotaSignature: "0:0:0:0",
           lifetime: { download: 80_000_000_000 },
@@ -437,10 +443,79 @@ it.live("reads tables whose indexes were torn by a write during the copy", () =>
         expect(query(filename, "PRAGMA integrity_check")).not.toEqual([{ integrity_check: "ok" }]);
         const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
         const { users, skipped } = yield* reader.read(filename);
-        expect(skipped).toBe(0);
+        expect(skipped).toEqual([]);
         expect(users).toHaveLength(300);
         expect(users.find((user) => user.id === 3)?.current?.endsAt).toBe("2026-11-22 10:00:00");
         expect(users.find((user) => user.id === 4)?.current?.endsAt).toBe("2026-11-21 10:00:00");
+      }),
+  ),
+);
+
+it.live("names each user a torn copy skips and why, and reads the rest", () =>
+  withFile(
+    tornCopy(
+      // Sessions of the even users went on while the copy ran; their user rows are older.
+      "UPDATE ucounters SET uptime = uptime + 30 WHERE userId % 2 = 0",
+      (pages, page) => pages.get("ucounters")!.has(page),
+    ),
+    (filename) =>
+      Effect.gen(function* () {
+        const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
+        const { users, skipped } = yield* reader.read(filename);
+        expect(users.map((user) => user.id).every((id) => id % 2 === 1)).toBe(true);
+        expect(users).toHaveLength(150);
+        expect(skipped).toHaveLength(150);
+        expect(skipped[0]).toEqual({
+          id: 2,
+          customer: "admin",
+          username: "card-0002",
+          reasons: ["uptime-moved"],
+        });
+      }),
+  ),
+);
+
+it.live("never reads a started package without counter rows as zero usage", () =>
+  withFile(
+    {
+      profiles: [{ id: 10, name: "Day" }],
+      users: [
+        {
+          id: 1,
+          username: "missing",
+          // Lifetime usage that no counter row holds: the copy lacks this package's rows.
+          download: GiB,
+          upload: 0,
+          uptime: 60,
+          current: 1,
+          profileName: "Day",
+          assignments: [{ id: 1, profileId: 10, activated: at("2026-11-20 10:00:00") }],
+        },
+        {
+          id: 2,
+          username: "idle",
+          download: 0,
+          upload: 0,
+          uptime: 0,
+          current: 2,
+          profileName: "Day",
+          assignments: [{ id: 2, profileId: 10, activated: at("2026-11-20 10:00:00") }],
+        },
+      ],
+    },
+    (filename) =>
+      Effect.gen(function* () {
+        const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
+        const { users, skipped } = yield* reader.read(filename);
+        expect(skipped).toEqual([
+          { id: 1, customer: "admin", username: "missing", reasons: ["counters-missing"] },
+        ]);
+        // No usage anywhere: zero is what the copy shows.
+        expect(users.find((user) => user.username === "idle")?.current?.usage).toEqual({
+          download: 0,
+          upload: 0,
+          uptime: 0,
+        });
       }),
   ),
 );
