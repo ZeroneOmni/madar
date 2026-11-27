@@ -434,6 +434,29 @@ export const RouterDatabaseFailureReason = Schema.Literals([
   "storage",
 ]);
 export type RouterDatabaseFailureReason = typeof RouterDatabaseFailureReason.Type;
+/**
+ * Why a copy did not read a voucher. "*-moved": its package counters add up to more than its
+ * lifetime counters, as when a copy mixes moments of a busy router. "ambiguous": its name matches
+ * more than one account. "changed-during-copy": Madar changed it while the copy ran.
+ */
+export const RouterDatabaseSkipReason = Schema.Literals([
+  "download-moved",
+  "upload-moved",
+  "uptime-moved",
+  "duplicate-user",
+  "duplicate-assignment",
+  "counters-missing",
+  "assignment-missing",
+  "no-customer",
+  "no-username",
+  "ambiguous",
+  "not-in-copy",
+  "changed-during-copy",
+]);
+export type RouterDatabaseSkipReason = typeof RouterDatabaseSkipReason.Type;
+export const RouterDatabaseSkipCounts = Schema.Array(
+  Schema.Struct({ reason: RouterDatabaseSkipReason, count: Integer }),
+);
 export const RouterDatabaseTrigger = Schema.Literals(["first", "automatic", "manual"]);
 export type RouterDatabaseTrigger = typeof RouterDatabaseTrigger.Type;
 export const RouterDatabaseStatus = Schema.Struct({
@@ -459,12 +482,17 @@ export const RouterDatabaseStatus = Schema.Struct({
   /** What that copy did for this customer's vouchers. */
   result: Schema.NullOr(
     Schema.Struct({
-      /** Vouchers the copy matched. */
+      /** Vouchers the copy read. */
       matched: Integer,
       /** Matched vouchers nobody has used yet. */
       unused: Integer,
-      /** Users the copy could not read or match to exactly one voucher. */
+      /** Vouchers the copy did not read that keep an earlier copy's value, the oldest from then. */
+      kept: Integer,
+      keptSince: Schema.NullOr(Schema.String),
+      /** Vouchers the copy did not read and no earlier copy describes. */
       skipped: Integer,
+      /** Why the kept and skipped vouchers were not read, one reason each, most common first. */
+      reasons: RouterDatabaseSkipCounts,
       /** Vouchers whose remaining value changed, and those still unknown after the copy. */
       changed: Count,
       unknown: Count,

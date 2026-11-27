@@ -14,6 +14,7 @@ import VoucherFields from "../persistence/Migrations/004_VoucherFields.ts";
 import VoucherAssignmentSnapshots from "../persistence/Migrations/005_VoucherAssignmentSnapshots.ts";
 import VoucherCopyTiming from "../persistence/Migrations/006_VoucherCopyTiming.ts";
 import VoucherOnlyPackage from "../persistence/Migrations/007_VoucherOnlyPackage.ts";
+import VoucherCopyKept from "../persistence/Migrations/008_VoucherCopyKept.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
 import { routerKey } from "../routers/RouterApi.ts";
 import * as VoucherStore from "./VoucherStore.ts";
@@ -499,6 +500,7 @@ it.effect("backfills the typed cache from the previous JSON rows for offline bro
         "005_VoucherAssignmentSnapshots": VoucherAssignmentSnapshots,
         "006_VoucherCopyTiming": VoucherCopyTiming,
         "007_VoucherOnlyPackage": VoucherOnlyPackage,
+        "008_VoucherCopyKept": VoucherCopyKept,
       }),
     });
     const store = yield* VoucherStore.VoucherStore;
