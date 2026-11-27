@@ -159,7 +159,7 @@ it.effect("combines triggers for a minute and keeps four hours between automatic
         const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
         yield* vouchers.sync(scope, "owner");
         yield* snapshots.settled(scope);
-        addUsedVoucher(router, "*7");
+        router.users.get("*1")!["actual-profile"] = "Week";
         yield* vouchers.sync(scope, "owner");
         const { scheduledAt } = yield* snapshots.status(scope);
         expect(scheduledAt).not.toBeNull();
@@ -171,7 +171,7 @@ it.effect("combines triggers for a minute and keeps four hours between automatic
         // The first copy counts as automatic, so the cooldown holds this one back.
         expect(ssh.connections()).toBe(1);
         yield* TestClock.adjust("4 hours");
-        addUsedVoucher(router, "*8");
+        router.users.get("*2")!["actual-profile"] = "Day";
         yield* vouchers.sync(scope, "owner");
         yield* TestClock.adjust("1 minute");
         // The file did not change, so only its size, time and header were read.
@@ -195,6 +195,29 @@ it.effect("combines triggers for a minute and keeps four hours between automatic
         yield* snapshots.settled(scope);
         // The cooldown survives the restart.
         expect(ssh.connections()).toBe(2);
+      }),
+    );
+  }).pipe(Effect.scoped, Effect.provide(base)),
+);
+
+it.effect("copies an unchanged file again for used vouchers the last copy did not see", () =>
+  Effect.gen(function* () {
+    const { router, scope } = yield* harness();
+    const third = router.users.get("*3")!;
+    router.users.delete("*3");
+    yield* inProcess(
+      Effect.gen(function* () {
+        const vouchers = yield* VoucherService.VoucherService;
+        const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
+        yield* vouchers.sync(scope, "owner");
+        yield* snapshots.settled(scope);
+        yield* TestClock.adjust("4 hours");
+        router.users.set("*3", third);
+        yield* vouchers.sync(scope, "owner");
+        yield* TestClock.adjust("1 minute");
+        expect(yield* snapshots.settled(scope)).toMatchObject({ outcome: "accepted" });
+        const rows = (yield* vouchers.list(query(scope))).items;
+        expect(rows.find((row) => row.id === "*3")?.package).toMatchObject({ download: 200 });
       }),
     );
   }).pipe(Effect.scoped, Effect.provide(base)),
@@ -290,19 +313,20 @@ it.effect("skips an automatic copy only while the change counter is unchanged", 
       Effect.gen(function* () {
         const vouchers = yield* VoucherService.VoucherService;
         const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
-        const automatic = Effect.fnUntraced(function* (id: string) {
+        // A profile change triggers a check without adding a voucher the copy has not seen.
+        const automatic = Effect.fnUntraced(function* (profile: string) {
           yield* TestClock.adjust("4 hours");
-          addUsedVoucher(router, id);
+          router.users.get("*1")!["actual-profile"] = profile;
           yield* vouchers.sync(scope, "owner");
           yield* TestClock.adjust("1 minute");
           return yield* snapshots.settled(scope);
         });
         yield* vouchers.sync(scope, "owner");
         yield* snapshots.settled(scope);
-        expect(yield* automatic("*7")).toMatchObject({ outcome: "unchanged" });
+        expect(yield* automatic("Week")).toMatchObject({ outcome: "unchanged" });
         // Same size and mtime, but User Manager committed since: the copy runs.
         commit(files);
-        expect(yield* automatic("*8")).toMatchObject({ outcome: "accepted" });
+        expect(yield* automatic("Day")).toMatchObject({ outcome: "accepted" });
         expect(ssh.connections()).toBe(3);
       }),
     );

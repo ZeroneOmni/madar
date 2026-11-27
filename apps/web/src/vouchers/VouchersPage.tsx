@@ -338,7 +338,7 @@ function CustomerVouchers({
   const watching = useRef(false);
   const [finished, setFinished] = useState<RouterDatabaseStatus | null>(null);
   const database = useRouterDatabase(scope, (status) => {
-    if (status.outcome === "accepted") {
+    if (status.outcome === "accepted" || status.outcome === "unchanged") {
       pageCache.clear();
       setRevision((value) => value + 1);
     }

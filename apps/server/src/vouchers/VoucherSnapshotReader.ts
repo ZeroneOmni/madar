@@ -267,9 +267,10 @@ const read = Effect.fn("VoucherSnapshotReader.read")(function* () {
         Number(row.id),
       ),
     );
-    const usage = new Map<number, Usage>();
+    /** By assignment and user: a busy copy may hold counter rows whose user disagrees. */
+    const usage = new Map<string, Usage>();
     const totals = new Map<number, Usage>();
-    const add = (map: Map<number, Usage>, key: number, row: Row) => {
+    const add = <K>(map: Map<K, Usage>, key: K, row: Row) => {
       const sum = map.get(key) ?? { download: 0, upload: 0, uptime: 0 };
       map.set(key, {
         download: sum.download + integer(row.download),
@@ -291,7 +292,7 @@ const read = Effect.fn("VoucherSnapshotReader.read")(function* () {
     try {
       for (const row of sums) {
         if (integer(row.bad) > 0) throw new BadValue();
-        add(usage, integer(row.uprofileId), row);
+        add(usage, `${integer(row.uprofileId)}:${integer(row.userId)}`, row);
         add(totals, integer(row.userId), row);
       }
     } catch (error) {
@@ -316,7 +317,7 @@ const read = Effect.fn("VoucherSnapshotReader.read")(function* () {
         endsAt: time(row.endTime) ?? time(row.validUntil),
         state: row.state === null ? null : integer(row.state),
         price: price(row.price),
-        usage: usage.get(id) ?? { download: 0, upload: 0, uptime: 0 },
+        usage: usage.get(`${id}:${userId}`) ?? { download: 0, upload: 0, uptime: 0 },
       });
       assignments.set(userId, list);
     });

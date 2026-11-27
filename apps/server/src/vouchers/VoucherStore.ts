@@ -753,8 +753,6 @@ export class VoucherStore extends Context.Service<
       attempt: {
         outcome: "unchanged" | "failed" | "cancelled";
         checkedAt: string;
-        stage: string | null;
-        reason: string | null;
         /** For an unchanged file: confirms copies with this fingerprint as of `checkedAt`. */
         fingerprint?: string;
       },
@@ -1142,6 +1140,10 @@ const make = Effect.gen(function* () {
         );
         const signals = yield* write(scope, vouchers, previous, time, new Map());
         yield* sql`INSERT OR REPLACE INTO voucher_sync VALUES (${key}, ${scope.customer}, ${time})`;
+        // A copy only matched the vouchers cached then; new used ones need a full copy, even of
+        // an unchanged file.
+        if (signals.newUsed > 0)
+          yield* sql`UPDATE voucher_db_routers SET fingerprint = NULL WHERE router_key = ${key}`;
         const stale = DateTime.formatIso(
           DateTime.makeUnsafe(((yield* nowSeconds) - COPY_FRESH_SECONDS) * 1000),
         );
@@ -1462,8 +1464,6 @@ const make = Effect.gen(function* () {
     attempt: {
       outcome: "unchanged" | "failed" | "cancelled";
       checkedAt: string;
-      stage: string | null;
-      reason: string | null;
       fingerprint?: string;
     },
   ) {
@@ -1471,13 +1471,11 @@ const make = Effect.gen(function* () {
       yield* sql`UPDATE voucher_db_captures SET captured_at = ${attempt.checkedAt},
           copied_until = ${attempt.checkedAt}
         WHERE router_key = ${key} AND fingerprint = ${attempt.fingerprint}`;
-    yield* sql`INSERT INTO voucher_db_captures (router_key, customer, outcome, checked_at,
-        error_stage, error_reason)
-      SELECT router_key, login, ${attempt.outcome}, ${attempt.checkedAt}, ${attempt.stage},
-        ${attempt.reason} FROM voucher_customers WHERE router_key = ${key}
+    yield* sql`INSERT INTO voucher_db_captures (router_key, customer, outcome, checked_at)
+      SELECT router_key, login, ${attempt.outcome}, ${attempt.checkedAt}
+        FROM voucher_customers WHERE router_key = ${key}
       ON CONFLICT(router_key, customer) DO UPDATE SET outcome = excluded.outcome,
-        checked_at = excluded.checked_at, error_stage = excluded.error_stage,
-        error_reason = excluded.error_reason`;
+        checked_at = excluded.checked_at`;
   }, Effect.mapError(storageError));
 
   /**
@@ -1657,8 +1655,6 @@ const make = Effect.gen(function* () {
             fingerprint: copy.fingerprint,
             outcome: "accepted",
             checked_at: copy.copiedUntil,
-            error_stage: null,
-            error_reason: null,
             matched: snapshots.size,
             skipped,
             id_confirmed: confirmed,

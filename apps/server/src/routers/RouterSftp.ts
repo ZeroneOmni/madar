@@ -125,11 +125,8 @@ const make = Effect.gen(function* () {
             resume(error ? Effect.fail(statusFailure(error)) : Effect.succeed(handle)),
           );
         }).pipe(withinStall),
-        // A quiet router may never answer the close; the socket closes after it either way.
-        (handle) =>
-          Effect.callback<void, RouterSftpError>((resume) => {
-            sftp.close(handle, () => resume(Effect.void));
-          }).pipe(withinStall, Effect.ignore),
+        // Not awaited: a quiet router may never answer, and the socket closes after it anyway.
+        (handle) => Effect.sync(() => sftp.close(handle, () => {})),
       );
     // One read per chunk: tracing each would flood the trace; `download` owns the span.
     const read = (handle: Buffer, buffer: Buffer, position: number) =>

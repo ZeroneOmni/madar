@@ -170,6 +170,48 @@ it.live("skips users whose package counters exceed their lifetime counters", () 
   ),
 );
 
+it.live("never counts another user's counter row toward an assignment", () =>
+  withFile(
+    (filename) => {
+      const user = (id: number) => ({
+        id,
+        username: `card-${id}`,
+        download: 10 * GiB,
+        upload: 0,
+        uptime: 0,
+        current: id,
+        profileName: "Day",
+        assignments: [
+          {
+            id,
+            profileId: 10,
+            activated: at("2026-11-20 10:00:00"),
+            counters: [{ download: GiB, upload: 0, uptime: 0 }],
+          },
+        ],
+      });
+      writeRouterDatabase(filename, {
+        profiles: [{ id: 10, name: "Day" }],
+        users: [user(1), user(2)],
+      });
+      // A busy copy: user 2's counter row points at user 1's assignment.
+      const database = new NodeSqlite.DatabaseSync(filename);
+      database
+        .prepare(
+          "INSERT INTO ucounters (userId, uprofileId, profilePartId, upload, download, uptime) VALUES (2, 1, 0, 0, ?, 0)",
+        )
+        .run(GiB);
+      database.close();
+    },
+    (filename) =>
+      Effect.gen(function* () {
+        const reader = yield* VoucherSnapshotReader.VoucherSnapshotReader;
+        const { users } = yield* reader.read(filename);
+        expect(users.find((user) => user.id === 1)?.current?.usage.download).toBe(GiB);
+      }),
+  ),
+);
+
 it.live("takes the current package from the assignment the user row names", () =>
   withFile(
     {

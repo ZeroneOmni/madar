@@ -160,10 +160,8 @@ it.effect("keeps a slow but moving transfer running and stops only when reads st
         ),
       );
     }
-    // The router goes quiet: the transfer ends after the stall limit without a reply.
-    yield* TestClock.adjust(`${stall} seconds`);
-    // A quiet router does not answer the handle's close either; that wait is bounded too.
-    yield* Queue.take(answers);
+    // The router goes quiet: the transfer ends after the stall limit without a reply, without
+    // waiting for the router to answer the handle's close.
     yield* TestClock.adjust(`${stall} seconds`);
     expect((yield* Fiber.join(download)).reason).toBe("stalled");
   }).pipe(Effect.scoped, Effect.provide(services)),

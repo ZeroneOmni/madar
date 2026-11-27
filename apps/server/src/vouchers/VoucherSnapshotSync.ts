@@ -408,8 +408,6 @@ const make = Effect.gen(function* () {
             yield* store.recordAttempt(key, {
               outcome: "unchanged",
               checkedAt,
-              stage: null,
-              reason: null,
               fingerprint: value.fingerprint,
             });
           return;
@@ -417,12 +415,7 @@ const make = Effect.gen(function* () {
         const error = result.failure;
         if (error._tag === "Cancelled") {
           yield* save({ ...state, lastOutcome: "cancelled" });
-          yield* store.recordAttempt(key, {
-            outcome: "cancelled",
-            checkedAt,
-            stage: null,
-            reason: null,
-          });
+          yield* store.recordAttempt(key, { outcome: "cancelled", checkedAt });
           return;
         }
         const failure =
@@ -443,12 +436,7 @@ const make = Effect.gen(function* () {
             : null,
           offeredHostKey: failure.offeredHostKey ?? null,
         });
-        yield* store.recordAttempt(key, {
-          outcome: "failed",
-          checkedAt,
-          stage: failure.stage,
-          reason: failure.reason,
-        });
+        yield* store.recordAttempt(key, { outcome: "failed", checkedAt });
         yield* Effect.logWarning("Router database copy failed", {
           stage: failure.stage,
           reason: failure.reason,
@@ -542,9 +530,8 @@ const make = Effect.gen(function* () {
       if (!live.seen) {
         live.seen = true;
         live.unexplained = signals.unexplained;
-        // Never at startup: only a router Madar has never copied from starts right away.
-        if ((yield* store.databaseState(key)) === null) yield* begin(target, owner, "first");
-        return;
+        // Never just at startup: only a router Madar has never copied from starts right away.
+        if ((yield* store.databaseState(key)) === null) return yield* begin(target, owner, "first");
       }
       const triggered =
         signals.newUsed > 0 ||
