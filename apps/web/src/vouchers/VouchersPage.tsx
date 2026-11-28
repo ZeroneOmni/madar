@@ -96,6 +96,7 @@ import {
   actionableFailures,
   failureReasons,
   runningStages,
+  skipCauses,
   stoppedStages,
   useRouterDatabase,
 } from "./routerDatabase";
@@ -1305,9 +1306,22 @@ function DatabaseResult({
       ? [
           t("Read {count} vouchers", { count: count(result.matched) }),
           result.unused > 0 ? t("{count} unused", { count: count(result.unused) }) : "",
+          result.kept > 0
+            ? result.keptSince
+              ? t("{count} kept from the copy of {time}", {
+                  count: count(result.kept),
+                  time: formatDateTime(result.keptSince, locale),
+                })
+              : t("{count} kept from an earlier copy", { count: count(result.kept) })
+            : "",
           result.skipped > 0 ? t("{count} couldn't be read", { count: count(result.skipped) }) : "",
         ].filter(Boolean)
       : [];
+    const cause = result?.reasons[0] ? t(skipCauses[result.reasons[0].reason]) : "";
+    const again =
+      cause && status.scheduledAt
+        ? t("Madar tries again at {time}.", { time: formatDateTime(status.scheduledAt, locale) })
+        : "";
     const effect = !result
       ? ""
       : result.changed === null
@@ -1330,6 +1344,11 @@ function DatabaseResult({
         {(effect || left) && (
           <span className="block text-xs text-muted-foreground">
             {[effect, left].filter(Boolean).join(" ")}
+          </span>
+        )}
+        {cause && (
+          <span className="block text-xs text-muted-foreground">
+            {[cause, again].filter(Boolean).join(" ")}
           </span>
         )}
       </Notice>

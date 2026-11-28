@@ -11,6 +11,8 @@ import {
   VOUCHER_NEARLY_ENDED,
   VoucherOperation,
   VoucherFailure,
+  RouterDatabaseSkipCounts,
+  type RouterDatabaseSkipReason,
   type Voucher,
   type VoucherCatalog,
   type VoucherQuery,
@@ -28,6 +30,9 @@ import { epochToNaive, naturalKey } from "./routerValues.ts";
 import type { DatabaseContents } from "./VoucherSnapshotReader.ts";
 
 const parseOperation = Schema.decodeUnknownSync(Schema.fromJsonString(VoucherOperation));
+const SkipCountsJson = Schema.fromJsonString(RouterDatabaseSkipCounts);
+const parseSkipCounts = Schema.decodeUnknownOption(SkipCountsJson);
+const encodeSkipCounts = Schema.encodeSync(SkipCountsJson);
 const encodeOperation = Schema.encodeSync(Schema.fromJsonString(VoucherOperation));
 const storageError = () => new VoucherFailure({ reason: "storage" });
 const isVoucherFailure = Schema.is(VoucherFailure);
@@ -92,25 +97,31 @@ export interface DatabaseState {
   readonly hostKey: string | null;
   readonly offeredHostKey: string | null;
 }
-export interface CaptureRecord {
+type SkipCounts = typeof RouterDatabaseSkipCounts.Type;
+/** Every cached voucher of the customer is in exactly one of matched, kept and skipped. */
+interface CopyCounts {
+  /** Vouchers the copy read. */
+  readonly matched: number;
+  readonly unused: number;
+  /** Vouchers the copy did not read that keep an earlier copy's snapshot. */
+  readonly kept: number;
+  readonly keptSince: string | null;
+  /** Vouchers the copy did not read and no earlier copy describes. */
+  readonly skipped: number;
+  readonly reasons: SkipCounts;
+}
+export interface CaptureRecord extends CopyCounts {
   readonly capturedAt: string | null;
   readonly busy: boolean;
   readonly checkedAt: string;
   readonly outcome: "accepted" | "unchanged" | "failed" | "cancelled";
-  readonly matched: number;
-  readonly skipped: number;
   readonly idConfirmed: number;
-  readonly unused: number;
   /** Vouchers whose remaining value the copy changed, and those still unknown after it. */
   readonly changed: number | null;
   readonly unknown: number | null;
 }
-export interface PublishedCopy {
+export interface PublishedCopy extends CopyCounts {
   readonly customer: string;
-  readonly matched: number;
-  /** Users the copy could not read or match to exactly one voucher. */
-  readonly skipped: number;
-  readonly unused: number;
   readonly changed: number;
   readonly unknown: number;
 }
@@ -275,8 +286,12 @@ quota AS (
   GROUP BY p.name
 ),
 joined AS (
-  SELECT v.*, params.now, params.pc_now, params.limits_synced, params.captured_at,
-    params.copied_until, params.captured_busy,
+  SELECT v.*, params.now, params.pc_now, params.limits_synced,
+    -- A snapshot a later copy did not read carries its own copy's times.
+    COALESCE(s.kept_captured_at, params.captured_at) AS captured_at,
+    COALESCE(s.kept_copied_until, params.copied_until) AS copied_until,
+    CASE WHEN s.kept_captured_at IS NULL THEN params.captured_busy ELSE s.kept_busy END
+      AS captured_busy,
     max(v.observed_at, COALESCE(params.synced_at, '')) AS seen_at,
     q.name IS NOT NULL AS q_known, q.validity AS q_validity, q.starts_at AS q_starts_at,
     q.price AS q_price, q.q_transfer, q.q_download, q.q_upload, q.q_uptime, q.q_unclear,
@@ -1168,7 +1183,8 @@ const make = Effect.gen(function* () {
           LEFT JOIN voucher_db_captures c ON c.router_key = v.router_key AND c.customer = v.customer
           WHERE v.router_key = ${key} AND v.customer = ${scope.customer} AND v.profile != ''
             AND v.download_used + v.upload_used > 0 AND b.username IS NULL
-            AND (s.api_id IS NULL OR c.captured_at IS NULL OR c.captured_at < ${stale})`;
+            AND (s.api_id IS NULL
+              OR COALESCE(s.kept_captured_at, c.captured_at, '') < ${stale})`;
         return { ...signals, unexplained: unexplained[0]?.count ?? 0 };
       }),
     );
@@ -1458,14 +1474,21 @@ const make = Effect.gen(function* () {
   }, Effect.mapError(storageError));
 
   const capture = Effect.fn("VoucherStore.capture")(function* (scope: VoucherScope) {
-    const rows =
-      yield* sql<CaptureRecord>`SELECT captured_at AS "capturedAt", busy, checked_at AS "checkedAt",
-        outcome, matched, skipped,
+    const rows = yield* sql<
+      Omit<CaptureRecord, "reasons"> & { reasons: string }
+    >`SELECT captured_at AS "capturedAt", busy, checked_at AS "checkedAt",
+        outcome, matched, kept, kept_since AS "keptSince", skipped, reasons,
         id_confirmed AS "idConfirmed", unused, changed, unknown
       FROM voucher_db_captures WHERE router_key = ${routerKey(scope.router)}
       AND customer = ${scope.customer}`;
     const row = rows[0];
-    return row ? { ...row, busy: Boolean(row.busy) } : null;
+    return row
+      ? {
+          ...row,
+          busy: Boolean(row.busy),
+          reasons: Option.getOrElse(parseSkipCounts(row.reasons), () => []),
+        }
+      : null;
   }, Effect.mapError(storageError));
 
   /** Records an attempt that did not publish a copy; the last accepted copy stays in use. */
@@ -1547,26 +1570,40 @@ const make = Effect.gen(function* () {
               row,
             ]),
           );
-          const names = new Map<string, number>();
           const users = byCustomer.get(customer) ?? [];
-          for (const user of users) names.set(user.username, (names.get(user.username) ?? 0) + 1);
+          // Users left out with an unreadable customer may belong to any customer.
+          const skippedUsers = contents.skipped.filter(
+            (item) => item.username && (item.customer === customer || item.customer === ""),
+          );
+          const names = new Map<string, number>();
+          for (const { username } of [
+            ...users,
+            ...skippedUsers.filter((item) => item.customer === customer),
+          ])
+            names.set(username, (names.get(username) ?? 0) + 1);
           const snapshots = new Map<string, Record<string, string | number | null>>();
           const history = new Map<string, Record<string, string | number | null>>();
           const onlyPackages: Record<string, string | number | null>[] = [];
           const notOnly: string[] = [];
-          // The reader cannot tell whose unreadable rows it left out; they count for every customer.
-          let skipped = contents.skipped;
+          /** Vouchers this copy read; only their rows change. */
+          const read = new Set<string>();
+          /** Vouchers it did not read, each with the first reason found. */
+          const unread = new Map<string, RouterDatabaseSkipReason>();
           let confirmed = 0;
           let unused = 0;
           for (const user of users) {
             const matches = ids.get(user.username) ?? [];
             if (names.get(user.username) !== 1 || matches.length !== 1) {
-              if (matches.length > 0) skipped++;
+              for (const match of matches) unread.set(match.id, "ambiguous");
               continue;
             }
             const match = matches[0]!;
             const apiId = match.id;
-            if ((droppedAt.get(dropKey(key, customer, apiId)) ?? -1) >= capturedMillis) continue;
+            if ((droppedAt.get(dropKey(key, customer, apiId)) ?? -1) >= capturedMillis) {
+              unread.set(apiId, "changed-during-copy");
+              continue;
+            }
+            read.add(apiId);
             // Lab: API `.id` ("*1A3") may equal the database user id. Until confirmed, names decide.
             if (apiIdNumber(apiId) === user.id) confirmed++;
             for (const item of user.assignments)
@@ -1607,6 +1644,9 @@ const make = Effect.gen(function* () {
               state: user.current.state,
               quota_signature: user.quotaSignature,
               capture_ref: copy.capturedAt,
+              kept_captured_at: null,
+              kept_copied_until: null,
+              kept_busy: null,
             });
             const stored = baselines.get(user.username);
             const own =
@@ -1640,17 +1680,60 @@ const make = Effect.gen(function* () {
               });
             else if (!only && own?.source === "only-package") notOnly.push(user.username);
           }
-          yield* syncRows("voucher_db_snapshots", key, customer, ["api_id"], snapshots, [
+          for (const item of skippedUsers) {
+            const matches = ids.get(item.username) ?? [];
+            const ambiguous = (names.get(item.username) ?? 1) > 1 || matches.length > 1;
+            for (const match of matches)
+              if (!read.has(match.id) && !unread.has(match.id))
+                unread.set(match.id, ambiguous ? "ambiguous" : item.reasons[0]!);
+          }
+          for (const row of cached)
+            if (!read.has(row.id) && !unread.has(row.id)) unread.set(row.id, "not-in-copy");
+          const cachedIds = new Set(cached.map((row) => row.id));
+          yield* syncRows("voucher_db_snapshots", key, customer, read, cachedIds, snapshots, [
             "capture_ref",
           ]);
-          yield* syncRows(
-            "voucher_db_assignments",
-            key,
-            customer,
-            ["api_id", "db_assignment_id"],
-            history,
-            [],
+          yield* syncRows("voucher_db_assignments", key, customer, read, cachedIds, history, []);
+          // A snapshot this copy did not read keeps its value and the times of the copy behind it.
+          const previous = (yield* sql<{
+            captured_at: string | null;
+            copied_until: string | null;
+            busy: number;
+          }>`SELECT captured_at, COALESCE(copied_until, captured_at) AS copied_until, busy
+            FROM voucher_db_captures WHERE router_key = ${key} AND customer = ${customer}`)[0];
+          const kept = (yield* sql<{ api_id: string; kept_captured_at: string | null }>`SELECT
+              api_id, kept_captured_at FROM voucher_db_snapshots
+            WHERE router_key = ${key} AND customer = ${customer}`).filter((row) =>
+            unread.has(row.api_id),
           );
+          const marking = kept
+            .filter((row) => row.kept_captured_at === null)
+            .map((row) => row.api_id);
+          for (let start = 0; start < marking.length; start += 100)
+            yield* sql`UPDATE voucher_db_snapshots SET kept_captured_at = ${previous?.captured_at ?? null},
+                kept_copied_until = ${previous?.copied_until ?? null},
+                kept_busy = ${previous?.busy ?? 0}
+              WHERE router_key = ${key} AND customer = ${customer}
+                AND ${sql.in("api_id", marking.slice(start, start + 100))}`;
+          const tally = new Map<RouterDatabaseSkipReason, number>();
+          for (const reason of unread.values()) tally.set(reason, (tally.get(reason) ?? 0) + 1);
+          const counts: CopyCounts = {
+            matched: read.size,
+            unused,
+            kept: kept.length,
+            keptSince:
+              kept
+                .map((row) => row.kept_captured_at ?? previous?.captured_at ?? "")
+                .filter(Boolean)
+                .toSorted()[0] ?? null,
+            skipped: unread.size - kept.length,
+            reasons: [...tally]
+              .map(([reason, count]) => ({ reason, count }))
+              .toSorted(
+                (left, right) =>
+                  right.count - left.count || left.reason.localeCompare(right.reason),
+              ),
+          };
           for (let start = 0; start < onlyPackages.length; start += 100) {
             yield* sql`INSERT OR REPLACE INTO voucher_baselines ${sql.insert(
               onlyPackages.slice(start, start + 100),
@@ -1670,8 +1753,11 @@ const make = Effect.gen(function* () {
             fingerprint: copy.fingerprint,
             outcome: "accepted",
             checked_at: copy.copiedUntil,
-            matched: snapshots.size,
-            skipped,
+            matched: counts.matched,
+            kept: counts.kept,
+            kept_since: counts.keptSince,
+            skipped: counts.skipped,
+            reasons: encodeSkipCounts(counts.reasons),
             id_confirmed: confirmed,
             unused,
             changed: null,
@@ -1687,7 +1773,7 @@ const make = Effect.gen(function* () {
           }
           yield* sql`UPDATE voucher_db_captures SET changed = ${changed}, unknown = ${unknown}
             WHERE router_key = ${key} AND customer = ${customer}`;
-          published.push({ customer, matched: snapshots.size, skipped, unused, changed, unknown });
+          published.push({ customer, ...counts, changed, unknown });
         }
         return published;
       }),
@@ -1695,18 +1781,21 @@ const make = Effect.gen(function* () {
   }, Effect.mapError(storageError));
 
   /**
-   * Makes one customer's rows equal `next`, writing only rows whose values changed. Large copies
-   * hold tens of thousands of rows, so the work yields to the event loop between pages to keep
-   * voucher pages answering while it runs.
+   * Makes the rows of the vouchers a copy read equal `next`, writing only rows whose values
+   * changed. Rows of vouchers it did not read stay; rows of vouchers no longer cached go. Large
+   * copies hold tens of thousands of rows, so the work yields to the event loop between pages.
    */
   const syncRows = Effect.fnUntraced(function* (
     table: "voucher_db_snapshots" | "voucher_db_assignments",
     key: string,
     customer: string,
-    keyColumns: readonly string[],
+    read: ReadonlySet<string>,
+    cachedIds: ReadonlySet<string>,
     next: ReadonlyMap<string, Record<string, string | number | null>>,
     ignored: readonly string[],
   ) {
+    const keyColumns =
+      table === "voucher_db_snapshots" ? ["api_id"] : ["api_id", "db_assignment_id"];
     const compared = Object.keys(next.values().next().value ?? {}).filter(
       (column) => !ignored.includes(column),
     );
@@ -1715,11 +1804,15 @@ const make = Effect.gen(function* () {
     const content = (row: Record<string, unknown>) =>
       compared.map((column) => String(row[column] ?? "\u0000")).join("\u0001");
     const existing = new Map<string, string>();
+    const removed: string[] = [];
     for (const row of yield* sql<Record<string, string | number | null>>`SELECT * FROM ${sql(table)}
-        WHERE router_key = ${key} AND customer = ${customer}`)
-      existing.set(rowKey(row), content(row));
+        WHERE router_key = ${key} AND customer = ${customer}`) {
+      const id = rowKey(row);
+      existing.set(id, content(row));
+      const apiId = String(row.api_id);
+      if (!cachedIds.has(apiId) || (read.has(apiId) && !next.has(id))) removed.push(id);
+    }
     yield* breathe;
-    const removed = [...existing.keys()].filter((id) => !next.has(id));
     for (const [index, id] of removed.entries()) {
       yield* sql.unsafe(
         `DELETE FROM ${table} WHERE router_key = ? AND customer = ? AND ${keyColumns
@@ -1761,9 +1854,14 @@ const make = Effect.gen(function* () {
           ORDER BY current DESC, COALESCE(started_at, assigned_at) DESC, db_assignment_id DESC
           LIMIT 100`;
       const copy = yield* capture(target);
+      // History a later copy did not read is as old as the snapshot kept with it.
+      const kept = (yield* sql<{ captured_at: string; busy: number }>`SELECT
+          kept_captured_at AS captured_at, kept_busy AS busy FROM voucher_db_snapshots
+        WHERE router_key = ${key} AND customer = ${target.customer} AND api_id = ${target.id}
+          AND kept_captured_at IS NOT NULL`)[0];
       return {
-        capturedAt: copy?.capturedAt ?? null,
-        capturedBusy: copy?.busy ?? false,
+        capturedAt: kept?.captured_at ?? copy?.capturedAt ?? null,
+        capturedBusy: kept ? Boolean(kept.busy) : (copy?.busy ?? false),
         items: rows.map((row) => ({
           id: row.db_assignment_id,
           profile: row.profile,

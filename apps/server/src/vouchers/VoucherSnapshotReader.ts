@@ -7,6 +7,7 @@ import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 import * as SqlClient from "effect/sql/SqlClient";
 import type { SqlError } from "effect/sql/SqlError";
+import type { RouterDatabaseSkipReason } from "@madar/contracts";
 import * as NodeSqliteClient from "@madar/shared/nodeSqliteClient";
 import { epochToNaive } from "./routerValues.ts";
 
@@ -53,10 +54,25 @@ export interface DatabaseUser {
   /** Newest first. */
   readonly assignments: readonly DatabaseAssignment[];
 }
+/**
+ * "counters-missing": the running package started and the user has usage no counter row holds.
+ * "assignment-missing": the user row names a package row the copy lacks.
+ */
+export type SkipReason = Exclude<
+  RouterDatabaseSkipReason,
+  "ambiguous" | "not-in-copy" | "changed-during-copy"
+>;
+export interface SkippedUser {
+  readonly id: number;
+  /** Empty when the copy holds no single readable value for it. */
+  readonly customer: string;
+  readonly username: string;
+  readonly reasons: readonly SkipReason[];
+}
 export interface DatabaseContents {
   readonly users: readonly DatabaseUser[];
   /** Users left out because their records disagree or could not be decoded. */
-  readonly skipped: number;
+  readonly skipped: readonly SkippedUser[];
 }
 
 /** Table rows cross from the worker in pages of this size. */
@@ -162,6 +178,15 @@ const optional = (value: unknown) => {
   if (value === null) return null;
   const number = anyInteger(value);
   return number > 0 ? number : null;
+};
+/** A value from a row already left out; an unreadable one only loses its name. */
+const readable = <A>(read: () => A) => {
+  try {
+    return read();
+  } catch (error) {
+    if (error instanceof BadValue) return undefined;
+    throw error;
+  }
 };
 const price = (value: unknown) => {
   if (value === null) return null;
@@ -323,7 +348,7 @@ const read = Effect.fn("VoucherSnapshotReader.read")(function* () {
     });
     for (const row of assignmentsDropped) uncertain.add(Number(row.userId));
     const users: DatabaseUser[] = [];
-    let skipped = 0;
+    const skipped: SkippedUser[] = [];
     const usersDropped = yield* pages("user", (row) => {
       const id = integer(row.id);
       const custId = integer(row.custId);
@@ -335,18 +360,13 @@ const read = Effect.fn("VoucherSnapshotReader.read")(function* () {
         uptime: integer(row.uptimeUsed),
       };
       const counted = totals.get(id) ?? { download: 0, upload: 0, uptime: 0 };
+      const reasons: SkipReason[] = [];
       // Per-package counters can never exceed the lifetime counters they add up to.
-      if (
-        customer === undefined ||
-        !username ||
-        uncertain.has(id) ||
-        counted.download > lifetime.download ||
-        counted.upload > lifetime.upload ||
-        counted.uptime > lifetime.uptime
-      ) {
-        skipped++;
-        return;
-      }
+      for (const metric of ["download", "upload", "uptime"] as const)
+        if (counted[metric] > lifetime[metric]) reasons.push(`${metric}-moved`);
+      if (uncertain.has(id)) reasons.push("duplicate-assignment");
+      if (customer === undefined) reasons.push("no-customer");
+      if (!username) reasons.push("no-username");
       const own = (assignments.get(id) ?? []).toSorted(
         (left, right) =>
           (right.startedAt ?? right.assignedAt ?? "").localeCompare(
@@ -358,6 +378,21 @@ const read = Effect.fn("VoucherSnapshotReader.read")(function* () {
       const assignment = optional(row.actualProfileId);
       const start = time(row.actualProfileStart);
       const found = profile ? (own.find((item) => item.id === assignment) ?? null) : null;
+      if (profile && assignment !== null && !found) reasons.push("assignment-missing");
+      // A started package with no counter row reads as zero only when no usage is unaccounted.
+      if (
+        found &&
+        (start ?? found.startedAt) &&
+        !usage.has(`${found.id}:${id}`) &&
+        (lifetime.download > counted.download ||
+          lifetime.upload > counted.upload ||
+          lifetime.uptime > counted.uptime)
+      )
+        reasons.push("counters-missing");
+      if (reasons.length > 0 || customer === undefined) {
+        skipped.push({ id, customer: customer ?? "", username, reasons });
+        return;
+      }
       users.push({
         id,
         customer,
@@ -380,7 +415,22 @@ const read = Effect.fn("VoucherSnapshotReader.read")(function* () {
         assignments: own,
       });
     });
-    return { users, skipped: skipped + new Set(usersDropped.map((row) => row.id)).size };
+    // A row id seen twice may hold two names; each name is reported once.
+    const twice = new Map<string, SkippedUser>();
+    for (const row of usersDropped) {
+      const id = Number(row.id);
+      const custId = readable(() => integer(row.custId));
+      const customer =
+        custId === undefined || customerTwice.has(custId) ? "" : (customers.get(custId) ?? "");
+      const username = readable(() => text(row.userName)) ?? "";
+      twice.set(`${id}\u0000${customer}\u0000${username}`, {
+        id,
+        customer,
+        username,
+        reasons: ["duplicate-user"],
+      });
+    }
+    return { users, skipped: [...skipped, ...twice.values()] };
   }).pipe(sql.withTransaction, NodeSqliteClient.readOnly);
 });
 

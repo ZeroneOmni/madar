@@ -7,6 +7,7 @@ import VoucherFields from "./Migrations/004_VoucherFields.ts";
 import VoucherAssignmentSnapshots from "./Migrations/005_VoucherAssignmentSnapshots.ts";
 import VoucherCopyTiming from "./Migrations/006_VoucherCopyTiming.ts";
 import VoucherOnlyPackage from "./Migrations/007_VoucherOnlyPackage.ts";
+import VoucherCopyKept from "./Migrations/008_VoucherCopyKept.ts";
 
 export const runMigrations = Effect.fn("runMigrations")(() =>
   Migrator.make({})({
@@ -18,6 +19,7 @@ export const runMigrations = Effect.fn("runMigrations")(() =>
       "005_VoucherAssignmentSnapshots": VoucherAssignmentSnapshots,
       "006_VoucherCopyTiming": VoucherCopyTiming,
       "007_VoucherOnlyPackage": VoucherOnlyPackage,
+      "008_VoucherCopyKept": VoucherCopyKept,
     }),
   }),
 );

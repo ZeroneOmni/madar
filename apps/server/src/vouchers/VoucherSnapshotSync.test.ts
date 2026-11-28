@@ -516,7 +516,7 @@ it.effect("backs off for a day when SSH is off, and the API keeps working", () =
   }).pipe(Effect.scoped, Effect.provide(base)),
 );
 
-it.effect("continues a stalled download from where it stopped, as a busy copy", () =>
+it.effect("restarts a stalled download from the first byte, never joining two file versions", () =>
   Effect.gen(function* () {
     const stalled = yield* Deferred.make<void>();
     const offsets: number[] = [];
@@ -530,7 +530,7 @@ it.effect("continues a stalled download from where it stopped, as a busy copy", 
           Deferred.doneUnsafe(stalled, Effect.void);
       },
     };
-    const { ssh, scope, copies, fs } = yield* harness(options);
+    const { files, ssh, scope, copies, fs } = yield* harness(options);
     yield* inProcess(
       Effect.gen(function* () {
         const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
@@ -539,17 +539,112 @@ it.effect("continues a stalled download from where it stopped, as a busy copy", 
         yield* TestClock.adjust(`${RouterSftp.SFTP_LIMITS.stallSeconds} seconds`);
         const failed = yield* snapshots.settled(scope);
         expect(failed).toMatchObject({ failure: { stage: "download", reason: "stalled" } });
-        expect(yield* fs.readDirectory(copies)).toHaveLength(1);
+        expect(yield* fs.readDirectory(copies)).toEqual([]);
+        // User Manager commits before the retry: the bytes already read belong to another version.
+        commit(files);
         options.stallAfter = Number.POSITIVE_INFINITY;
         offsets.length = 0;
         yield* TestClock.adjust("60 seconds");
         // No customer is known yet, so the router-wide state reports the copy.
-        const resumed = yield* snapshots.settled({ router: scope.router });
-        expect(resumed).toMatchObject({ outcome: "accepted", capturedBusy: true, failure: null });
-        // Only the header checks read from the start again; the data continues after 3 KiB.
-        expect(Math.min(...offsets.filter((offset) => offset > 0))).toBe(3 * 1024);
+        const retried = yield* snapshots.settled({ router: scope.router });
+        expect(retried).toMatchObject({ outcome: "accepted", capturedBusy: false, failure: null });
+        expect(offsets.some((offset) => offset > 0 && offset < 3 * 1024)).toBe(true);
         expect(yield* fs.readDirectory(copies)).toEqual([]);
         expect(ssh.connections()).toBe(2);
+      }),
+    );
+  }).pipe(Effect.scoped, Effect.provide(base)),
+);
+
+it.effect("retries a busy copy that skipped vouchers and keeps each one's last good value", () =>
+  Effect.gen(function* () {
+    const holder: { files?: Map<string, { data: Buffer; mtime: number }> } = {};
+    let writes = 0;
+    const { files, ssh, scope, fs } = yield* harness(
+      {
+        onRead: (_, offset) => {
+          if (offset > 0 && writes-- > 0) commit(holder.files!);
+        },
+      },
+      renewed,
+    );
+    holder.files = files;
+    const path = yield* Path.Path;
+    const directory = yield* fs.makeTempDirectoryScoped({ prefix: "madar-router-db-" });
+    /** A busy copy in which one voucher's session counters ran ahead of its user row. */
+    const serveMoved = (id: number) => {
+      const filename = path.join(directory, `moved-${id}`);
+      writeRouterDatabase(filename, {
+        profiles: [{ id: 10, name: "Day" }],
+        users: renewed.map((user) =>
+          user.id === id
+            ? {
+                ...user,
+                assignments: [
+                  {
+                    ...user.assignments[0]!,
+                    counters: [{ download: 150, upload: 50, uptime: 330 }],
+                  },
+                  user.assignments[1]!,
+                ],
+              }
+            : user,
+        ),
+      });
+      files.set(FILE, { data: NodeFS.readFileSync(filename), mtime: 1_700_000_000 });
+      writes = 1;
+    };
+    yield* inProcess(
+      Effect.gen(function* () {
+        const vouchers = yield* VoucherService.VoucherService;
+        const snapshots = yield* VoucherSnapshotSync.VoucherSnapshotSync;
+        const packages = Effect.fnUntraced(function* () {
+          const rows = (yield* vouchers.list(query(scope))).items;
+          return rows.map((row) => [row.username, row.package?.capturedAt ?? null]);
+        });
+        serveMoved(3);
+        yield* vouchers.sync(scope, "owner");
+        const first = yield* snapshots.settled(scope);
+        expect(first).toMatchObject({
+          outcome: "accepted",
+          capturedBusy: true,
+          result: {
+            matched: 2,
+            kept: 0,
+            skipped: 1,
+            reasons: [{ reason: "uptime-moved", count: 1 }],
+          },
+        });
+        expect(first.scheduledAt).not.toBeNull();
+        // The next copy reads voucher 3 but not voucher 1, which keeps the first copy's value.
+        serveMoved(1);
+        yield* TestClock.adjust("45 seconds");
+        const second = yield* snapshots.settled(scope);
+        expect(second).toMatchObject({
+          outcome: "accepted",
+          result: { matched: 2, kept: 1, keptSince: first.capturedAt, skipped: 0 },
+        });
+        expect(second.scheduledAt).not.toBeNull();
+        expect(yield* packages()).toEqual([
+          ["voucher-0001", first.capturedAt],
+          ["voucher-0002", second.capturedAt],
+          ["voucher-0003", second.capturedAt],
+        ]);
+        // The third attempt is the last one, whatever it skips.
+        serveMoved(2);
+        yield* TestClock.adjust("45 seconds");
+        const third = yield* snapshots.settled(scope);
+        expect(third).toMatchObject({
+          outcome: "accepted",
+          scheduledAt: null,
+          result: { matched: 2, kept: 1, keptSince: second.capturedAt, skipped: 0 },
+        });
+        expect(yield* packages()).toEqual([
+          ["voucher-0001", third.capturedAt],
+          ["voucher-0002", second.capturedAt],
+          ["voucher-0003", third.capturedAt],
+        ]);
+        expect(ssh.connections()).toBe(3);
       }),
     );
   }).pipe(Effect.scoped, Effect.provide(base)),

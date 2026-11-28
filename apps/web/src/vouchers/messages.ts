@@ -479,6 +479,12 @@ export const voucherArabic = {
   "Read {count} vouchers": "قُرئت {count} قسيمة",
   "{count} unused": "{count} لم تُستخدم بعد",
   "{count} couldn't be read": "{count} تعذّرت قراءتها",
+  "{count} kept from the copy of {time}": "أُبقيت قيم {count} من نسخة {time}",
+  "{count} kept from an earlier copy": "أُبقيت قيم {count} من نسخة سابقة",
+  "Most changed while the router database was copied.":
+    "تغيّر معظمها أثناء نسخ قاعدة بيانات الراوتر.",
+  "Most were not in the copy.": "لم يكن معظمها في النسخة.",
+  "Most share a name with another account.": "يشترك معظمها في الاسم مع حساب آخر.",
   "Remaining changed for {count} vouchers.": "تغيّر المتبقي لـ {count} قسيمة.",
   "No remaining values changed.": "لم تتغير أي قيمة للمتبقي.",
   "{count} still unknown.": "{count} ما زال متبقيها غير معروف.",

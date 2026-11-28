@@ -3,6 +3,7 @@ import type {
   RouterProfile,
   RouterDatabaseFailureReason,
   RouterDatabaseScope,
+  RouterDatabaseSkipReason,
   RouterDatabaseStage,
   RouterDatabaseStatus,
 } from "@madar/contracts";
@@ -14,6 +15,23 @@ import { formatDateTime, translate, type Locale } from "../locale";
 import { useLocale } from "../useLocale";
 import { voucherClient, voucherError } from "./client";
 
+const changedDuringCopy = "Most changed while the router database was copied.";
+const missingFromCopy = "Most were not in the copy.";
+/** Why most vouchers a copy did not read were left out. */
+export const skipCauses: Record<RouterDatabaseSkipReason, string> = {
+  "download-moved": changedDuringCopy,
+  "upload-moved": changedDuringCopy,
+  "uptime-moved": changedDuringCopy,
+  "duplicate-user": changedDuringCopy,
+  "duplicate-assignment": changedDuringCopy,
+  "counters-missing": changedDuringCopy,
+  "assignment-missing": changedDuringCopy,
+  "changed-during-copy": changedDuringCopy,
+  "no-customer": missingFromCopy,
+  "no-username": missingFromCopy,
+  "not-in-copy": missingFromCopy,
+  ambiguous: "Most share a name with another account.",
+};
 export const runningStages: Record<RouterDatabaseStage, string> = {
   connect: "Connecting to the router…",
   check: "Checking the router database…",
